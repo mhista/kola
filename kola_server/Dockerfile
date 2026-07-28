@@ -2,7 +2,7 @@
 # docker build -f kola_server/Dockerfile .
 
 # Build stage
-FROM dart:3.8.0 AS build
+FROM dart:3.12.2 AS build
 
 # Create a minimal workspace that preserves locked server dependency versions.
 WORKDIR /app
@@ -11,7 +11,7 @@ COPY kola_server kola_server
 RUN printf '%s\n' \
   'name: _' \
   'environment:' \
-  '  sdk: ^3.8.0' \
+  '  sdk: ^3.12.2' \
   'workspace:' \
   '  - kola_server' \
   > pubspec.yaml
