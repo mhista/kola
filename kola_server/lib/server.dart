@@ -22,8 +22,7 @@
 //   is unreachable on the webServer's port — hitting it there 404s with no
 //   CORS headers (Relic's plain 404, not Serverpod's endpoint-dispatch
 //   response), which is exactly what happened when this file only
-//   overrode `webServer`'s port and kola_dashboard was pointed at that
-//   same port expecting it to answer `/workspace`. Fixed by overriding
+//   overrode `webServer`'s port and kola_dashboard was poio answer `/workspace`. Fixed by overriding
 //   `apiServer`'s port instead (see configOverride below) — that's the
 //   one env-driven port kola_dashboard's KOLA_SERVER_URL should target.
 //   webServer keeps Serverpod's own default port; it's only reached
