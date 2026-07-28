@@ -4428,7 +4428,7 @@ _.a=a
 _.b=b
 _.c=c
 _.d=d},
-bv(a,b){var s=A.a([],t.s),r=new A.j9(b,a,s,B.bc)
+bv(a,b){var s=A.a([],t.s),r=new A.j9(b,a,s,B.bd)
 r.x=A.Da(b,s)
 return r},
 e8:function e8(){},
@@ -9660,7 +9660,7 @@ r=s.length
 if(r!==0){if(0>=r)return A.d(s,0)
 r=s.charCodeAt(0)===47}else r=!1
 if(r)s=B.a.T(s,1)
-q=s.length===0?B.bd:A.uN(new A.ab(A.a(s.split("/"),t.s),t.f5.a(A.CE()),t.iZ),t.N)
+q=s.length===0?B.be:A.uN(new A.ab(A.a(s.split("/"),t.s),t.f5.a(A.CE()),t.iZ),t.N)
 p.x!==$&&A.eJ()
 o=p.x=q}return o},
 gG(a){var s,r=this,q=r.y
@@ -10712,7 +10712,7 @@ if(o)s.push(A.j(p.value))}break A}s=null
 break A}this.a.$1(this.b.a(s))},
 $S:2}
 A.tR.prototype={
-$0(){var s,r,q,p,o=this.a,n=A.mA(new A.au(B.b9,t.mM.a(new A.tQ(A.j(o.type))),t.k0),t.oA)
+$0(){var s,r,q,p,o=this.a,n=A.mA(new A.au(B.ba,t.mM.a(new A.tQ(A.j(o.type))),t.k0),t.oA)
 A:{if(B.M===n||B.T===n){o=A.d7(o.checked)
 break A}if(B.S===n||B.U===n){o=A.kM(o.valueAsNumber)
 break A}if(B.O===n||B.V===n||B.X===n||B.L===n){o=new A.aT(A.lN(B.k.bA(A.kM(o.valueAsNumber)),0,!0),0,!0)
@@ -10722,7 +10722,7 @@ if(s<0||s>4294967295)A.a8(A.ar(s,0,4294967295,"length",null))
 r=J.w8(new Array(s),t.m)
 for(q=0;q<s;++q){p=A.a4(A.a4(o.files).item(q))
 p.toString
-r[q]=p}o=r}else o=B.be
+r[q]=p}o=r}else o=B.bf
 break A}if(B.N===n){o=new A.fK(A.j(o.value))
 break A}o=A.j(o.value)
 break A}return o},
@@ -12374,11 +12374,11 @@ A.kJ.prototype={}
 A.dO.prototype={
 aa(){return new A.fP(B.z)}}
 A.fP.prototype={
-ak(){var s,r,q,p=this,o="http://localhost:8090",n=null
+ak(){var s,r,q,p=this,o="p01--kola--hnnl8wyj78qp.code.run",n=null
 p.av()
 s=$.yy()
 r=A.a([],t.f7)
-q=B.a.aj(o,"/")?o:"http://localhost:8090/"
+q=B.a.aj(o,"/")?o:"p01--kola--hnnl8wyj78qp.code.run/"
 r=new A.hP(q,r,s,B.aR,n,n)
 r.io(o,s,n,n,n,n,n,n,n)
 s=t.no
@@ -12685,7 +12685,7 @@ A.hK.prototype={
 v(a){var s,r,q=t.N
 q=A.b(["style","display:flex;border-top:1px solid #2C2A28;padding:10px 0 22px"],q,q)
 s=A.a([],t.i)
-for(r=0;r<3;++r)s.push(this.kw(B.bg[r]))
+for(r=0;r<3;++r)s.push(this.kw(B.bh[r]))
 return A.c(s,q,null,null)},
 kw(a){var s,r,q=null,p=a.a,o="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:"+(p[0]?"#C1552E":"#6B655E"),n=t.N,m=A.b(["style","font-size:19px"],n,n),l=t.i
 m=A.a2(A.a([new A.e(p[2],q)],l),m,q)
@@ -12877,7 +12877,7 @@ A.i1.prototype={
 v(a){var s,r,q=t.N
 q=A.b(["style","display:flex;gap:28px;padding:0 24px;border-bottom:1px solid #2C2A28"],q,q)
 s=A.a([],t.i)
-for(r=0;r<6;++r)s.push(this.kv(B.ba[r]))
+for(r=0;r<6;++r)s.push(this.kv(B.bb[r]))
 return A.c(s,q,null,null)},
 kv(a){var s=a.toLowerCase(),r=s===this.c,q=r?"#F3EEE7":"#9C9691",p=r?"#C1552E":"transparent",o=t.N
 p=A.b(["style","padding:16px 0;font-size:14.5px;font-weight:600;cursor:pointer;color:"+q+";border-bottom:2px solid "+p],o,o)
@@ -13448,7 +13448,7 @@ A.oj.prototype={
 $1(a){return t.g.a(a).c==="telegram"?"Telegram":"WhatsApp"},
 $S:34}
 A.cu.prototype={
-aa(){return new A.jP(B.v,B.a_,B.bf,B.A)}}
+aa(){return new A.jP(B.v,B.a_,B.bg,B.A)}}
 A.jP.prototype={
 ak(){this.av()
 this.bJ()},
@@ -13560,7 +13560,7 @@ o=A.X(new A.au(b,s.h("y(1)").a(new A.op()),p),p.h("k.E"))
 if(o.length!==0){n=B.b.ga0(o).d
 return new A.eV(q,r,n!=null&&n.length!==0?"\u25cf Connected \u2014 "+n:"\u25cf Connected","#7ED8B0")}return new A.eV(q,r,"Not connected","#6B655E")},
 gjR(){var s,r,q,p,o
-if(J.cq(this.y))return B.b8
+if(J.cq(this.y))return B.b9
 s=A.X(this.y,t.c)
 B.b.am(s,new A.oD())
 r=A.a([],t.o3)
@@ -14289,7 +14289,7 @@ o=q.d
 q=q.e.a
 q.toString
 n=t.i
-i=A.c(A.a([new A.jk(B.bh,k,h.b,g,f,c,b.a,e,s,d,l),new A.ip(r,B.Y,p,o,q,l)],n),i,"kola-dash-desktop",l)
+i=A.c(A.a([new A.jk(B.b8,k,h.b,g,f,c,b.a,e,s,d,l),new A.ip(r,B.Y,p,o,q,l)],n),i,"kola-dash-desktop",l)
 j=A.b(["style","flex-direction:column;height:100vh;overflow:hidden;box-sizing:border-box"],j,j)
 q=m.gf5()
 o=m.a
@@ -14991,7 +14991,7 @@ I(a,b){if(b==null)return!1
 return b instanceof A.bc&&b.a===this.a&&b.b===this.b},
 gG(a){return A.bu(this.a,this.b,B.d,B.d,B.d,B.d,B.d,B.d,B.d,B.d)}}
 A.cI.prototype={
-aa(){return new A.fY(B.v,B.bb,A.uL(t.S))}}
+aa(){return new A.fY(B.v,B.bc,A.uL(t.S))}}
 A.fY.prototype={
 ak(){this.av()
 this.cG()
@@ -15659,7 +15659,7 @@ jG(){var s,r,q,p=this,o=null,n=t.N,m=A.b(["style","font-size:13.5px;font-weight:
 m=A.c(A.a([new A.e("Cost-saving handoff (optional)",o)],l),m,o,o)
 s=A.b(["style","font-size:12.5px;color:#6B655E;margin-bottom:12px;line-height:1.5"],n,n)
 r=A.b(["style","color:#C1552E;text-decoration:none","target","_blank"],n,n)
-s=A.a([m,A.c(A.a([new A.e("Meta is ending free WhatsApp replies inside the 24-hour window on Oct 1, 2026. If you'd like your bot to gently suggest moving a long conversation elsewhere, fill in either field below \u2014 it will only ever mention what you actually provide here. See ",o),A.cn(A.a([new A.e("Avoiding excessive WhatsApp billing",o)],l),r,o,o,"https://docs.kola.app/billing/avoiding-excessive-whatsapp-billing",o,o,o),new A.e(" for the full explanation.",o)],l),s,o,o)],l)
+s=A.a([m,A.c(A.a([new A.e("Meta is ending free WhatsApp replies inside the 24-hour window on Oct 1, 2026. If you'd like your bot to gently suggest moving a long conversation elsewhere, fill in either field below \u2014 it will only ever mention what you actually provide here. See ",o),A.cn(A.a([new A.e("Avoiding excessive WhatsApp billing",o)],l),r,o,o," https://kola-docs.pages.dev/billing/avoiding-excessive-whatsapp-billing",o,o,o),new A.e(" for the full explanation.",o)],l),s,o,o)],l)
 if(p.at!=null){m=A.b(["style","background:#2A1414;border:1px solid #4A2020;color:#E8A8A8;border-radius:8px;padding:9px 11px;font-size:12.5px;margin-bottom:12px"],n,n)
 r=p.at
 r.toString
@@ -17423,6 +17423,17 @@ B.b4=new A.mD(null)
 B.b5=new A.mE(null,null)
 B.b6=new A.mF(!1,255)
 B.b7=new A.mG(255)
+B.bv=new A.bo("\ud83c\udfe0","Home","/",!0)
+B.bw=new A.bo("\ud83e\udd16","Bots","/bots",!1)
+B.bs=new A.bo("\u26a1","Errands","/errands",!1)
+B.br=new A.bo("\ud83d\udcda","Knowledge","/knowledge",!1)
+B.bu=new A.bo("\ud83d\udcac","Conversations","/conversations",!1)
+B.by=new A.bo("\ud83d\udd0c","Integrations","/integrations",!1)
+B.bq=new A.bo("\ud83d\udd11","API & Webhooks","#",!1)
+B.bx=new A.bo("\ud83d\udc65","Team","#",!1)
+B.bt=new A.bo("\ud83d\udcb3","Billing","/billing",!1)
+B.bp=new A.bo("\ud83d\udcd6","Docs"," https://kola-docs.pages.dev",!1)
+B.b8=s([B.bv,B.bw,B.bs,B.br,B.bu,B.by,B.bq,B.bx,B.bt,B.bp],A.ax("v<bo>"))
 B.bF=new A.cT("\ud83e\udd16","Create a new bot","Give it a name and a purpose","/bots/new",0)
 B.bD=new A.cT("\u26a1","Create a new Errand","Teach kola a new task","/errands",0)
 B.bG=new A.cT("\ud83d\udcda","Upload knowledge","Price lists, FAQs, docs","/knowledge",1)
@@ -17430,7 +17441,7 @@ B.bE=new A.cT("\ud83d\udd0c","Connect a channel","WhatsApp or Telegram","/integr
 B.bC=new A.cT("\ud83d\udcac","This week's conversations","See what customers are asking","/conversations",3)
 B.Y=s([B.bF,B.bD,B.bG,B.bE,B.bC],A.ax("v<cT>"))
 B.bj=new A.ff("","No activity yet.")
-B.b8=s([B.bj],t.o3)
+B.b9=s([B.bj],t.o3)
 B.aV=new A.ah("button",1,"button")
 B.aW=new A.ah("hidden",8,"hidden")
 B.aX=new A.ah("image",9,"image")
@@ -17438,9 +17449,9 @@ B.aY=new A.ah("reset",15,"reset")
 B.aZ=new A.ah("search",16,"search")
 B.b_=new A.ah("submit",17,"submit")
 B.b0=new A.ah("tel",18,"tel")
-B.b9=s([B.j,B.aV,B.M,B.N,B.O,B.L,B.P,B.Q,B.aW,B.aX,B.R,B.S,B.r,B.T,B.U,B.aY,B.aZ,B.b_,B.b0,B.V,B.W,B.X],A.ax("v<ah>"))
+B.ba=s([B.j,B.aV,B.M,B.N,B.O,B.L,B.P,B.Q,B.aW,B.aX,B.R,B.S,B.r,B.T,B.U,B.aY,B.aZ,B.b_,B.b0,B.V,B.W,B.X],A.ax("v<ah>"))
 B.Z=s(["#241A14","#12261F","#1B2430","#241F14"],t.s)
-B.ba=s(["Overview","Errands","Knowledge","Channels","Logs","API"],t.s)
+B.bb=s(["Overview","Errands","Knowledge","Channels","Logs","API"],t.s)
 B.co=new A.bM("escalateToHuman","\ud83e\uddd1\u200d\ud83d\udcbc","Escalate to human","Hand the conversation to a real person on your team","When a customer is frustrated, asks for a human, or kola can't resolve the issue.","escalateToHuman")
 B.cs=new A.bM("collectPayment","\ud83d\udcb3","Collect a payment","Send a payment link and confirm once it's paid","When a customer is ready to pay for an order or service.","collectPayment")
 B.cl=new A.bM("createSupportTicket","\ud83c\udfab","Log a support ticket","File an issue so your team can follow up","When a customer reports a problem that needs follow-up from the team.","createSupportTicket")
@@ -17453,31 +17464,20 @@ B.y=s([B.co,B.cs,B.cl,B.cp,B.cr,B.cq,B.cm,B.cn],A.ax("v<bM>"))
 B.a2=s([],A.ax("v<aI>"))
 B.v=s([],A.ax("v<aS>"))
 B.a0=s([],t.i)
-B.bf=s([],A.ax("v<aJ>"))
+B.bg=s([],A.ax("v<aJ>"))
 B.a_=s([],A.ax("v<ba>"))
-B.be=s([],t.Y)
+B.bf=s([],t.Y)
 B.A=s([],A.ax("v<aW>"))
 B.a1=s([],t.gr)
-B.bc=s([],t.kV)
-B.bd=s([],t.s)
-B.bb=s([],A.ax("v<bb>"))
+B.bd=s([],t.kV)
+B.be=s([],t.s)
+B.bc=s([],A.ax("v<bb>"))
 B.z=s([],A.ax("v<b0>"))
 B.t=s([],t.dG)
 B.bQ=new A.dC([!0,"/","\ud83c\udfe0","Home"])
 B.bO=new A.dC([!1,"#","\ud83d\udcac","Chats"])
 B.bP=new A.dC([!1,"#","\u2699\ufe0f","Settings"])
-B.bg=s([B.bQ,B.bO,B.bP],A.ax("v<+active,href,icon,label(y,i,i,i)>"))
-B.bu=new A.bo("\ud83c\udfe0","Home","/",!0)
-B.bv=new A.bo("\ud83e\udd16","Bots","/bots",!1)
-B.br=new A.bo("\u26a1","Errands","/errands",!1)
-B.bq=new A.bo("\ud83d\udcda","Knowledge","/knowledge",!1)
-B.bt=new A.bo("\ud83d\udcac","Conversations","/conversations",!1)
-B.by=new A.bo("\ud83d\udd0c","Integrations","/integrations",!1)
-B.bp=new A.bo("\ud83d\udd11","API & Webhooks","#",!1)
-B.bx=new A.bo("\ud83d\udc65","Team","#",!1)
-B.bs=new A.bo("\ud83d\udcb3","Billing","/billing",!1)
-B.bw=new A.bo("\ud83d\udcd6","Docs","https://docs.kola.app",!1)
-B.bh=s([B.bu,B.bv,B.br,B.bq,B.bt,B.by,B.bp,B.bx,B.bs,B.bw],A.ax("v<bo>"))
+B.bh=s([B.bQ,B.bO,B.bP],A.ax("v<+active,href,icon,label(y,i,i,i)>"))
 B.a3=s(["string","number","date","boolean"],t.s)
 B.bi=s(["telegram","whatsapp"],t.s)
 B.w=s(["#3A2A1E","#1F3B30","#28374A","#3A331F"],t.s)
