@@ -1,7 +1,7 @@
 name: kola_dashboard
 description: Kola's business-owner dashboard — Jaspr shell, now with real Supabase Auth + kola_client wiring (Phase 4e).
 version: 1.0.0
-
+publish_to: none
 environment:
   sdk: ^3.8.0
 
@@ -51,8 +51,10 @@ dependencies:
   jaspr_router: ^0.8.2
   # For raw HTTP calls to Supabase Auth's REST API — see header above.
   http: ^1.6.0
+# pull from github in production mode
   kola_client:
-    path: ../kola_client
+    git:
+     url: https://github.com/mhista/kola/tree/main/kola_client
   # For window.localStorage (session persistence) — already a transitive
   # dependency via jaspr_router, added explicitly since we call it
   # directly (see lib/services/local_storage.dart).
