@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+
+<div style="font-family:'Plus Jakarta Sans',sans-serif;background:#121214;color:#F3EEE7;width:100%;min-height:100vh;box-sizing:border-box;background-image:radial-gradient(circle, rgba(255,255,255,0.06) 1.4px, transparent 1.4px);background-size:24px 24px">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid #1F1D1B">
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="Kola%20Dashboard%20Shell.dc.html" style="color:#9C9691;text-decoration:none;font-size:14px">← Dashboard</a>
+      <div style="width:34px;height:34px;border-radius:9px;background:#1F6F54;display:flex;align-items:center;justify-content:center;font-size:16px">🤖</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600">Trading Bot for WhatsApp</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#6B655E">bot_8f2a1c</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <a href="Kola%20Bot%20Detail%20Chat.dc.html" style="color:#9C9691;font-size:13.5px;text-decoration:none">Switch to Chat Mode</a>
+      <button style="background:#C1552E;color:#FFF6EE;border:none;border-radius:9px;padding:9px 18px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">Publish</button>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:28px;padding:0 24px;border-bottom:1px solid #1F1D1B">
+    <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="6">
+      <div onClick="{{ tab.onClick }}" style="padding:16px 0;font-size:14.5px;font-weight:600;cursor:pointer;color:{{ tab.color }};border-bottom:2px solid {{ tab.border }}">{{ tab.label }}</div>
+    </sc-for>
+  </div>
+
+  <div style="padding:28px 24px">
+
+    <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:900px;margin-bottom:24px">
+        <sc-for list="{{ overviewStats }}" as="s" hint-placeholder-count="3">
+          <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:14px;padding:18px">
+            <div style="font-size:13px;color:#9C9691;margin-bottom:8px">{{ s.label }}</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:600">{{ s.value }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:14px;padding:20px;max-width:900px">
+        <div style="font-size:13px;color:#6B655E;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Configuration</div>
+        <div style="font-size:14px;color:#D8D2C9;line-height:2">Archetype: Customer Care · Channels: WhatsApp · Model: kola-2 · Fallback: escalate to human</div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isErrands }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:24px">
+        <div style="flex:1;min-width:0">
+          <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+            <thead>
+              <tr style="text-align:left;color:#6B655E;font-size:12px;text-transform:uppercase;letter-spacing:0.04em">
+                <th style="padding:0 0 12px;font-weight:500">Name</th>
+                <th style="padding:0 0 12px;font-weight:500">Trigger</th>
+                <th style="padding:0 0 12px;font-weight:500">Source</th>
+                <th style="padding:0 0 12px;font-weight:500">Status</th>
+                <th style="padding:0 0 12px;font-weight:500">Last called</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ errandRows }}" as="row" hint-placeholder-count="5">
+                <tr onClick="{{ row.onClick }}" style="border-top:1px solid #1F1D1B;cursor:pointer">
+                  <td style="padding:14px 0;font-weight:600">{{ row.name }}</td>
+                  <td style="padding:14px 0;color:#B9B3AC">{{ row.trigger }}</td>
+                  <td style="padding:14px 0;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#9C9691">{{ row.source }}</td>
+                  <td style="padding:14px 0"><span style="font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:100px;background:{{ row.bg }};color:{{ row.color }}">{{ row.status }}</span></td>
+                  <td style="padding:14px 0;color:#6B655E">{{ row.lastCalled }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <sc-if value="{{ selectedErrand }}" hint-placeholder-val="{{ false }}">
+          <div style="width:380px;flex-shrink:0;background:#1B1B1E;border:1px solid #2C2A28;border-radius:16px;padding:22px;box-sizing:border-box;height:fit-content">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+              <div style="font-size:16px;font-weight:600">{{ selectedErrand.name }}</div>
+              <span onClick="{{ closeErrand }}" style="cursor:pointer;color:#6B655E;font-size:18px">×</span>
+            </div>
+            <div style="font-size:12px;color:#6B655E;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Input schema</div>
+            <pre style="background:#000;border-radius:10px;padding:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#9BE6C7;overflow-x:auto;margin:0 0 18px;line-height:1.6">{{ selectedErrand.schema }}</pre>
+            <div style="font-size:12px;color:#6B655E;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Fulfillment</div>
+            <div style="font-size:13.5px;color:#D8D2C9;margin-bottom:18px">{{ selectedErrand.fulfillment }}</div>
+            <div style="font-size:12px;color:#6B655E;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Permission scope</div>
+            <div style="font-size:13.5px;color:#D8D2C9">{{ selectedErrand.scope }}</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isKnowledge }}" hint-placeholder-val="{{ false }}">
+      <a href="Kola%20Knowledge%20Base.dc.html" style="color:#9C9691;text-decoration:none;font-size:13.5px;display:inline-block;margin-bottom:16px">Full Knowledge Base →</a>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:900px">
+        <sc-for list="{{ knowledgeDocs }}" as="d" hint-placeholder-count="3">
+          <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:12px;padding:16px">
+            <div style="font-size:20px;margin-bottom:8px">{{ d.icon }}</div>
+            <div style="font-size:13.5px;font-weight:600">{{ d.name }}</div>
+            <div style="font-size:12px;color:#6B655E;margin-top:4px">{{ d.status }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isChannels }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:14px;max-width:700px">
+        <sc-for list="{{ channelCards }}" as="c" hint-placeholder-count="2">
+          <div style="flex:1;background:#1B1B1E;border:1px solid #2C2A28;border-radius:14px;padding:18px">
+            <div style="font-size:20px;margin-bottom:8px">{{ c.icon }}</div>
+            <div style="font-size:14.5px;font-weight:600;margin-bottom:4px">{{ c.name }}</div>
+            <div style="font-size:12.5px;color:#7ED8B0">{{ c.status }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLogs }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:900px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#B9B3AC;background:#0D0D0E;border:1px solid #2C2A28;border-radius:12px;padding:18px;line-height:2">
+        <sc-for list="{{ logs }}" as="l" hint-placeholder-count="5">
+          <div><span style="color:#6B655E">{{ l.time }}</span> {{ l.text }}</div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isApi }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:700px">
+        <div style="font-size:14px;color:#B9B3AC;margin-bottom:14px">Call this bot directly:</div>
+        <pre style="background:#000;border-radius:10px;padding:16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#9BE6C7;line-height:1.7">curl https://api.kola.dev/bots/bot_8f2a1c/message \<br/>&nbsp;&nbsp;-H "Authorization: Bearer sk_live_..." \<br/>&nbsp;&nbsp;-d '{ "text": "Do you have size 12?" }'</pre>
+        <a href="Kola%20API%20Webhooks.dc.html" style="color:#E9A87C;font-size:13.5px;display:inline-block;margin-top:14px;text-decoration:none">Manage API keys →</a>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { tab: 'errands', selectedIdx: 0 };
+
+  tabDefs = ['Overview', 'Errands', 'Knowledge', 'Channels', 'Logs', 'API'];
+
+  errandDefs = [
+    { name: 'Check stock & price', trigger: 'Customer asks about an item', source: 'Database', status: 'Live', lastCalled: '2m ago', schema: '{\n  "item_name": "string",\n  "size": "string?"\n}', fulfillment: 'Database credential → products table', scope: 'Read-only: products' },
+    { name: 'Hold item for 24h', trigger: 'Customer requests a hold', source: 'Built-in', status: 'Live', lastCalled: '18m ago', schema: '{\n  "item_id": "string",\n  "duration_hrs": 24\n}', fulfillment: 'Built-in reservation engine', scope: 'Read/write: reservations' },
+    { name: 'Escalate to human', trigger: 'Bot confidence < 60%', source: 'Built-in', status: 'Draft', lastCalled: '—', schema: '{\n  "reason": "string"\n}', fulfillment: 'Built-in handoff', scope: 'Read: conversation' },
+    { name: 'Payment confirmation', trigger: 'Paystack webhook fires', source: 'Webhook', status: 'Needs input', lastCalled: '—', schema: '{\n  "reference": "string",\n  "amount": "number"\n}', fulfillment: 'Webhook → api.kola.dev/hooks/pay', scope: 'Write: orders' },
+    { name: 'Notify on restock', trigger: 'MCP endpoint call', source: 'MCP · soon', status: 'Draft', lastCalled: '—', schema: '{\n  "sku": "string"\n}', fulfillment: 'MCP endpoint (coming soon)', scope: 'Read: inventory' },
+  ];
+
+  statusColors = { Live: ['#12261F', '#7ED8B0'], Draft: ['#2A2622', '#B9B3AC'], 'Needs input': ['#2A1F16', '#F0B08C'] };
+
+  renderVals() {
+    const sel = this.errandDefs[this.state.selectedIdx];
+    const tab = this.state.tab;
+    return {
+      tabs: this.tabDefs.map(t => ({ label: t, onClick: () => this.setState({ tab: t.toLowerCase() }), color: t.toLowerCase() === tab ? '#F3EEE7' : '#9C9691', border: t.toLowerCase() === tab ? '#C1552E' : 'transparent' })),
+      isOverview: tab === 'overview', isErrands: tab === 'errands', isKnowledge: tab === 'knowledge', isChannels: tab === 'channels', isLogs: tab === 'logs', isApi: tab === 'api',
+      overviewStats: [
+        { label: 'Conversations this week', value: '312' },
+        { label: 'Errand calls', value: '188' },
+        { label: 'Avg response time', value: '1.2s' },
+      ],
+      errandRows: this.errandDefs.map((e, i) => {
+        const [bg, color] = this.statusColors[e.status];
+        return { ...e, bg, color, onClick: () => this.setState({ selectedIdx: i }) };
+      }),
+      selectedErrand: this.state.selectedIdx != null ? sel : null,
+      closeErrand: () => this.setState({ selectedIdx: null }),
+      knowledgeDocs: [
+        { icon: '📄', name: 'Price list — July.pdf', status: 'Ready' },
+        { icon: '📝', name: 'FAQs.docx', status: 'Ready' },
+        { icon: '📊', name: 'Inventory.xlsx', status: 'Processing' },
+      ],
+      channelCards: [
+        { icon: '💬', name: 'WhatsApp', status: '● Connected — +234 803 221 9910' },
+        { icon: '✈️', name: 'Telegram', status: 'Not connected' },
+      ],
+      logs: [
+        { time: '14:02:11', text: 'Errand "Check stock & price" called — 200 OK, 340ms' },
+        { time: '14:01:58', text: 'Inbound message received on WhatsApp' },
+        { time: '13:47:03', text: 'Errand "Hold item for 24h" called — 200 OK, 120ms' },
+        { time: '13:12:40', text: 'Bot published — v14' },
+        { time: '12:55:19', text: 'Errand "Escalate to human" triggered — handed to Aisha' },
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

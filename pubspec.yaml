@@ -1,0 +1,16 @@
+name: _
+publish_to: none
+
+environment:
+  sdk: '^3.8.0'
+
+workspace:
+  - kola_client
+  - kola_server
+  - kola_flutter
+  # Added in Phase 4e — kola_dashboard now path-depends on kola_client
+  # (see kola_dashboard/pubspec.yaml's header), which requires joining
+  # this workspace since kola_client itself uses `resolution: workspace`
+  # (same reason kola_flutter is listed above, not a new pattern).
+  - kola_dashboard
+

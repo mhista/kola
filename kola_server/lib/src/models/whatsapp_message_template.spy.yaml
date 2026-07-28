@@ -1,0 +1,96 @@
+##
+## whatsapp_message_template.spy.yaml — task #150: programmatic WhatsApp
+## message templates, so a business can message a customer OUTSIDE an
+## open 24-hour customer service window (the case Meta requires a
+## pre-approved template for at all) as cheaply as Meta allows.
+##
+## WHY THIS EXISTS, SPECIFICALLY: the owner asked for a way to send a
+## customer a product list "without incurring so much cost." Two
+## separate cases, only one of which needs this model at all:
+##   1. Customer messages the bot first, bot replies (even with a rich
+##      WhatsApp list message, IMessagingService.sendList) — this is
+##      ALREADY free today (any non-template message inside an open
+##      service window is free per Meta's own pricing docs), no template
+##      needed. Meta ends that specific freebie on Oct 1, 2026, at which
+##      point it becomes ~$0.0068/reply — still far cheaper than a
+##      template, and still needs no template.
+##   2. The business wants to REACH OUT first — no open window, nobody
+##      asked recently. This is the only case Meta requires a template
+##      for, and template CATEGORY is what drives cost: 'utility' (a
+##      reply to something the customer specifically asked for/is
+##      owed — an order update, a requested price list) is materially
+##      cheaper than 'marketing' (a cold promotional push) in every
+##      market's rate card, Nigeria included. This model exists for
+##      case 2, defaulting new templates to 'utility' wherever the
+##      content honestly qualifies — see whatsapp_template_service.dart
+##      for the actual Meta API call, and bot_endpoint.dart or wherever
+##      the create-template endpoint lives for the category-choice logic.
+##
+## Meta ultimately decides the approved category on review, regardless
+## of what's requested — [category] here is Kola's request/best guess,
+## not a guarantee. [status] tracks Meta's asynchronous review outcome.
+##
+
+class: WhatsAppMessageTemplate
+# table: whatsapp_message_templates
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — denormalized alongside channelId for
+  # isolation-enforcing queries, same convention as SupportTicket
+  # denormalizing workspaceId alongside conversationId.
+  workspaceId: int
+
+  # Foreign key → channels.id — which WhatsApp channel this template was
+  # submitted under (Meta templates belong to a WhatsApp Business
+  # Account, i.e. one specific channel's wabaId).
+  channelId: int
+
+  # The exact name submitted to Meta — lowercase, digits, underscores
+  # only (Meta's own naming rule), auto-generated from whatever label the
+  # business typed. Meta template names are unique per WABA+language, so
+  # this always has a uniqueness-guaranteeing suffix appended.
+  metaTemplateName: String
+
+  # 'utility' | 'marketing' | 'authentication' — what Kola REQUESTED.
+  # See header: Meta's own review may recategorize this after submission;
+  # [status]/[metaCategory] below is what actually got approved, if
+  # different from what was asked for.
+  requestedCategory: String
+
+  # What Meta actually approved this as, once reviewed — null while
+  # still 'pending'. Can differ from [requestedCategory] if Meta's
+  # review recategorized it (e.g. requested 'utility', approved as
+  # 'marketing') — surfaced honestly rather than assumed to match.
+  metaCategory: String?
+
+  # BCP-47-ish locale Meta requires, e.g. 'en_US' — not a bare 'en'.
+  language: String
+
+  # The template body as submitted, with {{1}}, {{2}}... placeholders —
+  # exactly what a business will see reflected back if they check Meta
+  # Business Manager directly.
+  bodyText: String
+
+  # Meta's own template ID, assigned on successful submission — null if
+  # the submission call itself failed before Meta accepted it at all.
+  metaTemplateId: String?
+
+  # 'pending' (default, awaiting Meta review) | 'approved' | 'rejected' |
+  # 'disabled' (Meta can disable a previously-approved template later,
+  # e.g. for quality issues — refreshTemplateStatus surfaces that too).
+  status: String
+
+  # Meta's own rejection explanation, when status is 'rejected' — shown
+  # to the business as-is rather than paraphrased, since Meta's wording
+  # is often specific about what to fix.
+  rejectionReason: String?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  whatsapp_template_workspace_idx:
+    fields: workspaceId
+  whatsapp_template_channel_idx:
+    fields: channelId

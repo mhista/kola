@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+
+<div style="font-family:'Plus Jakarta Sans',sans-serif;background:#121214;color:#F3EEE7;width:100%;min-height:100vh;box-sizing:border-box;padding:32px 40px;background-image:radial-gradient(circle, rgba(255,255,255,0.06) 1.4px, transparent 1.4px);background-size:24px 24px">
+  <a href="Kola%20Dashboard%20Shell.dc.html" style="color:#9C9691;text-decoration:none;font-size:14px;display:inline-block;margin-bottom:14px">← Dashboard</a>
+  <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;margin-bottom:6px">API &amp; Webhooks</div>
+  <div style="font-size:14.5px;color:#9C9691;margin-bottom:8px">Manage programmatic access to your bots and Errands.</div>
+  <a href="#" style="font-size:14px;color:#E9A87C;margin-bottom:32px;display:inline-block">View full API documentation →</a>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:24px 0 14px">
+    <div style="font-size:15.5px;font-weight:600">API Keys</div>
+    <button style="background:#C1552E;color:#FFF6EE;border:none;border-radius:100px;padding:9px 18px;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer">+ Create key</button>
+  </div>
+  <div style="border:1px solid #2C2A28;border-radius:14px;overflow:hidden;margin-bottom:36px">
+    <sc-for list="{{ keys }}" as="k" hint-placeholder-count="3">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-top:1px solid #1F1D1B;background:#1B1B1E">
+        <div>
+          <div style="font-size:14.5px;font-weight:600;margin-bottom:4px">{{ k.name }}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#6B655E">{{ k.masked }} · scope: {{ k.scope }} · last used {{ k.lastUsed }}</div>
+        </div>
+        <span style="color:#B9482F;font-size:13px;cursor:pointer">Revoke</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:24px 0 14px">
+    <div style="font-size:15.5px;font-weight:600">Webhook endpoints</div>
+    <button style="background:#1F1D1B;border:1px solid #2C2A28;color:#D8D2C9;border-radius:100px;padding:9px 18px;font-size:13.5px;font-family:inherit;cursor:pointer">+ Add endpoint</button>
+  </div>
+  <div style="border:1px solid #2C2A28;border-radius:14px;overflow:hidden">
+    <sc-for list="{{ hooks }}" as="h" hint-placeholder-count="3">
+      <div style="padding:16px 20px;border-top:1px solid #1F1D1B;background:#1B1B1E">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13.5px">{{ h.url }}</div>
+          <span style="font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:100px;background:#12261F;color:#7ED8B0">Active</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <sc-for list="{{ h.events }}" as="ev" hint-placeholder-count="2">
+            <span style="font-size:12px;background:#2A2622;color:#B9B3AC;padding:4px 10px;border-radius:100px">{{ ev }}</span>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      keys: [
+        { name: 'Production', masked: 'sk_live_••••8f2a', scope: 'Full access', lastUsed: '3m ago' },
+        { name: 'Staging', masked: 'sk_test_••••11cd', scope: 'Read-only', lastUsed: '2d ago' },
+        { name: "Developer's key", masked: 'sk_live_••••9e02', scope: 'Errands only', lastUsed: '1w ago' },
+      ],
+      hooks: [
+        { url: 'https://myapp.dev/hooks/kola', events: ['New conversation', 'Errand executed'] },
+        { url: 'https://ops.aisha-fashion.com/webhook', events: ['Bot published'] },
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

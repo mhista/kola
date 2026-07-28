@@ -1,0 +1,81 @@
+##
+## conversation.spy.yaml — A single end-customer thread with a Bot
+## (SRS.md §6's Core Domain Model table: "reused shape from Asami's
+## Conversation/ConversationStatus").
+##
+## Identified by (channelId, externalUserId) — externalUserId is the
+## customer's platform-specific identifier (a Telegram chat_id, or a
+## WhatsApp wa_id/phone number), NOT a Kola user account; end customers
+## never have one. One Conversation row per distinct customer per
+## channel, found-or-created on that customer's first inbound message
+## (see telegram_bot_registry.dart / whatsapp_bot_registry.dart, both
+## updated to do this instead of just firing a stateless canned reply).
+##
+## STATUS DRIVES WHO REPLIES NEXT — this is the whole point of the model,
+## not just a lifecycle label:
+##   'bot'       — the bot answers automatically (grounded Q&A via
+##                 bot_knowledge_service.dart). Default for a new thread.
+##   'escalated' — a human needs to handle this. Set the moment the
+##                 escalateToHuman built-in Errand fires (see
+##                 builtin_errand_executor.dart). While escalated, inbound
+##                 messages are stored but the bot does NOT auto-reply —
+##                 avoids the bot and a human agent talking over each
+##                 other. owner_notification_dispatcher.dart notifies the
+##                 owner the moment this transition happens.
+##   'closed'    — a human (via ConversationEndpoint.sendHumanReply, or a
+##                 future explicit "resolve" action) has handled it and
+##                 the thread is done. A NEW inbound message from the
+##                 same customer reopens it back to 'bot', not 'closed'
+##                 — see conversation_repository.dart's reopen logic.
+##
+
+class: Conversation
+# table: conversations
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — denormalized alongside botId/channelId
+  # so every isolation-enforcing query can filter by it directly (SRS.md
+  # §5), not just via a join through channelId → bots.id.
+  workspaceId: int
+
+  # Foreign key → bots.id
+  botId: int
+
+  # Foreign key → channels.id — which specific connected channel this
+  # thread is happening on (a workspace's bot may have both Telegram and
+  # WhatsApp channels).
+  channelId: int
+
+  # 'telegram' | 'whatsapp' — denormalized from Channel.platformType so
+  # ConversationEndpoint/the inbox never needs a second lookup just to
+  # know which channel icon/adapter applies.
+  platformType: String
+
+  # The customer's platform-specific identifier — Telegram chat_id or
+  # WhatsApp wa_id, both represented as String even though Telegram's is
+  # numeric, since IMessagingService's send methods already take a
+  # String recipient (see messaging_service_interface.dart).
+  externalUserId: String
+
+  # Best-effort display name for the inbox (Telegram's first_name/
+  # username, or WhatsApp's contact profile name from the webhook
+  # payload) — purely cosmetic, never used for routing.
+  displayName: String?
+
+  # 'bot' | 'escalated' | 'closed' — see header.
+  status: String
+
+  lastMessageAt: DateTime
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  conversation_workspace_idx:
+    fields: workspaceId
+  conversation_channel_external_user_idx:
+    fields: channelId, externalUserId
+    unique: true
+  conversation_status_idx:
+    fields: status

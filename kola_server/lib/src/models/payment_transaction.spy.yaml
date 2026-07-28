@@ -1,0 +1,84 @@
+##
+## payment_transaction.spy.yaml — Task #127 / Phase 8a: one row per
+## checkout a bot's "collect payment" Errand initiates, against a
+## workspace's OWN connected Paystack/Flutterwave account
+## (payment_gateway_credential.spy.yaml). This is what
+## PaymentWebhookHandler looks up BY reference to figure out which
+## workspace's credential to verify an incoming webhook's signature
+## against — see that file's header for why looking up-by-reference
+## before verifying is safe here (the same shape multi-tenant webhook
+## designs like Stripe Connect apps already use).
+##
+## holdStatus IS BOOKKEEPING ONLY, NOT REAL FUND CUSTODY — read before
+## assuming this means what Asami's escrow means: Kola's own account never
+## receives this money (see payment_gateway_credential.spy.yaml's header),
+## so there is nothing for Kola to actually "hold." A workspace that asks
+## for holdInEscrow at checkout time is asking Kola to track a status flag
+## on its own behalf ("don't tell the vendor it's safe to ship until this
+## flips to released") — genuinely useful as a lightweight guardrail for a
+## catalog/negotiation bot, but not the custodial escrow PRD.md's
+## "informed by Asami's order_escrow pattern" phrasing might suggest at a
+## glance. DEVELOPMENT_PLAN.md Phase 8a spells out the full reasoning.
+##
+
+class: PaymentTransaction
+# table: payment_transactions
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id
+  workspaceId: int
+
+  # 'paystack' | 'flutterwave' — which gateway this checkout used.
+  gateway: String
+
+  # Our own idempotency key, generated at initializeCheckout time and
+  # passed to the gateway as its reference/tx_ref. Globally unique (not
+  # just per-workspace) since PaymentWebhookHandler looks up a transaction
+  # by this alone, before it knows which workspace a webhook belongs to.
+  reference: String
+
+  # Smallest currency unit (kobo for NGN) — same convention
+  # PaystackService.initializeTransaction already uses, kept consistent
+  # here even though FlutterwaveService's initializePayment wants a major-
+  # unit decimal string; PaymentEndpoint converts at the boundary so this
+  # column has one unambiguous meaning regardless of gateway.
+  amountKobo: int
+  currency: String # default 'NGN' — set by PaymentEndpoint, not here
+
+  customerEmail: String
+  customerPhone: String?
+
+  # 'pending' | 'completed' | 'failed' — set to 'completed' only once
+  # PaymentWebhookHandler has independently verified BOTH the signature
+  # AND the gateway's own data.status/data.amount fields (see
+  # paystack_service.dart / flutterwave_service.dart headers on why the
+  # top-level webhook event alone is never sufficient proof).
+  status: String
+
+  # 'notHeld' | 'held' | 'released' — see this file's header. Set at
+  # checkout time from the Errand's own holdInEscrow flag; 'held' only
+  # ever transitions to 'released' via PaymentEndpoint.releaseHold, and
+  # only once status is 'completed'.
+  holdStatus: String
+
+  # Optional link back to the Conversation that triggered this checkout
+  # (a catalog/negotiation bot collecting payment mid-conversation) —
+  # null for a checkout initiated some other way (e.g. directly via API).
+  conversationId: int?
+  channelId: int?
+
+  checkoutUrl: String? # Paystack authorization_url / Flutterwave link
+  gatewayTransactionId: String? # the gateway's own id, from verify's response
+  metadataJson: String? # opaque, Errand-supplied context (e.g. product/order description)
+
+  createdAt: DateTime
+  updatedAt: DateTime
+  paidAt: DateTime?
+
+indexes:
+  payment_transaction_workspace_idx:
+    fields: workspaceId
+  payment_transaction_reference_idx:
+    fields: reference
+    unique: true

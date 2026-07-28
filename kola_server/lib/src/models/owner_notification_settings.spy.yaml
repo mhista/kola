@@ -1,0 +1,80 @@
+##
+## owner_notification_settings.spy.yaml — Where and how a workspace's
+## owner wants to be pinged when a conversation escalates to a human.
+## One row per workspace (1:1, unique index below).
+##
+## FIVE CHANNELS, FOUR IMPLEMENTED TODAY (per explicit product
+## decision): WhatsApp and email are real and rate-limited by plan tier
+## (owner_notification_dispatcher.dart) — WhatsApp specifically because
+## Meta bills per conversation, email because it's still worth capping
+## abuse/cost even though it's nearly free. Telegram and Slack are real
+## and deliberately NOT rate-limited (Telegram's Bot API has no
+## per-message cost; a Slack incoming webhook is likewise free and
+## per-workspace-owned, not a shared Kola resource anyone could exhaust
+## on Kola's behalf — see notification_rate_limiter.dart). SMS fields
+## exist here so the schema doesn't need a later migration just to add
+## them, but SmsOwnerNotifier (owner_notifiers/sms_owner_notifier.dart)
+## always throws UnimplementedError — no SMS provider is wired in yet
+## (Termii/Africa's Talking are the leading Nigeria-friendly candidates
+## when this ships).
+##
+## SLACK IS BYO, LIKE EVERY OTHER INTEGRATION IN THIS CODEBASE (task
+## #129 / Phase 8h): encryptedSlackWebhookUrl is a Slack "Incoming
+## Webhook" URL the business creates themselves, in their own Slack
+## workspace
+## (Slack App → Incoming Webhooks → Add New Webhook to Workspace) — the
+## exact same "business supplies their own endpoint" shape as a webhook
+## Errand's URL. Kola never has its own Slack App/OAuth relationship
+## with any business's Slack workspace; the URL itself IS the only
+## credential Slack's incoming-webhook mechanism uses, so it's stored
+## encrypted at rest via ChannelCredentialEncryptionService, the same
+## service every other secret in this codebase already reuses.
+##
+
+class: OwnerNotificationSettings
+# table: owner_notification_settings
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — unique, enforced below.
+  workspaceId: int
+
+  ownerEmail: String?
+  emailEnabled: bool
+
+  # E.164-ish phone number (whatever format WhatsApp Cloud API accepts
+  # as a recipient) that RECEIVES the notification — sent FROM one of
+  # the workspace's own connected WhatsApp channels, found at send time
+  # (see owner_notifiers/whatsapp_owner_notifier.dart), not from a
+  # separate Kola-owned number.
+  ownerWhatsappNumber: String?
+  whatsappEnabled: bool
+
+  # A Telegram chat_id — NOT a phone number. Obtained by the owner
+  # messaging Kola's own shared notifier bot once and being told their
+  # chat_id back (see kola_notifier_bot.dart) — deliberately a SEPARATE
+  # bot from any of the workspace's own connected Telegram channels,
+  # since a business may run Telegram-only or WhatsApp-only and still
+  # want a Telegram-based notification path either way.
+  telegramChatId: String?
+  telegramEnabled: bool
+
+  # Reserved — see header. Not sent anywhere yet.
+  ownerSmsNumber: String?
+  smsEnabled: bool
+
+  # AES-256-GCM ciphertext of the plaintext Slack incoming-webhook URL —
+  # see header. Unlike ownerWhatsappNumber/telegramChatId/ownerSmsNumber
+  # (plain recipient addresses, not secrets), the URL itself grants
+  # posting rights to that Slack channel, so it's encrypted the same way
+  # a bot token or gateway secret key is.
+  encryptedSlackWebhookUrl: String?
+  slackEnabled: bool
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  owner_notification_settings_workspace_idx:
+    fields: workspaceId
+    unique: true

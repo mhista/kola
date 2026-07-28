@@ -1,0 +1,38 @@
+##
+## message.spy.yaml — Individual inbound/outbound message within a
+## Conversation (SRS.md §6's Core Domain Model table: "reused shape from
+## Asami's Message/MessageType, extended with a generic platform-
+## agnostic MediaType/button/list model already defined in
+## IMessagingService"). Kept deliberately plain for this pass — just
+## enough to render a message thread and know who sent what — not yet
+## carrying buttons/lists/media, which stay a Phase 4+ dashboard concern
+## once there's an actual reason to render them richly.
+##
+
+class: Message
+# table: messages
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → conversations.id
+  conversationId: int
+
+  # 'inbound' (from the customer) | 'outbound' (to the customer).
+  direction: String
+
+  # Who/what produced this message. Values:
+  #   'customer' — always paired with direction: 'inbound'
+  #   'bot'      — an automatic reply (grounded Q&A or, before Phase 3,
+  #                the Phase 2 hardcoded canned reply)
+  #   'human'    — a business owner/staff member typed this via
+  #                ConversationEndpoint.sendHumanReply, always paired
+  #                with direction: 'outbound'
+  senderType: String
+
+  body: String
+
+  createdAt: DateTime
+
+indexes:
+  message_conversation_idx:
+    fields: conversationId

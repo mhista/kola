@@ -1,0 +1,40 @@
+##
+## workspace_member.spy.yaml — User ↔ Workspace join, with a role.
+##
+## A person can belong to more than one Workspace (e.g. an agency staff
+## member managing several client workspaces — PARTNER_DECK_DESIGN_PROMPT.md
+## Slide 4's multi-workspace management story starts here, even though the
+## agency-tier UI itself is a later phase). userId is a String because it
+## holds the Supabase Auth user UUID, not our own integer PK convention —
+## auth identity and workspace membership are deliberately decoupled.
+##
+
+class: WorkspaceMember
+# table: workspace_members
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id (Supabase integer PK)
+  workspaceId: int
+
+  # Supabase Auth user id (UUID string) — NOT our own bigserial id scheme.
+  # Auth identity lives in Supabase Auth; this table only records the
+  # membership + role, never credentials.
+  userId: String
+
+  # Role within this workspace. Values:
+  #   'owner'     — created the workspace, full control, billing access
+  #   'staff'     — non-technical operator (Bot Mother, knowledge, inbox)
+  #   'developer' — API/webhook/Errand access, per "two doors, one house"
+  role: String
+
+  createdAt: DateTime
+
+indexes:
+  workspace_member_workspace_idx:
+    fields: workspaceId
+  workspace_member_user_idx:
+    fields: userId
+  workspace_member_unique_idx:
+    fields: workspaceId, userId
+    unique: true

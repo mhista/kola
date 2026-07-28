@@ -1,0 +1,60 @@
+##
+## usage_record.spy.yaml — UsageRecord: metered usage for one workspace,
+## one usage class, one day (SRS.md §6's Core Domain Model table:
+## "metered usage (messages, Errand calls, documents)... Modeled on
+## Asami's Subscription/UsageRecord/DailyUsageTracker").
+##
+## ONE ROW PER (workspace, usageClass, day) — A ROLLUP, NOT A RAW EVENT
+## LOG: Asami's own naming ("DailyUsageTracker") is the tell. Message
+## volume alone could mean thousands of rows a day per active workspace
+## if this were one row per event — that's exactly the kind of
+## unbounded-growth table this project has avoided elsewhere (see
+## errand_execution_log.spy.yaml, which DOES log one row per event, but
+## that's a debugging/audit trail with its own retention story, not a
+## billing meter). UsageRecordRepository.incrementUsage upserts:
+## the same (workspaceId, usageClass, periodDate) row's [quantity] just
+## grows through the day rather than a new row appearing per message.
+##
+## ONE MODEL, MULTIPLE USAGE CLASSES: per DEVELOPMENT_PLAN.md Phase 5a's
+## own framing ("one metering system, multiple usage classes, not a
+## bespoke system per feature") — [usageClass] is a plain string, not a
+## separate model per thing being metered, so messages/Errand calls/
+## future per-MB image storage (SRS.md §6a) all flow through the exact
+## same table and repository method.
+##
+## `#table:` stays commented out — same pattern as every other model.
+##
+
+class: UsageRecord
+# table: usage_records
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id.
+  workspaceId: int
+
+  # What's being metered. Values used today: 'message' (one inbound
+  # customer message handled, see inbound_message_handler.dart) |
+  # 'errandCall' (one Errand invocation) — 'imageStorageMb' is the
+  # reserved value SRS.md §6a's future MediaAsset work will write to;
+  # deliberately not exclusive/enumerated harder than a plain string
+  # here, so a new usage class never needs a schema migration to add.
+  usageClass: String
+
+  # The calendar day this row's [quantity] accumulates, truncated to
+  # midnight UTC — NOT a timestamp of any single event (there isn't one
+  # single event; see header). Paired with workspaceId+usageClass in the
+  # unique index below, which is what incrementUsage's upsert relies on.
+  periodDate: DateTime
+
+  # Running total for this (workspace, usageClass, day) — a plain count
+  # for 'message'/'errandCall', fractional MB for 'imageStorageMb'.
+  quantity: double
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  usage_record_workspace_class_date_idx:
+    fields: workspaceId, usageClass, periodDate
+    unique: true

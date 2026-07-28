@@ -1,0 +1,43 @@
+##
+## waitlist_signup.spy.yaml — Pre-launch waitlist capture
+## (LANDING_PAGE_WAITLIST_PROMPT.md, Kola Landing.dc.html's waitlist mode).
+##
+## Deliberately NOT workspace-scoped — this is captured before anyone has
+## an account, let alone a workspace. It's the one model in the project
+## that sits outside the multi-tenancy boundary described in
+## workspace.spy.yaml, by design.
+##
+## Three separate forms on the landing page all write here (the hero
+## mini-form, the dedicated #waitlist section, and the footer mini-form —
+## see kola_landing/lib/components/) — `source` records which one, purely
+## for our own conversion-tracking curiosity, not for any product logic.
+##
+
+class: WaitlistSignup
+# table: waitlist_signups
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Optional — most of the three forms only ask for email; the main
+  # #waitlist section form also asks for a name.
+  name: String?
+
+  email: String
+
+  # WhatsApp number — optional, only collected by the hero form.
+  phone: String?
+
+  # Self-reported business type. Values seen in the design: 'care'
+  # (customer care) | 'ecommerce' | 'other' | null (not asked/skipped).
+  businessType: String?
+
+  # Which on-page form captured this signup. Values:
+  # 'hero' | 'waitlist_section' | 'footer'.
+  source: String
+
+  createdAt: DateTime
+
+indexes:
+  waitlist_signup_email_idx:
+    fields: email
+    unique: true

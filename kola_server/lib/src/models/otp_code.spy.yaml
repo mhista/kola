@@ -1,0 +1,83 @@
+##
+## otp_code.spy.yaml — Phase 8b's third and last "templated Errand
+## library" sub-feature (docs/DEVELOPMENT_PLAN.md Phase 8b): OTP
+## delivery. Complaint ticketing (task #130) and birthday/anniversary
+## campaigns (task #132) shipped earlier; this one waited specifically
+## on a delivery-channel decision — resolved by explicit instruction to
+## use email (not SMS, which still waits on the sms_owner_notifier.dart
+## provider decision) and to follow the same SMTP pattern
+## email_owner_notifier.dart already proved against asami_server's own
+## email_notification_service.dart.
+##
+## AN OtpCode IS SCOPED TO A CONVERSATION, NOT A USER — unlike
+## asami_server's version (verificationCode/verificationCodeExpiry/
+## verificationAttempts fields living directly ON its User model,
+## because asami is verifying an ACCOUNT). Kola has no equivalent
+## "customer account" to attach fields to — the customer on the other
+## end of a bot conversation is just a Conversation's externalUserId,
+## the same identity CustomerProfile (task #132) already keys off of.
+## So this is its own table, one row per issued code, looked up by
+## conversationId — same "separate table for optional, conversation-
+## scoped, not-every-conversation-has-one data" reasoning as
+## CustomerProfile's own header.
+##
+## ONE ACTIVE CODE PER CONVERSATION, NOT ONE ROW EVER — a NEW row is
+## inserted every time 'sendOtp' fires (resend included), rather than
+## updating a single row in place, so there's a real audit trail of
+## every code issued (SRS.md §7.3's "every Errand execution is logged"
+## already covers the Errand-call level; this is the finer-grained
+## "what codes did we actually hand out" record underneath it).
+## OtpCodeRepository.findLatestForConversation is what turns "many rows"
+## back into "the one that matters right now" — see that file's header.
+##
+## MIRRORS asami_server/lib/src/services/auth/auth_service.dart's
+## PROVEN PARAMETERS, NOT REINVENTED: 6-digit numeric code (Random.secure()),
+## 10-minute expiry, 5 wrong-guess cap, 60-second resend cooldown. See
+## otp_service.dart for where these constants actually live.
+##
+
+class: OtpCode
+# table: otp_codes
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — denormalized alongside conversationId,
+  # same convention as SupportTicket/CustomerProfile.
+  workspaceId: int
+
+  # Foreign key → conversations.id — NOT unique (see header: many rows
+  # over time, one active at a time).
+  conversationId: int
+
+  # Where the code was actually sent — kept even though Conversation
+  # already knows the customer's platform identity, since email is a
+  # separate address the bot only learns when it decides to send one
+  # (via 'sendOtp'), not something Conversation itself models.
+  recipientEmail: String
+
+  # The 6-digit code itself. Stored in plain text, not hashed — unlike a
+  # real account password, a 10-minute-lived, 6-digit, single-purpose
+  # code has a threat model that doesn't justify hashing (matches
+  # asami_server's own auth_service.dart, which also stores it plain on
+  # the User row) — flagged here as a conscious choice, not an oversight.
+  code: String
+
+  expiresAt: DateTime
+
+  # How many wrong guesses against THIS row — capped at 5 by
+  # otp_service.dart, matching asami's own cap. Never incremented past
+  # a successful verification or expiry; a NEW row (from the next
+  # 'sendOtp' call) is what resets this to 0, not an update to this one.
+  attempts: int
+
+  # Null until 'verifyOtp' succeeds against this row.
+  verifiedAt: DateTime?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  otp_code_workspace_idx:
+    fields: workspaceId
+  otp_code_conversation_idx:
+    fields: conversationId

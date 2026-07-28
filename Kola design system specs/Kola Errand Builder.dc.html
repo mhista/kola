@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+
+<div style="font-family:'Plus Jakarta Sans',sans-serif;background:rgba(8,7,7,0.6);width:100%;min-height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:40px">
+  <div style="background:#121214;color:#F3EEE7;width:100%;max-width:760px;border-radius:22px;border:1px solid #2C2A28;box-shadow:0 40px 100px rgba(0,0,0,0.5);overflow:hidden;background-image:radial-gradient(circle, rgba(255,255,255,0.06) 1.4px, transparent 1.4px);background-size:24px 24px">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 26px;border-bottom:1px solid #1F1D1B">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600">New Errand</div>
+      <div style="display:flex;background:#1B1B1E;border-radius:100px;padding:3px">
+        <button onClick="{{ setChatMode }}" style="border:none;padding:7px 16px;border-radius:100px;font-size:13px;font-family:inherit;cursor:pointer;background:{{ chatBg }};color:{{ chatColor }}">Describe it</button>
+        <button onClick="{{ setDevMode }}" style="border:none;padding:7px 16px;border-radius:100px;font-size:13px;font-family:inherit;cursor:pointer;background:{{ devBg }};color:{{ devColor }}">Build it myself</button>
+      </div>
+    </div>
+
+    <sc-if value="{{ isChat }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:26px">
+        <div style="font-size:13px;color:#9C9691;margin-bottom:8px">Tell kola what you want this Errand to do</div>
+        <textarea value="{{ desc }}" onChange="{{ setDesc }}" placeholder="e.g. When a customer asks where their order is, look it up and tell them the status" rows="3" style="width:100%;box-sizing:border-box;background:#1B1B1E;border:1px solid #2C2A28;border-radius:14px;padding:14px 16px;color:#F3EEE7;font-family:inherit;font-size:14.5px;resize:none;margin-bottom:20px"></textarea>
+
+        <sc-if value="{{ showDraft }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:16px;padding:20px;margin-bottom:20px">
+            <div style="font-size:12px;color:#6B655E;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px">Draft</div>
+            <div style="font-size:15px;font-weight:600;margin-bottom:6px">Check order status</div>
+            <div style="font-size:13.5px;color:#B9B3AC;margin-bottom:14px">Trigger: customer asks about order/delivery status</div>
+            <div style="font-size:13px;color:#9C9691;margin-bottom:8px">This needs order data — where does it live?</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <sc-for list="{{ sourceOptions }}" as="opt" hint-placeholder-count="3">
+                <div onClick="{{ opt.onClick }}" style="border:1.5px solid {{ opt.border }};border-radius:12px;padding:12px 16px;font-size:13.5px;cursor:pointer;flex:1;min-width:150px">{{ opt.label }}</div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <button onClick="{{ generateDraft }}" style="background:#C1552E;color:#FFF6EE;border:none;border-radius:100px;padding:12px 22px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">Draft this Errand</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isDev }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:26px;display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div style="font-size:13px;color:#9C9691;margin-bottom:6px">Name</div>
+          <input value="Check order status" style="width:100%;box-sizing:border-box;background:#1B1B1E;border:1px solid #2C2A28;border-radius:10px;padding:11px 14px;color:#F3EEE7;font-family:inherit;font-size:14px"/>
+        </div>
+        <div>
+          <div style="font-size:13px;color:#9C9691;margin-bottom:6px">Description <span style="color:#6B655E">— used by the AI to decide when to call it</span></div>
+          <textarea rows="2" style="width:100%;box-sizing:border-box;background:#1B1B1E;border:1px solid #2C2A28;border-radius:10px;padding:11px 14px;color:#F3EEE7;font-family:inherit;font-size:14px;resize:none">Call when a customer asks where their order is or when it will arrive.</textarea>
+        </div>
+        <div>
+          <div style="font-size:13px;color:#9C9691;margin-bottom:6px">Input schema</div>
+          <pre style="background:#000;border-radius:10px;padding:14px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#9BE6C7;margin:0;line-height:1.6">{
+  "order_id": "string"
+}</pre>
+        </div>
+        <div>
+          <div style="font-size:13px;color:#9C9691;margin-bottom:8px">Fulfillment type</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <sc-for list="{{ fulfillTypes }}" as="ft" hint-placeholder-count="4">
+              <div style="border:1.5px solid {{ ft.border }};border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer">{{ ft.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <button style="align-self:flex-start;background:#1F1D1B;border:1px solid #2C2A28;color:#D8D2C9;border-radius:100px;padding:10px 18px;font-size:13.5px;font-family:inherit;cursor:pointer">Test this Errand</button>
+      </div>
+    </sc-if>
+
+    <div style="padding:16px 26px;border-top:1px solid #1F1D1B;display:flex;justify-content:flex-end;gap:10px">
+      <button style="background:transparent;border:1px solid #2C2A28;color:#D8D2C9;border-radius:100px;padding:10px 20px;font-size:14px;font-family:inherit;cursor:pointer">Cancel</button>
+      <button style="background:#C1552E;color:#FFF6EE;border:none;border-radius:100px;padding:10px 22px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">Save Errand</button>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { mode: 'chat', desc: '', showDraft: false, source: null };
+
+  renderVals() {
+    const isChat = this.state.mode === 'chat';
+    return {
+      isChat, isDev: !isChat,
+      chatBg: isChat ? '#C1552E' : 'transparent', chatColor: isChat ? '#FFF6EE' : '#9C9691',
+      devBg: !isChat ? '#C1552E' : 'transparent', devColor: !isChat ? '#FFF6EE' : '#9C9691',
+      setChatMode: () => this.setState({ mode: 'chat' }), setDevMode: () => this.setState({ mode: 'dev' }),
+      desc: this.state.desc, setDesc: (e) => this.setState({ desc: e.target.value }),
+      showDraft: this.state.showDraft,
+      generateDraft: () => this.setState({ showDraft: true }),
+      sourceOptions: ['I have a database', 'I have a spreadsheet/document', 'I have a developer who can help'].map(label => ({
+        label, border: this.state.source === label ? '#C1552E' : '#2C2A28', onClick: () => this.setState({ source: label }),
+      })),
+      fulfillTypes: ['Built-in', 'Webhook URL', 'Database credential', 'MCP (soon)'].map((label, i) => ({ label, border: i === 1 ? '#C1552E' : '#2C2A28' })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

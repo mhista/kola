@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+
+<div style="font-family:'Plus Jakarta Sans',sans-serif;background:#121214;color:#F3EEE7;width:100%;min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column;background-image:radial-gradient(circle, rgba(255,255,255,0.06) 1.4px, transparent 1.4px);background-size:24px 24px">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid #1F1D1B">
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="Kola%20Dashboard%20Shell.dc.html" style="color:#9C9691;text-decoration:none;font-size:14px">← Dashboard</a>
+      <div style="width:34px;height:34px;border-radius:9px;background:#1F6F54;display:flex;align-items:center;justify-content:center;font-size:16px">🤖</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600">Trading Bot for WhatsApp</div>
+      <div style="background:#241A14;color:#E9A87C;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:100px">Customer Care</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px">
+      <div style="display:flex;gap:20px;font-size:14px;color:#9C9691">
+        <span style="color:#F3EEE7;border-bottom:2px solid #C1552E;padding-bottom:4px;cursor:pointer">Plan</span>
+        <a href="Kola%20Bot%20Detail%20Dev.dc.html" style="color:#9C9691;text-decoration:none;cursor:pointer">Code</a>
+      </div>
+      <span style="color:#9C9691;cursor:pointer">↺</span>
+      <span style="color:#9C9691;cursor:pointer">Share</span>
+      <button style="background:#C1552E;color:#FFF6EE;border:none;border-radius:9px;padding:9px 18px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">Publish</button>
+    </div>
+  </div>
+
+  <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0">
+
+    <div style="border-right:1px solid #1F1D1B;display:flex;flex-direction:column;padding:24px;box-sizing:border-box;min-height:0">
+      <div style="flex:1;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
+        <sc-for list="{{ transcript }}" as="msg" hint-placeholder-count="6">
+          <div style="display:flex;gap:10px;align-self:{{ msg.rowAlign }};max-width:88%;flex-direction:{{ msg.rowDir }}">
+            <div style="width:28px;height:28px;border-radius:8px;background:{{ msg.avatarBg }};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#F3EEE7">{{ msg.avatar }}</div>
+            <div style="background:{{ msg.bg }};color:{{ msg.color }};padding:12px 15px;border-radius:14px;font-size:14.5px;line-height:1.55">
+              <sc-if value="{{ msg.plain }}" hint-placeholder-val="{{ true }}">{{ msg.text }}</sc-if>
+
+              <sc-if value="{{ msg.checklist }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:14px;font-weight:600;margin-bottom:8px">{{ msg.text }}</div>
+                <sc-for list="{{ msg.items }}" as="ci" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+                    <div style="width:16px;height:16px;border-radius:4px;background:#2F8F6D;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0">✓</div>
+                    <span style="font-size:13.5px">{{ ci }}</span>
+                  </div>
+                </sc-for>
+              </sc-if>
+
+              <sc-if value="{{ msg.imageCard }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:14px;margin-bottom:10px">{{ msg.text }}</div>
+                <div style="background:#0000002e;border:1px dashed #4A443F;border-radius:10px;padding:14px;display:flex;align-items:center;gap:10px">
+                  <div style="width:36px;height:36px;border-radius:8px;background:#2A2622;display:flex;align-items:center;justify-content:center;font-size:15px">🖼</div>
+                  <span style="font-size:12.5px;color:#B9B3AC">{{ msg.imageLabel }}</span>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0">
+        <sc-for list="{{ suggestions }}" as="s" hint-placeholder-count="3">
+          <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:100px;padding:8px 14px;font-size:13px;color:#D8D2C9;cursor:pointer">{{ s }}</div>
+        </sc-for>
+      </div>
+      <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:16px;padding:14px 16px;display:flex;gap:10px;align-items:flex-end">
+        <textarea placeholder="Tell kola what to change..." rows="1" style="flex:1;border:none;outline:none;resize:none;background:transparent;color:#F3EEE7;font-family:inherit;font-size:14.5px"></textarea>
+        <div style="width:32px;height:32px;border-radius:50%;background:#C1552E;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer">→</div>
+      </div>
+    </div>
+
+    <div style="padding:24px;box-sizing:border-box;overflow-y:auto">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:18px">
+        <div style="width:32px;height:32px;border-radius:9px;background:#1B1B1E;border:1px solid #2C2A28;display:flex;align-items:center;justify-content:center;cursor:pointer">🖥️</div>
+        <div style="width:32px;height:32px;border-radius:9px;background:#1B1B1E;border:1px solid #2C2A28;display:flex;align-items:center;justify-content:center;cursor:pointer">📱</div>
+      </div>
+
+      <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:18px;padding:22px;margin-bottom:18px">
+        <div style="font-size:13px;color:#9C9691;margin-bottom:6px">BOT</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;margin-bottom:4px">Trading Bot for WhatsApp</div>
+        <div style="font-size:13.5px;color:#9C9691;margin-bottom:16px">Archetype: Customer Care · Channels: WhatsApp</div>
+        <div style="font-size:12.5px;letter-spacing:0.05em;text-transform:uppercase;color:#6B655E;margin-bottom:10px">Errands</div>
+        <sc-for list="{{ errands }}" as="e" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #241F1B">
+            <div style="font-size:14px">{{ e.name }}</div>
+            <div style="font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:100px;background:{{ e.bg }};color:{{ e.color }}">{{ e.status }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:#1C1815;border-radius:20px;padding:16px">
+        <div style="background:#0B141A;border-radius:14px;overflow:hidden;background-image:radial-gradient(circle,rgba(255,255,255,0.035) 1px,transparent 1px);background-size:14px 14px">
+          <div style="background:#1F2C33;padding:11px 14px;display:flex;align-items:center;gap:9px">
+            <span style="color:#8696A0;font-size:16px">‹</span>
+            <div style="width:30px;height:30px;border-radius:50%;background:#2F8F6D;display:flex;align-items:center;justify-content:center;color:#F3EEE7;font-size:13px;font-weight:600;flex-shrink:0">A</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13.5px;color:#F3EEE7;font-weight:600">Aisha's Fashion House</div>
+              <div style="font-size:11px;color:#8696A0">online</div>
+            </div>
+            <span style="color:#8696A0;font-size:14px">⋮</span>
+          </div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:8px;min-height:220px">
+            <sc-for list="{{ previewMsgs }}" as="pm" hint-placeholder-count="3">
+              <div style="align-self:{{ pm.align }};max-width:82%">
+                <div style="background:{{ pm.bg }};color:#E9EDEF;padding:8px 12px;border-radius:{{ pm.radius }};font-size:13px;line-height:1.4">
+                  {{ pm.text }}
+                  <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:3px">
+                    <span style="font-size:10px;color:#8696A0">{{ pm.time }}</span>
+                    <sc-if value="{{ pm.mine }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;color:#53BDEB">✓✓</span></sc-if>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#1F2C33;padding:9px 12px;display:flex;align-items:center;gap:9px">
+            <span style="color:#8696A0;font-size:15px">😊</span>
+            <div style="flex:1;background:#2A3942;border-radius:100px;padding:8px 13px;font-size:12.5px;color:#8696A0">Message</div>
+            <div style="width:30px;height:30px;border-radius:50%;background:#00A884;display:flex;align-items:center;justify-content:center;color:#0B141A;font-size:13px;flex-shrink:0">🎤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const botMsg = { avatar: '✳', avatarBg: '#1F6F54', rowAlign: 'flex-start', rowDir: 'row', bg: '#1B1B1E', color: '#F3EEE7' };
+    const userMsg = { avatar: 'A', avatarBg: '#3A3733', rowAlign: 'flex-end', rowDir: 'row-reverse', bg: '#C1552E', color: '#FFF6EE' };
+    return {
+      transcript: [
+        { ...botMsg, plain: true, text: "Let's set up your bot. What does your business sell?" },
+        { ...userMsg, plain: true, text: 'Ankara fabric and ready-made outfits. Customers should be able to check prices and stock.' },
+        { ...botMsg, checklist: true, text: "Got it — I've drafted these Errands:", items: ['Check stock & price by item name', 'Hold an item for 24 hours on request', 'Escalate to you if I\'m not sure'] },
+        { ...botMsg, imageCard: true, text: 'Want customers to see photos when they ask about an item?', imageLabel: 'product-photo.jpg — attach a sample' },
+        { ...userMsg, plain: true, text: 'Yes please — and let me see the plan before it goes live.' },
+        { ...botMsg, plain: true, text: 'Plan\'s ready on the right. Looks good? Let\'s connect WhatsApp next.' },
+      ],
+      suggestions: ['Add an Errand', 'Upload a price list', "Change the bot's tone"],
+      errands: [
+        { name: 'Check stock & price', status: 'Live', bg: '#12261F', color: '#7ED8B0' },
+        { name: 'Hold item for 24h', status: 'Live', bg: '#12261F', color: '#7ED8B0' },
+        { name: 'Escalate to human', status: 'Draft', bg: '#2A2622', color: '#B9B3AC' },
+        { name: 'Payment confirmation', status: 'Needs your input', bg: '#2A1F16', color: '#F0B08C' },
+      ],
+      previewMsgs: [
+        { text: 'Do you have the red ankara in size 12?', align: 'flex-start', mine: false, time: '10:14' },
+        { text: 'Yes! In stock — ₦18,500. Want me to hold it?', align: 'flex-end', mine: true, time: '10:14' },
+        { text: 'Yes please, hold it for me', align: 'flex-start', mine: false, time: '10:15' },
+      ].map(m => ({ ...m, bg: m.mine ? '#005C4B' : '#202C33', radius: m.mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px' })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

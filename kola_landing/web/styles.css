@@ -1,0 +1,253 @@
+/* styles.css — the parts inline `style` attributes can't express: hover
+   states, and mobile-first responsive breakpoints. Everything else
+   (colors, static spacing, borders) stays inline in each component file
+   so the markup matches Kola Landing.dc.html directly and a diff against
+   the design export is easy to eyeball. See DESIGN_PROMPT.md's
+   mobile-first mandate — the raw design export is a fixed-width preview
+   with no breakpoints of its own, so the grid-collapsing rules below are
+   this file's real job. */
+
+html, body {
+  margin: 0;
+  background: #FAF6EF;
+  font-family: 'Instrument Sans', sans-serif;
+}
+
+/* Smooth-scrolls every in-page anchor jump (nav links, footer links) for
+   free, with zero JS — the few spots that need a scroll offset (waitlist
+   CTAs landing under the sticky header) go through interop.scrollToId()
+   instead, which does its own smooth scrollTo with an offset. */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .kola-reveal,
+  .kola-fade-up,
+  .kola-faq-answer-wrap,
+  .kola-btn-lift,
+  .kola-card-lift,
+  .kola-banner-closing {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+a {
+  color: #C1552E;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #A8451F;
+}
+
+::selection {
+  background: #C1552E;
+  color: #FFF6EE;
+}
+
+/* ── Hover states inline styles can't do ─────────────────────────────── */
+
+.kola-nav-link {
+  transition: color 0.18s ease;
+}
+
+.kola-nav-link:hover {
+  color: #1C1815 !important;
+}
+
+.kola-quick-pill {
+  transition: border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.kola-quick-pill:hover {
+  border-color: #C1552E !important;
+  color: #C1552E !important;
+  transform: translateY(-1px);
+}
+
+.kola-dropdown-item {
+  transition: background 0.15s ease;
+}
+
+.kola-dropdown-item:hover {
+  background: #FAF6EF;
+}
+
+.kola-product-hover {
+  position: relative;
+}
+
+.kola-product-hover .kola-dropdown {
+  display: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.kola-product-hover:hover .kola-dropdown {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Buttons & cards that lift on hover ──────────────────────────────── */
+
+.kola-btn-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.kola-btn-lift:hover {
+  transform: translateY(-2px);
+}
+
+.kola-card-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.kola-card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px rgba(28, 24, 21, 0.1);
+}
+
+.kola-tab {
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+/* ── Scroll-triggered reveal (IntersectionObserver adds .kola-reveal-in,
+   see web/script.js's kolaInitScrollReveal — same proven technique
+   already used in kopicat_landing) ──────────────────────────────────── */
+
+.kola-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.kola-reveal.kola-reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── One-shot fade-up on first paint (hero/header — always above the
+   fold, so a scroll-triggered reveal wouldn't read as an animation) ──── */
+
+@keyframes kola-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.kola-fade-up {
+  animation: kola-fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.kola-fade-up-delay {
+  animation: kola-fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.12s both;
+}
+
+/* ── FAQ accordion — animates to the answer's real height via the
+   grid-template-rows 0fr→1fr trick, no JS height measurement needed ──── */
+
+.kola-faq-answer-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+
+.kola-faq-answer-wrap.kola-faq-open {
+  grid-template-rows: 1fr;
+}
+
+.kola-faq-answer-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Announcement banner dismiss animation ───────────────────────────── */
+
+@keyframes kola-banner-out {
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+.kola-banner-closing {
+  animation: kola-banner-out 0.25s ease forwards;
+}
+
+/* ── Responsive grids (mobile-first — collapse to 1 column) ─────────── */
+
+.kola-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 28px;
+}
+
+.kola-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.kola-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+.kola-grid-channels {
+  display: grid;
+  grid-template-columns: 0.85fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.kola-grid-footer {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, 1fr);
+  gap: 40px;
+}
+
+@media (max-width: 860px) {
+  .kola-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kola-grid-channels {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .kola-grid-footer {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .kola-grid-4,
+  .kola-grid-3,
+  .kola-grid-2,
+  .kola-grid-footer {
+    grid-template-columns: 1fr;
+  }
+  .kola-nav-links {
+    display: none !important;
+  }
+  .kola-hero-title {
+    font-size: 42px !important;
+  }
+  .kola-h2 {
+    font-size: 30px !important;
+  }
+}

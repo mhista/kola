@@ -1,0 +1,71 @@
+##
+## subscription.spy.yaml — Subscription: a workspace's billing-gateway
+## record (SRS.md §6's Core Domain Model table: "Modeled on Asami's
+## Subscription/UsageRecord/DailyUsageTracker").
+##
+## WHY THIS IS SEPARATE FROM Workspace.plan/.status: Workspace already
+## carries the FUNCTIONAL plan/status/trial-window fields every
+## enforcement check reads (see trial_state_machine.dart) — that's
+## deliberately unchanged by this model. Subscription exists for the
+## GATEWAY-FACING half: which provider (if any) is actually billing this
+## workspace, what its remote customer/subscription id is, and what
+## billing period it's currently in. One workspace has at most one
+## Subscription row at a time (unique index below) — created the moment
+## Phase 5c's Paystack/Flutterwave integration actually charges someone
+## for the first time, not at workspace-creation (a trialing workspace
+## has no gateway relationship yet, hence every gateway field here is
+## nullable).
+##
+## `#table:` stays commented out — same Serverpod Mini / Supabase-owns-
+## persistence pattern as every other model in this project (see
+## server.dart's header).
+##
+
+class: Subscription
+# table: subscriptions
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id. One workspace, at most one Subscription
+  # row (see subscription_workspace_idx below) — a plan CHANGE updates
+  # this row, it doesn't create a second one.
+  workspaceId: int
+
+  # Mirrors Workspace.plan at the moment this subscription was last
+  # synced with the gateway — kept here too (not just read off Workspace)
+  # so a webhook handler updating billing state doesn't have to touch two
+  # tables in lockstep to stay consistent with itself.
+  plan: String
+
+  # Which gateway is actually billing this workspace. Null until Phase 5c
+  # is switched on for real and a business completes checkout.
+  # Values: 'paystack' | 'flutterwave' | null.
+  gatewayProvider: String?
+
+  # The gateway's own identifier for this business (Paystack customer
+  # code / Flutterwave customer id) — needed to look them up again for
+  # renewals, refunds, or plan changes without re-collecting their card.
+  gatewayCustomerId: String?
+
+  # The gateway's own identifier for the recurring subscription/plan
+  # object itself, distinct from the customer id above.
+  gatewaySubscriptionId: String?
+
+  # Current billing period, gateway-reported. Null until a real period
+  # has actually started (i.e. until the first successful charge).
+  currentPeriodStart: DateTime?
+  currentPeriodEnd: DateTime?
+
+  # Billing-relationship status, DELIBERATELY separate from
+  # Workspace.status (which is about bot behavior, not money):
+  # 'none' (no gateway relationship yet — the default) | 'active' |
+  # 'pastDue' | 'canceled'.
+  status: String
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  subscription_workspace_idx:
+    fields: workspaceId
+    unique: true

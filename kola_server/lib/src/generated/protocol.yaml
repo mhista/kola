@@ -1,0 +1,53 @@
+bot:
+  - createBot:
+  - createBotFromDescription:
+  - listBotsForWorkspace:
+  - getBot:
+  - updateBot:
+  - setKnowledgeSeed:
+  - setCostSavingContacts:
+channel:
+  - connectTelegramChannel:
+  - listChannelsForBot:
+  - connectWhatsAppChannelManual:
+conversation:
+  - listEscalated:
+  - listAll:
+  - getMessages:
+  - sendHumanReply:
+  - closeConversation:
+errand:
+  - createBuiltinErrand:
+  - listErrandsForWorkspace:
+  - getErrand:
+  - setErrandStatus:
+  - deleteErrand:
+  - executeBuiltinErrand:
+  - createWebhookErrand:
+  - createDbCredentialErrand:
+  - executeErrand:
+ownerNotification:
+  - getSettings:
+  - updateSettings:
+payment:
+  - connectGateway:
+  - listConnectedGateways:
+  - initializeCheckout:
+  - getTransaction:
+  - releaseHold:
+supportTicket:
+  - list:
+  - setStatus:
+waitlist:
+  - joinWaitlist:
+whatsAppTemplate:
+  - createTemplate:
+  - createProductListTemplate:
+  - listTemplatesForWorkspace:
+  - refreshTemplateStatus:
+workspace:
+  - createWorkspace:
+  - listMyWorkspaces:
+  - getWorkspace:
+  - getBillingSummary:
+  - initiateUpgrade:

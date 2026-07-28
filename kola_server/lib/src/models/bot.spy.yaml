@@ -1,0 +1,73 @@
+##
+## bot.spy.yaml — A configured bot instance within a Workspace.
+##
+## A Workspace can hold more than one Bot in principle (e.g. one for
+## customer care, one for a separate catalog line), though MVP1's
+## onboarding wizard only ever creates one per workspace at signup —
+## the model doesn't assume that limit, so it doesn't need revisiting
+## if/when multi-bot-per-workspace becomes a real feature.
+##
+
+class: Bot
+# table: bots
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id
+  workspaceId: int
+
+  # Owner-facing bot name (may differ from the Workspace name).
+  name: String
+
+  # What kind of bot this is. Values:
+  #   'customerCare' — Q&A over Knowledge, MVP1
+  #   'catalog'      — catalog/negotiation commerce bot, MVP1
+  #   'custom'       — fully Errand-defined, no fixed archetype (Phase 2+)
+  archetype: String
+
+  # Lifecycle status. Values: 'draft' | 'live' | 'paused'.
+  # 'draft' = still being set up via Bot Mother, not yet connected to a
+  # live channel; 'paused' mirrors the workspace-level pause (trial expiry
+  # or manual owner action) without deleting the bot's configuration.
+  status: String
+
+  # MINIMAL, DELIBERATELY TEMPORARY grounding mechanism for Phase 3's
+  # "answer a question grounded in a manually-seeded piece of knowledge"
+  # bar (DEVELOPMENT_PLAN.md Phase 3) — plain pasted-in text (e.g. a
+  # return policy paragraph), injected directly into the AI orchestrator's
+  # system prompt by bot_knowledge_service.dart. This is NOT SRS.md §8's
+  # real Document Parsing Engine (PDF/DOCX/CSV/XLSX upload, chunking,
+  # retrieval) — that's separate, larger, later work. Once §8 ships, real
+  # KnowledgeDocument retrieval replaces reading this field directly; this
+  # field can be removed then, not before.
+  knowledgeSeed: String?
+
+  # COST-SAVING CHANNEL HANDOFF (added in response to Meta ending free
+  # WhatsApp service-window replies Oct 1, 2026 — see docs/AVOIDING_
+  # EXCESSIVE_WHATSAPP_BILLING.md for the full explanation this pair of
+  # fields exists to support). Both null by default — a bot mentions
+  # NEITHER unless the owner actually fills one in; never invented.
+  #
+  # A t.me/... link (or bare @handle) for the SAME business's Telegram
+  # bot, if they have one connected — Telegram carries no Meta per-
+  # message fee at all, so this is the strongest cost lever available.
+  # bot_knowledge_service.dart instructs the model to mention this when
+  # a WhatsApp conversation is running long, NOT to redirect every
+  # customer reflexively (a bot that immediately punts every WhatsApp
+  # chat elsewhere defeats the point of being reachable on WhatsApp).
+  costSavingTelegramLink: String?
+
+  # An alternate phone number/handle (WhatsApp, a direct line, anything
+  # the owner wants read out) for handing off a conversation that's
+  # gotten too long/complex for continued bot-mediated WhatsApp replies
+  # to make sense cost-wise. Free text, not validated as a phone number
+  # — the owner may reasonably want to paste a handle or short
+  # instruction instead ("call the shop: 0801...").
+  costSavingAlternateWhatsapp: String?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  bot_workspace_idx:
+    fields: workspaceId

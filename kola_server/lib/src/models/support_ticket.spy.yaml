@@ -1,0 +1,80 @@
+##
+## support_ticket.spy.yaml — Phase 8b / task #130: the buildable slice of
+## "complaint ticketing with SLA tracking" (docs/DEVELOPMENT_PLAN.md
+## Phase 8b). Built directly on the existing Conversation/Message/Errand
+## models — no new external dependency, unlike OTP delivery (blocked on
+## an SMS provider decision) or birthday/anniversary campaigns (would
+## need a new customer-profile concept this codebase doesn't have yet),
+## both left out of this slice on purpose.
+##
+## A SupportTicket is what a bot creates (via the 'createSupportTicket'
+## built-in Errand — see builtin_errand_executor.dart) when a customer's
+## message is a complaint that needs tracked follow-through, distinct
+## from an escalated Conversation: escalation means "a human needs to
+## take over this thread right now"; a ticket means "this specific issue
+## needs to be resolved by a deadline," and can exist on a conversation
+## the bot is still otherwise handling normally. The two are
+## complementary, not alternatives — a bot can both escalate AND open a
+## ticket for the same complaint.
+##
+## SLA DEADLINE IS SET AT CREATION, FROM PRIORITY — see
+## support_ticket_repository.dart's create() for the priority → duration
+## table. Illustrative defaults, same "not final, easy to retune without
+## touching calling code" spirit as notification_rate_limiter.dart's
+## daily caps.
+##
+## STATUS: 'open' (default) | 'inProgress' | 'resolved' | 'closed'.
+## SupportTicketSlaSweepService (support_ticket_sla_sweep_service.dart)
+## only ever looks at 'open'/'inProgress' tickets whose slaDeadline has
+## passed — 'resolved'/'closed' tickets are done and never breach.
+##
+
+class: SupportTicket
+# table: support_tickets
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — denormalized alongside conversationId
+  # for the same reason Conversation itself denormalizes it: every
+  # isolation-enforcing query filters by it directly, not via a join.
+  workspaceId: int
+
+  # Foreign key → conversations.id — the thread this complaint came from.
+  conversationId: int
+
+  # Short owner-facing summary, e.g. "Order #482 arrived damaged."
+  subject: String
+
+  # The complaint itself, as given by the customer (or summarized by the
+  # bot) — free text.
+  description: String
+
+  # 'low' | 'medium' | 'high' | 'urgent' — determines slaDeadline at
+  # creation time. See header.
+  priority: String
+
+  # 'open' | 'inProgress' | 'resolved' | 'closed' — see header.
+  status: String
+
+  # When this ticket must be resolved by, computed at creation from
+  # priority. Never recomputed on a priority change after creation —
+  # changing your mind about severity shouldn't silently reset a clock
+  # a business may already be tracking against externally.
+  slaDeadline: DateTime
+
+  # Set the moment status transitions to 'resolved' or 'closed' — null
+  # while still open/inProgress. Kept separate from updatedAt so "how
+  # long did this actually take" is answerable without assuming the last
+  # update was the resolution.
+  resolvedAt: DateTime?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  support_ticket_workspace_idx:
+    fields: workspaceId
+  support_ticket_conversation_idx:
+    fields: conversationId
+  support_ticket_status_idx:
+    fields: status

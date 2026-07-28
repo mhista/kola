@@ -1,0 +1,29 @@
+# Files and directories created by pub
+.dart_tool/
+.packages
+
+# Conventional directory for build outputs
+build/
+
+# Ignore the flutter web app directory
+web/app
+
+# Directory created by dartdoc
+doc/api/
+
+# Passwords file
+config/passwords.yaml
+
+# Firebase service account key for Firebase auth
+config/firebase_service_account_key.json
+
+# ── Real secrets — NEVER commit these ────────────────────────────────────────
+# .env holds real Supabase keys, the JWT secret, the channel-credential
+# master key, etc. — .env.example is the only variant meant to be tracked,
+# and it must only ever contain placeholder/blank values (found and fixed a
+# case where real live credentials had ended up in .env.example itself —
+# see kola_server/README.md's security note). This entry existed nowhere in
+# the repo before, which is exactly how that happened.
+.env
+.env.local
+.env.*.local

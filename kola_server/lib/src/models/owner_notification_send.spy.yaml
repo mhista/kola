@@ -1,0 +1,24 @@
+##
+## owner_notification_send.spy.yaml — One row per successfully attempted
+## owner notification, purely to support rate limiting
+## (notification_rate_limiter.dart counts today's rows per
+## (workspaceId, channel) and compares against the workspace's plan
+## tier) and, incidentally, an audit trail of when the owner was pinged.
+## Not the notification's content — just enough to count.
+##
+
+class: OwnerNotificationSend
+# table: owner_notification_sends
+fields:
+  id: int? # Supabase assigns this automatically
+
+  workspaceId: int
+
+  # 'email' | 'whatsapp' | 'telegram' | 'sms'
+  channel: String
+
+  sentAt: DateTime
+
+indexes:
+  owner_notification_send_workspace_channel_idx:
+    fields: workspaceId, channel

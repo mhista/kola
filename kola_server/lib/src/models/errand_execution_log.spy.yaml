@@ -1,0 +1,59 @@
+##
+## errand_execution_log.spy.yaml — Every Errand invocation (SRS.md §6,
+## §7.3): inputs (redacted per the owning Errand's sensitiveInputKeysJson),
+## result, latency, success/failure. Feeds both debugging and, per SRS.md
+## §6, the Phase 3-of-the-*product*-roadmap fraud/abuse engine later —
+## logging every execution now, even before that engine exists, is the
+## same "build the seam now, fill it in later" instinct DEVELOPMENT_PLAN.md
+## Phase 3d already calls out for the security filter pass.
+##
+## workspaceId is denormalized here (not just reachable via a join through
+## errandId) because SRS.md §5 is explicit: "every persisted row that
+## belongs to a business carries a workspaceId" — this table belongs to a
+## business the same as any other, so it gets the column directly rather
+## than relying on a join for isolation enforcement.
+##
+## No conversationId/channelId field yet — Conversation/Message
+## (SRS.md §6's Core Domain Model table) haven't been built in this
+## codebase yet, so a foreign key to either would be a dangling reference
+## to a model that doesn't exist. Add one when Conversation ships; leaving
+## it out now is honest scoping, not a gap.
+##
+
+class: ErrandExecutionLog
+# table: errand_execution_logs
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → errands.id
+  errandId: int
+
+  # Foreign key → workspaces.id — see header on why this is denormalized
+  # here rather than join-only.
+  workspaceId: int
+
+  # JSON-encoded (jsonEncode'd Map) input args this invocation was called
+  # with, with any key listed in the owning Errand's
+  # sensitiveInputKeysJson replaced with the literal string
+  # '[redacted]' before this row is ever written — see
+  # errand_execution_log_repository.dart for where that redaction
+  # actually happens.
+  inputJson: String
+
+  # JSON-encoded result on success; null on failure.
+  resultJson: String?
+
+  success: bool
+
+  # Populated only when success is false.
+  errorMessage: String?
+
+  latencyMs: int
+
+  executedAt: DateTime
+
+indexes:
+  errand_execution_log_errand_idx:
+    fields: errandId
+  errand_execution_log_workspace_idx:
+    fields: workspaceId

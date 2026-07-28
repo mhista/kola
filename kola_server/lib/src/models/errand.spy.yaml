@@ -1,0 +1,114 @@
+##
+## errand.spy.yaml — A registered bot capability (SRS.md §7, PRD.md §5).
+##
+## Conceptually a cloud-function registry entry: registered once (name,
+## description, input schema, fulfillment target, permission scope), then
+## invoked at conversation time by the AI orchestrator. Scoped to a
+## WORKSPACE, not a single Bot — SRS.md §7.3: "Every Errand is scoped to a
+## single workspace at creation and cannot be invoked outside that
+## workspace's conversations" — a workspace with more than one Bot can
+## share the same Errand across all of them.
+##
+## FULFILLMENT TARGETS (source), in increasing order of platform trust
+## required (SRS.md §7.2):
+##   'builtin'     — Errands Kola ships (escalate to human, etc.) — Phase
+##                   3b, no ErrandCredential needed.
+##   'webhook'     — the business's own HTTP endpoint — Phase 3c.
+##   'dbCredential'— read-only (default) or read/write connection to a
+##                   business-supplied database — Phase 3c.
+##   'mcp'         — the business's own MCP server (Phase 2 of the
+##                   *product* roadmap, not this engineering phase) —
+##                   listed here because SRS.md §6 already designs the
+##                   enum with this value in mind; genuinely unimplemented
+##                   until that phase, not a stub pretending otherwise.
+##
+## descriptionForAi is deliberately the field name (not just
+## "description") — it's the exact string the AI orchestrator will see
+## when deciding whether to invoke this Errand, once function/tool-calling
+## is added to AiProvider (see ai_provider.dart's header) — naming it
+## precisely now avoids an ambiguous "description" field that's unclear
+## whether it's user-facing dashboard copy or AI-facing tool documentation
+## (it's the latter).
+##
+
+class: Errand
+# table: errands
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — see header on why this is workspace-,
+  # not bot-, scoped.
+  workspaceId: int
+
+  # Short owner-facing name, e.g. "Check order status".
+  name: String
+
+  # The exact text the AI orchestrator sees to decide when/how to invoke
+  # this Errand, once tool-calling exists — see header.
+  descriptionForAi: String
+
+  # 'builtin' | 'webhook' | 'dbCredential' | 'mcp' — see header.
+  source: String
+
+  # ONLY meaningful when source == 'builtin' — which specific built-in
+  # fulfillment this Errand runs (e.g. 'escalateToHuman'), looked up by
+  # BuiltinErrandExecutor's handler registry. Deliberately a separate
+  # field from `name`: `name` is free-text and owner-editable ("Hand off
+  # to a person" today, renamed to anything tomorrow), so it can never
+  # safely double as a stable dispatch key. Null for webhook/dbCredential/
+  # mcp Errands, whose fulfillment target lives in ErrandCredential
+  # instead.
+  builtinHandlerKey: String?
+
+  # How this Errand came to exist. Values: 'naturalLanguage' | 'api'
+  # (SRS.md §7.1's two creation paths — Bot Mother conversation vs. a
+  # developer's API key calling the registration endpoint directly).
+  createdVia: String
+
+  # 'readOnly' | 'readWrite'. Meaningful today mainly for 'dbCredential'
+  # Errands (SRS.md §7.3: read-only by default, read/write is an
+  # explicit, separately-confirmed upgrade) — 'builtin'/'webhook' Errands
+  # default to 'readOnly' since Kola doesn't yet have a concrete
+  # "write" built-in/webhook action that would need the upgrade.
+  permissionScope: String
+
+  # JSON-encoded (jsonEncode'd Map) description of the parameters this
+  # Errand expects when invoked, e.g. {"orderId": "string"} — parsed by
+  # whoever invokes it, same "flexible shape lives in a text column,
+  # parsed one layer up" pattern already used for WhatsAppCredential
+  # (whatsapp_credential.dart) rather than a rigid Serverpod nested type.
+  inputSchemaJson: String
+
+  # JSON-encoded (jsonEncode'd List<String>) list of input parameter
+  # names that ErrandExecutionLog must redact before persisting inputs —
+  # SRS.md §7.3: "inputs (redacted per scope)". Empty list ('[]') by
+  # default, meaning nothing is redacted unless explicitly declared
+  # sensitive at registration time.
+  sensitiveInputKeysJson: String
+
+  # 'active' | 'disabled' — an owner (or Bot Mother, on request) can
+  # disable an Errand without deleting its history/logs.
+  status: String
+
+  # ONLY meaningful when source == 'dbCredential' — the pre-approved,
+  # named-parameter SQL template this Errand is allowed to run (e.g.
+  # "select status, eta from orders where customer_email = @email"),
+  # using the exact @name syntax package:postgres's Sql.named expects
+  # (see db_credential_errand_executor.dart). This is the concrete
+  # mechanism behind SRS.md §7.2's "specific, pre-approved query shapes
+  # only (never an open SQL console)" — Bot Mother (or a developer via
+  # the API) writes this ONCE at registration time; nothing at
+  # conversation time can execute arbitrary SQL, only fill in this
+  # template's named parameters. DbCredentialErrandExecutor additionally
+  # re-checks that this starts with SELECT whenever permissionScope is
+  # 'readOnly', as a defense-in-depth guard against the template being
+  # edited to something unsafe later without a matching permission
+  # upgrade. Null for builtin/webhook/mcp Errands.
+  queryTemplateSql: String?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  errand_workspace_idx:
+    fields: workspaceId

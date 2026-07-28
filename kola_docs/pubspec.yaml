@@ -1,0 +1,43 @@
+name: kola_docs
+description: Kola developer documentation site — static Jaspr site (Phase 6).
+version: 1.0.0
+
+environment:
+  sdk: ^3.8.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Standalone, same as kola_landing (NOT listed in the root pubspec.yaml's
+# `workspace:` array) — this package has no path dependency on kola_client
+# or any other sibling package, so it doesn't need to join the pub
+# workspace kola_dashboard/kola_flutter/kola_client share. Every code
+# example on this site is plain text (a cURL command or a Dart snippet
+# meant to be copied into someone ELSE's project), not a live call this
+# site itself makes — there's nothing here that needs a real client
+# library at build time.
+#
+# jaspr: mode: client — same confirmed pattern as kola_landing/
+# kola_dashboard (DEVELOPMENT_PLAN.md Phase 4a's decision, SRS.md §3/§12).
+#
+# jaspr ^0.23.2 / jaspr_router ^0.8.2 — same version floor kola_dashboard
+# pins and documents: jaspr_router 0.8.3 calls `context.binding.basePath`,
+# an AppBinding getter only added in jaspr 0.23.2, so anything looser risks
+# "The getter 'basePath' isn't defined for the type 'AppBinding'" if a
+# lockfile stays pinned below it. jaspr_router is needed here (unlike
+# kola_landing) because this is a genuine multi-page site — Quickstart,
+# Authentication, Errands, Webhooks, Channels, Rate limits & plans, SDKs
+# are real separate routes with their own URLs, not scroll-anchors on one
+# page.
+# ─────────────────────────────────────────────────────────────────────────────
+
+dependencies:
+  jaspr: ^0.23.2
+  jaspr_router: ^0.8.2
+
+dev_dependencies:
+  build_runner: ^2.4.0
+  build_web_compilers: ^4.0.0
+  jaspr_builder: ^0.23.0
+  lints: ^5.0.0
+
+jaspr:
+  mode: client

@@ -1,0 +1,73 @@
+##
+## kola_billing_checkout.spy.yaml — task #148: Kola's OWN SaaS
+## subscription checkout — a workspace paying KOLA to upgrade off the
+## free plan.
+##
+## WHY THIS IS A SEPARATE TABLE FROM PaymentTransaction, NOT A REUSE OF
+## IT: PaymentTransaction (payment_transaction.spy.yaml) is explicitly
+## scoped to checkouts "against a workspace's OWN connected Paystack/
+## Flutterwave account" — money a BUSINESS collects from ITS OWN
+## customers, verified with THAT WORKSPACE'S OWN gateway credential
+## (payment_gateway_credential.spy.yaml). This model is the opposite
+## direction entirely: a workspace paying KOLA, verified with KOLA'S OWN
+## Env.paystackSecretKey/flutterwaveSecretKey (kola_billing_service.dart)
+## — no workspace credential involved at all. Reusing PaymentTransaction
+## would make PaymentWebhookHandler's "look up the workspace's own
+## credential to verify" assumption silently wrong for these rows.
+##
+## ON SUCCESSFUL PAYMENT: KolaBillingWebhookHandler updates BOTH
+## Workspace.plan/.status (via WorkspaceRepository.setPlanAndStatus —
+## the field TrialStateMachine.effectiveTier actually reads) AND creates/
+## updates the workspace's Subscription row (the gateway-facing billing
+## record — see subscription.spy.yaml). This row itself is a lighter-
+## weight audit trail of the checkout ATTEMPT, not the durable billing
+## relationship record — Subscription is.
+##
+
+class: KolaBillingCheckout
+# table: kola_billing_checkouts
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — the workspace upgrading.
+  workspaceId: int
+
+  # 'paystack' | 'flutterwave' — which gateway this checkout used.
+  gateway: String
+
+  # Our own idempotency key, generated at initiateUpgrade time and
+  # passed to the gateway as its reference/tx_ref. Globally unique —
+  # KolaBillingWebhookHandler looks up a checkout by this alone, before
+  # it knows which workspace a webhook belongs to (same safe "look up
+  # by reference, then verify" shape payment_webhook_handler.dart uses).
+  reference: String
+
+  # Smallest currency unit (kobo for NGN) — PlanLimits.
+  # paidPlanMonthlyPriceKobo at the moment this checkout was created.
+  amountKobo: int
+
+  # Which Workspace.plan value this checkout upgrades to on success —
+  # 'pro' today (the only paid plan PlanLimits actually prices), kept as
+  # a field rather than hardcoded so a future second paid tier doesn't
+  # need a schema change.
+  plan: String
+
+  # 'pending' | 'completed' | 'failed' — set to 'completed' only once
+  # KolaBillingWebhookHandler has independently verified BOTH the
+  # signature AND the gateway's own data.status/data.amount fields, same
+  # "never trust the webhook body alone" posture as PaymentTransaction.
+  status: String
+
+  checkoutUrl: String? # Paystack authorization_url / Flutterwave link
+  gatewayTransactionId: String? # the gateway's own id, from verify's response
+
+  createdAt: DateTime
+  updatedAt: DateTime
+  paidAt: DateTime?
+
+indexes:
+  kola_billing_checkout_workspace_idx:
+    fields: workspaceId
+  kola_billing_checkout_reference_idx:
+    fields: reference
+    unique: true

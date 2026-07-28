@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+
+<div style="font-family:'Plus Jakarta Sans',sans-serif;background:{{ bg }};color:{{ text }};width:100%;min-height:100vh;box-sizing:border-box;background-image:{{ dots }};background-size:24px 24px;position:relative">
+
+  <div style="position:fixed;top:16px;right:16px;z-index:50;display:flex;gap:8px">
+    <div style="display:flex;background:{{ card }};border:1px solid {{ border }};border-radius:100px;padding:3px">
+      <button onClick="{{ setDesktop }}" style="border:none;padding:7px 14px;border-radius:100px;font-size:12.5px;font-family:inherit;cursor:pointer;background:{{ desktopBg }};color:{{ desktopColor }}">Desktop</button>
+      <button onClick="{{ setMobile }}" style="border:none;padding:7px 14px;border-radius:100px;font-size:12.5px;font-family:inherit;cursor:pointer;background:{{ mobileBg }};color:{{ mobileColor }}">Mobile</button>
+    </div>
+    <div style="display:flex;background:{{ card }};border:1px solid {{ border }};border-radius:100px;padding:3px">
+      <button onClick="{{ setDark }}" style="border:none;padding:7px 12px;border-radius:100px;font-size:13px;cursor:pointer;background:{{ darkBg }};color:{{ darkColor }}">🌙</button>
+      <button onClick="{{ setLight }}" style="border:none;padding:7px 12px;border-radius:100px;font-size:13px;cursor:pointer;background:{{ lightBg }};color:{{ lightColor }}">☀️</button>
+    </div>
+  </div>
+
+  <sc-if value="{{ showErrandBuilder }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:100" onClick="{{ closeErrandBuilder }}">
+      <div onClick="{{ stopProp }}"><dc-import name="Kola Errand Builder" hint-size="100%,100%"></dc-import></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;position:relative">
+      <div style="width:272px;flex-shrink:0;border-right:1px solid {{ border }};padding:20px 16px;display:flex;flex-direction:column;height:100vh;position:sticky;top:0;box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:9px;padding:6px 8px 22px">
+          <svg width="22" height="22" viewBox="0 0 26 26" fill="none"><path d="M13 2C13 2 6 8.5 6 15.5C6 20 9 24 13 24C17 24 20 20 20 15.5C20 8.5 13 2 13 2Z" fill="#C1552E"/></svg>
+          <span style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700">kola</span>
+        </div>
+        <a href="Kola%20Onboarding%20Wizard.dc.html" style="background:#C1552E;color:#FFF6EE;border:none;border-radius:11px;padding:12px;font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:20px;text-align:center;display:block">+ New Bot</a>
+        <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="9">
+          <a href="{{ item.href }}" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14.5px;background:{{ item.bg }};color:{{ item.color }};text-decoration:none">
+            <span style="font-size:16px">{{ item.icon }}</span>{{ item.label }}
+          </a>
+        </sc-for>
+        <div style="margin-top:26px;font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:{{ muted }};padding:0 12px 10px">Recent</div>
+        <sc-for list="{{ recentItems }}" as="r" hint-placeholder-count="4">
+          <a href="{{ r.href }}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;cursor:pointer;font-size:13.5px;color:{{ mutedStrong }};text-decoration:none">
+            <span style="font-size:13px">{{ r.icon }}</span>{{ r.label }}
+          </a>
+        </sc-for>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid {{ border }};margin-top:12px">
+          <div style="width:30px;height:30px;border-radius:50%;background:#3A3733;display:flex;align-items:center;justify-content:center;font-size:13px;color:#F3EEE7">A</div>
+          <div style="flex:1"><div style="font-size:13.5px;font-weight:600">Aisha's Fashion House</div><div style="font-size:11.5px;color:{{ muted }}">Pro plan</div></div>
+        </div>
+      </div>
+
+      <div style="flex:1;padding:80px 40px;display:flex;flex-direction:column;align-items:center">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:600;margin-bottom:24px;white-space:nowrap">Evening, Aisha</div>
+        <div style="width:100%;max-width:680px;background:{{ card }};border:1px solid {{ border }};border-radius:22px;padding:18px 20px">
+          <textarea placeholder="What do you want kola to help with today?" rows="2" style="width:100%;box-sizing:border-box;border:none;outline:none;resize:none;background:transparent;color:{{ text }};font-family:inherit;font-size:16px"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+            <div style="display:flex;gap:8px">
+              <a href="Kola%20Knowledge%20Base.dc.html" style="width:34px;height:34px;border-radius:50%;background:{{ pill }};display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none" title="Upload knowledge">📎</a>
+              <button onClick="{{ openErrandBuilder }}" style="width:34px;height:34px;border-radius:50%;background:{{ pill }};border:none;display:flex;align-items:center;justify-content:center;cursor:pointer" title="New Errand">⚡</button>
+            </div>
+            <div style="width:36px;height:36px;border-radius:50%;background:#C1552E;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#FFF6EE">→</div>
+          </div>
+        </div>
+        <div style="width:100%;max-width:680px;display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px">
+          <sc-for list="{{ quickActions }}" as="qa" hint-placeholder-count="4">
+            <a href="{{ qa.href }}" style="background:{{ qa.bg }};border:1px solid {{ qa.border }};border-radius:16px;padding:18px;cursor:pointer;text-decoration:none;color:inherit;display:block">
+              <div style="width:36px;height:36px;border-radius:10px;background:{{ qa.iconBg }};display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:14px">{{ qa.icon }}</div>
+              <div style="font-size:14.5px;font-weight:600">{{ qa.label }}</div>
+              <div style="font-size:12.5px;color:{{ muted }};margin-top:3px">{{ qa.sub }}</div>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+    <div style="width:390px;margin:0 auto;min-height:844px;display:flex;flex-direction:column;box-sizing:border-box">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 8px">
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700">kola</span>
+        <div style="width:30px;height:30px;border-radius:50%;background:#3A3733;display:flex;align-items:center;justify-content:center;font-size:13px;color:#F3EEE7">A</div>
+      </div>
+      <div style="flex:1;padding:20px;display:flex;flex-direction:column;align-items:center">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:23px;font-weight:600;margin:14px 0 18px;align-self:flex-start">Evening, Aisha</div>
+        <div style="width:100%;background:{{ card }};border:1px solid {{ border }};border-radius:20px;padding:16px;box-sizing:border-box">
+          <textarea placeholder="What do you want kola to help with?" rows="2" style="width:100%;box-sizing:border-box;border:none;outline:none;resize:none;background:transparent;color:{{ text }};font-family:inherit;font-size:15px"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+            <div style="display:flex;gap:8px">
+              <a href="Kola%20Knowledge%20Base.dc.html" style="width:30px;height:30px;border-radius:50%;background:{{ pill }};display:flex;align-items:center;justify-content:center;font-size:13px;text-decoration:none">📎</a>
+              <button onClick="{{ openErrandBuilder }}" style="width:30px;height:30px;border-radius:50%;background:{{ pill }};border:none;display:flex;align-items:center;justify-content:center;font-size:13px">⚡</button>
+            </div>
+            <div style="width:32px;height:32px;border-radius:50%;background:#C1552E;color:#FFF6EE;display:flex;align-items:center;justify-content:center">→</div>
+          </div>
+        </div>
+        <div style="width:100%;display:flex;flex-direction:column;gap:10px;margin-top:18px">
+          <sc-for list="{{ quickActions }}" as="qa" hint-placeholder-count="4">
+            <a href="{{ qa.href }}" style="background:{{ qa.bg }};border:1px solid {{ qa.border }};border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit">
+              <div style="width:32px;height:32px;border-radius:9px;background:{{ qa.iconBg }};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">{{ qa.icon }}</div>
+              <span style="font-size:14px;font-weight:600">{{ qa.label }}</span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;border-top:1px solid {{ border }};padding:10px 0 22px">
+        <sc-for list="{{ tabBar }}" as="tab" hint-placeholder-count="3">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ tab.color }}">
+            <span style="font-size:19px">{{ tab.icon }}</span><span style="font-size:11px;font-weight:600">{{ tab.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { view: 'desktop', theme: 'dark', showErrandBuilder: false };
+
+  navDefs = [
+    { icon: '🏠', label: 'Home', active: true, href: 'Kola%20Dashboard%20Shell.dc.html' },
+    { icon: '🤖', label: 'Bots', href: 'Kola%20Bot%20Detail%20Chat.dc.html' },
+    { icon: '⚡', label: 'Errands', href: 'Kola%20Errand%20Builder.dc.html' },
+    { icon: '📚', label: 'Knowledge', href: 'Kola%20Knowledge%20Base.dc.html' },
+    { icon: '💬', label: 'Conversations', href: 'Kola%20Conversations.dc.html' },
+    { icon: '🔌', label: 'Integrations', href: 'Kola%20Integrations.dc.html' },
+    { icon: '🔑', label: 'API & Webhooks', href: 'Kola%20API%20Webhooks.dc.html' },
+    { icon: '👥', label: 'Team', href: '#' },
+    { icon: '💳', label: 'Billing', href: 'Kola%20Billing.dc.html' },
+  ];
+
+  recentDefs = [
+    { icon: '🤖', label: 'Trading Bot for WhatsApp', href: 'Kola%20Bot%20Detail%20Chat.dc.html' },
+    { icon: '⚡', label: 'Check order status', href: 'Kola%20Bot%20Detail%20Dev.dc.html' },
+    { icon: '📄', label: 'Price list.pdf', href: 'Kola%20Knowledge%20Base.dc.html' },
+    { icon: '⚡', label: 'Escalate to human', href: 'Kola%20Bot%20Detail%20Dev.dc.html' },
+  ];
+
+  quickActionDefs = [
+    { icon: '⚡', label: 'Create a new Errand', sub: 'Teach kola a new task', href: 'Kola%20Errand%20Builder.dc.html' },
+    { icon: '📚', label: 'Upload knowledge', sub: 'Price lists, FAQs, docs', href: 'Kola%20Knowledge%20Base.dc.html' },
+    { icon: '🔌', label: 'Connect a channel', sub: 'WhatsApp or Telegram', href: 'Kola%20Integrations.dc.html' },
+    { icon: '💬', label: "This week's conversations", sub: '48 handled, 3 escalated', href: 'Kola%20Conversations.dc.html' },
+  ];
+
+  theme() {
+    const dark = this.state.theme === 'dark';
+    return dark
+      ? { bg: '#121214', card: '#1B1B1E', border: '#2C2A28', text: '#F3EEE7', muted: '#6B655E', mutedStrong: '#B9B3AC', pill: '#242220', dots: 'radial-gradient(circle, rgba(255,255,255,0.06) 1.4px, transparent 1.4px)',
+          qaBgs: ['#241A14', '#12261F', '#1B2430', '#241F14'], qaIconBgs: ['#3A2A1E', '#1F3B30', '#28374A', '#3A331F'] }
+      : { bg: '#FAF6EF', card: '#FFFFFF', border: '#E8E1D6', text: '#1C1815', muted: '#9C9691', mutedStrong: '#5B554F', pill: '#F1EAE0', dots: 'radial-gradient(circle, #DED4C2 1.4px, transparent 1.4px)',
+          qaBgs: ['#FBEFE6', '#EAF6F0', '#EAF1FB', '#FBF3E6'], qaIconBgs: ['#F3D9C4', '#CFEEE0', '#CFE0F3', '#F3E3BE'] };
+  }
+
+  renderVals() {
+    const v = this.state.view; const dark = this.state.theme === 'dark';
+    const t = this.theme();
+    return {
+      ...t,
+      isDesktop: v === 'desktop', isMobile: v === 'mobile',
+      desktopBg: v === 'desktop' ? '#C1552E' : 'transparent', desktopColor: v === 'desktop' ? '#FFF6EE' : t.muted,
+      mobileBg: v === 'mobile' ? '#C1552E' : 'transparent', mobileColor: v === 'mobile' ? '#FFF6EE' : t.muted,
+      setDesktop: () => this.setState({ view: 'desktop' }), setMobile: () => this.setState({ view: 'mobile' }),
+      darkBg: dark ? '#2C2A28' : 'transparent', darkColor: dark ? '#F3EEE7' : t.muted,
+      lightBg: !dark ? '#F1EAE0' : 'transparent', lightColor: !dark ? '#1C1815' : t.muted,
+      setDark: () => this.setState({ theme: 'dark' }), setLight: () => this.setState({ theme: 'light' }),
+      navItems: this.navDefs.map(n => ({ ...n, bg: n.active ? (dark ? '#241A14' : '#F1EAE0') : 'transparent', color: n.active ? '#C1552E' : (dark ? '#D8D2C9' : '#4A443F') })),
+      recentItems: this.recentDefs,
+      quickActions: this.quickActionDefs.map((qa, i) => ({ ...qa, bg: t.qaBgs[i], border: 'transparent', iconBg: t.qaIconBgs[i] })),
+      tabBar: [
+        { icon: '🏠', label: 'Home', color: '#C1552E' },
+        { icon: '💬', label: 'Chats', color: t.muted },
+        { icon: '⚙️', label: 'Settings', color: t.muted },
+      ],
+      showErrandBuilder: this.state.showErrandBuilder,
+      openErrandBuilder: () => this.setState({ showErrandBuilder: true }),
+      closeErrandBuilder: () => this.setState({ showErrandBuilder: false }),
+      stopProp: (e) => e.stopPropagation(),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+
+<div style="font-family:'Plus Jakarta Sans',sans-serif;background:#121214;color:#F3EEE7;width:100%;min-height:100vh;box-sizing:border-box;padding:32px 40px;background-image:radial-gradient(circle, rgba(255,255,255,0.06) 1.4px, transparent 1.4px);background-size:24px 24px">
+  <a href="Kola%20Dashboard%20Shell.dc.html" style="color:#9C9691;text-decoration:none;font-size:14px;display:inline-block;margin-bottom:14px">← Dashboard</a>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">Knowledge</div>
+    <button style="background:#C1552E;color:#FFF6EE;border:none;border-radius:100px;padding:11px 20px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">+ Upload document</button>
+  </div>
+
+  <div style="border:1.5px dashed #2C2A28;border-radius:16px;padding:32px;text-align:center;margin-bottom:32px;color:#9C9691">
+    <div style="font-size:26px;margin-bottom:8px">📤</div>
+    <div style="font-size:14.5px;margin-bottom:4px">Drag a file here, or click to upload</div>
+    <div style="font-size:12.5px;color:#6B655E">PDF, DOCX, TXT, CSV, XLSX</div>
+  </div>
+
+  <sc-if value="{{ selected }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:16px;padding:22px;margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:15.5px;font-weight:600">{{ selected.name }} — extracted preview</div>
+        <span onClick="{{ closeSelected }}" style="cursor:pointer;color:#6B655E">×</span>
+      </div>
+      <div style="font-size:13.5px;color:#B9B3AC;line-height:1.7;background:#000;border-radius:10px;padding:16px">{{ selected.preview }}</div>
+    </div>
+  </sc-if>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+    <sc-for list="{{ docs }}" as="doc" hint-placeholder-count="6">
+      <div onClick="{{ doc.onClick }}" style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:14px;padding:18px;cursor:pointer" style-hover="border-color:#C1552E">
+        <div style="font-size:24px;margin-bottom:12px">{{ doc.icon }}</div>
+        <div style="font-size:14.5px;font-weight:600;margin-bottom:4px">{{ doc.name }}</div>
+        <div style="font-size:12.5px;color:#6B655E;margin-bottom:12px">Uploaded {{ doc.date }}</div>
+        <span style="font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:100px;background:{{ doc.bg }};color:{{ doc.color }}">{{ doc.status }}</span>
+      </div>
+    </sc-for>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { selectedIdx: null };
+  docDefs = [
+    { icon: '📄', name: 'Price list — July.pdf', date: 'Jul 18', status: 'Ready', preview: 'Ankara fabric — ₦4,500/yd. Ready-made gowns from ₦18,500. Aso-ebi bulk orders: 10% off 10+ yards...' },
+    { icon: '📝', name: 'FAQs.docx', date: 'Jul 16', status: 'Ready', preview: 'Q: Do you deliver outside Lagos? A: Yes, via GIG Logistics, 3-5 business days...' },
+    { icon: '📊', name: 'Inventory.xlsx', date: 'Jul 14', status: 'Processing', preview: 'Parsing rows... 1,204 of 1,204 items indexed.' },
+    { icon: '📄', name: 'Return policy.pdf', date: 'Jul 10', status: 'Ready', preview: 'Items may be returned within 7 days if unworn and tagged...' },
+    { icon: '📝', name: 'Store hours.txt', date: 'Jul 8', status: 'Needs attention', preview: 'Could not parse — file appears empty or corrupted.' },
+    { icon: '📄', name: 'Brand voice guide.pdf', date: 'Jul 2', status: 'Ready', preview: 'Warm, direct, a little playful. Never say "unfortunately" — say "here\'s what we can do instead."' },
+  ];
+  statusColors = { Ready: ['#12261F', '#7ED8B0'], Processing: ['#241A14', '#E9A87C'], 'Needs attention': ['#2A1F16', '#F0B08C'] };
+  renderVals() {
+    return {
+      docs: this.docDefs.map((d, i) => {
+        const [bg, color] = this.statusColors[d.status];
+        return { ...d, bg, color, onClick: () => this.setState({ selectedIdx: i }) };
+      }),
+      selected: this.state.selectedIdx != null ? this.docDefs[this.state.selectedIdx] : null,
+      closeSelected: () => this.setState({ selectedIdx: null }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

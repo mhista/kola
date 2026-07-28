@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+
+<div style="font-family:'Plus Jakarta Sans',sans-serif;background:#121214;color:#F3EEE7;width:100%;min-height:100vh;box-sizing:border-box;display:flex;background-image:radial-gradient(circle, rgba(255,255,255,0.06) 1.4px, transparent 1.4px);background-size:24px 24px">
+
+  <div style="width:340px;flex-shrink:0;border-right:1px solid #1F1D1B;overflow-y:auto">
+    <div style="padding:14px 20px 0"><a href="Kola%20Dashboard%20Shell.dc.html" style="color:#9C9691;text-decoration:none;font-size:13px">← Dashboard</a></div>
+    <div style="padding:8px 20px 12px;font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600">Conversations</div>
+    <sc-for list="{{ convos }}" as="c" hint-placeholder-count="6">
+      <div onClick="{{ c.onClick }}" style="padding:14px 20px;border-top:1px solid #1B1918;cursor:pointer;background:{{ c.bg }}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:14px">{{ c.channelIcon }}</span>
+            <span style="font-size:14.5px;font-weight:600">{{ c.name }}</span>
+          </div>
+          <sc-if value="{{ c.unread }}" hint-placeholder-val="{{ false }}">
+            <div style="width:8px;height:8px;border-radius:50%;background:#C1552E"></div>
+          </sc-if>
+        </div>
+        <div style="font-size:13px;color:#9C9691;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.preview }}</div>
+        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:100px;background:{{ c.tagBg }};color:{{ c.tagColor }}">{{ c.tag }}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="padding:18px 24px;border-bottom:1px solid #1F1D1B;font-size:15.5px;font-weight:600">{{ activeName }} <span style="font-size:13px;color:#9C9691;font-weight:400">· {{ activeChannel }}</span></div>
+    <div style="flex:1;padding:24px;display:flex;flex-direction:column;gap:12px;overflow-y:auto">
+      <sc-for list="{{ activeTranscript }}" as="m" hint-placeholder-count="4">
+        <div style="align-self:{{ m.align }};max-width:70%;background:{{ m.bg }};color:{{ m.color }};padding:11px 15px;border-radius:14px;font-size:14px">{{ m.text }}</div>
+      </sc-for>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #1F1D1B;display:flex;gap:10px">
+      <input placeholder="Reply as yourself..." style="flex:1;background:#1B1B1E;border:1px solid #2C2A28;border-radius:100px;padding:12px 16px;color:#F3EEE7;font-family:inherit;font-size:14px"/>
+      <button style="background:#C1552E;color:#FFF6EE;border:none;border-radius:100px;padding:0 20px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">Send</button>
+    </div>
+  </div>
+
+  <div style="width:280px;flex-shrink:0;border-left:1px solid #1F1D1B;padding:20px;box-sizing:border-box">
+    <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em;color:#6B655E;margin-bottom:14px">Errands fired</div>
+    <sc-for list="{{ firedErrands }}" as="e" hint-placeholder-count="2">
+      <div style="background:#1B1B1E;border:1px solid #2C2A28;border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:4px">{{ e.name }}</div>
+        <div style="font-size:12.5px;color:#9C9691">{{ e.outcome }}</div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { activeIdx: 0 };
+  convoDefs = [
+    { name: '+234 803 221 9910', channelIcon: '💬', preview: 'Do you have the red ankara in size 12?', tag: 'Bot handled', tagBg: '#12261F', tagColor: '#7ED8B0', unread: true, channel: 'WhatsApp',
+      transcript: [
+        { text: 'Do you have the red ankara in size 12?', align: 'flex-start', bg: '#1B1B1E', color: '#F3EEE7' },
+        { text: 'Yes! In stock — ₦18,500. Want me to hold it?', align: 'flex-end', bg: '#1F6F54', color: '#F3EEE7' },
+      ], fired: [{ name: 'Check stock & price', outcome: 'Matched: Red Ankara, size 12 — in stock' }] },
+    { name: '@chukwuemeka_b', channelIcon: '✈️', preview: 'Where is my order??', tag: 'Escalated', tagBg: '#2A1F16', tagColor: '#F0B08C', channel: 'Telegram',
+      transcript: [
+        { text: 'Where is my order??', align: 'flex-start', bg: '#1B1B1E', color: '#F3EEE7' },
+        { text: 'I couldn\'t find that order — connecting you to Aisha now.', align: 'flex-end', bg: '#1F6F54', color: '#F3EEE7' },
+      ], fired: [{ name: 'Check order status', outcome: 'No match — escalated' }] },
+    { name: '+234 701 552 0043', channelIcon: '💬', preview: 'Thank you so much!', tag: 'Bot handled', tagBg: '#12261F', tagColor: '#7ED8B0', channel: 'WhatsApp',
+      transcript: [{ text: 'Thank you so much!', align: 'flex-start', bg: '#1B1B1E', color: '#F3EEE7' }], fired: [] },
+    { name: '@ngozi_beauty', channelIcon: '✈️', preview: 'Can I pay half now?', tag: 'Bot handled', tagBg: '#12261F', tagColor: '#7ED8B0', unread: true, channel: 'Telegram',
+      transcript: [{ text: 'Can I pay half now?', align: 'flex-start', bg: '#1B1B1E', color: '#F3EEE7' }], fired: [{ name: 'Negotiate payment split', outcome: '50% deposit agreed' }] },
+    { name: '+234 812 004 7781', channelIcon: '💬', preview: 'Perfect, see you Saturday', tag: 'Bot handled', tagBg: '#12261F', tagColor: '#7ED8B0', channel: 'WhatsApp',
+      transcript: [{ text: 'Perfect, see you Saturday', align: 'flex-start', bg: '#1B1B1E', color: '#F3EEE7' }], fired: [] },
+    { name: '+234 909 331 6620', channelIcon: '💬', preview: 'Do you do custom sizes?', tag: 'Escalated', tagBg: '#2A1F16', tagColor: '#F0B08C', channel: 'WhatsApp',
+      transcript: [{ text: 'Do you do custom sizes?', align: 'flex-start', bg: '#1B1B1E', color: '#F3EEE7' }], fired: [] },
+  ];
+  renderVals() {
+    const active = this.convoDefs[this.state.activeIdx];
+    return {
+      convos: this.convoDefs.map((c, i) => ({ ...c, bg: i === this.state.activeIdx ? '#1B1B1E' : 'transparent', onClick: () => this.setState({ activeIdx: i }) })),
+      activeName: active.name, activeChannel: active.channel, activeTranscript: active.transcript,
+      firedErrands: active.fired.length ? active.fired : [{ name: 'No Errands fired', outcome: 'This conversation hasn\'t triggered any yet' }],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

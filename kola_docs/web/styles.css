@@ -1,0 +1,41 @@
+/* styles.css — kola_docs. Almost everything else is inline style (see
+   theme.dart) — this file only holds things Dart state shouldn't own:
+   the base reset, and the one narrow-viewport concession below.
+   DESIGN_PROMPT.md §12 explicitly calls the docs site desktop-primary
+   (unlike every other Kola surface), so this is a basic-usability
+   concession, not a full responsive redesign. */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #121214;
+}
+
+::selection {
+  background: #3A2A1E;
+  color: #F3EEE7;
+}
+
+/* Below ~720px, the fixed-width left nav (220px) plus a 760px content
+   column no longer fit side by side without horizontal scrolling —
+   stack them instead of clipping content. Targets the classes
+   docs_shell.dart sets on its own row/nav/content divs, not blind
+   structural position, so this survives unrelated markup changes. */
+@media (max-width: 720px) {
+  .docs-shell-row {
+    flex-direction: column !important;
+  }
+  .docs-shell-nav {
+    width: 100% !important;
+    height: auto !important;
+    position: static !important;
+  }
+  .docs-shell-content {
+    max-width: 100% !important;
+    padding: 24px !important;
+  }
+}

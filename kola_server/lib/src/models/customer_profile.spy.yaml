@@ -1,0 +1,79 @@
+##
+## customer_profile.spy.yaml — Phase 8b / task #132: the last of the
+## three sub-features named in the original "templated Errand library"
+## bullet (docs/DEVELOPMENT_PLAN.md Phase 8b) — birthday/anniversary
+## campaigns. Complaint ticketing (task #130) and this one are both
+## buildable directly on existing models; OTP delivery still waits on an
+## SMS-provider decision.
+##
+## A CustomerProfile is 1:1 with a Conversation (unique index below) —
+## it exists to hold the one extra fact Conversation itself has no
+## reason to model: an optional birthday/anniversary date a bot captured
+## from that customer mid-conversation (via the 'recordCustomerProfile'
+## built-in Errand — see builtin_errand_executor.dart). Kept as its own
+## table rather than new columns on Conversation because this is
+## optional, sparse, campaign-specific data — most conversations will
+## never have one, and Conversation's own header is explicit that it
+## models "a single end-customer thread," not a customer's full profile.
+##
+## ONLY MONTH+DAY EVER MATTER FOR MATCHING — [birthday]/[anniversary] are
+## full DateTime values (whatever year the customer gave, or today's
+## year if they only gave month/day — the input parsing is
+## builtin_errand_executor.dart's job, not this model's), but
+## CustomerCampaignSweepService only ever compares month+day against
+## today when deciding who to greet. The year is stored because
+## discarding it outright would be a strange thing to do with data a
+## customer actually gave, not because anything reads it today.
+##
+## [lastBirthdayGreetingYear]/[lastAnniversaryGreetingYear] are the
+## dedupe mechanism: CustomerCampaignSweepService runs daily and only
+## sends a greeting when the CURRENT year doesn't match what's stored
+## here, then updates it — so a customer gets exactly one birthday
+## message per year no matter how many times the sweep runs that day
+## (or how many days in a row it keeps matching due to a bug), without
+## needing the kind of bounded-notify-window workaround
+## support_ticket_sla_sweep_service.dart had to reach for (there, "one
+## notification per breach" had no natural counter to key off of; here,
+## "one greeting per calendar year" does — the year itself).
+##
+## WHATSAPP IS NOW SENT TO TOO (TASK #155) — VIA A META-APPROVED
+## TEMPLATE, NOT PLAIN TEXT. A birthday/anniversary ping is Kola-
+## initiated, not a reply inside an open customer-service window, so
+## WhatsApp Cloud API requires a pre-approved Meta message template for
+## exactly that case — see customer_campaign_sweep_service.dart's header
+## for the full get-or-create-then-send flow. Until Meta approves a
+## given channel's first birthday/anniversary template (minutes to
+## days), that channel's profiles simply don't get greeted yet — this
+## profile still stores the date regardless, so nothing is lost while
+## waiting.
+##
+
+class: CustomerProfile
+# table: customer_profiles
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — denormalized alongside conversationId,
+  # same convention as every other per-conversation model in this
+  # codebase (SupportTicket, etc.).
+  workspaceId: int
+
+  # Foreign key → conversations.id — unique (see header: 1:1).
+  conversationId: int
+
+  birthday: DateTime?
+  anniversary: DateTime?
+
+  # Null until the first greeting is ever sent for that date. See header.
+  lastBirthdayGreetingYear: int?
+  lastAnniversaryGreetingYear: int?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  customer_profile_workspace_idx:
+    fields: workspaceId
+  customer_profile_conversation_idx:
+    fields: conversationId
+    unique: true

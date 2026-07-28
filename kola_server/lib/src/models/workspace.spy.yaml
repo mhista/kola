@@ -1,0 +1,62 @@
+##
+## workspace.spy.yaml — Workspace: the tenant root (PRD.md §5, SRS.md §5/§6)
+##
+## Every business that signs up gets exactly one Workspace. Every other
+## domain model (Bot, Channel, Errand, KnowledgeDocument, ...) is scoped to
+## a workspaceId — this is the multi-tenant isolation boundary. Enforced
+## at two layers: the repository layer (every query below filters by
+## workspaceId explicitly — see workspace_repository.dart) and, later,
+## Supabase Row Level Security as a defense-in-depth backstop.
+##
+## Serverpod generates the shape; Supabase owns the actual row (see
+## WorkspaceDto for the fromRow/toRow mapping and the table schema).
+## `#table:` stays commented out deliberately — see server.dart's header
+## comment for why (Serverpod Mini pattern, SRS.md §2).
+##
+## TRIAL MODEL (PRD.md §10) — the three trial timestamps below implement
+## the two-stage trial as explicit, queryable dates rather than scattered
+## date-math: trialFullAccessEndsAt is the 48-hour full-Pro-access cutover,
+## trialEndsAt is the day-14 pause point. A workspace's effective plan at
+## any moment is derived by comparing `now` against these two dates plus
+## the `plan`/`status` fields — see Phase 5's trial state machine.
+##
+
+class: Workspace
+# table: workspaces
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Business-facing name shown throughout the dashboard and to end customers
+  # (e.g. as the bot's introduction: "You're chatting with <name>").
+  name: String
+
+  # Free-text-ish industry tag used for onboarding personalization and,
+  # later, cohort analytics (e.g. 'fashion_retail', 'food_logistics').
+  # Nullable because a business can skip this during signup.
+  industryTag: String?
+
+  # Billing plan. Values: 'free' | 'pro' | 'business' (PRD.md §10).
+  plan: String
+
+  # Workspace lifecycle status. Values:
+  #   'trialing'  — inside the 48h/14d trial window
+  #   'active'    — paying, fully live
+  #   'paused'    — trial expired without payment; data retained, bot silent
+  status: String
+
+  # When the trial started — always set at workspace creation.
+  trialStartedAt: DateTime
+
+  # 48-hour mark: full Pro-tier feature access ends here, workspace steps
+  # down to the capped free-tier feature set (PRD.md §6/§10).
+  trialFullAccessEndsAt: DateTime
+
+  # Day-14 mark: workspace is paused (not deleted) if still unpaid.
+  trialEndsAt: DateTime
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  workspace_status_idx:
+    fields: status

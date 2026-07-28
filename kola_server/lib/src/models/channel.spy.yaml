@@ -1,0 +1,50 @@
+##
+## channel.spy.yaml — A connected messaging channel for a Bot.
+##
+## One Bot can have multiple Channels (e.g. Telegram now, WhatsApp once
+## Meta approval clears — META_CONNECT_FLOW.md). Credentials are stored
+## encrypted; encryptedCredential holds ciphertext produced by the same
+## AES-256-GCM approach already implemented for wallet keys in Degenbot
+## (wallet_encryption_service.dart) — reused, not reinvented, per the
+## working convention. The encryption service itself is wired in Phase 2
+## once there's a real credential (bot token / WABA phone number ID) to
+## protect; the column exists now so the schema doesn't need a later
+## migration just to add it.
+##
+
+class: Channel
+# table: channels
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → bots.id
+  botId: int
+
+  # Which messaging platform this channel connects to.
+  # Values: 'telegram' | 'whatsapp' (META_CONNECT_FLOW.md, SRS.md §9).
+  platformType: String
+
+  # Human-readable identifier shown in the dashboard — a Telegram @handle
+  # or the connected WhatsApp phone number, formatted for display only.
+  displayName: String?
+
+  # Encrypted channel credential (Telegram bot token, or WhatsApp
+  # long-lived access token from Embedded Signup). Null until the owner
+  # actually completes the connect flow for this channel. Wired up in
+  # Phase 2 — see channel.spy.yaml header comment above.
+  encryptedCredential: String?
+
+  # Connection lifecycle. Values:
+  #   'pending'      — channel row created, connect flow not yet completed
+  #   'connected'    — live, receiving/sending real messages
+  #   'disconnected' — was connected, now broken (expired token, revoked
+  #                    access) — surfaced by the nightly credential health
+  #                    check (SRS.md §13)
+  status: String
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  channel_bot_idx:
+    fields: botId
