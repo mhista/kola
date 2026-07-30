@@ -39,6 +39,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:kola_server/src/generated/protocol.dart' hide Protocol;
 import 'package:kola_server/src/generated/endpoints.dart';
+import 'package:kola_server/web/api_routes.dart';
 import 'package:serverpod/protocol.dart';
 import 'package:serverpod/serverpod.dart';
 import 'package:kola_server/src/config/env.dart';
@@ -262,7 +263,14 @@ void run(List<String> args) async {
         Log.error('Channel health check failed', error: e);
       }
     });
+    
+    // 4. Task #154 / Phase 8c — API status route, for kola_dashboard to poll 
+    //and show a "server is down" banner if the server is unreachable. 
+    //Returns a simple JSON payload with a timestamp and the number of channels 
+    //flagged unhealthy in the last health check. See api_routes
+    pod.webServer.addRoute(ApiStatusRoute(flagged: flaggedNow.toString()),     '/api/status');
 
+    
     // 4. Kola's own Telegram bot for owner escalation notifications —
     //    long-polling (no route needed), safe to start any time after
     //    pod.start(), same reasoning as any other long-polling Telegram

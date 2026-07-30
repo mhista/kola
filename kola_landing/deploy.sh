@@ -30,7 +30,7 @@ set -e
 SUPABASE_URL="${SUPABASE_URL:-}"
 SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 LAUNCH_MODE="${LAUNCH_MODE:-waitlist}"
-PROJECT_NAME="${PROJECT_NAME:-kola-landing}"
+PROJECT_NAME="${PROJECT_NAME:-kola}"
 
 # ── Validate ──────────────────────────────────────────────────────────────────
 if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
