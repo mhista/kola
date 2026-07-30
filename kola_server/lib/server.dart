@@ -132,9 +132,11 @@ void run(List<String> args) async {
     final webPort =
         int.tryParse(Platform.environment['PORT'] ?? Env.serverPort) ?? 8080;
 
-    final publicHost = Env.webhookBaseUrl.isNotEmpty
-        ? Uri.parse(Env.webhookBaseUrl).host
-        : 'localhost';
+    final publicHost = 'https://p01--kola--hnnl8wyj78qp.code.run';
+    
+    // Env.webhookBaseUrl.isNotEmpty
+    //     ? Uri.parse(Env.webhookBaseUrl).host
+    //     : 'localhost';
 
     // Serverpod won't enable webServer at all unless it's given a config
     // (there's no config/development.yaml in this project — every setting
@@ -270,7 +272,7 @@ void run(List<String> args) async {
     //flagged unhealthy in the last health check. See api_routes
     pod.webServer.addRoute(ApiStatusRoute(flagged: flaggedNow.toString()),     '/api/status');
 
-    
+
     // 4. Kola's own Telegram bot for owner escalation notifications —
     //    long-polling (no route needed), safe to start any time after
     //    pod.start(), same reasoning as any other long-polling Telegram
