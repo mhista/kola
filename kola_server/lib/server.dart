@@ -132,11 +132,13 @@ void run(List<String> args) async {
     final webPort =
         int.tryParse(Platform.environment['PORT'] ?? Env.serverPort) ?? 8080;
 
-    final publicHost = 'https://p01--kola--hnnl8wyj78qp.code.run';
-    
-    // Env.webhookBaseUrl.isNotEmpty
-    //     ? Uri.parse(Env.webhookBaseUrl).host
-    //     : 'localhost';
+final apiPublicHost = Env.apiBaseUrl.isNotEmpty
+    ? Uri.parse(Env.apiBaseUrl).host
+    : 'localhost';
+
+final webPublicHost = Env.webhookBaseUrl.isNotEmpty
+    ? Uri.parse(Env.webhookBaseUrl).host
+    : 'localhost';
 
     // Serverpod won't enable webServer at all unless it's given a config
     // (there's no config/development.yaml in this project — every setting
@@ -155,20 +157,20 @@ void run(List<String> args) async {
       // kola_dashboard's KOLA_SERVER_URL must point at. webServer only
       // carries the raw webhook routes registered below; nothing in
       // kola_dashboard ever calls it directly.
-      configOverride: (config) => config.copyWith(
-        apiServer: ServerConfig(
-          port: webPort,
-          publicScheme: 'https',
-          publicHost: publicHost,
-          publicPort: 443,
-        ),
-        webServer: ServerConfig(
-          port: webServerPort,
-          publicScheme: 'https',
-          publicHost: publicHost,
-          publicPort: 443,
-        ),
-      ),
+  configOverride: (config) => config.copyWith(
+    apiServer: ServerConfig(
+      port: webPort,
+      publicScheme: 'https',
+      publicHost: apiPublicHost,
+      publicPort: 443,
+    ),
+    webServer: ServerConfig(
+      port: webServerPort,
+      publicScheme: 'https',
+      publicHost: webPublicHost,
+      publicPort: 443,
+    ),
+  ),
     );
 
     // 2b. Wire TelegramBotRegistry to this pod's route-adding mechanism,

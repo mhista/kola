@@ -83,6 +83,15 @@ abstract class Env {
       ? _Env.webhookBaseUrl
       : Platform.environment['WEBHOOK_BASE_URL'] ?? '';
 
+// Public base URL of the API server, e.g. https://api.kola.app in production
+  // or an ngrok URL for local webhook testing. Used to derive the public
+  // hostname Serverpod advertises, and later (Phase 2+) to build webhook
+  // callback URLs for Meta/Telegram/Paystack/Flutterwave.
+  @EnviedField(varName: 'API_BASE_URL', defaultValue: '')
+  static final String apiBaseUrl = _Env.apiBaseUrl.isNotEmpty
+      ? _Env.apiBaseUrl
+      : Platform.environment['API_BASE_URL'] ?? '';
+
   // ── Admin override token (Phase 1d — auth) ──────────────────────────────────
   // A random secret that authorizes protected admin-only endpoints/routes.
   // Generate with: python3 -c "import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
