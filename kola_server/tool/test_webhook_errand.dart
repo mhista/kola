@@ -50,8 +50,11 @@ Future<void> main(List<String> args) async {
   // whether the expected auth header was present — real end-to-end
   // proof the executor sends both the JSON body and the header
   // correctly, without depending on any external service.
+ final publicHost = Env.webhookBaseUrl.isNotEmpty
+        ? Uri.parse(Env.webhookBaseUrl).host
+        : 'localhost';
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-  print('Local echo server listening on http://127.0.0.1:${server.port}');
+  print('Local echo server listening on $publicHost:${server.port}');
   server.listen((request) async {
     final body = await utf8.decodeStream(request);
     final receivedAuth = request.headers.value(_authHeaderName);
@@ -91,7 +94,7 @@ Future<void> main(List<String> args) async {
 
   // Always re-register the credential with THIS run's local server URL.
   final credential = WebhookErrandCredential(
-    url: 'https://p01--kola--hnnl8wyj78qp.code.run:${server.port}/',
+    url: '$publicHost:${server.port}/',
     authHeaderName: _authHeaderName,
     authHeaderValue: _authHeaderValue,
   );
