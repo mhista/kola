@@ -141,31 +141,45 @@ class TelegramBotRegistry {
     await _services[channel.id]!.start();
   }
 
-  void _register({required Channel channel, required String botToken}) {
-    final channelId = channel.id;
-    if (channelId == null) {
-      throw ArgumentError('Cannot register a Channel with no id');
-    }
+void _register({required Channel channel, required String botToken}) {
+  final channelId = channel.id;
+  if (channelId == null) {
+    throw ArgumentError('Cannot register a Channel with no id');
+  }
 
-    final webhookUrl = _webhookBaseUrl.isEmpty
-        ? null
-        : '$_webhookBaseUrl/webhooks/telegram/$channelId';
+  final webhookUrl = _webhookBaseUrl.isEmpty
+      ? null
+      : '$_webhookBaseUrl/webhooks/telegram/$channelId';
 
-    final service = TelegramService(botToken: botToken, webhookUrl: webhookUrl);
-    final adapter = TelegramServiceAdapter(service);
-    _registerMessageHandler(service, channelId);
+  final service = TelegramService(botToken: botToken, webhookUrl: webhookUrl);
+  final adapter = TelegramServiceAdapter(service);
+  _registerMessageHandler(service, channelId);
 
-    _services[channelId] = service;
-    _adapters[channelId] = adapter;
-    _botIdForChannel[channelId] = channel.botId;
+  // A reconnect/retry for a channel we've already registered before must
+  // NOT call _addRoute again — the path is purely a function of channelId,
+  // so there's nothing new to add, and Relic's router throws "Conflicting
+  // values" if the same path is injected twice. Only the underlying
+  // TelegramService in the map needs to change; TelegramWebhookRoute
+  // always looks up the CURRENT entry by channelId at request time, so
+  // swapping the map value is all that's needed for the route to pick up
+  // the new service. Dispose the old one first so it isn't left polling
+  // or holding a stale webhook registration in the background.
+  final alreadyRegistered = _services.containsKey(channelId);
+  _services[channelId]?.dispose();
 
+  _services[channelId] = service;
+  _adapters[channelId] = adapter;
+  _botIdForChannel[channelId] = channel.botId;
+
+  if (!alreadyRegistered) {
     _addRoute?.call(
       TelegramWebhookRoute(channelId: channelId),
       '/webhooks/telegram/$channelId',
     );
-
-    Log.startupSuccess('Telegram channel $channelId registered (webhook: ${webhookUrl ?? "polling"})');
   }
+
+  Log.startupSuccess('Telegram channel $channelId registered (webhook: ${webhookUrl ?? "polling"})');
+}
 
   /// Phase 3's escalation-wired bot logic — replaces Phase 2a's
   /// hardcoded canned reply. Every inbound text message goes through
