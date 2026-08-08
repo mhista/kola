@@ -432,10 +432,16 @@ class _DashboardAppState extends State<DashboardApp> {
         ),
         Route(
           path: '/bots',
-          builder: (context, state) => BotsPage(
-            client: _client,
-            accessToken: _session!.accessToken,
-            workspaceId: _selectedWorkspace!.id!,
+          // Rebuilt on the new design system — wears AppShell, draws no
+          // chrome of its own.
+          builder: (context, state) => shellFor(
+            state,
+            BotsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
           ),
         ),
         Route(
@@ -511,10 +517,15 @@ class _DashboardAppState extends State<DashboardApp> {
         ),
         Route(
           path: '/integrations',
-          builder: (context, state) => IntegrationsPage(
-            client: _client,
-            accessToken: _session!.accessToken,
-            workspaceId: _selectedWorkspace!.id!,
+          // Rebuilt on the new design system — wears AppShell.
+          builder: (context, state) => shellFor(
+            state,
+            IntegrationsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
           ),
         ),
       ],

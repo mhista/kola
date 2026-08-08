@@ -1,54 +1,75 @@
-// bots_page.dart — task #139 (dashboard polish pass): the sidebar's
-// "Bots" nav item has been a '#' placeholder since Phase 4c because
-// there was no dedicated bot-LIST page — DashboardHomePage's "Recent"
-// list only ever showed the newest 6, and existed to link somewhere
-// useful, not to be a full inventory. This is that missing page: every
-// bot in the workspace, one row each, with its lifecycle status and a
-// direct link into both of its detail views.
+// bots_page.dart — the bots that answer customers.
 //
-// NOTHING NEW SERVER-SIDE: BotEndpoint.listBotsForWorkspace already
-// exists (dashboard_home_page.dart's own _load already calls it) — this
-// page is a pure UI gap-fill, not new backend work. Deliberately NOT
-// touching Team/Billing/API & Webhooks in this same pass — those three
-// have no backing endpoint at all yet (no member-invite endpoint, no
-// billing/subscription-summary endpoint), so building a page for them
-// now would be "UI with no real backend behind it," the exact mistake
-// this project has caught and fixed before. They stay '#' until that
-// backend work happens; flagged to the owner rather than silently
-// stubbed.
+// REBUILT on the new design system. The previous version used
+// KolaDashboardColors throughout; nothing here does.
 //
-// STANDALONE PAGE, NO SIDEBAR: matches every other page reachable from
-// a real nav link (errand_builder_page.dart, knowledge_page.dart,
-// conversations_page.dart, integrations_page.dart) — full-width content
-// with a "← Home" link, not a second copy of SidebarNav. DashboardHomePage
-// is the only page that renders the sidebar itself.
+// ── THIS IS NOT THE DESIGN'S "AGENTS" SCREEN ─────────────────────────
+//
+// `Kola Agents.dc.html` shows specialised agents — Sales, Support,
+// Finance, Inventory — each with its own stats and an on/off toggle.
+// None of that exists: there are no agent endpoints, no per-agent
+// config in the schema, no per-agent stats, and `agents.core` is a
+// locked feature.
+//
+// Building that screen would mean inventing the data contract for a
+// backend that does not exist, and then rebuilding it when the real one
+// lands. So this page is the REAL thing the nav's "Agents" entry points
+// at: bots, which have a working backend today.
+//
+// When the agent layer is built, this page becomes its detail view —
+// an agent is a bot with a specialisation, not a separate object.
+//
+// ── WHAT IS REAL ─────────────────────────────────────────────────────
+//
+//   bot.listBotsForWorkspace   → the list
+//
+// THAT IS ALL OF IT. Two actions the design implies are NOT possible:
+//
+//   PAUSE / RESUME — there is no endpoint that changes a bot's status.
+//     updateBot(token, wsId, botId, name, ARCHETYPE) takes an archetype
+//     as its fifth argument, not a status. A first version of this page
+//     called it with 'paused' in that position, which would have
+//     silently overwritten the bot's archetype with the word "paused"
+//     and broken how it answers. Caught by checking the generated
+//     client's signature rather than assuming it.
+//
+//   DELETE — EndpointBot has no delete method.
+//
+// Both are shown as status, read-only. A page offering an action the
+// server cannot perform is worse than one that does not offer it —
+// especially when the call silently succeeds against the wrong field.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/icons.dart';
+import '../components/shell/kola_icon.dart';
+import '../services/feature_gate.dart';
 import '../theme.dart';
-import '../components/back_link.dart';
 
 class BotsPage extends StatefulComponent {
   const BotsPage({
     required this.client,
     required this.accessToken,
     required this.workspaceId,
+    required this.gate,
   });
 
   final Client client;
   final String accessToken;
   final int workspaceId;
+  final FeatureGate gate;
 
   @override
   State<BotsPage> createState() => _BotsPageState();
 }
 
 class _BotsPageState extends State<BotsPage> {
-  List<Bot>? _bots;
-  String? _loadError;
+  bool _loading = true;
+  String? _error;
+  List<Bot> _bots = const [];
 
   @override
   void initState() {
@@ -57,50 +78,26 @@ class _BotsPageState extends State<BotsPage> {
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final bots = await component.client.bot.listBotsForWorkspace(
         component.accessToken,
         component.workspaceId,
       );
-      if (mounted) setState(() => _bots = bots);
-    } catch (_) {
-      if (mounted) setState(() => _loadError = "Couldn't load your bots. Check your connection and try again.");
-    }
-  }
-
-  static String _archetypeIcon(String archetype) {
-    switch (archetype) {
-      case 'catalog':
-        return '📦';
-      case 'customerCare':
-        return '🤖';
-      default:
-        return '⚙️';
-    }
-  }
-
-  static String _archetypeLabel(String archetype) {
-    switch (archetype) {
-      case 'catalog':
-        return 'Catalog';
-      case 'customerCare':
-        return 'Customer care';
-      default:
-        return 'Custom';
-    }
-  }
-
-  static (String, String, String) _statusChip(String status) {
-    // (dot color, text color, label) — mirrors errand_builder_page.dart's
-    // Live/Disabled chip styling, extended with a third state since a
-    // Bot has one more lifecycle stage (draft) than an Errand does.
-    switch (status) {
-      case 'live':
-        return ('#7ED8B0', '#7ED8B0', 'Live');
-      case 'paused':
-        return ('#E0B168', '#E0B168', 'Paused');
-      default:
-        return (KolaDashboardColors.muted, KolaDashboardColors.mutedSecondary, 'Draft');
+      if (!mounted) return;
+      setState(() {
+        _bots = bots;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -108,146 +105,247 @@ class _BotsPageState extends State<BotsPage> {
   Component build(BuildContext context) {
     return div(
       attributes: {
-        'style':
-            "font-family:${KolaDashboardFonts.sans};background:${KolaDashboardColors.bg};"
-            'color:${KolaDashboardColors.text};width:100%;height:100vh;overflow-y:auto;box-sizing:border-box;'
-            'padding:40px 32px 60px;display:flex;justify-content:center',
+        'style': 'max-width:1040px;margin:0 auto;width:100%;'
+            'padding:28px 20px 40px;display:flex;flex-direction:column;gap:18px',
+      },
+      [
+        _header(),
+        if (_error != null) _errorBanner(),
+        if (_loading)
+          _skeleton()
+        else if (_bots.isEmpty)
+          _empty()
+        else
+          div(
+            attributes: {
+              'style': 'display:grid;gap:14px;'
+                  'grid-template-columns:repeat(auto-fill,minmax(300px,1fr))',
+            },
+            [for (final b in _bots) _card(b)],
+          ),
+      ],
+    );
+  }
+
+  Component _header() {
+    final active = _bots.where((b) => b.status == 'active').length;
+
+    return div(
+      attributes: {
+        'style': 'display:flex;align-items:flex-start;justify-content:space-between;'
+            'gap:14px;flex-wrap:wrap',
       },
       [
         div(
-          attributes: {'style': 'max-width:900px;width:100%'},
+          attributes: {'style': 'min-width:0'},
           [
-            div(
-              attributes: {'style': 'margin-bottom:20px'},
-              [backLink()],
+            h1(
+              attributes: {
+                'style': 'font-family:${KolaFonts.display};font-size:${KolaType.h2};'
+                    'font-weight:700;color:${KolaVar.text};margin:0 0 4px',
+              },
+              [Component.text('Agents')],
             ),
             div(
               attributes: {
-                'style': 'display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:16px',
+                'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                    'line-height:1.5;max-width:520px',
               },
               [
-                div([
-                  div(
-                    attributes: {
-                      'style': "font-family:${KolaDashboardFonts.display};font-size:22px;font-weight:700;margin-bottom:6px",
-                    },
-                    [Component.text('Bots')],
-                  ),
-                  div(
-                    attributes: {
-                      'style': 'font-size:14px;color:${KolaDashboardColors.mutedSecondary};line-height:1.5;max-width:520px',
-                    },
-                    [Component.text('Every bot in this workspace, in one place.')],
-                  ),
-                ]),
-                Link(
-                  to: '/bots/new',
+                Component.text(_bots.isEmpty
+                    ? 'An agent is what answers your customers. You need at '
+                        'least one.'
+                    : active == _bots.length
+                        ? 'All ${_bots.length} answering customers.'
+                        : '$active of ${_bots.length} answering customers.'),
+              ],
+            ),
+          ],
+        ),
+        Link(
+          to: '/bots/new',
+          attributes: {
+            'class': 'kola-pressable',
+            'style': 'flex:none;background:${KolaVar.accentFill};'
+                'color:${KolaVar.accentText};border-radius:${KolaRadius.pill};'
+                'padding:9px 18px;font-size:${KolaType.small};'
+                'font-weight:600;text-decoration:none',
+          },
+          children: [Component.text('New agent')],
+        ),
+      ],
+    );
+  }
+
+  Component _card(Bot bot) {
+    final paused = bot.status != 'active';
+
+    return div(
+      attributes: {
+        'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};padding:16px;'
+            'display:flex;flex-direction:column;gap:12px',
+      },
+      [
+        div(
+          attributes: {'style': 'display:flex;align-items:center;gap:10px'},
+          [
+            div(
+              attributes: {
+                'style': 'flex:none;width:34px;height:34px;'
+                    'border-radius:${KolaRadius.circle};'
+                    'background:${KolaVar.tintIcon(0)};color:${KolaVar.accent};'
+                    'display:flex;align-items:center;justify-content:center',
+              },
+              [kolaIcon(Icons.bot, size: 17)],
+            ),
+            div(
+              attributes: {'style': 'flex:1;min-width:0'},
+              [
+                div(
                   attributes: {
-                    'style':
-                        'background:${KolaDashboardColors.accent};color:${KolaDashboardColors.accentText};'
-                        'border:none;border-radius:100px;padding:10px 18px;font-size:13.5px;font-weight:600;'
-                        'text-decoration:none;white-space:nowrap',
+                    'style': 'font-size:${KolaType.bodyLg};font-weight:600;'
+                        'color:${KolaVar.text};overflow:hidden;'
+                        'text-overflow:ellipsis;white-space:nowrap',
                   },
-                  child: Component.text('+ New Bot'),
+                  [Component.text(bot.name)],
+                ),
+                div(
+                  attributes: {
+                    'style': 'font-size:${KolaType.micro};color:${KolaVar.muted}',
+                  },
+                  [Component.text(bot.archetype)],
                 ),
               ],
             ),
-            div(
-              attributes: {
-                'style':
-                    'background:${KolaDashboardColors.card};border:1px solid ${KolaDashboardColors.border};'
-                    'border-radius:18px;overflow:hidden',
-              },
-              [_content()],
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Component _content() {
-    if (_loadError != null) return _emptyState(_loadError!);
-    final bots = _bots;
-    if (bots == null) return _emptyState('Loading…');
-    if (bots.isEmpty) {
-      return _emptyState("No bots yet — create your first one to get started.");
-    }
-    final sorted = [...bots]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return div(
-      attributes: {'style': 'display:flex;flex-direction:column'},
-      [for (final bot in sorted) _botRow(bot)],
-    );
-  }
-
-  Component _emptyState(String text) => div(
-    attributes: {
-      'style': 'padding:40px 20px;text-align:center;color:${KolaDashboardColors.muted};font-size:13.5px',
-    },
-    [Component.text(text)],
-  );
-
-  Component _botRow(Bot bot) {
-    final (dotColor, textColor, label) = _statusChip(bot.status);
-    return div(
-      attributes: {
-        'style':
-            'display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid ${KolaDashboardColors.pill}',
-      },
-      [
-        div(
-          attributes: {
-            'style':
-                'width:38px;height:38px;border-radius:10px;background:${KolaDashboardColors.pill};'
-                'display:flex;align-items:center;justify-content:center;font-size:18px;flex:none',
-          },
-          [Component.text(_archetypeIcon(bot.archetype))],
-        ),
-        div(
-          attributes: {'style': 'min-width:0;flex:1'},
-          [
-            div(attributes: {'style': 'font-size:14.5px;font-weight:600;margin-bottom:2px'}, [Component.text(bot.name)]),
-            div(
-              attributes: {'style': 'font-size:12.5px;color:${KolaDashboardColors.mutedSecondary}'},
-              [Component.text(_archetypeLabel(bot.archetype))],
-            ),
-          ],
-        ),
-        div(
-          attributes: {
-            'style':
-                'display:flex;align-items:center;gap:6px;background:${KolaDashboardColors.pill};'
-                'border:1px solid ${KolaDashboardColors.border};border-radius:100px;padding:5px 11px;flex:none',
-          },
-          [
-            span(attributes: {'style': 'width:6px;height:6px;border-radius:50%;background:$dotColor'}, []),
             span(
-              attributes: {'style': 'font-size:11.5px;color:$textColor;font-weight:600'},
-              [Component.text(label)],
+              attributes: {
+                'style': (paused ? KolaTone.neutral : KolaTone.positive).badgeCss,
+              },
+              [Component.text(paused ? 'Paused' : 'Answering')],
             ),
           ],
         ),
-        Link(
-          to: '/bots/${bot.id}',
+
+        // Says what the state MEANS, not just what it is. "Paused" alone
+        // does not tell an owner that messages still arrive and simply
+        // go unanswered — which is the thing they need to know before
+        // leaving it paused overnight.
+        if (paused)
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.micro};color:${KolaVar.warning};'
+                  'line-height:1.5',
+            },
+            [
+              Component.text(
+                'Customers can still message this channel. Nothing replies '
+                'until you resume it.',
+              ),
+            ],
+          ),
+
+        div(
           attributes: {
-            'style':
-                'background:transparent;border:1px solid ${KolaDashboardColors.border};'
-                'color:${KolaDashboardColors.navInactiveText};border-radius:100px;padding:6px 13px;'
-                'font-size:12.5px;text-decoration:none;flex:none',
+            'style': 'display:flex;gap:8px;align-items:center;'
+                'flex-wrap:wrap;margin-top:auto',
           },
-          child: Component.text('Open chat'),
-        ),
-        Link(
-          to: '/bots/${bot.id}/code',
-          attributes: {
-            'style':
-                'background:transparent;border:1px solid ${KolaDashboardColors.border};'
-                'color:${KolaDashboardColors.navInactiveText};border-radius:100px;padding:6px 13px;'
-                'font-size:12.5px;text-decoration:none;flex:none',
-          },
-          child: Component.text('Dev view'),
+          [
+            Link(
+              to: '/bots/${bot.id}',
+              attributes: {
+                'class': 'kola-pressable',
+                'style': 'border:1px solid ${KolaVar.border};'
+                    'color:${KolaVar.text};border-radius:${KolaRadius.pill};'
+                    'padding:7px 15px;font-size:${KolaType.micro};'
+                    'font-weight:600;text-decoration:none',
+              },
+              children: [Component.text('Open')],
+            ),
+            // No pause/resume control. There is no endpoint for it —
+            // see this file's header. A button that appears to work and
+            // corrupts the archetype instead is the worst outcome
+            // available here.
+            Link(
+              to: '/bots/${bot.id}/code',
+              attributes: {
+                'class': 'kola-pressable',
+                'style': 'border:1px solid ${KolaVar.border};'
+                    'color:${KolaVar.muted};border-radius:${KolaRadius.pill};'
+                    'padding:7px 15px;font-size:${KolaType.micro};'
+                    'font-weight:600;text-decoration:none',
+              },
+              children: [Component.text('Settings')],
+            ),
+          ],
         ),
       ],
     );
   }
+
+  Component _empty() => div(
+        attributes: {
+          'style': 'border:1px dashed ${KolaVar.border};'
+              'border-radius:${KolaRadius.xl};padding:36px 24px;'
+              'text-align:center',
+        },
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.lead};font-weight:600;'
+                  'color:${KolaVar.text};margin-bottom:6px',
+            },
+            [Component.text('No agents yet')],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'line-height:1.6;max-width:420px;margin:0 auto 18px',
+            },
+            [
+              Component.text(
+                'Describe what you sell and how you want customers spoken to. '
+                'kola builds the agent from that.',
+              ),
+            ],
+          ),
+          Link(
+            to: '/bots/new',
+            attributes: {
+              'class': 'kola-pressable',
+              'style': 'display:inline-block;background:${KolaVar.accentFill};'
+                  'color:${KolaVar.accentText};'
+                  'border-radius:${KolaRadius.pill};padding:9px 20px;'
+                  'font-size:${KolaType.small};font-weight:600;'
+                  'text-decoration:none',
+            },
+            children: [Component.text('Create your first agent')],
+          ),
+        ],
+      );
+
+  Component _skeleton() => div(
+        attributes: {
+          'style': 'display:grid;gap:14px;'
+              'grid-template-columns:repeat(auto-fill,minmax(300px,1fr))',
+        },
+        [
+          for (var i = 0; i < 3; i++)
+            div(
+              classes: 'kola-skel',
+              attributes: {'style': 'height:132px;border-radius:${KolaRadius.lg}'},
+              [],
+            ),
+        ],
+      );
+
+  Component _errorBanner() => div(
+        attributes: {
+          'role': 'alert',
+          'style': 'padding:10px 14px;background:${KolaVar.dangerBg};'
+              'color:${KolaVar.danger};border:1px solid ${KolaVar.danger};'
+              'border-radius:${KolaRadius.md};font-size:${KolaType.small}',
+        },
+        [Component.text(_error!)],
+      );
 }

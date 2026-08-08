@@ -565,6 +565,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/component
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/home_content.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/mobile_home_content.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/mobile_top_bar.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/next_step_hint.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/quick_actions_grid.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/quick_actions_list.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/shell/app_shell.dart
@@ -608,6 +609,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/ope
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/overview_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/auth_service.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/feature_gate.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/file_intake.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/local_storage.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/theme.dart
 file:///C:/flutter/bin/cache/dart-sdk/lib/_internal/dart2js_platform.dill
