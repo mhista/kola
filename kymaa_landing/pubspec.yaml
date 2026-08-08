@@ -1,0 +1,41 @@
+name: kymaa_landing
+description: >-
+  Deployment copy of kola_landing, pointed at kymaa.tech (Kymaa — the
+  company domain, used for a grant application) instead of Kola's own
+  domain. Content is identical to kola_landing for now — see this
+  package's own deploy.sh header for why this is a separate copy rather
+  than a second custom domain on the same Cloudflare Pages project
+  (keeping Kola's existing deployment untouched while restructuring is
+  underway). Same static Jaspr site (Phase 1e) either way.
+version: 1.0.0
+
+environment:
+  sdk: ^3.6.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Why no kola_client dependency here:
+#
+# The waitlist form is the only thing on this page that touches the
+# network, and it needs no auth and no Serverpod endpoint round-trip — it's
+# a single public insert. degenbot_web already proved the pattern worth
+# reusing for exactly this situation: talk to Supabase's REST API (PostgREST)
+# directly with the anon key, rather than adding kola_client + serverpod_client
+# to a browser bundle for one write. See lib/services/waitlist_api_service.dart.
+#
+# jaspr: mode: client (not SSR) — matches every real Jaspr precedent
+# reviewed (degenbot_web, kopicat, kopicat_landing) and the decision
+# recorded in docs/SRS.md §3 / docs/DEVELOPMENT_PLAN.md Phase 4a.
+# ─────────────────────────────────────────────────────────────────────────────
+
+dependencies:
+  http: ^1.6.0
+  jaspr: ^0.23.0
+
+dev_dependencies:
+  build_runner: ^2.4.0
+  build_web_compilers: ^4.0.0
+  jaspr_builder: ^0.23.0
+  lints: ^5.0.0
+
+jaspr:
+  mode: client

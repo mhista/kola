@@ -93,6 +93,22 @@ fields:
   createdAt: DateTime
   updatedAt: DateTime
 
+  # ── Supersession (migration 024) ─────────────────────────────────────
+  # When this content started being true. Defaults to createdAt server
+  # side; retrieval uses it only as a tiebreak between equally relevant
+  # results, never as a weight.
+  effectiveFrom: DateTime?
+
+  # The document that replaces this one. Non-null means this document is
+  # EXCLUDED from retrieval — kola will not answer from it — but it is
+  # kept so "what did we charge in July" still resolves.
+  #
+  # NOT set automatically. Detecting that one document supersedes another
+  # is a guess, and a wrong guess applied silently makes a document
+  # vanish from answers with no explanation. Ingestion should propose it
+  # and the owner should confirm.
+  supersededBy: int?
+
 indexes:
   knowledge_document_workspace_idx:
     fields: workspaceId

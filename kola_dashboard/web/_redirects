@@ -1,0 +1,34 @@
+# ─────────────────────────────────────────────────────────────────────────
+# SPA fallback for Cloudflare Pages.
+#
+# THE BUG THIS FIXES (reported from production, Aug 2026):
+#   Navigating inside the app worked. Pasting a URL like /knowledge into
+#   the address bar, opening a link to it from outside, or refreshing the
+#   page returned 404.
+#
+# WHY IT HAPPENED:
+#   This is a client-side-routed app (jaspr_router). Routes like
+#   /knowledge or /bots/42 exist ONLY in the browser after main.dart.js
+#   has loaded — there is no file at web/knowledge on disk. In-app
+#   navigation never asks the server for that path, so it always worked.
+#   A direct hit, a refresh, or an external link DOES ask the server,
+#   which looks for a file that isn't there and correctly returns 404.
+#
+# THE FIX:
+#   Serve index.html for any path that isn't a real file, with HTTP 200
+#   (NOT a 301/302 — the URL must stay as typed so the router can read it
+#   and show the right page). index.html boots the app, the router reads
+#   window.location, and the correct page renders.
+#
+# WHY THIS DOESN'T BREAK ASSETS:
+#   Cloudflare Pages checks for an actual file on disk BEFORE applying
+#   these rules. main.dart.js, styles.css and every image resolve
+#   normally; only paths with no matching file fall through to here.
+#
+# WHY 200 AND NOT 404-WITH-index.html:
+#   A 404 status would tell crawlers and link previews the page doesn't
+#   exist even though it renders fine, and some clients refuse to run
+#   scripts on error responses.
+# ─────────────────────────────────────────────────────────────────────────
+
+/*    /index.html   200

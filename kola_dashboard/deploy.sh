@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────
+# ⚠  PROJECT NAME CHANGED — Aug 2026.
+#
+#   Cloudflare Pages project : kola-app     (was: kola-dashboard)
+#
+# WHY: kymaa_dashboard/ (the frozen competition dashboard) was recovered
+# from the same codebase and originally carried this script with the
+# "kola-dashboard" default. Moving the NEW dashboard to its own project
+# means the two can never overwrite each other regardless of which
+# folder someone runs deploy.sh from.
+# ─────────────────────────────────────────────────────────────────────────
 # ============================================================================
 # deploy.sh — Build + deploy the Kola dashboard to Cloudflare Pages
 # ============================================================================
@@ -45,7 +56,7 @@ SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 KOLA_SERVER_URL="${KOLA_SERVER_URL:-http://localhost:8090}"
 # Task #138 — sidebar Docs link; see build.sh's own note.
 KOLA_DOCS_URL="${KOLA_DOCS_URL:- https://kola-docs.pages.dev}"
-PROJECT_NAME="${PROJECT_NAME:-kola-dashboard}"
+PROJECT_NAME="${PROJECT_NAME:-kola-app}"
 
 if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
   echo ""

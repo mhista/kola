@@ -252,6 +252,207 @@ Raised directly by the owner: "we should be looking into messenger and instagram
 
 **Deliberately NOT started in this pass** — this is genuinely as large as the original WhatsApp integration (tasks #69–86), and delivering it correctly needs its own dedicated pass with room to verify each new adapter against real Meta API responses, not squeezed in alongside several other features already shipped in the same session. Flagged here as a fully scoped, ready-to-build next phase, not a vague someday item.
 
+### 8l. Domain: kymaa.tech stopgap for the grant application — Done (infra, not a code task)
+Not a Kola feature — the owner bought `kymaa.tech` (the company's own domain) to use for a grant application, since Kola's own domain is expensive with no good match available right now. Rather than repoint `kola_landing`'s existing Cloudflare Pages project/domain (which would affect the live "kola" deployment while a bigger restructuring is being planned), created `kymaa_landing/` — an exact copy of `kola_landing`, deployed as its own Cloudflare Pages project (defaults to project name "kymaa") — so `kymaa.tech` can be pointed at that copy independently. See `kymaa_landing/README.md` and `kymaa_landing/deploy.sh`'s header for the actual Cloudflare-dashboard steps to add the custom domain. Content is identical to `kola_landing` for now; this is explicitly a stopgap, to be replaced once the restructured product is ready.
+
+## Phase 9 — Layer 2: Business Memory
+
+**The AI-OS restructure starts here.** The project brief describes Kola as a ten-layer AI Operating System for SMEs. Measured against that, what existed after Phase 8 was a very capable multi-tenant AI bot platform: the model layer was ~80% there (a real three-provider cascade with real tool-calling), multi-tenancy ~85%, interfaces ~40%. **Business Memory was ~15%, and Layers 4–9 (Event Bus, Observation, Recommendation, Timeline, Continuous Learning) were at zero.**
+
+Memory goes first, and not arbitrarily: the Observation, Recommendation, Timeline and Continuous-Learning layers are all *readers* of memory and events. Building any of them on top of `Bot.knowledgeSeed` — a single 2,000-character plain-text field pasted whole into the system prompt — would mean rebuilding them the moment real memory landed. This is the load-bearing layer, so it is the one that gets built first.
+
+**Done when:** a business can store real documents, a bot answers from semantically-retrieved passages rather than one text blob, and every answer can name the specific document and section it came from.
+
+### 9a. Embedding provider — Done
+
+`EmbeddingProvider` / `GeminiEmbeddingProvider` / `EmbeddingOrchestrator` (`kola_server/lib/src/services/memory/`), mirroring `AiProvider`/`AiOrchestrator`'s shape so this is the same pattern rather than a new one.
+
+**Deliberately a separate interface from `AiProvider`, not a new method on it.** Of the three providers already in the cascade, only Gemini can produce embeddings at all — Groq serves inference models only and has no embeddings endpoint, and OpenRouter does not proxy embeddings. Adding `embed()` to `AiProvider` would have forced two of three implementations into permanent `UnsupportedError` stubs and made the "fall through on any failure" cascade meaningless for embeddings.
+
+**And it is deliberately NOT a failover cascade.** `AiOrchestrator` falls through to the next provider on any error, which is right for chat because any provider can answer the same question. It would be actively harmful here: vectors from two different models are points in unrelated spaces, so falling back mid-ingestion would silently write chunks that a query embedded by the first provider can never retrieve. That failure surfaces months later as "the bot suddenly can't find things," not as an error. So `EmbeddingOrchestrator` picks the first configured provider **once** and surfaces quota errors to the caller instead of switching model families. `knowledge_chunks.embedding_model` records which model produced each row so a future provider change is a findable, migratable data problem rather than silent corruption.
+
+**768 dimensions, not `gemini-embedding-001`'s 3072 default.** Three concrete reasons, in order of how binding they are: pgvector's HNSW index caps at 2000 dimensions, so 3072 could be stored but never indexed — every search would sequentially scan the table; storage is 3KB/chunk instead of 12.3KB; and the model is trained with Matryoshka Representation Learning, so 768 is one of Google's own recommended truncation points rather than a naive slice. Truncated MRL vectors are **not** unit-length even though the full 3072 output is, so the provider re-normalizes rather than trusting a guarantee made at a different length — not doing so is a silent, hard-to-trace quality bug.
+
+**Zero additional cost, deliberately.** Uses the same `GEMINI_API_KEY` the chat-side provider already uses — no new credential, no new vendor relationship, and `gemini-embedding-001` has a real free tier (1,500 requests/day). With no key set, every service degrades gracefully rather than failing: ingestion reports `unavailable`, retrieval returns empty, and `BotKnowledgeService` falls straight back to `knowledgeSeed`. Nothing in this phase can begin billing on its own.
+
+### 9b. Models, schema, and the similarity RPC — Done
+
+`KnowledgeDocument` + `KnowledgeChunk` (`.spy.yaml`, DTOs, repositories per the established `BaseDto` pattern) and `docs/migrations/017_business_memory.sql`.
+
+**Workspace-scoped, not bot-scoped** — the single most consequential decision in the model. A business's return policy is a fact about the business; if a workspace runs a customer-care bot and a catalog bot, both should know it, and the owner should not maintain two copies. This follows the precedent Errands already set, and it is what makes the specialized-agent architecture (Sales/Finance/HR agents sharing one memory) possible later. Bot-scoping now would have to be undone then.
+
+**The embedding vector is deliberately not a model field.** Serverpod can model a `List<double>`, so this was a real choice: as a field it would be serialized to the dashboard on every call (~3KB of unusable noise per chunk), Postgres's `vector` type has no Serverpod equivalent so it would round-trip through JSON and lose the typed column the index depends on, and similarity search can't go through PostgREST anyway. The repository owns the vector column; the model describes the readable chunk.
+
+**Retrieval goes through a `match_knowledge_chunks` SQL function, not a PostgREST query** — vector distance ordering cannot be expressed in PostgREST's filter syntax at all. This is Supabase's own documented pgvector pattern, not a workaround. Tenant isolation is applied *inside* the same query as the vector scan rather than by joining out to the parent document, so the similarity scan never runs ahead of the tenant filter.
+
+**One migration detail worth stating, because getting it wrong is silent:** the migration sets an explicit `search_path` and references `vector` unqualified rather than as `extensions.vector`. If a project enabled pgvector earlier and it lives in `public`, `create extension if not exists ... with schema extensions` does nothing and every schema-qualified reference then fails. The function pins its own `search_path` too, since a function resolves that at execution time from the caller's session, not from the migration that created it.
+
+### 9c. Ingestion and chunking — Done
+
+`TextChunker` and `DocumentIngestionService`.
+
+**The order of operations is the design.** Hash and dedupe *first* (embedding is the only step that costs quota, so checking whether we already have this text before embedding it is the entire reason a content hash is stored). Persist the document as `pending` *before* embedding, so a failure has a real row to attach a reason to and the owner sees "failed: quota exceeded" rather than an upload silently vanishing. Mark `indexed` *last* — `match_knowledge_chunks` ignores anything not `indexed`, so a crash mid-ingestion leaves a document invisible rather than half-answerable. **A silently-failed document is the worst outcome in this subsystem**, because the owner then believes the bot was told something it was never told.
+
+**Chunking is where answer quality is actually decided** — retrieval can only ever return whole chunks. The strategy escalates paragraph → sentence → word boundary, with overlap so a fact straddling a boundary appears whole somewhere. It is explicitly a v1 and not structure-aware: markdown headings and tables are just short paragraphs to it. That's a real limitation, and improving it should be done against real business documents rather than guessed at now.
+
+**File parsing is NOT built, and is not stubbed as if it were.** `sourceType` allows `'upload'`, but this service takes text. Parsing PDF/DOCX/XLSX properly means vetting packages per format and handling scanned-image PDFs that need OCR; extracting whatever bytes look like text would produce garbage chunks that embed to noise and surface as confidently wrong answers — strictly worse than refusing the file. Extraction belongs in a separate service feeding `ingestText`, and this file's contract doesn't change when it arrives.
+
+### 9d. Retrieval, citations, and the rewire — Done
+
+`MemoryRetrievalService` + `KnowledgeEndpoint`, and `BotKnowledgeService` rewired.
+
+**This is where "every AI answer must cite where its information came from" stops being aspirational.** Retrieved passages are numbered and labelled with their source document, and `GroundedAnswer.citations` / `KnowledgeDecision.citations` carry those sources back to the caller — so an answer is traceable to a specific document and section rather than the bot being trusted on faith. Without it, grounded retrieval is just a fancier way to stuff text into a prompt.
+
+**`answerGrounded` and `decide` kept their exact signatures and contracts** — only the *source* of the `--- BUSINESS INFORMATION ---` block changed. That is precisely what `bot_knowledge_service.dart`'s original Phase 3b header predicted would happen ("real retrieval replaces reading that field directly here; this file's job stays the same shape, just fed by a smarter source").
+
+**The `knowledgeSeed` fallback is deliberate and not temporary-until-we-get-around-to-it**, for three real reasons: every existing workspace has content in `knowledgeSeed` and none in `knowledge_documents`, so cutting over without it would make every live bot instantly stop knowing anything; a key-less deployment has no embeddings and degrading is better than refusing to answer; and a small seed ("we're a fashion store in Lagos, open 9–6") is genuinely useful context no retrieval hit would surface. **Migration 017 therefore does not drop the column**, and it shouldn't be dropped until every workspace has migrated across.
+
+**A similarity floor is set deliberately (0.35), not left at zero.** Without a floor every query returns its nearest six chunks no matter how irrelevant, and the model dutifully answers from them — which is how a grounded bot starts confidently misciting a price list to answer a delivery question. Chunks are then taken in similarity order until a token budget is spent, rather than a fixed top-N, so a query matching six long chunks can't silently overflow the context window and get truncated from the end (where the conversation lives).
+
+`KnowledgeEndpoint` is a new endpoint rather than more methods on `BotEndpoint`, because knowledge is no longer a property of one bot and hanging workspace-scoped memory off a bot-scoped endpoint would encode the wrong ownership model in the API. `BotEndpoint.setKnowledgeSeed` is left alone and still works. `searchMemory` returns real scored hits — an owner can type a question a customer actually asked and see exactly which passages ground the answer, which turns "the AI got that wrong" from an unfalsifiable complaint into something inspectable.
+
+### 9e. First real automated tests — Written, NOT YET RUN
+
+`test/text_chunker_test.dart` — 12 cases, and **the first genuine automated tests in this repository.** Everything under `tool/` is a verification harness that needs live keys, a network, and a human to read the output; none of it can fail a build. `TextChunker` was written pure — no I/O, no network, no database, no dependency on anything else in the project — specifically so the piece that most determines answer quality is the piece that can be tested for real.
+
+**Honest status:** these have not been executed. No Dart toolchain exists in the environment that authored this phase and the SDK archive is blocked by its proxy — the same standing constraint every prior audit recorded. The *algorithm* was verified by porting `TextChunker` faithfully to Python and running the same 12 assertions, all of which pass; that validates the logic but says nothing about the Dart syntax compiling. **Run `dart test test/` locally to close this properly.** One assertion was corrected during that verification: a size bound that passed only because the input happened not to trigger the trailing-fragment merge has been widened to the actual worst case, with the reasoning recorded in the test.
+
+### Before this phase runs at all — required steps
+
+1. ~~**Apply `docs/migrations/017_business_memory.sql`**~~ — **DONE, applied and verified against the live `kola` Supabase project (2026-08-05).** pgvector 0.8.2 installed into the `extensions` schema, both tables created, HNSW index built, RPC created, RLS enabled on both tables.
+
+   **Verified behaviourally, not just "the DDL ran"** — a temporary document plus two chunks (one near-identical to a probe vector, one orthogonal) were inserted, the RPC exercised, and the rows removed. All nine checks behaved correctly: happy path returned exactly one hit at similarity 0.9901; a mismatched `embedding_model` returned nothing; a foreign `workspace_id` returned nothing; a 0.0 floor returned both chunks while a 0.35 floor correctly excluded the orthogonal one; `p_match_count` capped results; `document_title` and `chunk_index` came back populated for citations; a document flipped to `pending` became invisible to retrieval; and deleting the document cascaded its chunks away leaving zero orphans. Post-run state confirmed clean — 0 documents, 0 chunks.
+
+   One incidental confirmation worth recording: Supabase's security advisor flags `function_search_path_mutable` for the pre-existing `update_updated_at` function but **not** for `match_knowledge_chunks` — the explicit `set search_path` pinned on the function (see the migration's own comment on why a function resolves search_path at execution time, not creation time) is doing its job. The advisor's `rls_enabled_no_policy` notices on the two new tables are expected and match every other table in this project: RLS on with no permissive policy is the deliberate deny-all posture, since all access is via the server's service_role client.
+
+2. **Run `dart run serverpod generate`** in `kola_server`. `KnowledgeDocument`, `KnowledgeChunk` and `KnowledgeSearchHit` do not exist in `lib/src/generated/` until this runs, and nothing referencing them will compile — the same generated-client gap that hit `deleteErrand`, `getBillingSummary` and `createBotFromDescription` before.
+3. **Run `dart pub get`** — `crypto` was promoted from a transitive to a direct dependency (SHA-256 for content hashing), following the same precedent `http` set earlier.
+4. **`GEMINI_API_KEY` must be set** for memory to work at all. It is the same key the chat-side provider already uses. Without it everything degrades to the `knowledgeSeed` path rather than breaking.
+
+### Still not done in this phase
+
+- **No dashboard UI.** `kola_dashboard`'s Knowledge page still offers only the single `knowledgeSeed` textarea. The document list, upload, delete and memory-browser surfaces are API-first for now — the same "API-first, dashboard later" sequencing webhook/dbCredential Errands and every Phase 8 built-in Errand got before their own dashboard support existed.
+- **No file parsing** (see 9c).
+- **No conversation-to-memory promotion.** `sourceType` allows `'conversation'`, which is the seam Layer 9 (Continuous Learning) plugs into, but nothing writes it yet.
+- **No re-embedding job.** If the embedding model ever changes, `embedding_model` makes the stale rows findable, but the job that rewrites them doesn't exist — correctly deferred until there's a real reason to change models.
+
+### What Layer 2 unlocks next
+
+With memory real, the next layer is the **Event Bus (Layer 4)** — everything becomes a timestamped, permanently-stored, replayable event. That is the second foundation piece, and once both exist the Timeline (Layer 8) is close to free, and Observation (Layer 5) / Recommendation (Layer 6) become buildable against real data rather than against a text field.
+
+---
+
+## Phase 10 — Release Control & the Admin Control Plane
+
+**Introduced by explicit product direction, and it changes how everything after it ships.** The instruction, in the owner's words: *"we won't release everything so as not to overwhelm users, we'll programmatically lock certain features, and only unlock them in phases and when needed... it will be seamless releases, in a way that each release complements the other."*
+
+**The principle: decouple BUILD from RELEASE.** A feature ships to production `locked` — fully built, fully running, entirely invisible — and is later flipped to `beta` for chosen workspaces, then `released` for everyone. **Unlocking is a database state change made from kola_admin. No deploy, no downtime, no code change.**
+
+This resolves a real tension. Build velocity is now constrained by engineering capacity, which with AI assistance is fast. Release velocity is constrained by user absorption and support capacity, which is not. Forcing them to move together wastes the first or breaks the second.
+
+**Done when:** every gateable capability has a flag, resolution is centralised in one service with one precedence order, and a feature can be unlocked without a deployment. — satisfied.
+
+### 10a. The feature registry and resolver — Done
+
+`FeatureKeys` (`kola_server/lib/src/services/features/feature_keys.dart`) declares **49 capabilities** across seven release waves. `FeatureFlagService` is the one place that answers "can this workspace see this feature."
+
+**Which features exist is defined in Dart; what state each one is in is defined in the database.** That split is deliberate and load-bearing: feature keys are referenced in code (`requireFeature(FeatureKeys.observations)`), so a key existing only in a database row would let a typo compile fine and then silently resolve to "unknown feature" → fail-closed → disabled. **A shipped feature nobody can see, and nobody knows is missing, is the worst outcome this system can produce.** `FeatureFlagService.reconcile()` reports drift in both directions and kola_admin surfaces it on load.
+
+**Four states, not a boolean** — `locked` / `internal` / `beta` / `released` — because "built" and "released" are different events with observable steps between them. **`beta` is per-workspace opt-in rather than a percentage rollout**: with a customer base this size a percentage is meaningless and untraceable, while knowing exactly which four businesses have a feature — and being able to call them — is worth far more.
+
+**Resolution order, defined in exactly one place** (`feature_flag_service.dart`'s header, and nowhere else): unknown key → false, logged at severe · explicit disable always wins, even over `released` · externally-gated features cannot be switched on early by any override · explicit enable wins for everything else · then platform state · then minimum plan, checked **last and only for released features** (a design partner on the free tier is still a design partner).
+
+**`minimumPlan` is deliberately a separate field from `state`**, because they answer different questions — "has this shipped" versus "do we charge for it". Collapsing them would make it impossible to run a paid feature in beta, which is exactly what a design-partner programme has to do. It reads `TrialStateMachine.effectiveTier`, not `Workspace.plan` directly, so a workspace inside its 48-hour full trial sees paid features and a lapsed one does not — reading `.plan` would have silently bypassed the entire trial mechanic.
+
+**Caching, and why the TTL is short.** `isEnabled` sits on the inbound-message path; uncached it would add two database round trips to every customer WhatsApp message. TTL is **30 seconds** rather than something more efficient because this system's most urgent operation is the kill switch — flipping a broken feature to `locked` at 2am must take effect in seconds. `invalidate()` exists so an admin action takes effect immediately rather than waiting out even that. **A database failure serves stale rather than failing**, because returning an empty map would — given fail-closed resolution — turn every feature off across the platform.
+
+### 10b. Schema and seed — Done, applied and verified
+
+Migration `018_feature_flags.sql`: `feature_flags`, `workspace_feature_overrides`, and `workspaces.is_internal`. **Applied to the live `kola` project and verified behaviourally.**
+
+**Two guarantees the schema enforces, both tested against the live database:**
+
+1. **Re-running the seed can never re-lock a released feature.** The `on conflict (key) do update` clause refreshes name, description, plan, phase and gating — but deliberately never `state`. Verified: `timeline.core` was flipped to `released`, the seed re-run exactly as a later deploy would, and it stayed `released`.
+2. **Every override must carry a written reason.** `note` is `NOT NULL`. An unexplained override found six months later cannot be safely removed, so the schema refuses to create one.
+
+Also verified: an override referencing an unknown feature key is rejected (FK) · a duplicate override for the same workspace+feature is rejected (unique constraint, since two would make resolution ambiguous) · invalid `state` and `release_phase` values are rejected (check constraints). Final state: **49 flags, 11 released (all R1), 38 locked, 0 overrides, 0 internal workspaces.**
+
+**`workspaces.is_internal` is settable only from kola_admin.** The customer server has no write path to it — `WorkspaceRepository.create` hardcodes `false` with a comment explaining why. A customer-reachable path that could mint an internal workspace would unlock every unreleased feature on the platform and make this entire system decorative.
+
+### 10c. Customer-facing read surface — Done
+
+`FeatureEndpoint` — **read-only, completely and deliberately.** No method changes a flag or creates an override; all of that lives in kola_admin behind separate auth in a separate deployable.
+
+`listEnabledFeatures` returns a list rather than offering per-feature checks, because the dashboard needs to know what to render *before* it renders — which nav items exist, which routes resolve. Per-component checks would be dozens of round trips to build one page.
+
+**Only ENABLED keys are returned.** A locked feature is absent from the response entirely, not present with `false` — the locked set is an unreleased product roadmap, and a customer inspecting network traffic should not be able to read it.
+
+### 10d. Release waves — Decided, documented in `docs/RELEASE_PHASES.md`
+
+Seven waves, sequenced by **"what does this unlock make true that wasn't true before"** rather than "what happens to be finished":
+
+**R1 Foundation** (11, released today) — *it answers your customers, from what you taught it* · **R2 Visibility** (6) — *it remembers, and now shows you* · **R3 Intelligence** (5) — *it noticed something you hadn't* · **R4 Delegation** (8) — *it acts, with your approval* · **R5 Reach** (9) — *wherever your customers are* · **R6 Platform** (5) — *build on it* · **R7 Enterprise** (5) — *at scale, safely*.
+
+**Three sequencing decisions worth recording:**
+
+- **`platform.event_bus` leads R2**, and shipping it locked-but-running is the point: it starts accumulating history immediately, so by the time Observations unlocks in R3 there are months of real events to observe rather than an empty table. An observation engine switched on against two weeks of data produces nothing useful.
+- **R3 gets the slowest rollout on the roadmap** — internal, then three to five named design partners, then general — because these features are cheap to build and expensive to *tune*. "Is a 30% dip worth flagging?" cannot be answered from first principles. And the cost of error is asymmetric: an owner told sales dropped when they didn't stops trusting every subsequent observation, including the correct ones. **Trust here is spent once.**
+- **`errands.webhook` and `errands.db_credential` are locked in R6 despite having shipped in Phase 3c.** They are finished. They are held because they are developer-facing capabilities that need the Developer Portal to be supportable — releasing a database-query errand with no documentation, key management or delivery logs would generate support load out of all proportion to adoption.
+
+**Three R5 features and two R7 features are marked `externally_gated`** — Messenger, Instagram and broadcast wait on Meta App Review; SSO and data residency wait on an auditor and legal artefacts. **No override can switch these on early**, which prevents an admin enabling something for a prospect that Meta or a procurement review will then reject. **This is also the honest correction to the alignment check's "3 years" figure:** that was never about build time. SOC 2 Type II needs an observation window with a real auditor; HIPAA needs a signed BAA. Those are calendar-bound and legal, and AI does not compress them.
+
+**No dates.** Every unlock trigger is a condition, not a calendar entry — attaching dates to conditions that depend on real usage would be inventing certainty.
+
+### 10e. `kola_admin` — Specified, not yet built
+
+Full specification in `docs/ADMIN_APP_SPEC.md`. **Confirmed with the owner as a separate application**, not a role-gated section of `kola_dashboard`.
+
+**The deciding argument is security blast radius.** If admin routes live inside `kola_dashboard`, every control surface and endpoint name ships in the JavaScript bundle downloaded by every customer, and the only thing between a customer and platform-wide feature control is a role check in code they hold a copy of. A bug in customer-facing code affects one workspace; a bug in the boundary around admin code affects every workspace, the unreleased roadmap, and every customer's data. Secondary but real: admin needs its own auth with mandatory MFA (wrong to impose on every SME owner), a different deploy cadence, and a different design target (a dense keyboard-driven operator surface versus a shop owner on a phone).
+
+**Three administration levels** — Support / Operator / Owner — deliberately few, because level proliferation produces permission systems nobody understands. **Flipping a feature to `released` platform-wide is Owner-only** (it affects every customer at once). **The kill switch is deliberately available to Operator**, because the ability to stop something breaking must never be gated behind finding a specific person at 2am.
+
+**Build order is fixed at steps 1–2:** admin auth, then the audit log, **before any mutating endpoint exists.** An admin app built with the intention of adding its audit log later has an unrecorded early history exactly when the most consequential platform-wide changes are being made.
+
+### Still not done in this phase
+
+- **`kola_admin` itself** — specified, not built. Nothing can be unlocked from a UI yet; state changes are direct database updates until it exists.
+- **No endpoint is gated yet.** The resolver, schema and read surface are live, but `requireFeature(...)` has not been threaded into existing endpoints. That happens per-feature as each becomes gateable — R1 is all released, so nothing changes behaviourally today.
+- **Dashboard does not consume `listEnabledFeatures` yet** — it renders a fixed nav. Wiring that is part of the dashboard redesign.
+- **No automated tests for the resolver.** The precedence order has eight branches and is exactly the kind of logic that should be tested. Blocked on the same missing Dart toolchain as Phase 9's tests — the SQL-level guarantees were verified against the live database instead.
+
+---
+
+## Phase 11 — Commerce (Catalog, Point of Sale, Offline, Documents) — Specified, not built
+
+**Introduced by explicit product direction. Ships in V1, optional per business.** Full design brief in `docs/DESIGN_BRIEF_COMMERCE.md`.
+
+**The framing that decides everything else:** this is not a POS module bolted onto an AI product. **It is the sensor.** Every scan says what sold, at what price, at what time, alongside what — a shop running a till for one week has told Kola more about itself than a month of document uploads. Memory (Phase 9) and the Event Bus (Phase 12) are the layers everything reads from; commerce is what fills them.
+
+If it were a standalone POS it would compete with Square and Loyverse on feature count and lose. It is not competing with them — **it is the only till that makes the business's AI smarter every time it rings up a sale.**
+
+**Two things nothing else does:** the catalog IS memory, so a customer asking on WhatsApp *"do you have red ankara size 12?"* gets an answer from live stock at the real price — the bot and the till read the same thing. And the receipt is a relationship rather than a slip: warranty, return window, reorder link, attached to the customer profile.
+
+### Confirmed scope decisions
+
+- **Offline selling with sync**, not read-only. A shop that cannot sell during an outage keeps a paper book beside the product, and the moment they do Kola stops being the system of record. Sales, receipts and stock changes queue locally and reconcile on reconnect, with stock conflict resolution expressed in plain language — never a merge-conflict UI shown to a shop owner.
+- **Web PWA on whatever the business already owns** — phone, cheap Android tablet, or laptop. Camera as barcode scanner, browser printing. No hardware purchase, no app store.
+- **All four customer-facing surfaces**: catalog through the bot, a shareable public catalog page, an owner-configurable in-store customer display, and a digital receipt delivered to WhatsApp. All printable and shareable.
+- **Product archetypes**, mirroring `Bot.archetype`: packaged goods · variants · serialized/high-value · prepared · services. A "product" means something genuinely different in a supermarket and a car dealership, and one generic form fails both.
+
+### Feature flags — done and applied
+
+Migration `019_commerce_feature_flags.sql`, applied and verified. **14 new keys: 8 in R1 (released), 6 in R2 (locked).** Registry now **63 features**, R1 holds 19.
+
+**Deliberately free-tier.** Charging for the sensor would be backwards, and a till is the strongest acquisition hook Kola has.
+
+**A two-layer model worth stating, because it is easy to confuse:** the flags control whether commerce is AVAILABLE on the platform; whether a given business has TURNED IT ON is a workspace setting. A released feature a business has not enabled is not the same as a locked one, and the dashboard must render them differently — *"you could turn this on"* versus not existing at all.
+
+### Not built
+
+Everything. This phase is specification and release-registry only. The models, the offline store, the sync engine, the till, the document templates and the import paths are all still to build. **Offline sync with conflict resolution is the largest single engineering item in the whole roadmap so far** and should not be underestimated because the UI looks simple.
+
+---
+
 ## Open Items Before Later Phases Can Proceed
 
 - ~~**Final brand name**~~ — **Resolved.** Kola is confirmed final; Phase 1a's rename can proceed.

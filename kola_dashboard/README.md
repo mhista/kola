@@ -183,7 +183,11 @@ cd kola_dashboard
 SUPABASE_URL=... SUPABASE_ANON_KEY=... KOLA_SERVER_URL=https://api.kola.app ./deploy.sh
 ```
 
-This is a client-routed single-page app (`jaspr_router`) — a direct load or hard-refresh of e.g. `/errands` must serve `index.html` so the router can take over, not 404 on a missing static file. Cloudflare Pages (what `deploy.sh` deploys to) does this automatically for every deployment, no config needed — see `deploy.sh`'s own header for why a `web/_redirects` file is deliberately NOT added here (Cloudflare's build system treats the obvious `/* /index.html 200` rule as an infinite loop and ignores it).
+This is a client-routed single-page app (`jaspr_router`) — a direct load or hard-refresh of e.g. `/errands` must serve `index.html` so the router can take over, not 404 on a missing static file.
+
+**CORRECTED (Aug 2026).** This section previously said Cloudflare Pages does the SPA fallback automatically, so no `web/_redirects` file was needed — and `deploy.sh`'s header says the same. **Production disproved it:** direct navigation to `/knowledge` returned 404 on the live site. There is now a `web/_redirects` containing the standard `/*  /index.html  200` rule, and the file explains itself.
+
+If the old claim was ever true it is not true for this project's configuration, and the observed 404 outranks the comment. `deploy.sh`'s header has not been rewritten and still contains the superseded reasoning — it is wrong, and this note is here so the next person finds the contradiction resolved rather than discovering it the same way.
 
 **Testing this locally** needs a server that supports the same fallback — a plain `python3 -m http.server` will 404 on `/errands`. Use `npx serve -s web` instead (the `-s` flag rewrites every unmatched path to `index.html`).
 

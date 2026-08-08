@@ -1,23 +1,26 @@
 // hero_section.dart
 //
-// The headline + primary CTA. Behavior branches on `mode`:
-//   - 'launched': shows a decorative bot-builder textarea (matches the
-//     .dc.html's isLaunched branch) — cosmetic preview only, not wired to
-//     a real endpoint yet, since Bot Mother doesn't exist until Phase 3.
-//   - 'waitlist' (default, pre-launch): a real email/phone capture form
-//     that posts to WaitlistApiService — this is the actual working path
-//     right now.
+// The repositioning lands or fails here. Headline confirmed from the v2
+// design export: "Your business already has the data. / kola turns it
+// into decisions." — the design lab's improvement on the supplied
+// "Now It Has A Brain", and the better line: it says what kola DOES
+// rather than anthropomorphising it, which also keeps it inside the
+// product's own voice rules.
 //
-// Fields are uncontrolled (read via interop.dart at submit time) — see
-// web/script.js's header comment for why.
+// Form behaviour branches on `mode` (Env.launchMode, a BUILD FLAG — see
+// config/env.dart). Waitlist copy pre-launch, "Start free" after.
+// Fields are uncontrolled and read via interop at submit time, same
+// technique as the previous build — see web/script.js's header.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import '../theme.dart';
 import '../interop.dart' as interop;
+import '../i18n/strings.dart';  
 
 class HeroSection extends StatelessComponent {
   const HeroSection({
+    required this.s,
     required this.mode,
     required this.submitting,
     required this.submitted,
@@ -25,242 +28,180 @@ class HeroSection extends StatelessComponent {
     required this.onSubmit,
   });
 
+  /// Localised copy. Passed in from app.dart — a component never
+  /// resolves its own locale. See i18n/strings.dart.
+  final Strings s;
+
   final String mode;
   final bool submitting;
   final bool submitted;
   final String? error;
-  final void Function(String email, String phone) onSubmit;
+  final void Function(String email) onSubmit;
 
-  static const _quickPills = [
-    'Customer care',
-    'Ecommerce / catalog',
-    'Order tracking',
-    'Complaints',
-    'Reminders',
+  bool get _isWaitlist => mode != 'launched';
+
+  // Deliberately not geographic. Nothing about the product is
+  // country-specific — a shop in Lagos, Nairobi or Manila has the same
+  // problem and connects its own payment provider the same way.
+  static const _audiences = [
+    'Small businesses',
+    'Agencies',
+    'Retail',
+    'Growing startups',
   ];
 
   @override
   Component build(BuildContext context) {
     return div(
-      attributes: {
-        'style':
-            'max-width:900px;margin:0 auto;padding:88px 32px 40px;text-align:center;'
-            'background-image:radial-gradient(circle,#DED4C2 1.4px,transparent 1.4px);'
-            'background-size:22px 22px;background-position:center 40px;background-repeat:repeat;',
-      },
+      attributes: {'id': 'top'},
       [
         div(
+          classes: 'kola-hero',
           attributes: {
-            'style':
-                'font-size:13px;letter-spacing:0.06em;text-transform:uppercase;'
-                'color:${KolaColors.accent};font-weight:600;margin-bottom:20px',
-          },
-          [Component.text('Say it. Get a bot.')],
-        ),
-        Component.element(
-          tag: 'h1',
-          classes: 'kola-hero-title',
-          attributes: {
-            'style':
-                'font-family:${KolaFonts.serif};font-size:64px;line-height:1.06;'
-                'font-weight:500;letter-spacing:-0.02em;margin:0 0 22px;color:${KolaColors.text}',
-          },
-          children: [
-            Component.text('Say it.'),
-            Component.element(tag: 'br', children: const []),
-            Component.text('kola builds the bot.'),
-          ],
-        ),
-        p(
-          attributes: {
-            'style':
-                'font-size:19px;color:${KolaColors.textMuted};max-width:560px;'
-                'margin:0 auto 40px;line-height:1.5',
+            'style': 'max-width:920px;margin:0 auto;padding:88px 32px 40px;'
+                'text-align:center;'
+                'background-image:radial-gradient(circle,#DED4C2 1.4px,transparent 1.4px);'
+                'background-size:22px 22px;background-position:center 40px;'
+                'background-repeat:repeat',
           },
           [
-            Component.text(
-              "For the shop owner who doesn't have a developer, doesn't have "
-              'time, and just wants customers answered — on WhatsApp, in minutes.',
+            div(
+              attributes: {
+                'style': 'font-size:13px;letter-spacing:0.06em;text-transform:uppercase;'
+                    'color:${KolaColors.accent};font-weight:600;margin-bottom:20px',
+              },
+              [Component.text(s.heroEyebrow)],
             ),
-          ],
-        ),
-
-        if (mode == 'launched') _launchedPreview() else _waitlistForm(),
-
-        div(
-          attributes: {
-            'style':
-                'display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:22px',
-          },
-          [
-            for (final label in _quickPills)
-              button(
-                classes: 'kola-quick-pill',
-                attributes: {
-                  'style':
-                      'background:${KolaColors.cardBg};border:1px solid ${KolaColors.border};'
-                      'border-radius:100px;padding:9px 16px;font-size:14px;'
-                      'color:${KolaColors.textBody};cursor:pointer;font-family:inherit',
-                },
-                events: {'click': (e) => interop.scrollToId('waitlist')},
-                [Component.text(label)],
-              ),
+            h1(
+              classes: 'kola-hero-title',
+              attributes: {
+                'style': 'font-family:${KolaFonts.serif};font-size:58px;line-height:1.08;'
+                    'font-weight:500;letter-spacing:-0.02em;margin:0 0 22px',
+              },
+              [
+                Component.text(s.heroTitleLine1),
+                br(),
+                Component.text(s.heroTitleLine2),
+              ],
+            ),
+            p(
+              classes: 'kola-hero-sub',
+              attributes: {
+                'style': 'font-size:18px;color:${KolaColors.textMuted};max-width:600px;'
+                    'margin:0 auto 36px;line-height:1.55',
+              },
+              [
+                Component.text(s.heroSubtitle),
+              ],
+            ),
+            if (submitted) _successCard() else _form(),
+            div(
+              attributes: {
+                'style': 'display:flex;gap:12px;justify-content:center;flex-wrap:wrap;'
+                    'margin-top:20px;font-size:13px;color:${KolaColors.textFaint}',
+              },
+              [
+                for (var i = 0; i < _audiences.length; i++) ...[
+                  if (i > 0) span([Component.text('·')]),
+                  span([Component.text(_audiences[i])]),
+                ],
+              ],
+            ),
           ],
         ),
       ],
     );
   }
 
-  Component _cardWrap(List<Component> children) => div(
-    attributes: {
-      'style':
-          'background:${KolaColors.cardBg};border:1px solid ${KolaColors.border};'
-          'border-radius:26px;box-shadow:0 20px 50px rgba(28,24,21,0.07);'
-          'padding:22px;text-align:left',
-    },
-    children,
-  );
-
-  Component _launchedPreview() => _cardWrap([
-    Component.element(
-      tag: 'textarea',
+  Component _form() {
+    return div(
       attributes: {
-        'placeholder':
-            "Describe the bot you want — e.g. 'Answer customer questions from my price list'",
-        'rows': '2',
-        'style':
-            'width:100%;border:none;outline:none;resize:none;font-family:${KolaFonts.sans};'
-            'font-size:17px;color:${KolaColors.text};background:transparent;box-sizing:border-box',
-      },
-      children: const [],
-    ),
-    div(
-      attributes: {
-        'style': 'display:flex;align-items:center;justify-content:space-between;margin-top:10px',
+        'style': 'background:${KolaColors.cardBg};border:1px solid ${KolaColors.border};'
+            'border-radius:26px;box-shadow:0 20px 50px rgba(28,24,21,0.07);'
+            'padding:22px;text-align:left;max-width:600px;margin:0 auto',
       },
       [
-        div(attributes: {'style': 'display:flex;gap:10px'}, [
-          _roundIcon('🎙'),
-          _roundIcon('📎'),
-        ]),
         div(
           attributes: {
-            'style':
-                'width:38px;height:38px;border-radius:50%;background:${KolaColors.accent};'
-                'display:flex;align-items:center;justify-content:center;color:#FFF6EE;'
-                'font-size:16px;cursor:pointer',
+            'style': 'font-size:14.5px;color:${KolaColors.textMuted};margin-bottom:12px',
           },
-          [Component.text('→')],
+          [
+            Component.text(_isWaitlist ? s.heroWaitlistPrompt : s.heroLaunchedPrompt),
+          ],
+        ),
+        div(
+          classes: 'kola-hero-form-row',
+          attributes: {'style': 'display:flex;gap:10px;flex-wrap:wrap'},
+          [
+            input(
+              type: InputType.email,
+              id: 'heroEmail',
+              attributes: {
+                'placeholder': s.heroEmailPlaceholder,
+                'autocomplete': 'email',
+                'aria-label': s.heroEmailPlaceholder,
+                'style': 'flex:1;min-width:180px;border:1px solid ${KolaColors.border};'
+                    'border-radius:100px;padding:11px 16px;font-size:14px;'
+                    'font-family:inherit;color:${KolaColors.text};box-sizing:border-box',
+              },
+            ),
+            button(
+              classes: 'kola-btn-lift',
+              attributes: {
+                'style': 'background:${KolaColors.accent};color:${KolaColors.accentText};'
+                    'border:none;border-radius:100px;padding:11px 22px;font-size:14px;'
+                    'font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap',
+                if (submitting) 'disabled': 'disabled',
+              },
+              events: {
+                'click': (_) => onSubmit(interop.fieldValue('heroEmail')),
+              },
+              [
+                Component.text(submitting
+                    ? s.ctaSending
+                    : (_isWaitlist ? s.ctaJoinWaitlist : s.ctaStartFree)),
+              ],
+            ),
+          ],
+        ),
+        if (error != null)
+          div(
+            attributes: {
+              'style': 'font-size:13px;color:#B3341A;margin-top:10px',
+              'role': 'alert',
+            },
+            [Component.text(error!)],
+          ),
+      ],
+    );
+  }
+
+  Component _successCard() {
+    return div(
+      attributes: {
+        'style': 'background:${KolaColors.cardBg};border:1px solid ${KolaColors.success};'
+            'border-radius:26px;box-shadow:0 20px 50px rgba(28,24,21,0.07);'
+            'padding:32px;text-align:center;max-width:600px;margin:0 auto',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'width:44px;height:44px;border-radius:50%;'
+                'background:${KolaColors.successBg};color:${KolaColors.success};'
+                'display:flex;align-items:center;justify-content:center;'
+                'font-size:20px;margin:0 auto 14px',
+          },
+          [Component.text('✓')],
+        ),
+        div(
+          attributes: {'style': 'font-size:17px;font-weight:600;margin-bottom:4px'},
+          [Component.text(s.heroSuccessTitle)],
+        ),
+        div(
+          attributes: {'style': 'font-size:14.5px;color:${KolaColors.textMutedLight}'},
+          [Component.text(s.heroSuccessBody)],
         ),
       ],
-    ),
-  ]);
-
-  Component _roundIcon(String glyph) => div(
-    attributes: {
-      'style':
-          'width:34px;height:34px;border-radius:50%;background:${KolaColors.bg};'
-          'display:flex;align-items:center;justify-content:center;color:${KolaColors.textFaint};'
-          'font-size:15px;cursor:pointer',
-    },
-    [Component.text(glyph)],
-  );
-
-  Component _waitlistForm() {
-    if (submitted) {
-      return div(
-        attributes: {
-          'style':
-              'background:${KolaColors.cardBg};border:1px solid ${KolaColors.success};'
-              'border-radius:26px;box-shadow:0 20px 50px rgba(28,24,21,0.07);'
-              'padding:32px;text-align:center',
-        },
-        [
-          div(
-            attributes: {
-              'style':
-                  'width:44px;height:44px;border-radius:50%;background:${KolaColors.successBg};'
-                  'color:${KolaColors.success};display:flex;align-items:center;justify-content:center;'
-                  'font-size:20px;margin:0 auto 14px',
-            },
-            [Component.text('✓')],
-          ),
-          div(
-            attributes: {'style': 'font-size:17px;font-weight:600;margin-bottom:4px'},
-            [Component.text("You're on the list.")],
-          ),
-          div(
-            attributes: {'style': 'font-size:14.5px;color:${KolaColors.textMutedLight}'},
-            [Component.text("We'll message you as soon as it's your turn.")],
-          ),
-        ],
-      );
-    }
-
-    return _cardWrap([
-      Component.element(
-        tag: 'textarea',
-        attributes: {
-          'placeholder': "Tell us what your business needs — we'll notify you the moment it's ready",
-          'rows': '2',
-          'style':
-              'width:100%;border:none;outline:none;resize:none;font-family:${KolaFonts.sans};'
-              'font-size:17px;color:${KolaColors.text};background:transparent;'
-              'margin-bottom:14px;box-sizing:border-box',
-        },
-        children: const [],
-      ),
-      div(
-        attributes: {'style': 'display:flex;gap:10px;flex-wrap:wrap'},
-        [
-          input(
-            attributes: {
-              'id': 'heroEmail',
-              'type': 'email',
-              'placeholder': 'Email address',
-              'style':
-                  'flex:1;min-width:180px;border:1px solid ${KolaColors.border};border-radius:100px;'
-                  'padding:11px 16px;font-size:14px;font-family:inherit;color:${KolaColors.text}',
-            },
-          ),
-          input(
-            attributes: {
-              'id': 'heroPhone',
-              'type': 'tel',
-              'placeholder': 'WhatsApp number (optional)',
-              'style':
-                  'flex:1;min-width:180px;border:1px solid ${KolaColors.border};border-radius:100px;'
-                  'padding:11px 16px;font-size:14px;font-family:inherit;color:${KolaColors.text}',
-            },
-          ),
-          button(
-            classes: 'kola-btn-lift',
-            attributes: {
-              'style':
-                  'background:${KolaColors.accent};color:#FFF6EE;border:none;border-radius:100px;'
-                  'padding:11px 22px;font-size:14px;font-weight:600;font-family:inherit;'
-                  'cursor:pointer;white-space:nowrap;opacity:${submitting ? "0.6" : "1"}',
-            },
-            events: {
-              'click': (e) {
-                if (submitting) return;
-                onSubmit(
-                  interop.fieldValue('heroEmail'),
-                  interop.fieldValue('heroPhone'),
-                );
-              },
-            },
-            [Component.text(submitting ? 'Joining…' : 'Join waitlist →')],
-          ),
-        ],
-      ),
-      if (error != null)
-        div(
-          attributes: {
-            'style': 'color:#B33B2E;font-size:13px;margin-top:10px',
-          },
-          [Component.text(error!)],
-        ),
-    ]);
+    );
   }
 }

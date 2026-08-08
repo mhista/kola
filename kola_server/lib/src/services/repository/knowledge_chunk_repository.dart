@@ -116,9 +116,25 @@ class KnowledgeChunkRepository {
 
   // ── SEARCH ────────────────────────────────────────────────────────────────
 
-  /// Semantic search over one workspace's memory.
+  /// HYBRID search over one workspace's memory — meaning AND literal.
   ///
-  /// Goes through the `match_knowledge_chunks` RPC rather than a
+  /// Runs two retrievals and fuses them (migration 023):
+  ///
+  ///   vector arm   → semantics. Finds a returns policy from "can I send
+  ///                  it back", which no keyword search would.
+  ///   keyword arm  → literal tokens. Finds "order 4471", which vector
+  ///                  search reliably misses — an identifier carries
+  ///                  almost no semantic signal, so its embedding sits
+  ///                  near every other short alphanumeric string.
+  ///
+  /// Fused by Reciprocal Rank Fusion, which uses only RANK, so there are
+  /// no weights to tune and no two score scales to reconcile.
+  ///
+  /// THE SIMILARITY FLOOR APPLIES TO THE VECTOR ARM ONLY. A literal
+  /// identifier match matters at any cosine similarity, and filtering it
+  /// would reintroduce the bug this exists to fix.
+  ///
+  /// Goes through an RPC rather than a
   /// PostgREST query because vector distance ordering cannot be expressed
   /// in PostgREST's filter syntax at all — this is Supabase's own
   /// documented pgvector pattern, not a workaround. See migration 017.
@@ -130,6 +146,8 @@ class KnowledgeChunkRepository {
   Future<List<KnowledgeChunkMatch>> searchSimilar({
     required int workspaceId,
     required List<double> queryEmbedding,
+    /// The question as typed. Needed for the keyword arm.
+    required String queryText,
     required String embeddingModel,
     int matchCount = 6,
     double minSimilarity = 0.3,
@@ -138,7 +156,7 @@ class KnowledgeChunkRepository {
         'matchCount=$matchCount, minSimilarity=$minSimilarity)');
 
     final response = await supabase.rpc(
-      'match_knowledge_chunks',
+      'hybrid_match_knowledge_chunks',
       params: {
         'p_workspace_id': workspaceId,
         // As an RPC ARGUMENT (unlike the insert path above) the vector's
@@ -147,6 +165,12 @@ class KnowledgeChunkRepository {
         // parameter type casts it. Using the same literal helper in both
         // places keeps one representation rather than two.
         'p_query_embedding': _toVectorLiteral(queryEmbedding),
+        // The raw question, for the keyword arm. Normalisation (hyphens
+        // and slashes to spaces) happens INSIDE the function so it can
+        // never drift from the generated column's own normalisation —
+        // if those two disagree, identifier search silently stops
+        // working and nothing errors.
+        'p_query_text': queryText,
         'p_embedding_model': embeddingModel,
         'p_match_count': matchCount,
         'p_min_similarity': minSimilarity,

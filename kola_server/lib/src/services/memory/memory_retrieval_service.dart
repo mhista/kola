@@ -136,6 +136,7 @@ class MemoryRetrievalService {
       final queryVector = await _embeddings.embedQuery(query);
 
       final matches = await _chunks.searchSimilar(
+        queryText: query,
         workspaceId: workspaceId,
         queryEmbedding: queryVector.vector,
         embeddingModel: queryVector.model,

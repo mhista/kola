@@ -10,7 +10,9 @@
 //   /webhooks                 → WebhooksPage
 //   /channels                 → ChannelsPage
 //   /channels/connect-whatsapp → ConnectWhatsAppPage
+//   /business-memory          → BusinessMemoryPage
 //   /rate-limits              → RateLimitsPage
+//   /feature-availability     → FeatureAvailabilityPage
 //   /sdks                     → SdksPage
 //   /billing/avoiding-excessive-whatsapp-billing → AvoidingExcessiveWhatsAppBillingPage
 
@@ -27,6 +29,8 @@ import 'pages/connect_whatsapp_page.dart';
 import 'pages/rate_limits_page.dart';
 import 'pages/sdks_page.dart';
 import 'pages/avoiding_excessive_whatsapp_billing_page.dart';
+import 'pages/business_memory_page.dart';
+import 'pages/feature_availability_page.dart';
 
 class DocsApp extends StatelessComponent {
   const DocsApp();
@@ -41,7 +45,9 @@ class DocsApp extends StatelessComponent {
         _route('/webhooks', const WebhooksPage()),
         _route('/channels', const ChannelsPage()),
         _route('/channels/connect-whatsapp', const ConnectWhatsAppPage()),
+        _route('/business-memory', const BusinessMemoryPage()),
         _route('/rate-limits', const RateLimitsPage()),
+        _route('/feature-availability', const FeatureAvailabilityPage()),
         _route('/sdks', const SdksPage()),
         _route(
           '/billing/avoiding-excessive-whatsapp-billing',

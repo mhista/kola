@@ -1,62 +1,97 @@
-// knowledge_page.dart — Phase 4e's Knowledge Base page, deliberately
-// scoped down per the project owner's own choice ("Ship a minimal
-// textarea page now") after this gap was surfaced: SRS §8's full
-// "Document Parsing Engine" (file upload → parsing → storage) was
-// never built, and the ONLY knowledge storage that actually exists
-// server-side is Bot.knowledgeSeed — a single plain-text field per bot
-// (see EndpointBot.setKnowledgeSeed's doc comment). So this page is
-// exactly that: pick a bot, edit its knowledgeSeed in a textarea, save.
-// No file upload UI here — building one would just be a dead end
-// pointing at a backend field that still only stores plain text.
+// knowledge_page.dart — the Knowledge Center. What kola has been taught,
+// and a way to check what it would actually retrieve.
 //
-// dev_knowledge_tab.dart's "Full Knowledge Base →" link (Bot Detail's
-// Structured Mode) is what should eventually point at this page for a
-// specific bot — left as '#' for now since that page still uses fully
-// static mock data (Phase 4d) and isn't wired to a real bot id yet;
-// not this page's job to fix.
+// REBUILT on the new design system. The previous version of this file
+// used KolaDashboardColors throughout; nothing here does.
+//
+// ── TWO TABS, BOTH REAL ──────────────────────────────────────────────
+//
+//   Documents        → listDocuments / addDocument / deleteDocument
+//   Memory inspector → searchMemory
+//
+// The inspector is not a debug tool bolted on. It is the reason
+// KnowledgeSearchHit exists: an owner can type a question a customer
+// actually asked and see precisely which passages would ground the
+// answer, with real similarity scores. That is what makes the bot's
+// answers checkable rather than something to be trusted on faith.
+//
+// ── WHAT THE DESIGN SHOWS THAT IS NOT BUILT ──────────────────────────
+//
+//   UPLOAD A FILE — the picker accepts ANY file. What it cannot do is
+//     extract text from every one: PDF, Word, Excel, images and audio
+//     all need server-side extraction that does not exist yet. So every
+//     file is IDENTIFIED (see services/file_intake.dart) and the owner
+//     is told precisely what it is and what to do — never accepted and
+//     silently mangled into binary garbage stored as knowledge.
+//
+//   BUILD FROM WHAT'S ALREADY HERE — offers to generate knowledge from
+//     the product catalog. There is no catalog, no commerce backend and
+//     no endpoint. Omitted entirely.
+//
+// ── DUPLICATES ARE A PROMPT, NOT AN ERROR ────────────────────────────
+//
+// addDocument refuses an exact duplicate and names the existing
+// document, and takes allowDuplicate to override. That round trip is
+// deliberate — see the endpoint's own header — so this page offers
+// "save it anyway" rather than presenting a dead end.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:web/web.dart' as web;
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/icons.dart';
+import '../components/shell/kola_icon.dart';
+import '../services/feature_gate.dart';
+import '../services/file_intake.dart';
 import '../theme.dart';
-import '../components/back_link.dart';
-import '../config/env.dart';
+
+enum _Tab { documents, inspector }
 
 class KnowledgePage extends StatefulComponent {
   const KnowledgePage({
     required this.client,
     required this.accessToken,
     required this.workspaceId,
+    required this.gate,
   });
 
   final Client client;
   final String accessToken;
   final int workspaceId;
+  final FeatureGate gate;
 
   @override
   State<KnowledgePage> createState() => _KnowledgePageState();
 }
 
 class _KnowledgePageState extends State<KnowledgePage> {
-  List<Bot>? _bots;
-  String? _loadError;
+  _Tab _tab = _Tab.documents;
 
-  Bot? _selected;
-  String _seedText = '';
+  bool _loading = true;
+  String? _error;
+  List<KnowledgeDocument> _docs = const [];
+
+  String _search = '';
+  String _statusFilter = 'all';
+
+  // Add form
+  String _newTitle = '';
+  String _newText = '';
   bool _saving = false;
-  String? _saveError;
-  bool _saved = false;
+  String? _addMessage;
+  bool _duplicateOffer = false;
 
-  // COST-SAVING CHANNEL HANDOFF — see bot.spy.yaml's header. Kept as a
-  // separate save action from the knowledge textarea above (own state,
-  // own button), matching setCostSavingContacts being its own endpoint
-  // method server-side, not folded into setKnowledgeSeed.
-  String _telegramLink = '';
-  String _altWhatsapp = '';
-  bool _savingHandoff = false;
-  String? _handoffError;
-  bool _handoffSaved = false;
+  /// What the last picked file was judged to be. Drives the notice under
+  /// the picker — see file_intake.dart on why every file is classified
+  /// rather than optimistically read.
+  FileAssessment? _picked;
+
+  // Inspector
+  String _probe = '';
+  bool _probing = false;
+  bool _probed = false;
+  List<KnowledgeSearchHit> _hits = const [];
 
   @override
   void initState() {
@@ -65,345 +100,757 @@ class _KnowledgePageState extends State<KnowledgePage> {
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final bots = await component.client.bot.listBotsForWorkspace(
+      final docs = await component.client.knowledge.listDocuments(
         component.accessToken,
         component.workspaceId,
       );
+      if (!mounted) return;
       setState(() {
-        _bots = bots;
-        if (bots.isNotEmpty) _select(bots.first);
+        _docs = docs;
+        _loading = false;
       });
-    } catch (_) {
-      setState(() => _loadError = "Couldn't load your bots. Check your connection and try again.");
-    }
-  }
-
-  void _select(Bot bot) {
-    setState(() {
-      _selected = bot;
-      _seedText = bot.knowledgeSeed ?? '';
-      _saved = false;
-      _saveError = null;
-      _telegramLink = bot.costSavingTelegramLink ?? '';
-      _altWhatsapp = bot.costSavingAlternateWhatsapp ?? '';
-      _handoffSaved = false;
-      _handoffError = null;
-    });
-  }
-
-  Future<void> _saveHandoff() async {
-    final bot = _selected;
-    if (bot == null || bot.id == null) return;
-    setState(() {
-      _savingHandoff = true;
-      _handoffError = null;
-      _handoffSaved = false;
-    });
-    try {
-      final updated = await component.client.bot.setCostSavingContacts(
-        component.accessToken,
-        component.workspaceId,
-        bot.id!,
-        _telegramLink,
-        _altWhatsapp,
-      );
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _selected = updated;
-        _savingHandoff = false;
-        _handoffSaved = true;
-        final bots = _bots;
-        if (bots != null) {
-          final idx = bots.indexWhere((b) => b.id == updated.id);
-          if (idx != -1) bots[idx] = updated;
-        }
-      });
-    } catch (_) {
-      setState(() {
-        _handoffError = "Couldn't save. Check your connection and try again.";
-        _savingHandoff = false;
+        _error = e.toString();
+        _loading = false;
       });
     }
   }
 
-  Future<void> _save() async {
-    final bot = _selected;
-    if (bot == null || bot.id == null) return;
+  Future<void> _add({bool allowDuplicate = false}) async {
+    final title = _newTitle.trim();
+    final text = _newText.trim();
+    if (text.isEmpty || _saving) return;
+
     setState(() {
       _saving = true;
-      _saveError = null;
-      _saved = false;
+      _addMessage = null;
+      _duplicateOffer = false;
     });
+
     try {
-      final updated = await component.client.bot.setKnowledgeSeed(
+      await component.client.knowledge.addDocument(
         component.accessToken,
         component.workspaceId,
-        bot.id!,
-        _seedText,
+        title.isEmpty ? 'Untitled note' : title,
+        text,
+        allowDuplicate: allowDuplicate,
       );
+      if (!mounted) return;
       setState(() {
-        _selected = updated;
         _saving = false;
-        _saved = true;
-        final bots = _bots;
-        if (bots != null) {
-          final idx = bots.indexWhere((b) => b.id == updated.id);
-          if (idx != -1) bots[idx] = updated;
-        }
+        _newTitle = '';
+        _newText = '';
+        _addMessage = 'Saved. kola can answer from this within a few seconds.';
       });
-    } catch (_) {
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString();
       setState(() {
-        _saveError = "Couldn't save. Check your connection and try again.";
         _saving = false;
+        _addMessage = msg;
+        // The endpoint refuses exact duplicates by design and names the
+        // existing document. That is not a failure — offer the override
+        // it was built to accept.
+        _duplicateOffer = msg.toLowerCase().contains('already');
       });
     }
   }
+
+  /// Classifies a picked file, and reads it only if that is safe.
+  ///
+  /// Anything not readable in the browser is REPORTED, not attempted —
+  /// handing a zip or a PDF to a text reader stores binary garbage as
+  /// business knowledge, and it looks like it worked.
+  Future<void> _pickFile(web.File file) async {
+    final assessment = await FileIntake.assess(file);
+    if (!mounted) return;
+    setState(() {
+      _picked = assessment;
+      _addMessage = null;
+      _duplicateOffer = false;
+    });
+
+    if (!assessment.canIngestNow) return;
+
+    try {
+      final text = await FileIntake.readText(file);
+      if (!mounted) return;
+      setState(() {
+        _newText = text;
+        if (_newTitle.trim().isEmpty) _newTitle = assessment.name;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _addMessage = e.toString());
+    }
+  }
+
+  Future<void> _delete(KnowledgeDocument doc) async {
+    try {
+      await component.client.knowledge.deleteDocument(
+        component.accessToken,
+        component.workspaceId,
+        doc.id!,
+      );
+      if (!mounted) return;
+      setState(() => _docs = [for (final d in _docs) if (d.id != doc.id) d]);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = 'Could not delete that document: $e');
+    }
+  }
+
+  Future<void> _probeMemory() async {
+    final q = _probe.trim();
+    if (q.isEmpty || _probing) return;
+    setState(() {
+      _probing = true;
+      _probed = true;
+    });
+    try {
+      final hits = await component.client.knowledge.searchMemory(
+        component.accessToken,
+        component.workspaceId,
+        q,
+      );
+      if (!mounted) return;
+      setState(() {
+        _hits = hits;
+        _probing = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _probing = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  List<KnowledgeDocument> get _visible {
+    final q = _search.trim().toLowerCase();
+    return [
+      for (final d in _docs)
+        if ((_statusFilter == 'all' || d.status == _statusFilter) &&
+            (q.isEmpty || d.title.toLowerCase().contains(q)))
+          d,
+    ];
+  }
+
+  // ── Build ───────────────────────────────────────────────────────────
 
   @override
   Component build(BuildContext context) {
     return div(
       attributes: {
-        'style':
-            "font-family:${KolaDashboardFonts.sans};background:${KolaDashboardColors.bg};"
-            'color:${KolaDashboardColors.text};width:100%;height:100vh;overflow-y:auto;box-sizing:border-box;'
-            'padding:40px 32px 60px;display:flex;justify-content:center',
+        'style': 'max-width:1040px;margin:0 auto;width:100%;'
+            'padding:28px 20px 40px;display:flex;flex-direction:column;gap:20px',
+      },
+      [
+        _header(),
+        if (_error != null) _errorBanner(),
+        if (_tab == _Tab.documents) ..._documentsTab() else _inspectorTab(),
+      ],
+    );
+  }
+
+  Component _header() => div(
+        attributes: {'style': 'display:flex;flex-direction:column;gap:12px'},
+        [
+          h1(
+            attributes: {
+              'style': 'font-family:${KolaFonts.display};font-size:${KolaType.h2};'
+                  'font-weight:700;color:${KolaVar.text};margin:0',
+            },
+            [Component.text('Knowledge')],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'line-height:1.5;max-width:620px',
+            },
+            [
+              Component.text(
+                'What kola answers from. It cites these documents instead of '
+                'guessing — anything not in here, it will not invent.',
+              ),
+            ],
+          ),
+          div(
+            attributes: {
+              'style': 'display:flex;gap:4px;'
+                  'border-bottom:1px solid ${KolaVar.border}',
+            },
+            [
+              _tabButton(_Tab.documents, 'Documents', _docs.length),
+              if (component.gate.isEnabled(Features.memoryInspector))
+                _tabButton(_Tab.inspector, 'Memory inspector', 0),
+            ],
+          ),
+        ],
+      );
+
+  Component _tabButton(_Tab tab, String label, int count) {
+    final active = _tab == tab;
+    return button(
+      attributes: {
+        'class': 'kola-pressable',
+        'type': 'button',
+        'aria-selected': active ? 'true' : 'false',
+        'style': 'background:transparent;border:none;font-family:inherit;'
+            'padding:9px 14px;font-size:${KolaType.body};font-weight:600;'
+            'border-bottom:2px solid ${active ? KolaVar.accent : 'transparent'};'
+            'color:${active ? KolaVar.accent : KolaVar.muted}',
+      },
+      events: {'click': (_) => setState(() => _tab = tab)},
+      [Component.text(count > 0 ? '$label ($count)' : label)],
+    );
+  }
+
+  // ── Documents ───────────────────────────────────────────────────────
+
+  List<Component> _documentsTab() => [
+        _addPanel(),
+        if (_loading)
+          _skeleton()
+        else if (_docs.isEmpty)
+          _emptyDocs()
+        else ...[
+          _filters(),
+          _table(),
+        ],
+      ];
+
+  Component _addPanel() => div(
+        attributes: {
+          'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};padding:18px',
+        },
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.bodyLg};font-weight:600;'
+                  'color:${KolaVar.text};margin-bottom:4px',
+            },
+            [Component.text('Add knowledge')],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                  'margin-bottom:14px;line-height:1.5',
+            },
+            [
+              // Says what it takes, rather than offering a file picker
+              // that rejects the formats people reach for first.
+              Component.text(
+                'Paste a price list, FAQ, returns policy or anything else kola '
+                'should know. Text only for now — PDF and Word need parsing '
+                'that is not built yet, so copy the text across.',
+              ),
+            ],
+          ),
+          input(
+            type: InputType.text,
+            attributes: {
+              'aria-label': 'Document title',
+              'placeholder': 'Title — e.g. "Returns policy"',
+              'value': _newTitle,
+              'style': _fieldCss,
+            },
+            events: {
+              'input': (e) => _newTitle = (e.target as dynamic).value as String? ?? '',
+            },
+          ),
+          textarea(
+            attributes: {
+              'aria-label': 'Document text',
+              'placeholder': 'Paste the text here…',
+              'rows': '6',
+              'style': '$_fieldCss;resize:vertical;line-height:1.6;'
+                  'min-height:120px;margin-top:10px',
+            },
+            events: {
+              'input': (e) => _newText = (e.target as dynamic).value as String? ?? '',
+            },
+            [Component.text(_newText)],
+          ),
+          _filePicker(),
+          div(
+            attributes: {
+              'style': 'display:flex;align-items:center;gap:10px;'
+                  'margin-top:12px;flex-wrap:wrap',
+            },
+            [
+              button(
+                attributes: {
+                  'class': 'kola-pressable',
+                  'type': 'button',
+                  'style': 'background:${KolaVar.accentFill};'
+                      'color:${KolaVar.accentText};border:none;'
+                      'border-radius:${KolaRadius.pill};padding:9px 18px;'
+                      'font-size:${KolaType.small};font-weight:600;'
+                      'font-family:inherit;${_saving ? 'opacity:0.6' : ''}',
+                },
+                events: {'click': (_) => _add()},
+                [Component.text(_saving ? 'Saving…' : 'Teach kola this')],
+              ),
+              if (_duplicateOffer)
+                button(
+                  attributes: {
+                    'class': 'kola-pressable',
+                    'type': 'button',
+                    'style': 'background:transparent;'
+                        'border:1px solid ${KolaVar.border};'
+                        'color:${KolaVar.text};'
+                        'border-radius:${KolaRadius.pill};padding:9px 16px;'
+                        'font-size:${KolaType.small};font-weight:600;'
+                        'font-family:inherit',
+                  },
+                  events: {'click': (_) => _add(allowDuplicate: true)},
+                  [Component.text('Save it anyway')],
+                ),
+            ],
+          ),
+          if (_addMessage != null)
+            div(
+              attributes: {
+                'style': 'margin-top:10px;font-size:${KolaType.tiny};'
+                    'line-height:1.5;'
+                    'color:${_duplicateOffer ? KolaVar.warning : KolaVar.muted}',
+              },
+              [Component.text(_addMessage!)],
+            ),
+        ],
+      );
+
+  Component _filePicker() {
+    final a = _picked;
+    return div(
+      attributes: {'style': 'margin-top:12px'},
+      [
+        label(
+          attributes: {
+            'class': 'kola-pressable',
+            'style': 'display:inline-flex;align-items:center;gap:8px;'
+                'border:1px dashed ${KolaVar.border};color:${KolaVar.mutedStrong};'
+                'border-radius:${KolaRadius.md};padding:10px 16px;'
+                'font-size:${KolaType.small};font-weight:600',
+          },
+          [
+            kolaIcon(Icons.paperclip, size: 15),
+            Component.text('Choose a file'),
+            // Accepts EVERYTHING on purpose. Filtering by extension here
+            // would silently hide a file the owner can see on their disk,
+            // and they would conclude the product is broken. Better to
+            // accept it, identify it, and explain.
+            input(
+              type: InputType.file,
+              attributes: {'style': 'display:none', 'aria-label': 'Choose a file'},
+              events: {
+                'change': (e) {
+                  final files = (e.target as dynamic).files;
+                  if (files == null || files.length == 0) return;
+                  _pickFile(files.item(0) as web.File);
+                },
+              },
+            ),
+          ],
+        ),
+        if (a != null) _pickedNotice(a),
+      ],
+    );
+  }
+
+  Component _pickedNotice(FileAssessment a) {
+    final tone = a.canIngestNow
+        ? KolaTone.positive
+        : (a.kind == FileKind.rejected ? KolaTone.negative : KolaTone.caution);
+
+    return div(
+      attributes: {
+        'style': 'margin-top:10px;padding:10px 14px;'
+            'background:${KolaVar.bg};border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.md}',
       },
       [
         div(
-          attributes: {'style': 'max-width:1100px;width:100%'},
+          attributes: {
+            'style': 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;'
+                'margin-bottom:6px',
+          },
           [
-            div(attributes: {'style': 'margin-bottom:14px'}, [backLink()]),
+            span(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};font-weight:600;'
+                    'color:${KolaVar.text};overflow:hidden;'
+                    'text-overflow:ellipsis;white-space:nowrap;max-width:260px',
+              },
+              [Component.text(a.name)],
+            ),
+            span(attributes: {'style': tone.badgeCss}, [Component.text(a.label)]),
+          ],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.micro};color:${KolaVar.muted};'
+                'line-height:1.5',
+          },
+          [Component.text(a.explanation)],
+        ),
+      ],
+    );
+  }
+
+  static const _fieldCss = 'width:100%;box-sizing:border-box;'
+      'background:${KolaVar.bg};border:1px solid ${KolaVar.border};'
+      'border-radius:${KolaRadius.md};padding:10px 14px;'
+      'color:${KolaVar.text};font-family:inherit;'
+      'font-size:${KolaType.body};outline:none';
+
+  Component _filters() => div(
+        attributes: {
+          'style': 'display:flex;gap:10px;align-items:center;flex-wrap:wrap',
+        },
+        [
+          input(
+            type: InputType.text,
+            attributes: {
+              'aria-label': 'Search documents',
+              'placeholder': 'Search titles…',
+              'style': 'flex:1;min-width:180px;box-sizing:border-box;'
+                  'background:${KolaVar.card};'
+                  'border:1px solid ${KolaVar.border};'
+                  'border-radius:${KolaRadius.pill};padding:9px 16px;'
+                  'color:${KolaVar.text};font-family:inherit;'
+                  'font-size:${KolaType.small};outline:none',
+            },
+            events: {
+              'input': (e) => setState(() =>
+                  _search = (e.target as dynamic).value as String? ?? ''),
+            },
+          ),
+          for (final f in const ['all', 'indexed', 'pending'])
+            button(
+              attributes: {
+                'class': 'kola-pressable',
+                'type': 'button',
+                'style': 'border-radius:${KolaRadius.pill};padding:8px 14px;'
+                    'font-size:${KolaType.micro};font-weight:600;'
+                    'font-family:inherit;'
+                    'border:1px solid ${KolaVar.border};'
+                    'background:${_statusFilter == f ? KolaVar.pill : 'transparent'};'
+                    'color:${_statusFilter == f ? KolaVar.text : KolaVar.muted}',
+              },
+              events: {'click': (_) => setState(() => _statusFilter = f)},
+              [Component.text(f == 'all' ? 'All' : f)],
+            ),
+        ],
+      );
+
+  Component _table() {
+    final rows = _visible;
+    if (rows.isEmpty) {
+      return div(
+        attributes: {
+          'style': 'padding:24px;text-align:center;'
+              'font-size:${KolaType.small};color:${KolaVar.muted}',
+        },
+        [Component.text('No documents match that.')],
+      );
+    }
+
+    return div(
+      attributes: {
+        'style': 'border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};overflow:hidden;'
+            'background:${KolaVar.card}',
+      },
+      [
+        for (var i = 0; i < rows.length; i++) _row(rows[i], i > 0),
+      ],
+    );
+  }
+
+  Component _row(KnowledgeDocument d, bool divider) {
+    final tone = switch (d.status) {
+      'indexed' => KolaTone.positive,
+      'pending' => KolaTone.caution,
+      'failed' => KolaTone.negative,
+      _ => KolaTone.neutral,
+    };
+
+    return div(
+      attributes: {
+        'style': 'display:flex;align-items:center;gap:12px;'
+            'padding:13px 16px;flex-wrap:wrap;'
+            '${divider ? 'border-top:1px solid ${KolaVar.border}' : ''}',
+      },
+      [
+        div(
+          attributes: {'style': 'color:${KolaVar.muted};display:flex;flex:none'},
+          [kolaIcon(Icons.book, size: 15)],
+        ),
+        div(
+          attributes: {'style': 'flex:1;min-width:160px'},
+          [
             div(
-              attributes: {'style': 'font-size:20px;font-weight:700;margin-bottom:4px'},
-              [Component.text('Knowledge')],
+              attributes: {
+                'style': 'font-size:${KolaType.body};font-weight:600;'
+                    'color:${KolaVar.text};overflow:hidden;'
+                    'text-overflow:ellipsis;white-space:nowrap',
+              },
+              [Component.text(d.title)],
             ),
             div(
-              attributes: {'style': 'font-size:13.5px;color:${KolaDashboardColors.muted};margin-bottom:24px'},
+              attributes: {
+                'style': 'font-size:${KolaType.micro};color:${KolaVar.muted}',
+              },
               [
+                // chunkCount is what the design calls "Sections" — the
+                // number of separately-searchable passages, which is the
+                // number that actually affects retrieval.
                 Component.text(
-                  'What your bot knows, in its own words — price lists, policies, FAQs. '
-                  'Paste it in below; the bot reads this before every reply.',
+                  '${_sourceLabel(d.sourceType)} · '
+                  '${d.chunkCount} ${d.chunkCount == 1 ? 'section' : 'sections'} · '
+                  '${_shortDate(d.updatedAt)}',
                 ),
               ],
             ),
-            if (_loadError != null)
-              div(
-                attributes: {'style': 'color:${KolaDashboardColors.muted};font-size:13.5px'},
-                [Component.text(_loadError!)],
-              )
-            else
-              div(
-                attributes: {'style': 'display:flex;gap:24px;flex-wrap:wrap'},
-                [
-                  div(attributes: {'style': 'flex:1;min-width:220px'}, [_botList()]),
-                  div(attributes: {'style': 'flex:3;min-width:360px'}, [_editor()]),
-                ],
-              ),
           ],
+        ),
+        span(attributes: {'style': tone.badgeCss}, [Component.text(d.status)]),
+        button(
+          attributes: {
+            'class': 'kola-pressable',
+            'type': 'button',
+            'aria-label': 'Delete ${d.title}',
+            'style': 'flex:none;background:transparent;border:none;'
+                'color:${KolaVar.muted};font-family:inherit;'
+                'font-size:${KolaType.micro};font-weight:600',
+          },
+          events: {'click': (_) => _delete(d)},
+          [Component.text('Delete')],
         ),
       ],
     );
   }
 
-  Component _botList() {
-    final bots = _bots;
-    if (bots == null) return _placeholderCard('Loading…');
-    if (bots.isEmpty) return _placeholderCard('No bots yet.');
-    return div(
-      attributes: {'style': 'display:flex;flex-direction:column;gap:6px'},
-      [
-        for (final bot in bots)
+  Component _emptyDocs() => div(
+        attributes: {
+          'style': 'border:1px dashed ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};padding:32px 24px;'
+              'text-align:center',
+        },
+        [
           div(
             attributes: {
-              'style':
-                  'padding:10px 12px;border-radius:9px;cursor:pointer;font-size:13.5px;'
-                  'background:${_selected?.id == bot.id ? KolaDashboardColors.navActiveBg : "transparent"};'
-                  'color:${_selected?.id == bot.id ? KolaDashboardColors.accent : KolaDashboardColors.navInactiveText}',
+              'style': 'font-size:${KolaType.lead};font-weight:600;'
+                  'color:${KolaVar.text};margin-bottom:6px',
             },
-            events: {'click': (_) => _select(bot)},
-            [Component.text(bot.name)],
+            [Component.text('No documents yet')],
           ),
-      ],
-    );
-  }
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'line-height:1.6;max-width:440px;margin:0 auto',
+            },
+            [
+              Component.text(
+                'Until kola is taught something, it can only fall back on '
+                'general answers. One price list or returns policy changes '
+                'that immediately.',
+              ),
+            ],
+          ),
+        ],
+      );
 
-  Component _editor() {
-    final bot = _selected;
-    if (bot == null) {
-      return _placeholderCard('Select a bot to edit its knowledge.');
-    }
+  // ── Inspector ───────────────────────────────────────────────────────
+
+  Component _inspectorTab() => div(
+        attributes: {'style': 'display:flex;flex-direction:column;gap:14px'},
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'line-height:1.6;max-width:620px',
+            },
+            [
+              Component.text(
+                'Type a question a customer might ask and see exactly which '
+                'passages kola would answer from, and how strong each match '
+                'is. Nothing is sent to a customer — this only reads memory.',
+              ),
+            ],
+          ),
+          div(
+            attributes: {'style': 'display:flex;gap:8px;flex-wrap:wrap'},
+            [
+              input(
+                type: InputType.text,
+                attributes: {
+                  'aria-label': 'Test question',
+                  'placeholder': 'e.g. Can I return this after a week?',
+                  'style': 'flex:1;min-width:200px;box-sizing:border-box;'
+                      'background:${KolaVar.card};'
+                      'border:1px solid ${KolaVar.border};'
+                      'border-radius:${KolaRadius.pill};padding:10px 16px;'
+                      'color:${KolaVar.text};font-family:inherit;'
+                      'font-size:${KolaType.body};outline:none',
+                },
+                events: {
+                  'input': (e) =>
+                      _probe = (e.target as dynamic).value as String? ?? '',
+                  'keydown': (e) {
+                    if ((e as dynamic).key == 'Enter') _probeMemory();
+                  },
+                },
+              ),
+              button(
+                attributes: {
+                  'class': 'kola-pressable',
+                  'type': 'button',
+                  'style': 'background:${KolaVar.accentFill};'
+                      'color:${KolaVar.accentText};border:none;'
+                      'border-radius:${KolaRadius.pill};padding:10px 20px;'
+                      'font-size:${KolaType.small};font-weight:600;'
+                      'font-family:inherit',
+                },
+                events: {'click': (_) => _probeMemory()},
+                [Component.text('Test')],
+              ),
+            ],
+          ),
+          if (_probing)
+            div(
+              classes: 'kola-skel',
+              attributes: {'style': 'height:80px;border-radius:${KolaRadius.md}'},
+              [],
+            )
+          else if (_probed && _hits.isEmpty)
+            div(
+              attributes: {
+                'style': 'background:${KolaVar.card};'
+                    'border:1px solid ${KolaVar.border};'
+                    'border-radius:${KolaRadius.lg};padding:16px;'
+                    'font-size:${KolaType.small};color:${KolaVar.muted};'
+                    'line-height:1.6',
+              },
+              [
+                Component.text(
+                  'Nothing in memory matches closely enough. A customer asking '
+                  'this today would get a general answer, not one from your '
+                  'documents — which is exactly the gap worth filling.',
+                ),
+              ],
+            )
+          else
+            for (final h in _hits) _hitCard(h),
+        ],
+      );
+
+  Component _hitCard(KnowledgeSearchHit h) {
+    final c = KolaConfidenceStyle.fromScore(h.similarity);
     return div(
       attributes: {
-        'style':
-            'background:${KolaDashboardColors.card};border:1px solid ${KolaDashboardColors.border};'
-            'border-radius:14px;padding:20px;box-sizing:border-box',
+        'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.md};padding:14px',
       },
       [
-        div(attributes: {'style': 'font-size:14.5px;font-weight:600;margin-bottom:14px'}, [
-          Component.text(bot.name),
-        ]),
-
-        if (_saveError != null)
-          div(
-            attributes: {
-              'style':
-                  'background:#2A1414;border:1px solid #4A2020;color:#E8A8A8;border-radius:8px;'
-                  'padding:9px 11px;font-size:12.5px;margin-bottom:14px',
-            },
-            [Component.text(_saveError!)],
-          ),
-
-        textarea(
-          [Component.text(_seedText)],
-          rows: 16,
-          onInput: (v) => setState(() {
-            _seedText = v;
-            _saved = false;
-          }),
-          attributes: {
-            'style':
-                'width:100%;background:#141416;border:1px solid #2C2A28;border-radius:9px;'
-                'padding:14px;font-size:13.5px;color:#F3EEE7;box-sizing:border-box;'
-                'font-family:${KolaDashboardFonts.mono};line-height:1.6;resize:vertical',
-            'placeholder': "Price list, return policy, FAQs — anything the bot should know before it replies…",
-          },
-        ),
-
         div(
-          attributes: {'style': 'display:flex;align-items:center;gap:14px;margin-top:14px'},
+          attributes: {
+            'style': 'display:flex;align-items:center;gap:8px;'
+                'margin-bottom:8px;flex-wrap:wrap',
+          },
           [
-            button(
-              [Component.text(_saving ? 'Saving…' : 'Save')],
-              type: ButtonType.button,
-              disabled: _saving,
-              onClick: _save,
+            span(
               attributes: {
-                'style':
-                    'background:${KolaDashboardColors.accent};color:${KolaDashboardColors.accentText};'
-                    'border:none;border-radius:10px;padding:10px 18px;font-size:13.5px;font-weight:600;'
-                    'cursor:pointer;opacity:${_saving ? '0.7' : '1'}',
+                'style': 'font-size:${KolaType.micro};font-weight:600;'
+                    'color:${KolaVar.text}',
               },
+              [Component.text(h.documentTitle)],
             ),
-            if (_saved)
-              span(
-                attributes: {'style': 'font-size:13px;color:#7ED8B0'},
-                [Component.text('Saved')],
-              ),
+            span(
+              attributes: {
+                'style': 'font-size:${KolaType.micro};color:${KolaVar.muted}',
+              },
+              [Component.text('section ${h.chunkIndex + 1}')],
+            ),
+            span(attributes: {'style': 'flex:1'}, []),
+            span(
+              attributes: {'style': _confTone(c).badgeCss},
+              [Component.text(c.label)],
+            ),
+            span(
+              attributes: {
+                'style': 'font-family:${KolaFonts.mono};'
+                    'font-size:${KolaType.micro};color:${KolaVar.muted}',
+              },
+              [Component.text(h.similarity.toStringAsFixed(2))],
+            ),
           ],
         ),
-
-        div(attributes: {'style': 'height:1px;background:${KolaDashboardColors.border};margin:22px 0 18px'}, []),
-        _handoffSection(),
-      ],
-    );
-  }
-
-  /// COST-SAVING CHANNEL HANDOFF — see bot.spy.yaml's header on why
-  /// these two fields exist and why the bot only ever mentions what's
-  /// actually filled in here, never invented. Both optional, both blank
-  /// by default.
-  Component _handoffSection() {
-    return div([
-      div(attributes: {'style': 'font-size:13.5px;font-weight:600;margin-bottom:4px'}, [
-        Component.text('Cost-saving handoff (optional)'),
-      ]),
-      div(
-        attributes: {'style': 'font-size:12.5px;color:${KolaDashboardColors.muted};margin-bottom:12px;line-height:1.5'},
-        [
-          Component.text(
-            "Meta is ending free WhatsApp replies inside the 24-hour window on Oct 1, 2026. If you'd like your "
-            "bot to gently suggest moving a long conversation elsewhere, fill in either field below — it will "
-            "only ever mention what you actually provide here. See ",
-          ),
-          a(
-            href: '${Env.kolaDocsUrl}/billing/avoiding-excessive-whatsapp-billing',
-            attributes: {'style': 'color:${KolaDashboardColors.accent};text-decoration:none', 'target': '_blank'},
-            [Component.text('Avoiding excessive WhatsApp billing')],
-          ),
-          Component.text(' for the full explanation.'),
-        ],
-      ),
-      if (_handoffError != null)
         div(
           attributes: {
-            'style':
-                'background:#2A1414;border:1px solid #4A2020;color:#E8A8A8;border-radius:8px;'
-                'padding:9px 11px;font-size:12.5px;margin-bottom:12px',
+            'style': 'font-size:${KolaType.body};color:${KolaVar.mutedStrong};'
+                'line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere',
           },
-          [Component.text(_handoffError!)],
-        ),
-      _handoffField(
-        label: 'Telegram link or @handle (no per-message fee at all)',
-        value: _telegramLink,
-        onInput: (v) => setState(() { _telegramLink = v; _handoffSaved = false; }),
-        placeholder: 't.me/yourstorebot',
-      ),
-      _handoffField(
-        label: 'Alternate WhatsApp number or instruction',
-        value: _altWhatsapp,
-        onInput: (v) => setState(() { _altWhatsapp = v; _handoffSaved = false; }),
-        placeholder: '+234 801 234 5678',
-      ),
-      div(
-        attributes: {'style': 'display:flex;align-items:center;gap:14px;margin-top:6px'},
-        [
-          button(
-            [Component.text(_savingHandoff ? 'Saving…' : 'Save handoff settings')],
-            type: ButtonType.button,
-            disabled: _savingHandoff,
-            onClick: _saveHandoff,
-            attributes: {
-              'style':
-                  'background:transparent;color:${KolaDashboardColors.text};border:1px solid ${KolaDashboardColors.border};'
-                  'border-radius:10px;padding:9px 16px;font-size:13px;font-weight:600;'
-                  'cursor:pointer;opacity:${_savingHandoff ? '0.7' : '1'}',
-            },
-          ),
-          if (_handoffSaved)
-            span(attributes: {'style': 'font-size:13px;color:#7ED8B0'}, [Component.text('Saved')]),
-        ],
-      ),
-    ]);
-  }
-
-  Component _handoffField({
-    required String label,
-    required String value,
-    required void Function(String) onInput,
-    String? placeholder,
-  }) {
-    return div(
-      attributes: {'style': 'margin-bottom:10px'},
-      [
-        div(
-          attributes: {'style': 'font-size:12px;color:${KolaDashboardColors.mutedSecondary};margin-bottom:4px'},
-          [Component.text(label)],
-        ),
-        input<String>(
-          type: InputType.text,
-          value: value,
-          onInput: (v) => onInput(v),
-          attributes: {
-            'style':
-                'width:100%;background:#141416;border:1px solid ${KolaDashboardColors.border};border-radius:8px;'
-                'padding:9px 10px;font-size:13px;color:${KolaDashboardColors.text};box-sizing:border-box',
-            if (placeholder != null) 'placeholder': placeholder,
-          },
+          [Component.text(h.content)],
         ),
       ],
     );
   }
 
-  /// Loading/empty states used to render as bare text with no visual
-  /// weight, which looked broken next to the editor's bordered card —
-  /// same fix as errand_builder_page.dart's _placeholderCard.
-  Component _placeholderCard(String text) => div(
-    attributes: {
-      'style':
-          'background:${KolaDashboardColors.card};border:1px solid ${KolaDashboardColors.border};'
-          'border-radius:14px;padding:24px;box-sizing:border-box;color:${KolaDashboardColors.muted};'
-          'font-size:13.5px;text-align:center',
-    },
-    [Component.text(text)],
-  );
+  static KolaTone _confTone(KolaConfidence c) => switch (c) {
+        KolaConfidence.high => KolaTone.positive,
+        KolaConfidence.medium => KolaTone.caution,
+        KolaConfidence.low => KolaTone.negative,
+      };
+
+  // ── Shared ──────────────────────────────────────────────────────────
+
+  Component _skeleton() => div(
+        attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
+        [
+          for (var i = 0; i < 4; i++)
+            div(
+              classes: 'kola-skel',
+              attributes: {'style': 'height:56px;border-radius:${KolaRadius.md}'},
+              [],
+            ),
+        ],
+      );
+
+  Component _errorBanner() => div(
+        attributes: {
+          'role': 'alert',
+          'style': 'padding:10px 14px;background:${KolaVar.dangerBg};'
+              'color:${KolaVar.danger};border:1px solid ${KolaVar.danger};'
+              'border-radius:${KolaRadius.md};font-size:${KolaType.small}',
+        },
+        [Component.text(_error!)],
+      );
+
+  static String _sourceLabel(String sourceType) => switch (sourceType) {
+        'paste' => 'Pasted',
+        'upload' => 'Uploaded file',
+        'url' => 'Web page',
+        _ => sourceType,
+      };
+
+  static String _shortDate(DateTime d) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[d.month - 1]} ${d.day}';
+  }
 }

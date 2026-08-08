@@ -1,29 +1,69 @@
 // app.dart
 //
-// Root component. Owns every piece of page state in one place (mode,
-// banner visibility, active tab, FAQ open/closed, and the submit/error
-// state of the three waitlist forms) and passes it down to each section
-// component — mirrors the single-Component-state shape Kola
-// Landing.dc.html itself uses, just expressed as Dart/Jaspr state instead
-// of the design tool's own state runtime.
+// Root component and the one place page-level state lives — launch
+// mode, FAQ open/closed, and the hero waitlist form's submit state.
 //
-// Section components live one-per-file under lib/components/ per the
-// working convention against jam-packed pages — this file's job is
-// composition and state, not markup.
+// SECTION ORDER IS AN ARGUMENT, not a list. Each section only works
+// because of the one before it:
+//   hero       — the claim
+//   proof      — the claim demonstrated, before anything is asked of you
+//   problems   — why you'd want it
+//   how        — the mental model, in four verbs
+//   memory     — it knows your business, and can prove where from
+//   commerce   — the fastest way it learns, and the offline hook
+//   capability — now that it knows, here's what it does with that
+//   timeline   — the payoff question
+//   security   — the objection, answered before it's raised
+//   integrations — what it plugs into
+//   pricing    — the ask
+//   replaces   — the cost argument, which is what converts an owner
+//   faq        — the remaining objections
+//
+// THE COMMERCE SECTION IS NOT IN THE DESIGN EXPORT. Added deliberately
+// and confirmed with the project owner — see commerce_section.dart's
+// header for why, and why it sits exactly there.
+//
+// TESTIMONIALS ARE ABSENT ON PURPOSE. kola hasn't launched; there is
+// nobody to quote, and inventing quotes would be a real integrity
+// problem in anything attached to a grant application.
+// proof_demo_section.dart is the honest substitute — a live demo beats
+// a stranger's quote for a sceptical buyer.
+//
+// LANGUAGE AND CURRENCY ARE BOTH RESOLVED HERE, ONCE, and passed down.
+// No component detects a locale or hardcodes a currency symbol. That is
+// what keeps adding a language switcher a one-line change instead of a
+// hunt through every file. See i18n/.
+//
+// NOTHING ON THIS PAGE IS GEOGRAPHIC. Currency and price come from
+// i18n/region.dart; no component hardcodes a symbol, and no copy names a
+// country. Payment providers are named only in the integrations list,
+// where it is factual rather than positioning.
+//
+// REMOVED: announcement_banner, built_for_strip, channels_section,
+// team_split_section, waitlist_section and changelog_section. None are
+// imported any more — their files can be deleted. The changelog moves to
+// its own page (Links.changelog) for the evaluator audience; it was not
+// doing work on a page whose buyer is a shop owner.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 
-import 'components/announcement_banner.dart';
 import 'components/site_header.dart';
 import 'components/hero_section.dart';
-import 'components/built_for_strip.dart';
+import 'components/proof_demo_section.dart';
+import 'components/problems_section.dart';
 import 'components/how_it_works_section.dart';
-import 'components/waitlist_section.dart';
+import 'components/memory_section.dart';
+import 'components/commerce_section.dart';
+import 'components/capabilities_section.dart';
+import 'components/timeline_statement_section.dart';
+import 'components/security_section.dart';
 import 'components/integrations_section.dart';
-import 'components/channels_section.dart';
-import 'components/team_split_section.dart';
 import 'components/pricing_section.dart';
+import 'components/what_it_replaces_section.dart';
+import 'i18n/region.dart';
+import 'i18n/locale.dart';
+import 'i18n/strings.dart';
 import 'components/faq_section.dart';
 import 'components/site_footer.dart';
 import 'config/env.dart';
@@ -40,80 +80,80 @@ class LandingApp extends StatefulComponent {
 class _LandingAppState extends State<LandingApp> {
   final _waitlistApi = WaitlistApiService();
 
-  // Set at build time via Env.launchMode ('waitlist' default) — never a
-  // runtime UI control. See config/env.dart's header comment: toggling
-  // this is a `dart compile js ... -DLAUNCH_MODE=launched` build flag,
-  // not something a page visitor (or anyone else) can flip.
-  late String _mode = Env.launchMode;
+  // Build-time flag, never a runtime control. The design export has a
+  // floating Waitlist/Launched toggle bottom-right — that is design-tool
+  // preview chrome and is deliberately NOT carried into the real build:
+  // a page visitor must not be able to flip the site into launched mode.
+  // Set with `dart compile js ... -DLAUNCH_MODE=launched`; see
+  // config/env.dart and build.sh.
+  late final String _mode = Env.launchMode;
 
-  bool _bannerVisible = true;
-  bool _bannerClosing = false;
-  String _activeTab = 'conversational';
-  bool _billingYearly = false;
   final Set<int> _openFaqIndexes = {0};
 
-  // Which .kola-reveal sections (by their DOM id) have scrolled into view
-  // at least once. Deliberately Dart state, not a class script.js adds
-  // straight to the DOM — see interop.dart's header comment for the bug
-  // that caused (any unrelated setState() here wiped a JS-only class on
-  // rebuild, making already-revealed sections vanish on any button
-  // click). Living here means _revealClasses always renders correctly no
-  // matter what else changes.
-  final Set<String> _revealed = {};
+  // Which region's pricing to show. Fixed to the launch market for now —
+  // detecting a visitor's region client-side is a separate decision (an
+  // IP lookup is a third-party request on a page that currently makes
+  // none). Resolved in ONE place so no component hardcodes a currency;
+  // see i18n/region.dart.
+  final Region _region = Regions.nigeria;
 
-  /// Classes for a scroll-reveal wrapper — 'kola-reveal' alone (hidden)
-  /// until [sectionId] has been reported visible via _onSectionRevealed,
-  /// then 'kola-reveal kola-reveal-in' (visible) forever after.
-  String _revealClasses(String sectionId) =>
-      _revealed.contains(sectionId) ? 'kola-reveal kola-reveal-in' : 'kola-reveal';
-
-  /// Called by script.js's IntersectionObserver (via interop.dart's
-  /// registerRevealCallback) the first time a section scrolls into view.
-  void _onSectionRevealed(String sectionId) {
-    if (!mounted || _revealed.contains(sectionId)) return;
-    setState(() => _revealed.add(sectionId));
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Must register BEFORE initScrollReveal() runs — the observer can
-    // fire for an already-in-view section the moment .observe() is
-    // called, before initScrollReveal() even returns.
-    interop.registerRevealCallback(_onSectionRevealed);
-    // Kick off scroll-reveal after Jaspr's first paint — mirrors the exact
-    // technique already proven in kopicat_landing/lib/main.dart's
-    // initState (a microtask delay so the DOM nodes actually exist by the
-    // time script.js goes looking for .kola-reveal elements).
-    Future.microtask(() => interop.initScrollReveal());
-  }
-
-  /// Plays the banner's slide-up-and-fade CSS animation, then removes it
-  /// from the DOM once the animation has actually finished — a plain
-  /// setState(() => _bannerVisible = false) would just snap it away
-  /// instantly since Jaspr would unmount the element before any CSS
-  /// transition got a chance to run.
-  void _closeBanner() {
-    setState(() => _bannerClosing = true);
-    Future.delayed(const Duration(milliseconds: 260), () {
-      if (mounted) setState(() => _bannerVisible = false);
-    });
-  }
+  // Language. Detected from the browser on first paint, then fixed for
+  // the session. Resolved in ONE place and passed down — no component
+  // reaches for a locale itself, which is what keeps a language switcher
+  // a one-line change later rather than a hunt through fifteen files.
+  //
+  // Starts at English rather than null so the first frame renders real
+  // copy instead of blanks; if the visitor prefers another language the
+  // swap happens in initState, before anything is read.
+  Strings _s = const Strings();
 
   bool _heroSubmitting = false;
   bool _heroSubmitted = false;
   String? _heroError;
 
-  bool _wlSubmitting = false;
-  bool _wlSubmitted = false;
-  String? _wlError;
+  // Which scroll-reveal sections have come into view at least once.
+  // Deliberately Dart state rather than a class script.js adds straight
+  // to the DOM — see interop.dart's header for the bug that caused: any
+  // unrelated setState() wiped the JS-only class on rebuild, making
+  // already-revealed sections vanish on a button click.
+  final Set<String> _revealed = {};
 
-  bool _footerSubmitting = false;
-  bool _footerSubmitted = false;
+  String _revealClasses(String id) =>
+      _revealed.contains(id) ? 'kola-reveal kola-reveal-in' : 'kola-reveal';
 
-  Future<void> _submitHero(String email, String phone) async {
+  void _onSectionRevealed(String id) {
+    if (!mounted || _revealed.contains(id)) return;
+    setState(() => _revealed.add(id));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Must register BEFORE initScrollReveal — the observer can fire for
+    // an already-in-view section the moment .observe() is called, before
+    // initScrollReveal() even returns.
+    interop.registerRevealCallback(_onSectionRevealed);
+    Future.microtask(() => interop.initScrollReveal());
+    _resolveLocale();
+  }
+
+  /// Picks a language from the visitor's browser preferences and sets
+  /// <html lang>/<html dir> to match.
+  ///
+  /// Deliberately respects the ORDERED preference list rather than
+  /// taking navigator.language alone — someone whose browser is set to
+  /// ['de','fr','en'] should get French, not English. See
+  /// Locales.resolveBest.
+  void _resolveLocale() {
+    final locale = Locales.resolveBest(interop.browserLanguages());
+    interop.setHtmlLang(locale.code, locale.dirAttribute);
+    if (locale.code == _s.locale.code) return;
+    setState(() => _s = stringsFor(locale));
+  }
+
+  Future<void> _submitHero(String email) async {
     if (email.trim().isEmpty) {
-      setState(() => _heroError = 'Please enter your email address.');
+      setState(() => _heroError = _s.errorEmailRequired);
       return;
     }
     setState(() {
@@ -121,83 +161,35 @@ class _LandingAppState extends State<LandingApp> {
       _heroError = null;
     });
     try {
-      await _waitlistApi.submit(email: email, phone: phone, source: 'hero');
+      await _waitlistApi.submit(email: email, source: 'hero');
       setState(() {
         _heroSubmitting = false;
         _heroSubmitted = true;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _heroSubmitting = false;
-        _heroError = 'Something went wrong — please try again.';
+        _heroError = _s.errorGeneric;
       });
-    }
-  }
-
-  Future<void> _submitWaitlist(String email, String phone) async {
-    if (email.trim().isEmpty) {
-      setState(() => _wlError = 'Please enter your email address.');
-      return;
-    }
-    setState(() {
-      _wlSubmitting = true;
-      _wlError = null;
-    });
-    try {
-      await _waitlistApi.submit(
-        email: email,
-        phone: phone,
-        source: 'waitlist_section',
-      );
-      setState(() {
-        _wlSubmitting = false;
-        _wlSubmitted = true;
-      });
-    } catch (e) {
-      setState(() {
-        _wlSubmitting = false;
-        _wlError = 'Something went wrong — please try again.';
-      });
-    }
-  }
-
-  Future<void> _submitFooter(String email) async {
-    if (email.trim().isEmpty || _footerSubmitting) return;
-    setState(() => _footerSubmitting = true);
-    try {
-      await _waitlistApi.submit(email: email, source: 'footer');
-      setState(() {
-        _footerSubmitting = false;
-        _footerSubmitted = true;
-      });
-      interop.setFieldValue('footerEmail', '');
-    } catch (e) {
-      setState(() => _footerSubmitting = false);
-      // Footer form is deliberately low-ceremony — a failed footer signup
-      // just silently stays retryable rather than growing its own error
-      // banner; the hero and #waitlist forms are the ones that surface
-      // errors explicitly.
     }
   }
 
   @override
   Component build(BuildContext context) {
     return div(
-      attributes: {'style': "font-family:'Instrument Sans',sans-serif;background:#FAF6EF;"
-          'color:#1C1815;width:100%;overflow-x:hidden;position:relative'},
+      attributes: {
+        'style': "font-family:'Instrument Sans',sans-serif;background:#FAF6EF;"
+            'color:#1C1815;width:100%;overflow-x:hidden;position:relative',
+      },
       [
-        AnnouncementBanner(
-          visible: _bannerVisible,
-          closing: _bannerClosing,
-          onClose: _closeBanner,
-        ),
-        const SiteHeader(),
-        // Hero is always above the fold on load, so it gets a one-shot
-        // fade-up on first paint rather than a scroll-triggered reveal —
-        // see kola-fade-up's definition in web/styles.css.
+        SiteHeader(s: _s),
+
+        // Above the fold on load, so a one-shot fade-up rather than a
+        // scroll-triggered reveal.
         Component.wrapElement(
           classes: 'kola-fade-up',
           child: HeroSection(
+            s: _s,
             mode: _mode,
             submitting: _heroSubmitting,
             submitted: _heroSubmitted,
@@ -205,73 +197,63 @@ class _LandingAppState extends State<LandingApp> {
             onSubmit: _submitHero,
           ),
         ),
-        // Everything below the fold uses the scroll-triggered .kola-reveal
-        // animation instead — Component.wrapElement merges the class onto
-        // each section's own root element without adding an extra wrapper
-        // div (see Jaspr's docs on wrapElement for why this is safe). Each
-        // section keeps a stable `id` on its own root element (set inside
-        // its own file) so _revealClasses/_onSectionRevealed can track it
-        // — see this file's _revealed field for why the class itself is
-        // computed here instead of hardcoded.
+
+        // The demo is deliberately NOT scroll-revealed. It sits just
+        // below the fold and is the first thing a visitor should be able
+        // to touch — hiding it behind an animation delays the one
+        // element on the page actually doing the persuading.
+        const ProofDemoSection(),
+
         Component.wrapElement(
-          classes: _revealClasses('reveal-built-for-strip'),
-          child: const BuiltForStrip(),
+          classes: _revealClasses('problems'),
+          child: const ProblemsSection(),
         ),
         Component.wrapElement(
-          classes: _revealClasses('reveal-how-it-works'),
+          classes: _revealClasses('how'),
           child: const HowItWorksSection(),
         ),
-        WaitlistSection(
-          visible: _mode == 'waitlist',
-          revealed: _revealed.contains('waitlist'),
-          submitting: _wlSubmitting,
-          submitted: _wlSubmitted,
-          error: _wlError,
-          onSubmit: _submitWaitlist,
+        Component.wrapElement(
+          classes: _revealClasses('memory'),
+          child: const MemorySection(),
         ),
         Component.wrapElement(
-          classes: _revealClasses('reveal-integrations'),
+          classes: _revealClasses('commerce'),
+          child: const CommerceSection(),
+        ),
+        Component.wrapElement(
+          classes: _revealClasses('capabilities'),
+          child: const CapabilitiesSection(),
+        ),
+        Component.wrapElement(
+          classes: _revealClasses('timeline'),
+          child: const TimelineStatementSection(),
+        ),
+        Component.wrapElement(
+          classes: _revealClasses('security'),
+          child: const SecuritySection(),
+        ),
+        Component.wrapElement(
+          classes: _revealClasses('integrations'),
           child: const IntegrationsSection(),
         ),
         Component.wrapElement(
-          classes: _revealClasses('reveal-channels'),
-          child: ChannelsSection(
-            activeTab: _activeTab,
-            onTabChange: (tab) => setState(() => _activeTab = tab),
-          ),
-        ),
-        Component.wrapElement(
-          classes: _revealClasses('reveal-team-split'),
-          child: const TeamSplitSection(),
-        ),
-        Component.wrapElement(
           classes: _revealClasses('pricing'),
-          child: PricingSection(
-            mode: _mode,
-            yearly: _billingYearly,
-            onSetMonthly: () => setState(() => _billingYearly = false),
-            onSetYearly: () => setState(() => _billingYearly = true),
-          ),
+          child: PricingSection(s: _s, mode: _mode, region: _region),
+        ),
+        Component.wrapElement(
+          classes: _revealClasses('replaces'),
+          child: WhatItReplacesSection(s: _s, region: _region),
         ),
         Component.wrapElement(
           classes: _revealClasses('faq'),
           child: FaqSection(
             openIndexes: _openFaqIndexes,
             onToggle: (i) => setState(() {
-              if (_openFaqIndexes.contains(i)) {
-                _openFaqIndexes.remove(i);
-              } else {
-                _openFaqIndexes.add(i);
-              }
+              if (!_openFaqIndexes.remove(i)) _openFaqIndexes.add(i);
             }),
           ),
         ),
-        SiteFooter(
-          mode: _mode,
-          submitting: _footerSubmitting,
-          submitted: _footerSubmitted,
-          onSubmit: _submitFooter,
-        ),
+        const SiteFooter(),
       ],
     );
   }

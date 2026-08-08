@@ -41,10 +41,15 @@ import 'package:kola_client/kola_client.dart';
 
 import 'config/env.dart';
 import 'services/auth_service.dart';
+import 'services/feature_gate.dart';
 import 'services/local_storage.dart';
 import 'models/auth_session.dart';
 import 'theme.dart';
+import 'components/shell/app_shell.dart';
+import 'components/shell/splash_screen.dart';
 
+import 'pages/overview_page.dart';
+import 'pages/operations_page.dart';
 import 'pages/dashboard_home_page.dart';
 import 'pages/bots_page.dart';
 import 'pages/billing_page.dart';
@@ -73,12 +78,31 @@ class _DashboardAppState extends State<DashboardApp> {
   List<Workspace> _workspaces = const [];
   Workspace? _selectedWorkspace;
 
+  /// Which features this workspace can see. Loaded once per workspace,
+  /// read synchronously by the shell and every page after that.
+  ///
+  /// Starts empty, which hides everything gated. That is the right
+  /// default for the moment before the first fetch resolves: showing
+  /// nav items and then removing the ones that turn out to be locked
+  /// would be a visible flicker advertising exactly what the gating
+  /// exists to keep quiet.
+  FeatureGate _gate = FeatureGate.empty();
+
   // True only while restoreSession()/listMyWorkspaces() are resolving on
   // first load — kept separate from "not logged in" so the redirect
   // guard below never fires against a still-unknown auth state (which
   // would flash /login even for a visitor who turns out to have a
   // valid persisted session).
   bool _bootstrapping = true;
+
+  /// Whether the splash has finished playing and faded out.
+  ///
+  /// SEPARATE FROM [_bootstrapping] on purpose. Boot finishing and the
+  /// splash leaving are two different events: a warm cache can finish
+  /// boot in under 100ms, and swapping the splash out that fast reads
+  /// as a glitch rather than as speed. SplashScreen owns the timing and
+  /// flips this when it is genuinely done.
+  bool _splashDone = false;
 
   @override
   void initState() {
@@ -132,6 +156,21 @@ class _DashboardAppState extends State<DashboardApp> {
         }
       }
       _selectedWorkspace = restored ?? (workspaces.isNotEmpty ? workspaces.first : null);
+
+      // Feature set is per-workspace, so it loads here rather than in
+      // _bootstrap — switching workspace has to re-fetch it, and doing
+      // that from one place means a switch cannot leave the previous
+      // workspace's navigation on screen.
+      final selected = _selectedWorkspace;
+      if (selected?.id != null) {
+        _gate = await FeatureGate.load(
+          _client,
+          accessToken: session.accessToken,
+          workspaceId: selected!.id!,
+        );
+      } else {
+        _gate = FeatureGate.empty();
+      }
     } catch (_) {
       // A failed fetch and a genuinely zero-workspace account look the
       // same from here — both send the visitor to /create-workspace.
@@ -140,8 +179,68 @@ class _DashboardAppState extends State<DashboardApp> {
       // error UI.
       _workspaces = const [];
       _selectedWorkspace = null;
+      // Reset with the rest. A gate left over from a previous workspace
+      // would decide what this one can see, which is the one mistake in
+      // this whole mechanism that actually leaks something.
+      _gate = FeatureGate.empty();
     }
   }
+
+  /// A first name to greet, best-effort, from the email local part.
+  ///
+  /// 'aisha@shop.com' → 'Aisha'. 'aisha.bello@…' and 'aisha_bello@…' →
+  /// 'Aisha', because a greeting reading "Evening, Aisha.bello" is worse
+  /// than one reading just "Evening".
+  ///
+  /// Returns empty rather than a placeholder when there is nothing
+  /// usable — 'info@', 'sales@' and 'hello@' are real signup addresses,
+  /// and "Evening, Info" is worse than "Evening". The caller drops the
+  /// name entirely in that case.
+  ///
+  /// Takes a nullable email because [AuthSession.email] IS nullable —
+  /// Supabase's user object does not guarantee one (a phone-only or
+  /// anonymous sign-in has no email at all). Null returns empty, and
+  /// the greeting falls back to just "Evening", which is exactly the
+  /// same handling the generic-address case already gets.
+  ///
+  /// This is a stand-in. It goes away the moment there is a real user
+  /// profile with a name on it.
+  static String _greetingName(String? email) {
+    if (email == null) return '';
+
+    final local = email.split('@').first;
+    final first = local.split(RegExp(r'[._\-+]')).first.trim();
+    if (first.isEmpty) return '';
+
+    const generic = {
+      'info', 'sales', 'hello', 'admin', 'contact', 'support',
+      'team', 'office', 'mail', 'me', 'shop', 'store',
+    };
+    if (generic.contains(first.toLowerCase())) return '';
+
+    // Digits usually mean a handle rather than a name ('user123').
+    if (RegExp(r'\d').hasMatch(first)) return '';
+
+    return first[0].toUpperCase() + first.substring(1).toLowerCase();
+  }
+
+  /// Wraps a page in the redesigned [AppShell].
+  ///
+  /// NOT APPLIED TO ANY ROUTE YET, AND THAT IS DELIBERATE. Every page
+  /// below is still on the previous design and draws its own sidebar —
+  /// putting one of them inside AppShell right now would render two
+  /// sidebars side by side.
+  ///
+  /// Each page adopts this as it is rebuilt, and drops its own chrome in
+  /// the same commit. That keeps the app working at every step instead
+  /// of going dark for the length of a 44-screen migration.
+  Component shellFor(RouteState state, Component page) => AppShell(
+        gate: _gate,
+        currentRoute: state.location,
+        workspaceName: _selectedWorkspace?.name ?? '',
+        workspaceSubtitle: _session?.email ?? '',
+        child: page,
+      );
 
   void _handleAuthenticated(AuthSession session) {
     _loadWorkspaces(session).then((_) {
@@ -219,19 +318,46 @@ class _DashboardAppState extends State<DashboardApp> {
     if (loc == '/login' || loc == '/create-workspace') {
       return '/';
     }
+
+    // Conversations were folded into Operations by the redesign — see
+    // operations_page.dart. Redirected rather than removed because the
+    // old path is in bookmarks, in the legacy dashboard's own links, and
+    // in anything already shared; a 404 there would look like the
+    // feature was taken away rather than moved.
+    if (loc == '/conversations' || loc.startsWith('/conversations/')) {
+      return '/operations';
+    }
+
     return null;
   }
 
   @override
   Component build(BuildContext context) {
+    // The splash owns the screen until it has both played and been
+    // released by a finished boot. It fades out over the same
+    // background colour the app uses, so the handover is a dissolve
+    // rather than a flash of empty page.
+    if (!_splashDone) {
+      return SplashScreen(
+        isReady: !_bootstrapping,
+        onDone: () => setState(() => _splashDone = true),
+      );
+    }
+
+    // Reachable only when boot outran the splash's own ceiling — see
+    // SplashScreen._maxVisible. Rare, and deliberately not left as a
+    // blank screen: something visible has to say the app is still
+    // trying.
     if (_bootstrapping) {
       return div(
         attributes: {
-          'style':
-              "font-family:${KolaDashboardFonts.sans};background:#121214;color:#F3EEE7;"
-              'width:100%;height:100vh;display:flex;align-items:center;justify-content:center',
+          'style': 'font-family:${KolaFonts.sans};'
+              'background:${KolaVar.bg};color:${KolaVar.text};'
+              'width:100%;height:100vh;display:flex;'
+              'align-items:center;justify-content:center;'
+              'font-size:${KolaType.body}',
         },
-        [Component.text('Loading…')],
+        [Component.text('Still loading — this is taking longer than usual.')],
       );
     }
 
@@ -254,8 +380,46 @@ class _DashboardAppState extends State<DashboardApp> {
             onSignOut: _handleSignOut,
           ),
         ),
+        // FIRST PAGE ON THE REDESIGN. Wrapped in AppShell, which now
+        // provides the navigation, the workspace menu and sign-out that
+        // DashboardHomePage used to draw itself — so this page renders
+        // only its own content and no chrome.
+        //
+        // DashboardHomePage is still imported and still routable at
+        // /home-legacy below, deliberately: it is the reference for
+        // behaviour not yet ported (the workspace switcher), and
+        // deleting it before that is ported would lose the only working
+        // version of it.
         Route(
           path: '/',
+          builder: (context, state) => shellFor(
+            state,
+            OverviewPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              greetingName: _greetingName(_session!.email),
+              gate: _gate,
+            ),
+          ),
+        ),
+        // Operations — the inbox. Absorbs what used to be the
+        // Conversations page; see operations_page.dart's header and the
+        // redirect stub in `Kola Conversations.dc.html`.
+        Route(
+          path: '/operations',
+          builder: (context, state) => shellFor(
+            state,
+            OperationsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
+          ),
+        ),
+        Route(
+          path: '/home-legacy',
           builder: (context, state) => DashboardHomePage(
             client: _client,
             accessToken: _session!.accessToken,
@@ -325,10 +489,16 @@ class _DashboardAppState extends State<DashboardApp> {
         ),
         Route(
           path: '/knowledge',
-          builder: (context, state) => KnowledgePage(
-            client: _client,
-            accessToken: _session!.accessToken,
-            workspaceId: _selectedWorkspace!.id!,
+          // Rebuilt on the new design system, so it now wears AppShell
+          // and no longer draws its own chrome.
+          builder: (context, state) => shellFor(
+            state,
+            KnowledgePage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
           ),
         ),
         Route(

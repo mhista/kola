@@ -6,9 +6,15 @@
   <title>kola — Dashboard</title>
   <meta name="robots" content="noindex, nofollow">
 
+  <!-- Space Grotesk (display) + Plus Jakarta Sans (UI) + IBM Plex Mono.
+       Inter is gone as of the redesign — see lib/theme.dart. This href
+       must stay identical to KolaFonts.googleFontsHref; the fonts are
+       the single most visible difference between an old screen and a
+       new one, so a mismatch here is immediately obvious but easy to
+       misdiagnose as a component bug. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 
   <script defer src="main.dart.js"></script>

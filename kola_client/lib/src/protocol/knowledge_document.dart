@@ -26,6 +26,8 @@ abstract class KnowledgeDocument implements _i1.SerializableModel {
     this.errorMessage,
     required this.createdAt,
     required this.updatedAt,
+    this.effectiveFrom,
+    this.supersededBy,
   });
 
   factory KnowledgeDocument({
@@ -41,6 +43,8 @@ abstract class KnowledgeDocument implements _i1.SerializableModel {
     String? errorMessage,
     required DateTime createdAt,
     required DateTime updatedAt,
+    DateTime? effectiveFrom,
+    int? supersededBy,
   }) = _KnowledgeDocumentImpl;
 
   factory KnowledgeDocument.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -61,6 +65,12 @@ abstract class KnowledgeDocument implements _i1.SerializableModel {
       updatedAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['updatedAt'],
       ),
+      effectiveFrom: jsonSerialization['effectiveFrom'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(
+              jsonSerialization['effectiveFrom'],
+            ),
+      supersededBy: jsonSerialization['supersededBy'] as int?,
     );
   }
 
@@ -88,6 +98,10 @@ abstract class KnowledgeDocument implements _i1.SerializableModel {
 
   DateTime updatedAt;
 
+  DateTime? effectiveFrom;
+
+  int? supersededBy;
+
   /// Returns a shallow copy of this [KnowledgeDocument]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -104,6 +118,8 @@ abstract class KnowledgeDocument implements _i1.SerializableModel {
     String? errorMessage,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? effectiveFrom,
+    int? supersededBy,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -121,6 +137,8 @@ abstract class KnowledgeDocument implements _i1.SerializableModel {
       if (errorMessage != null) 'errorMessage': errorMessage,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
+      if (effectiveFrom != null) 'effectiveFrom': effectiveFrom?.toJson(),
+      if (supersededBy != null) 'supersededBy': supersededBy,
     };
   }
 
@@ -146,6 +164,8 @@ class _KnowledgeDocumentImpl extends KnowledgeDocument {
     String? errorMessage,
     required DateTime createdAt,
     required DateTime updatedAt,
+    DateTime? effectiveFrom,
+    int? supersededBy,
   }) : super._(
          id: id,
          workspaceId: workspaceId,
@@ -159,6 +179,8 @@ class _KnowledgeDocumentImpl extends KnowledgeDocument {
          errorMessage: errorMessage,
          createdAt: createdAt,
          updatedAt: updatedAt,
+         effectiveFrom: effectiveFrom,
+         supersededBy: supersededBy,
        );
 
   /// Returns a shallow copy of this [KnowledgeDocument]
@@ -178,6 +200,8 @@ class _KnowledgeDocumentImpl extends KnowledgeDocument {
     Object? errorMessage = _Undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Object? effectiveFrom = _Undefined,
+    Object? supersededBy = _Undefined,
   }) {
     return KnowledgeDocument(
       id: id is int? ? id : this.id,
@@ -192,6 +216,10 @@ class _KnowledgeDocumentImpl extends KnowledgeDocument {
       errorMessage: errorMessage is String? ? errorMessage : this.errorMessage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      effectiveFrom: effectiveFrom is DateTime?
+          ? effectiveFrom
+          : this.effectiveFrom,
+      supersededBy: supersededBy is int? ? supersededBy : this.supersededBy,
     );
   }
 }

@@ -1,11 +1,12 @@
-// faq_section.dart — accordion FAQ, addressing the Nigeria-specific
-// concerns DESIGN_PROMPT.md called out (developer requirement, own
-// database, trial behavior, dual-channel support).
+// faq_section.dart
+//
+// Objection handling. Every answer here is checked against what the
+// system actually does — the payments and data answers in particular,
+// since those are the two a cautious buyer will test.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import '../theme.dart';
-import '../models/faq_item.dart';
 
 class FaqSection extends StatelessComponent {
   const FaqSection({required this.openIndexes, required this.onToggle});
@@ -13,93 +14,91 @@ class FaqSection extends StatelessComponent {
   final Set<int> openIndexes;
   final void Function(int index) onToggle;
 
-  static const _faqs = [
-    FaqItem(
-      question: 'Do I need a developer?',
-      answer:
-          'No. Most owners build and launch their bot entirely by describing '
-          'it in chat. Developers can go further with Structured Mode if they want to.',
-    ),
-    FaqItem(
-      question: 'Can I use my own database?',
-      answer: 'Yes — connect a database, spreadsheet, or hand it to your developer via our API and webhooks.',
-    ),
-    FaqItem(
-      question: 'What happens after the 14-day trial?',
-      answer:
-          "You drop to a limited free plan automatically — nothing is disconnected, "
-          'and you can upgrade any time.',
-    ),
-    FaqItem(
-      question: 'Does this work if my customers are on WhatsApp and Telegram?',
-      answer: 'Yes — one bot, one set of Errands, both channels at once.',
-    ),
+  static const faqs = [
+    ('Do I need a developer?',
+        'No. Most owners set up their bot entirely by describing it in plain '
+        'language. Developers can go further with the API if they want to.'),
+    ('Does it work without internet?',
+        'The sales counter does. You can scan, take payment and print a receipt '
+        'with no connection at all — everything syncs when the network returns, '
+        'and you can see exactly what is waiting. Answering customers needs a '
+        'connection, since the messages themselves do.'),
+    ('What happens after the trial?',
+        'A 48-hour full trial, then a 14-day step-down, then a capped free tier. '
+        'Nothing is disconnected and nothing is deleted — you can upgrade any time '
+        'and everything is exactly where you left it.'),
+    ('Does kola hold my money?',
+        'No. Payments go directly to your own payment provider account. kola '
+        'never touches the funds \u2014 you connect the provider you already use.'),
+    ('Will messaging cost me extra?',
+        'Messaging providers set their own rates, and those change over time. kola '
+        'never adds a markup, shows you what a send costs before it happens, and '
+        'takes the cheaper route where one exists — including channels with no '
+        'per-message fee at all. You can see exactly what you are spending in the '
+        'dashboard.'),
+    ('Is my data safe?',
+        'Every credential is encrypted at rest, and each business\'s data is isolated '
+        'from every other business on the platform.'),
   ];
 
   @override
   Component build(BuildContext context) {
     return div(
-      id: 'faq',
-      attributes: {'style': 'max-width:760px;margin:120px auto 0;padding:0 32px'},
+      attributes: {
+        'id': 'faq',
+        'style': 'max-width:760px;margin:100px auto 0;padding:0 32px',
+      },
       [
-        Component.element(
-          tag: 'h2',
+        h2(
           classes: 'kola-h2',
           attributes: {
-            'style':
-                'font-family:${KolaFonts.serif};font-size:36px;font-weight:500;'
-                'margin:0 0 36px;text-align:center;color:${KolaColors.text}',
+            'style': 'font-family:${KolaFonts.serif};font-size:34px;font-weight:500;'
+                'margin:0 0 30px;text-align:center',
           },
-          children: [Component.text('Questions, answered.')],
+          [Component.text('Questions, answered.')],
         ),
-        for (var i = 0; i < _faqs.length; i++) _faqRow(i, _faqs[i]),
+        for (var i = 0; i < faqs.length; i++) _row(i),
       ],
     );
   }
 
-  Component _faqRow(int index, FaqItem faq) {
-    final open = openIndexes.contains(index);
+  Component _row(int i) {
+    final (q, a) = faqs[i];
+    final open = openIndexes.contains(i);
     return div(
-      attributes: {'style': 'border-top:1px solid ${KolaColors.border};padding:22px 0;cursor:pointer'},
-      events: {'click': (e) => onToggle(index)},
+      attributes: {
+        'style': 'border-top:1px solid ${KolaColors.border}',
+      },
       [
-        div(
+        button(
+          classes: 'kola-faq-q',
           attributes: {
-            'style':
-                'display:flex;justify-content:space-between;align-items:center;font-size:16.5px;'
-                'font-weight:600;color:${KolaColors.text}',
+            'aria-expanded': open ? 'true' : 'false',
+            'style': 'width:100%;background:none;border:none;padding:20px 0;'
+                'cursor:pointer;font-family:inherit;color:${KolaColors.text};'
+                'display:flex;justify-content:space-between;align-items:center;gap:16px;'
+                'font-size:16px;font-weight:600;text-align:left',
           },
+          events: {'click': (_) => onToggle(i)},
           [
-            Component.text(faq.question),
+            span([Component.text(q)]),
             span(
-              attributes: {'style': 'color:${KolaColors.textFaint};font-size:20px'},
+              attributes: {
+                'style': 'color:${KolaColors.textFaint};font-size:20px;flex:none',
+                'aria-hidden': 'true',
+              },
               [Component.text(open ? '−' : '+')],
             ),
           ],
         ),
-        // Always rendered (never conditionally omitted) so the
-        // grid-template-rows 0fr→1fr transition in web/styles.css has an
-        // actual element to animate — swapping the div in/out of the tree
-        // on toggle (the old `if (open)` approach) would just snap
-        // instantly, since Jaspr would mount/unmount rather than resize.
-        div(
-          classes: 'kola-faq-answer-wrap${open ? ' kola-faq-open' : ''}',
-          [
-            div(
-              classes: 'kola-faq-answer-inner',
-              [
-                div(
-                  attributes: {
-                    'style':
-                        'font-size:15px;color:${KolaColors.textMuted};line-height:1.6;'
-                        'margin-top:12px;max-width:640px',
-                  },
-                  [Component.text(faq.answer)],
-                ),
-              ],
-            ),
-          ],
-        ),
+        if (open)
+          div(
+            attributes: {
+              'style': 'font-size:14.5px;color:${KolaColors.textMuted};line-height:1.6;'
+                  'padding:0 0 20px;max-width:620px',
+            },
+            [Component.text(a)],
+          ),
       ],
     );
   }

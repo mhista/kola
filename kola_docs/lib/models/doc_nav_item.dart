@@ -34,6 +34,7 @@ const kDocsNav = [
     items: [
       DocNavItem(label: 'Errands', path: '/errands'),
       DocNavItem(label: 'Webhooks', path: '/webhooks'),
+      DocNavItem(label: 'Business memory', path: '/business-memory'),
       DocNavItem(label: 'Channels', path: '/channels'),
       DocNavItem(label: 'Connect your WhatsApp', path: '/channels/connect-whatsapp'),
     ],
@@ -43,6 +44,11 @@ const kDocsNav = [
     items: [
       DocNavItem(label: 'Rate limits & plans', path: '/rate-limits'),
       DocNavItem(label: 'SDKs', path: '/sdks'),
+      // Phase 10 — explains why a capability may not be visible in a
+      // given workspace yet. Sits in Reference rather than Billing
+      // because it answers a question anyone may ask, not only owners
+      // worried about cost.
+      DocNavItem(label: 'Feature availability', path: '/feature-availability'),
     ],
   ),
   // Task #152 — the one page on this site written for business owners

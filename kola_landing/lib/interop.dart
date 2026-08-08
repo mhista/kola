@@ -46,6 +46,12 @@ external void _initScrollReveal();
 @JS('kolaOnReveal')
 external set _kolaOnReveal(JSFunction value);
 
+@JS('kolaBrowserLanguages')
+external JSArray<JSString> _browserLanguages();
+
+@JS('kolaSetHtmlLang')
+external void _setHtmlLang(JSString lang, JSString dir);
+
 /// Reads the current `.value` of the DOM element with [id]. Used at
 /// submit time for uncontrolled form fields — see script.js's header
 /// comment for why fields aren't mirrored into Dart state live.
@@ -96,4 +102,36 @@ void registerRevealCallback(void Function(String id) onReveal) {
   try {
     _kolaOnReveal = ((JSString id) => onReveal(id.toDart)).toJS;
   } catch (_) {}
+}
+
+
+/// The visitor's language preferences, most-preferred first — the
+/// `navigator.languages` list, e.g. ['fr-CI', 'fr', 'en'].
+///
+/// Returns an empty list when the browser does not expose it, which
+/// callers treat as "no preference" and fall back to English. Never
+/// throws: a language lookup must not be able to break page render.
+List<String> browserLanguages() {
+  try {
+    return _browserLanguages().toDart.map((s) => s.toDart).toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// Sets `<html lang>` and `<html dir>`.
+///
+/// BOTH matter, and not only for correctness: `lang` is what a screen
+/// reader uses to choose a voice, and what a browser uses to offer
+/// translation. `dir` is the single attribute that makes a right-to-left
+/// language lay out correctly — setting it here means adding an RTL
+/// language later is a language pack, not a rewrite. See
+/// i18n/locale.dart on why RTL support exists before any RTL language
+/// does.
+void setHtmlLang(String lang, String dir) {
+  try {
+    _setHtmlLang(lang.toJS, dir.toJS);
+  } catch (_) {
+    // Cosmetic and assistive — never worth failing a render over.
+  }
 }

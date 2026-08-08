@@ -70,3 +70,33 @@ function kolaInitScrollReveal() {
   );
   items.forEach(function (el) { io.observe(el); });
 }
+
+/* ── i18n helpers ─────────────────────────────────────────────────────
+ * Two small bridges for lib/i18n. Kept here rather than done from Dart
+ * because both touch browser APIs that are simpler to read directly than
+ * to bind, and neither is worth a package dependency.
+ */
+
+/** The visitor's ordered language preferences, e.g. ['fr-CI','fr','en'].
+ *  Falls back through navigator.language, then an empty list — which
+ *  Dart reads as "no preference" and resolves to English. */
+window.kolaBrowserLanguages = function () {
+  try {
+    if (navigator.languages && navigator.languages.length) {
+      return Array.prototype.slice.call(navigator.languages);
+    }
+    if (navigator.language) return [navigator.language];
+  } catch (e) { /* ignore */ }
+  return [];
+};
+
+/** Sets <html lang> and <html dir>. `dir` is what makes a right-to-left
+ *  language lay out correctly; setting it from day one means adding one
+ *  later is a language pack rather than a rewrite. */
+window.kolaSetHtmlLang = function (lang, dir) {
+  try {
+    var html = document.documentElement;
+    if (lang) html.setAttribute('lang', lang);
+    if (dir) html.setAttribute('dir', dir);
+  } catch (e) { /* ignore */ }
+};

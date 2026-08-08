@@ -54,7 +54,9 @@ dependencies:
 # pull from github in production mode
   kola_client:
     git:
-     url: https://github.com/mhista/kola/tree/main/kola_client
+      url: https://github.com/mhista/kola.git
+      path: kola_client
+      ref: main
   # For window.localStorage (session persistence) — already a transitive
   # dependency via jaspr_router, added explicitly since we call it
   # directly (see lib/services/local_storage.dart).

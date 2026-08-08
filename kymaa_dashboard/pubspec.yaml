@@ -1,0 +1,85 @@
+# RENAMED from kola_dashboard on extraction. Two packages in one pub
+# workspace cannot share a name, and kola_dashboard/ still uses it.
+#
+# Safe to change: nothing in this package imports itself by package URI
+# (all imports are relative), so the name is only an identifier for pub.
+name: kymaa_dashboard
+description: The frozen kymaa dashboard — the competition build.
+version: 1.0.0
+publish_to: none
+environment:
+  sdk: ^3.8.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# jaspr: mode: client (not SSR) — same confirmed pattern as kola_landing,
+# per DEVELOPMENT_PLAN.md Phase 4a's decision.
+#
+# kola_client (added Phase 4e): a path dependency on the sibling
+# ../kola_client package, same as kola_flutter's own dependency on it.
+# kola_client declares `resolution: workspace` (it expects to be resolved
+# as part of the root pubspec.yaml's Dart pub workspace, not standalone)
+# — which is why this package is now also listed in the root
+# pubspec.yaml's `workspace:` array and bumped to `sdk: ^3.8.0` to match
+# the workspace's own constraint (kola_client's own environment.sdk is
+# '^3.8.0'; jaspr 0.23.x's min Dart SDK is already 3.8, confirmed via
+# pub.dev, so this bump doesn't conflict with the jaspr/jaspr_router
+# dependencies below).
+#
+# NO supabase package: login/signup talk to Supabase Auth's REST API
+# directly via plain `http` calls (see lib/services/auth_service.dart) —
+# same "raw HTTP over a heavy client library" choice kola_landing already
+# made for its waitlist form (lib/services/waitlist_api_service.dart),
+# extended here to Auth since we only need signIn/signUp/refresh, not the
+# full realtime/storage/postgrest/functions surface the `supabase`
+# package's ~9 transitive dependencies would otherwise pull in.
+# ─────────────────────────────────────────────────────────────────────────────
+
+resolution: workspace
+
+dependencies:
+  # NOTE: must be >=0.23.2, not just ^0.23.0 — jaspr_router 0.8.3 calls
+  # `context.binding.basePath`, an `AppBinding` getter that was only
+  # added in jaspr 0.23.2 (confirmed against jaspr's own CHANGELOG.md).
+  # jaspr_router's own pubspec still declares `jaspr: ^0.23.0`, which is
+  # technically too loose for what its code actually needs — a real
+  # upstream under-constraint, not a mistake in this file. Without this
+  # floor, a pre-existing lockfile can stay pinned at 0.23.1 and hit
+  # "The getter 'basePath' isn't defined for the type 'AppBinding'" at
+  # compile time.
+  jaspr: ^0.23.2
+  # Real client-side router (adapted from go_router, confirmed compatible
+  # with jaspr ^0.23.0 already above) — added in Phase 4d for the first
+  # page beyond the dashboard home (Bot Detail: Chat Mode + Structured
+  # Mode). Confirmed with the project owner as the routing approach for
+  # the rest of Phase 4 too, rather than a manual state-based view switch
+  # that would need replacing once there are 5+ pages anyway.
+  jaspr_router: ^0.8.2
+  # For raw HTTP calls to Supabase Auth's REST API — see header above.
+  http: ^1.6.0
+  # Pulled from GitHub rather than by relative path, so this folder can
+  # be built and deployed on its own.
+  #
+  # FIXED ON EXTRACTION. The committed version of this file read:
+  #     url: https://github.com/mhista/kola/tree/main/kola_client
+  # which is a GitHub *web* URL, not a git remote — `dart pub get` cannot
+  # clone it. A git dependency needs the repository URL, with the package
+  # named separately via `path`. The working form below was taken from
+  # kola_dashboard, where it had been corrected but not committed.
+  kola_client:
+    git:
+      url: https://github.com/mhista/kola.git
+      path: kola_client
+      ref: main
+  # For window.localStorage (session persistence) — already a transitive
+  # dependency via jaspr_router, added explicitly since we call it
+  # directly (see lib/services/local_storage.dart).
+  web: ^1.0.0
+
+dev_dependencies:
+  build_runner: ^2.4.0
+  build_web_compilers: ^4.0.0
+  jaspr_builder: ^0.23.0
+  lints: ^5.0.0
+
+jaspr:
+  mode: client

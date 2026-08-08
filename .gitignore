@@ -1,6 +1,76 @@
-# Files and directories created by pub
+# ── Dart / pub ───────────────────────────────────────────────────────────
 .dart_tool/
 .packages
-
-# Pubspec overrides
 pubspec_overrides.yaml
+build/
+
+# ── Deploy tooling ───────────────────────────────────────────────────────
+.wrangler/
+
+# ── Secrets ──────────────────────────────────────────────────────────────
+# Real credentials are supplied at build/deploy time via env vars — see
+# each package's build.sh / deploy.sh. Only the *.example templates are
+# tracked.
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# ─────────────────────────────────────────────────────────────────────────
+# PRIVATE PROJECT MATERIAL
+#
+# This repository is public. Everything below would expose commercial
+# strategy, an unreleased roadmap, or a security posture, so it stays
+# local.
+#
+# NOTE THE LEADING SLASHES — they anchor each rule to the repository
+# ROOT. Without one, `docs/` would also match kola_server/docs/, which
+# holds every SQL migration. Silently dropping the schema history out of
+# version control is the kind of thing nobody notices until they need to
+# rebuild a database.
+# ─────────────────────────────────────────────────────────────────────────
+
+# Ignore the whole docs folder, then allow back the few files that are
+# genuinely meant to be public. Deny-by-default: a new strategy document
+# dropped in here is private automatically, rather than public until
+# someone remembers to add a rule.
+/docs/*
+
+# ── Allowed back: published and user-facing only ─────────────────────────
+# Legal documents that are (or will be) published on the website. Having
+# them in the repo is a feature, not a leak.
+!/docs/PRIVACY_POLICY.md
+!/docs/TERMS_OF_SERVICE.md
+# A setup walkthrough written FOR customers. Same content as the docs
+# site; nothing internal in it.
+!/docs/WHATSAPP_MANUAL_SETUP.md
+
+# WHAT STAYS PRIVATE, AND WHY — for whoever reads this later:
+#   DEVELOPMENT_PLAN, RELEASE_PHASES  — the unreleased roadmap, in full
+#   BUILD_AUDIT_*                     — enumerates known gaps and
+#                                       weaknesses. Reconnaissance if
+#                                       read by the wrong person
+#   ADMIN_APP_SPEC, DESIGN_BRIEF_ADMIN— the admin security boundary,
+#                                       permission levels, and what is
+#                                       enforced where
+#   DESIGN_BRIEF_*, *_DESIGN_PROMPT   — unbuilt UI, positioning, pricing
+#   PRD, SRS, COMPETITIVE_FEATURES    — product spec and competitive
+#                                       analysis
+#   STRATEGY_ALIGNMENT_CHECK          — commercial strategy
+#   META_CONNECT_FLOW                 — integration approach research
+#   *.docx                            — the same material, exported
+
+# ── Design source ────────────────────────────────────────────────────────
+# Design-tool exports of unreleased screens. The built Jaspr apps are the
+# real deliverable; these would publish the whole product's UI before it
+# ships.
+/Kola design system specs/
+/Kola design system specs.zip
+/screenshots/
+
+# ── Scratch ──────────────────────────────────────────────────────────────
+/future_consideration.txt
+
+# ── OS noise ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

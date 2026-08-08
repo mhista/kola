@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────
+# ⚠  PROJECT NAME CHANGED — Aug 2026. DO NOT REVERT.
+#
+#   Cloudflare Pages project : kola-landing     (was: kola)
+#
+# WHY: the "kola" project is serving the OLD landing page at
+# kymaa.online — the competition entry. This script defaulted to "kola",
+# which meant a single ./deploy.sh here would have overwritten it with
+# the new site, silently and irreversibly.
+#
+# The old landing lives in kymaa_landing/ and deploys to "kola" on
+# purpose. This one must stay on its own project.
+# ─────────────────────────────────────────────────────────────────────────
 # ============================================================================
 # deploy.sh — Build + deploy the Kola landing page to Cloudflare Pages
 # ============================================================================
@@ -30,7 +43,7 @@ set -e
 SUPABASE_URL="${SUPABASE_URL:-}"
 SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 LAUNCH_MODE="${LAUNCH_MODE:-waitlist}"
-PROJECT_NAME="${PROJECT_NAME:-kola}"
+PROJECT_NAME="${PROJECT_NAME:-kola-landing}"
 
 # ── Validate ──────────────────────────────────────────────────────────────────
 if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then

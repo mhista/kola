@@ -1,0 +1,68 @@
+/* styles.css — kola_dashboard shell.
+ *
+ * Only job: the mobile-first desktop/mobile switch. Every other visual
+ * value (colors, spacing, radii, font sizes) lives inline in the Dart
+ * components, matching Kola Dashboard Shell.dc.html value-for-value —
+ * this file intentionally does NOT duplicate those, so there's exactly
+ * one place to look when a spacing/color value needs to change.
+ *
+ * Mobile-first, same convention as kola_landing/web/styles.css: the
+ * mobile layout is the unqualified default; the desktop layout only
+ * turns on above the breakpoint. This is a real, functional media
+ * query — not the design tool's Desktop/Mobile preview buttons, which
+ * were deliberately not carried into this build (see app.dart's header
+ * comment).
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+/* Viewport-locked shell: the browser window itself never scrolls.
+ * Every page's own root element is height:100vh with its own
+ * overflow-y:auto (or a specific flex:1 child region is, for pages
+ * with fixed chrome like a header/sidebar) — scrolling always happens
+ * inside a page's own container, never at the document/body level.
+ * See kola_dashboard's pages/* for where each page's scroll region is. */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #121214;
+  color: #F3EEE7;
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1.4px, transparent 1.4px);
+  background-size: 24px 24px;
+}
+
+a {
+  text-decoration: none;
+}
+
+textarea {
+  font-family: inherit;
+}
+
+/* ── Desktop / mobile switch ──────────────────────────────────────────── */
+
+.kola-dash-mobile {
+  display: flex;
+}
+
+.kola-dash-desktop {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .kola-dash-mobile {
+    display: none;
+  }
+
+  .kola-dash-desktop {
+    display: flex;
+  }
+}
