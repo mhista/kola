@@ -1,0 +1,55 @@
+##
+## workspace_feature_override.spy.yaml — PHASE 10 (Release Control).
+##
+## One workspace's explicit answer for one feature, overriding the
+## platform-wide FeatureFlag state.
+##
+## TWO DIRECTIONS, AND BOTH MATTER:
+##   enabled = true  → this workspace sees a feature others don't. The
+##                     design-partner / beta mechanism.
+##   enabled = false → this workspace does NOT see a feature everyone
+##                     else does. Less obvious but genuinely needed: a
+##                     workspace hitting a bug in one feature can have it
+##                     switched off for them specifically, without a
+##                     platform-wide kill switch that punishes everyone.
+##
+## An override always wins over the global state EXCEPT against
+## FeatureFlag.externallyGated — see feature_flag_service.dart's
+## resolution order, which is the one place this precedence is written
+## down.
+##
+
+class: WorkspaceFeatureOverride
+# table: workspace_feature_overrides
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id
+  workspaceId: int
+
+  # Matches FeatureFlag.key. Not a foreign key to feature_flags(id) but
+  # to its key, deliberately: the key is the stable identifier the code
+  # uses, and joining on it keeps this table readable when debugging at
+  # 2am ("why can this workspace see observations?") without a join.
+  featureKey: String
+
+  enabled: bool
+
+  # Why this override exists — "design partner, agreed 2026-08-05",
+  # "disabled after bug #204". REQUIRED, not optional, on purpose: an
+  # unexplained override discovered six months later is impossible to
+  # safely remove, so the system refuses to let one be created.
+  note: String
+
+  # Which admin created it. Free-text email rather than a foreign key,
+  # since admin identity lives in kola_admin's own auth, not in this
+  # database's workspace_members table.
+  createdBy: String
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  workspace_feature_override_lookup_idx:
+    fields: workspaceId, featureKey
+    unique: true

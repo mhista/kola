@@ -72,6 +72,45 @@ fields:
   gatewayTransactionId: String? # the gateway's own id, from verify's response
   metadataJson: String? # opaque, Errand-supplied context (e.g. product/order description)
 
+  # ── MANUAL PAYMENTS (migration 022) ───────────────────────────────
+  # How we know the money arrived:
+  #   'gateway_verified' — the provider was re-queried and confirmed it
+  #   'human_marked'     — a person tapped a button
+  #
+  # THESE MUST NEVER LOOK THE SAME. Not mainly because of fraud: a rep
+  # marking the wrong order paid is an ordinary mistake, and without this
+  # field it is invisible in the timeline, in reports and in revenue
+  # totals. Every surface that displays money must read it.
+  #
+  # Defaults to 'gateway_verified' — everything recorded before this
+  # existed came through a gateway and was verified against it.
+  confirmationMethod: String
+
+  # Who marked it paid. Null for gateway payments.
+  confirmedBy: String?
+  confirmedAt: DateTime?
+
+  # Proof, captured AT the moment of confirmation — the transfer receipt
+  # is in front of the person then and nowhere else. Asking later almost
+  # never works, and without it a dispute three weeks on is one person's
+  # memory against another's.
+  proofReference: String?
+  proofUrl: String?
+
+  # When the customer said they would send it. A hint for the reminder
+  # schedule, not a deadline.
+  expectedBy: DateTime?
+
+  # Reminder state. Intervals WIDEN rather than repeat — see
+  # ManualPaymentService.reminderSchedule for why a flat 2-minute repeat
+  # gets itself muted and takes the mechanism down with it.
+  reminderCount: int
+  lastReminderAt: DateTime?
+
+  # Who watches for this transfer. Free text, not a foreign key — it may
+  # be a shop assistant with no Kola login at all.
+  assignedTo: String?
+
   createdAt: DateTime
   updatedAt: DateTime
   paidAt: DateTime?

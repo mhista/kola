@@ -65,6 +65,19 @@ resolution: workspace
 #                 transitively before) when webhook_errand_executor.dart
 #                 (Phase 3c) became the fourth file to need it.
 #
+#  crypto       – SHA-256 for Phase 9's knowledge-document content hashing
+#                 (document_ingestion_service.dart), the dedupe check that
+#                 runs BEFORE anything is embedded — see that file's header
+#                 on why the order matters. Promoted from a transitive to a
+#                 direct dependency for exactly the same reason `http` was
+#                 below: it's now imported directly by our own code, so it
+#                 should be declared rather than relied on by accident.
+#                 NOT pointycastle (already present, and does have SHA-256):
+#                 pointycastle is the heavyweight primitives library this
+#                 project uses for AES-256-GCM key material, and `crypto`'s
+#                 one-line `sha256.convert(...)` is the plainer tool for a
+#                 plain hash.
+#
 #  postgres     – PostgreSQL driver for Phase 3c's dbCredential Errand type
 #                 (SRS.md §7.2): a business supplies their own Postgres
 #                 connection string, an Errand runs exactly one pre-approved
@@ -76,6 +89,7 @@ resolution: workspace
 # ─────────────────────────────────────────────────────────────────────────────
 
 dependencies:
+  crypto: ^3.0.6
   dart_jsonwebtoken: ^3.4.1
   envied: ^1.3.5
   get_it: ^9.2.1

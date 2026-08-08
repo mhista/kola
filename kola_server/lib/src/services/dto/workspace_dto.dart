@@ -31,6 +31,15 @@ class WorkspaceDto extends BaseDto<Workspace> {
         row['trial_full_access_ends_at'] as String,
       ),
       trialEndsAt: DateTime.parse(row['trial_ends_at'] as String),
+      // PHASE 10 — defaults false when the column is absent, so a read
+      // against a database where migration 018 hasn't run yet degrades
+      // to "not internal" rather than throwing.
+      isInternal: (row['is_internal'] as bool?) ?? false,
+      // Defaults to the launch market when the column is absent, so a
+      // read against a database where migration 021 has not run keeps
+      // the current pricing rather than falling to the international
+      // tier and silently re-pricing someone.
+      region: (row['region'] as String?) ?? 'NG',
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
     );
@@ -48,6 +57,8 @@ class WorkspaceDto extends BaseDto<Workspace> {
       'trial_full_access_ends_at': model.trialFullAccessEndsAt
           .toIso8601String(),
       'trial_ends_at': model.trialEndsAt.toIso8601String(),
+      'is_internal': model.isInternal,
+      'region': model.region,
       'updated_at': model.updatedAt.toIso8601String(),
       // created_at is set by Supabase default — we never write it on updates
     };

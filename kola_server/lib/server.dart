@@ -37,7 +37,6 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'package:kola_server/src/generated/protocol.dart' hide Protocol;
 import 'package:kola_server/src/generated/endpoints.dart';
 import 'package:kola_server/web/api_routes.dart';
 import 'package:serverpod/protocol.dart';
@@ -58,6 +57,7 @@ import 'package:kola_server/src/services/notifications/kola_notifier_bot.dart';
 import 'package:kola_server/src/services/billing/trial_sweep_service.dart';
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
 import 'package:kola_server/src/services/support/customer_campaign_sweep_service.dart';
+import 'package:kola_server/src/services/memory/embedding_orchestrator.dart';
 import 'package:kola_server/kola_logger.dart';
 import 'package:logging/logging.dart' as logging;
 
@@ -98,6 +98,29 @@ void run(List<String> args) async {
     // 1b. Repositories (and, from later phases, services) — see
     //     dependency_injection.dart for what's registered.
     setupDependencyInjection();
+
+    // 1b-ii. PHASE 9 (Layer 2 — Business Memory). Fail fast if the
+    //     configured embedding provider emits vectors the
+    //     knowledge_chunks.embedding column cannot hold. Without this
+    //     the mismatch surfaces later as a per-row insert error deep
+    //     inside an ingestion job, far from the actual cause (a provider
+    //     swap or dimension change made without a migration). No-ops
+    //     entirely when no embedding key is configured.
+    getIt<EmbeddingOrchestrator>().assertDimensionsMatchSchema();
+    if (getIt<EmbeddingOrchestrator>().isAvailable) {
+      Log.startupSuccess(
+        'Business memory ready (embeddings: '
+        '${getIt<EmbeddingOrchestrator>().activeModel})',
+      );
+    } else {
+      Log.startupWarning(
+        'GEMINI_API_KEY not set — long-term business memory is disabled. '
+        'Bots will fall back to the older single-field Bot.knowledgeSeed '
+        'for grounding. This is a graceful degradation, not a failure: '
+        'nothing breaks, bots just know less. Gemini\'s embedding free '
+        'tier (1,500 requests/day) is enough to turn this on at no cost.',
+      );
+    }
 
     // 1c. Channel credential encryption — must be ready before
     //     TelegramBotRegistry.bootstrapFromDb() tries to decrypt any

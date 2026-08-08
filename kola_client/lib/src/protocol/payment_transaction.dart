@@ -29,6 +29,15 @@ abstract class PaymentTransaction implements _i1.SerializableModel {
     this.checkoutUrl,
     this.gatewayTransactionId,
     this.metadataJson,
+    required this.confirmationMethod,
+    this.confirmedBy,
+    this.confirmedAt,
+    this.proofReference,
+    this.proofUrl,
+    this.expectedBy,
+    required this.reminderCount,
+    this.lastReminderAt,
+    this.assignedTo,
     required this.createdAt,
     required this.updatedAt,
     this.paidAt,
@@ -50,6 +59,15 @@ abstract class PaymentTransaction implements _i1.SerializableModel {
     String? checkoutUrl,
     String? gatewayTransactionId,
     String? metadataJson,
+    required String confirmationMethod,
+    String? confirmedBy,
+    DateTime? confirmedAt,
+    String? proofReference,
+    String? proofUrl,
+    DateTime? expectedBy,
+    required int reminderCount,
+    DateTime? lastReminderAt,
+    String? assignedTo,
     required DateTime createdAt,
     required DateTime updatedAt,
     DateTime? paidAt,
@@ -73,6 +91,25 @@ abstract class PaymentTransaction implements _i1.SerializableModel {
       gatewayTransactionId:
           jsonSerialization['gatewayTransactionId'] as String?,
       metadataJson: jsonSerialization['metadataJson'] as String?,
+      confirmationMethod: jsonSerialization['confirmationMethod'] as String,
+      confirmedBy: jsonSerialization['confirmedBy'] as String?,
+      confirmedAt: jsonSerialization['confirmedAt'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(
+              jsonSerialization['confirmedAt'],
+            ),
+      proofReference: jsonSerialization['proofReference'] as String?,
+      proofUrl: jsonSerialization['proofUrl'] as String?,
+      expectedBy: jsonSerialization['expectedBy'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(jsonSerialization['expectedBy']),
+      reminderCount: jsonSerialization['reminderCount'] as int,
+      lastReminderAt: jsonSerialization['lastReminderAt'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(
+              jsonSerialization['lastReminderAt'],
+            ),
+      assignedTo: jsonSerialization['assignedTo'] as String?,
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
@@ -115,6 +152,24 @@ abstract class PaymentTransaction implements _i1.SerializableModel {
 
   String? metadataJson;
 
+  String confirmationMethod;
+
+  String? confirmedBy;
+
+  DateTime? confirmedAt;
+
+  String? proofReference;
+
+  String? proofUrl;
+
+  DateTime? expectedBy;
+
+  int reminderCount;
+
+  DateTime? lastReminderAt;
+
+  String? assignedTo;
+
   DateTime createdAt;
 
   DateTime updatedAt;
@@ -140,6 +195,15 @@ abstract class PaymentTransaction implements _i1.SerializableModel {
     String? checkoutUrl,
     String? gatewayTransactionId,
     String? metadataJson,
+    String? confirmationMethod,
+    String? confirmedBy,
+    DateTime? confirmedAt,
+    String? proofReference,
+    String? proofUrl,
+    DateTime? expectedBy,
+    int? reminderCount,
+    DateTime? lastReminderAt,
+    String? assignedTo,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? paidAt,
@@ -164,6 +228,15 @@ abstract class PaymentTransaction implements _i1.SerializableModel {
       if (gatewayTransactionId != null)
         'gatewayTransactionId': gatewayTransactionId,
       if (metadataJson != null) 'metadataJson': metadataJson,
+      'confirmationMethod': confirmationMethod,
+      if (confirmedBy != null) 'confirmedBy': confirmedBy,
+      if (confirmedAt != null) 'confirmedAt': confirmedAt?.toJson(),
+      if (proofReference != null) 'proofReference': proofReference,
+      if (proofUrl != null) 'proofUrl': proofUrl,
+      if (expectedBy != null) 'expectedBy': expectedBy?.toJson(),
+      'reminderCount': reminderCount,
+      if (lastReminderAt != null) 'lastReminderAt': lastReminderAt?.toJson(),
+      if (assignedTo != null) 'assignedTo': assignedTo,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
       if (paidAt != null) 'paidAt': paidAt?.toJson(),
@@ -195,6 +268,15 @@ class _PaymentTransactionImpl extends PaymentTransaction {
     String? checkoutUrl,
     String? gatewayTransactionId,
     String? metadataJson,
+    required String confirmationMethod,
+    String? confirmedBy,
+    DateTime? confirmedAt,
+    String? proofReference,
+    String? proofUrl,
+    DateTime? expectedBy,
+    required int reminderCount,
+    DateTime? lastReminderAt,
+    String? assignedTo,
     required DateTime createdAt,
     required DateTime updatedAt,
     DateTime? paidAt,
@@ -214,6 +296,15 @@ class _PaymentTransactionImpl extends PaymentTransaction {
          checkoutUrl: checkoutUrl,
          gatewayTransactionId: gatewayTransactionId,
          metadataJson: metadataJson,
+         confirmationMethod: confirmationMethod,
+         confirmedBy: confirmedBy,
+         confirmedAt: confirmedAt,
+         proofReference: proofReference,
+         proofUrl: proofUrl,
+         expectedBy: expectedBy,
+         reminderCount: reminderCount,
+         lastReminderAt: lastReminderAt,
+         assignedTo: assignedTo,
          createdAt: createdAt,
          updatedAt: updatedAt,
          paidAt: paidAt,
@@ -239,6 +330,15 @@ class _PaymentTransactionImpl extends PaymentTransaction {
     Object? checkoutUrl = _Undefined,
     Object? gatewayTransactionId = _Undefined,
     Object? metadataJson = _Undefined,
+    String? confirmationMethod,
+    Object? confirmedBy = _Undefined,
+    Object? confirmedAt = _Undefined,
+    Object? proofReference = _Undefined,
+    Object? proofUrl = _Undefined,
+    Object? expectedBy = _Undefined,
+    int? reminderCount,
+    Object? lastReminderAt = _Undefined,
+    Object? assignedTo = _Undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
     Object? paidAt = _Undefined,
@@ -265,6 +365,19 @@ class _PaymentTransactionImpl extends PaymentTransaction {
           ? gatewayTransactionId
           : this.gatewayTransactionId,
       metadataJson: metadataJson is String? ? metadataJson : this.metadataJson,
+      confirmationMethod: confirmationMethod ?? this.confirmationMethod,
+      confirmedBy: confirmedBy is String? ? confirmedBy : this.confirmedBy,
+      confirmedAt: confirmedAt is DateTime? ? confirmedAt : this.confirmedAt,
+      proofReference: proofReference is String?
+          ? proofReference
+          : this.proofReference,
+      proofUrl: proofUrl is String? ? proofUrl : this.proofUrl,
+      expectedBy: expectedBy is DateTime? ? expectedBy : this.expectedBy,
+      reminderCount: reminderCount ?? this.reminderCount,
+      lastReminderAt: lastReminderAt is DateTime?
+          ? lastReminderAt
+          : this.lastReminderAt,
+      assignedTo: assignedTo is String? ? assignedTo : this.assignedTo,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       paidAt: paidAt is DateTime? ? paidAt : this.paidAt,

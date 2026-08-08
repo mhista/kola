@@ -54,6 +54,34 @@ fields:
   # Day-14 mark: workspace is paused (not deleted) if still unpaid.
   trialEndsAt: DateTime
 
+  # Which market this workspace is in — ISO-3166 alpha-2, or 'XX' for
+  # the international default.
+  #
+  # Selects the Pro-plan price, its currency, and which of KOLA'S OWN
+  # gateway accounts collects it (see plan_pricing.dart). Kola prices per
+  # region at rough purchasing-power parity rather than converting one
+  # figure: a number that works in Lagos is trivial in London, and a
+  # number that works in London is impossible in Lagos.
+  #
+  # Defaults to 'NG' — every workspace that exists today is Nigerian, and
+  # that is the only commercially settled price. An unknown value
+  # resolves to the international tier rather than failing, so a market
+  # nobody anticipated can still pay.
+  region: String
+
+  # PHASE 10 (Release Control). True for Kola's own dogfooding
+  # workspaces. Read by FeatureFlagService when a feature is in
+  # 'internal' state — the stage between "built" and "shown to a single
+  # customer", where the team runs a new feature against real data
+  # before anyone outside sees it.
+  #
+  # Settable ONLY from kola_admin, never from the customer dashboard or
+  # any customer-reachable endpoint — a workspace that could mark itself
+  # internal could unlock every unreleased feature on the platform,
+  # which would make the entire release-control system decorative.
+  # Defaults false; migration 018 backfills every existing row to false.
+  isInternal: bool
+
   createdAt: DateTime
   updatedAt: DateTime
 

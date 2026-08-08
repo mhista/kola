@@ -14,12 +14,7 @@
 //   directly), which is not how this project talks to its database — the
 //   dashboard/API only ever talks to Supabase indirectly, through this
 //   server's endpoints.
-//
-// WHY THIS EXISTS (reuse-before-rebuild):
-//   Copied from degenbot_server's supabase_client.dart — same rationale,
-//   same shape. If we ever switch persistence providers, this file (plus
-//   each model's DTO) is the entire blast radius; endpoints and business
-//   logic never import Supabase directly.
+
 
 import 'package:logging/logging.dart';
 import 'package:supabase/supabase.dart';

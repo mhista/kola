@@ -83,6 +83,15 @@ class WorkspaceRepository {
       trialStartedAt: createdAt,
       trialFullAccessEndsAt: createdAt.add(const Duration(hours: 48)),
       trialEndsAt: createdAt.add(const Duration(days: 14)),
+      // PHASE 10 — a workspace is NEVER created internal. Internal
+      // status is granted from kola_admin only, deliberately: a
+      // customer-reachable creation path that could mint an internal
+      // workspace would unlock every unreleased feature on the platform.
+      isInternal: false,
+      // Launch market. Once region selection exists at signup this
+      // becomes a parameter; defaulting here keeps every workspace
+      // created today priced exactly as it is now.
+      region: 'NG',
       createdAt: createdAt,
       updatedAt: createdAt,
     );

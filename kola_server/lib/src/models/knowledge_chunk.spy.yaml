@@ -1,0 +1,82 @@
+##
+## knowledge_chunk.spy.yaml — PHASE 9 (Layer 2 — Business Memory).
+##
+## One retrievable passage of a KnowledgeDocument, and the unit that
+## actually gets embedded and searched.
+##
+## THE EMBEDDING VECTOR IS DELIBERATELY *NOT* A FIELD HERE.
+##   Serverpod can model a List<double>, so this was a real choice, not a
+##   limitation. Three reasons it's stored only in Postgres and never on
+##   the Serverpod model:
+##
+##     1. It would be shipped to clients. Every Serverpod model is part
+##        of the generated client's surface, so a 768-float array would
+##        be serialized to the dashboard on every list/get call — ~3KB of
+##        pure noise per chunk, for data no UI can use.
+##     2. Postgres's `vector` type has no Serverpod equivalent. Modelling
+##        it as List<double> would round-trip through JSON and lose the
+##        typed column the HNSW index depends on.
+##     3. Similarity search cannot be expressed through PostgREST filters
+##        at all, so retrieval goes through the match_knowledge_chunks
+##        RPC (migration 017) regardless — the vector never needs to
+##        travel through this model's serialization path in either
+##        direction.
+##
+##   Consequence, stated so it isn't a surprise: knowledge_chunk_
+##   repository.dart takes the embedding as a SEPARATE parameter on
+##   insert. The model describes the readable chunk; the repository owns
+##   the vector column.
+##
+
+class: KnowledgeChunk
+# table: knowledge_chunks
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → knowledge_documents.id. ON DELETE CASCADE in migration
+  # 017, so deleting a document really does remove it from memory rather
+  # than orphaning its chunks where retrieval would still find them.
+  documentId: int
+
+  # Foreign key → workspaces.id. DENORMALIZED from the parent document
+  # on purpose, and this one is load-bearing for tenant isolation, not
+  # convenience: match_knowledge_chunks filters by workspace INSIDE the
+  # same query that does the vector search. Forcing a join to
+  # knowledge_documents to learn the workspace would mean the similarity
+  # scan runs before the tenant filter — both slower and a far easier
+  # place to leak another business's data by mistake. The tenant check
+  # belongs on the row being scanned.
+  workspaceId: int
+
+  # 0-based position within the parent document. Retrieval returns this
+  # so a citation can say "section 3 of Return Policy" rather than an
+  # opaque id, and so neighbouring chunks can be re-assembled in order.
+  chunkIndex: int
+
+  # The passage itself — exactly the text that was embedded. Kept
+  # verbatim because it's what gets injected into the system prompt at
+  # answer time; anything else would mean citing text the model never
+  # actually saw.
+  content: String
+
+  # Rough token count (see text_chunker.dart's estimate method and its
+  # honest note about why it's an approximation, not a real tokenizer).
+  # Used to budget how many chunks fit in a prompt without overflowing
+  # the context window.
+  tokenEstimate: int
+
+  # Which embedding model produced this chunk's vector, e.g.
+  # 'gemini-embedding-001'. THE REASON THIS EXISTS: vectors from
+  # different models are not comparable, so if the active provider ever
+  # changes, every row still carrying the old model's vector is
+  # silently unretrievable. Storing the model makes those rows findable
+  # and re-embeddable instead. See embedding_orchestrator.dart's header.
+  embeddingModel: String
+
+  createdAt: DateTime
+
+indexes:
+  knowledge_chunk_document_idx:
+    fields: documentId
+  knowledge_chunk_workspace_idx:
+    fields: workspaceId

@@ -36,6 +36,7 @@ import 'package:kola_server/src/services/repository/payment_transaction_reposito
 import 'package:kola_server/src/services/billing/payment_checkout_service.dart';
 import 'package:kola_server/src/services/billing/paystack_service.dart';
 import 'package:kola_server/src/services/billing/flutterwave_service.dart';
+import 'package:kola_server/src/services/billing/stripe_service.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/kola_logger.dart';
 
@@ -70,6 +71,11 @@ class PaymentEndpoint extends Endpoint {
     try {
       if (gateway == 'paystack') {
         await PaystackService(secretKey: trimmedKey)._probeListBanks();
+      } else if (gateway == 'stripe') {
+        // Retrieving the account is Stripe's cheapest authenticated
+        // read — it creates nothing, so probing costs the business
+        // nothing and cannot leave a stray object behind.
+        await StripeService(secretKey: trimmedKey).retrieveAccount();
       } else {
         await FlutterwaveService(secretKey: trimmedKey)._probeListBanks();
       }

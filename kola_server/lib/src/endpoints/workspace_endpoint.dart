@@ -24,6 +24,8 @@ import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/usage_record_repository.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
 import 'package:kola_server/src/services/billing/plan_limits.dart';
+import 'package:kola_server/src/services/billing/stripe_service.dart';
+import 'package:kola_server/src/services/billing/plan_pricing.dart';
 import 'package:kola_server/src/services/billing/kola_billing_service.dart';
 import 'package:kola_server/kola_logger.dart';
 
@@ -176,6 +178,10 @@ class WorkspaceEndpoint extends Endpoint {
     );
     final activeErrandCount = (await _errands.listActiveByWorkspace(workspaceId)).length;
 
+    // Price, currency and collecting gateway all come from the
+    // workspace's own region — see plan_pricing.dart.
+    final regionalPrice = PlanPricing.forRegion(workspace.region);
+
     return jsonEncode({
       'workspaceId': workspaceId,
       'workspaceName': workspace.name,
@@ -190,8 +196,23 @@ class WorkspaceEndpoint extends Endpoint {
       'errandCap': isCapped ? PlanLimits.cappedFreeErrandCap : null,
       'messagesThisMonth': messagesThisMonth,
       'errandCallsThisMonth': errandCallsThisMonth,
-      // Task #148 — so the dashboard's "Upgrade" card never hardcodes a
-      // price it could drift from PlanLimits.paidPlanMonthlyPriceKobo.
+      // The dashboard's "Upgrade" card renders from these — it never
+      // hardcodes a price, and never assumes a currency.
+      //
+      // REGIONAL, not the old flat naira figure. Returning that to a
+      // workspace outside Nigeria would show one number and charge
+      // another, which reads as deception rather than a bug. The amount
+      // is in the currency's SMALLEST unit; `priceCurrency` is what makes
+      // it interpretable, and `priceMinorUnitDigits` is what stops the
+      // dashboard dividing by 100 for a currency that has no minor unit
+      // (JPY, KRW, XOF — see StripeService.zeroDecimalCurrencies).
+      'paidPlanPriceMinor': regionalPrice.amountMinor,
+      'priceCurrency': regionalPrice.currency,
+      'priceMinorUnitDigits':
+          StripeService.isZeroDecimal(regionalPrice.currency) ? 0 : 2,
+      'billingGateway': regionalPrice.gateway,
+      // Retained for older dashboard builds that still read it. Correct
+      // only for Nigeria; new code must use the fields above.
       'paidPlanMonthlyPriceKobo': PlanLimits.paidPlanMonthlyPriceKobo,
     });
   }
@@ -217,10 +238,20 @@ class WorkspaceEndpoint extends Endpoint {
       throw Exception('An email address is required to start checkout.');
     }
 
+    // The workspace's own region decides the price, currency and
+    // collecting gateway — the client never supplies an amount, and the
+    // region is read from the record rather than accepted as input.
+    // See plan_pricing.dart.
+    final workspace = await _workspaces.findById(workspaceId);
+    if (workspace == null) {
+      throw Exception('Workspace $workspaceId not found.');
+    }
+
     final checkout = await _billing.initiateUpgrade(
       workspaceId: workspaceId,
       gateway: gateway,
       customerEmail: trimmedEmail,
+      region: workspace.region,
     );
 
     Log.success('Kola subscription checkout initiated', data: {

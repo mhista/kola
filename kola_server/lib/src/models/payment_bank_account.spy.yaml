@@ -1,0 +1,49 @@
+##
+## payment_bank_account.spy.yaml — the account details kola shares with a
+## customer who wants to pay by bank transfer.
+##
+## WHY THIS IS A MODEL AND NOT FREE TEXT ON AN ERRAND:
+##   A bot broadcasting bank details is exactly the pattern payment
+##   scammers impersonate. The one protection that actually helps is that
+##   the details came from a deliberate, checked, workspace-level record
+##   — not a text box someone typed into while building an errand, where
+##   a swapped digit reaches customers with the business's name attached.
+##
+##   It also means changing account details is one edit rather than a
+##   hunt through every errand that embedded them.
+##
+
+class: PaymentBankAccount
+# table: payment_bank_accounts
+fields:
+  id: int?
+
+  # Foreign key → workspaces.id
+  workspaceId: int
+
+  bankName: String
+  accountNumber: String
+  accountName: String
+
+  # ISO-4217. A business may hold accounts in more than one currency.
+  currency: String
+
+  # True only once someone has confirmed these details are correct.
+  #
+  # AN UNVERIFIED ACCOUNT IS NEVER SENT TO A CUSTOMER —
+  # ManualPaymentService refuses rather than sharing it. Storing an
+  # unverified account is fine; broadcasting one is not.
+  isVerified: bool
+
+  # Only one active account per workspace+currency is offered to
+  # customers. Superseded accounts are kept rather than deleted, so a
+  # transaction from six months ago still resolves to the account it
+  # actually named.
+  isActive: bool
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  payment_bank_account_workspace_idx:
+    fields: workspaceId

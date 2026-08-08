@@ -1,0 +1,76 @@
+##
+## feature_flag.spy.yaml — PHASE 10 (Release Control).
+##
+## One gateable capability's rollout state, platform-wide.
+##
+## THE MODEL THIS SERVES: Kola builds everything, then releases in
+## phases. A feature is deployed to production in 'locked' state — fully
+## built, fully running, entirely invisible — and later flipped to
+## 'beta' for chosen workspaces, then 'released' for everyone.
+## Unlocking is a database state change made from kola_admin. Nothing is
+## deployed at unlock time.
+##
+## WHICH features exist is defined in Dart (feature_keys.dart), not
+## here. This table owns WHAT STATE each one is in. See that file's
+## header for why the split matters — short version: a typo in a feature
+## key must be a loud reconciliation error, not a silently invisible
+## feature.
+##
+
+class: FeatureFlag
+# table: feature_flags
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Stable identifier matching a constant in FeatureKeys, e.g.
+  # 'intelligence.observations'. UNIQUE. Never renamed once shipped —
+  # renaming orphans every WorkspaceFeatureOverride row pointing at it.
+  key: String
+
+  # Admin-facing display name, e.g. "Observations". Safe to change; this
+  # is what moves when marketing renames something, precisely so [key]
+  # doesn't have to.
+  name: String
+
+  # What this feature is, for whoever is deciding whether to unlock it
+  # at 2am. Written for a human, not a changelog.
+  description: String
+
+  # Rollout state: 'locked' | 'internal' | 'beta' | 'released'.
+  # See FeatureState in feature_keys.dart for what each means and why
+  # this is an ordered progression rather than a boolean.
+  state: String
+
+  # Minimum billing plan required once [state] is 'released'.
+  # null  = available on every plan including cappedFree
+  # 'pro' = paid plans only
+  #
+  # DELIBERATELY SEPARATE FROM [state], because they answer different
+  # questions: state is "has this shipped yet", minimumPlan is "is this
+  # something we charge for". Collapsing them into one field would make
+  # it impossible to run a paid feature in beta, which is exactly what a
+  # design-partner programme needs to do.
+  minimumPlan: String?
+
+  # Which release wave this belongs to: 'R1'..'R7'. Purely organisational
+  # — the resolver never reads it — but it lets the admin dashboard group
+  # forty-odd flags into something a person can actually reason about,
+  # and lets a whole wave be flipped together at launch.
+  releasePhase: String
+
+  # When true, this feature cannot be enabled by a workspace override
+  # even in 'beta' state. For features gated on something outside the
+  # product's control — an auditor's report, a signed BAA, a Meta App
+  # Review approval. Prevents an admin from cheerfully switching on
+  # something that is legally rather than technically blocked.
+  externallyGated: bool
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  feature_flag_key_idx:
+    fields: key
+    unique: true
+  feature_flag_phase_idx:
+    fields: releasePhase

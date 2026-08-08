@@ -6,15 +6,40 @@
 // AI orchestrator." The other half (executing a built-in Errand) is
 // builtin_errand_executor.dart.
 //
+// PHASE 9 — §8 HAS NOW SHIPPED, AND THIS FILE CHANGED EXACTLY THE WAY
+// THE PARAGRAPH BELOW SAID IT WOULD. That original note read: "Once §8
+// ships, real retrieval replaces reading that field directly here; this
+// file's job (turn 'seeded knowledge' into a grounded system prompt,
+// then call AiOrchestrator) stays the same shape, just fed by a smarter
+// source." That is precisely what happened — [answerGrounded] and
+// [decide] have the same signatures and the same contract; only the
+// SOURCE of the "--- BUSINESS INFORMATION ---" block changed, from one
+// plain-text field to semantically-retrieved passages with citations.
+//
+// THE FALLBACK IS DELIBERATE AND NOT TEMPORARY-UNTIL-WE-GET-AROUND-TO-IT.
+// _resolveKnowledge below prefers retrieved memory, but falls back to
+// Bot.knowledgeSeed when a workspace has no indexed documents, when
+// retrieval finds nothing above the similarity floor, or when no
+// embedding provider is configured at all. Three real reasons:
+//   • Every existing workspace has content in knowledgeSeed today and
+//     none in knowledge_documents. Cutting over without a fallback would
+//     make every live bot instantly stop knowing anything.
+//   • A self-hosted or key-less deployment has no embeddings available.
+//     Degrading to the old behaviour is strictly better than refusing to
+//     answer.
+//   • Retrieval legitimately returns nothing for an off-topic question.
+//     A small seed ("we're a fashion store in Lagos, open 9–6") is
+//     genuinely useful context that no retrieval hit would surface.
+// bot.spy.yaml's knowledgeSeed field is therefore NOT dropped by
+// migration 017, and shouldn't be until every workspace has migrated.
+//
+// ORIGINAL PHASE 3 NOTE, kept for the reasoning trail:
 // DELIBERATELY NOT SRS.md §8's Document Parsing Engine: that's PDF/DOCX/
 // CSV/XLSX upload, chunking, and retrieval — separate, larger, later
 // work with its own KnowledgeDocument model. This service reads exactly
 // one plain-text field (Bot.knowledgeSeed, see bot.spy.yaml's header)
 // and injects it into the system prompt whole — no chunking, no
-// retrieval ranking, because there's nothing to rank yet. Once §8 ships,
-// real retrieval replaces reading that field directly here; this file's
-// job (turn "seeded knowledge" into a grounded system prompt, then call
-// AiOrchestrator) stays the same shape, just fed by a smarter source.
+// retrieval ranking, because there's nothing to rank yet.
 //
 // COST-SAVING CHANNEL HANDOFF (added after Meta's Jul 2026 announcement
 // that free WhatsApp service-window replies end Oct 1, 2026): both
@@ -27,6 +52,7 @@ import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
 import 'package:kola_server/src/services/ai/ai_provider.dart';
 import 'package:kola_server/src/services/errand/errand_tool_registry.dart';
+import 'package:kola_server/src/services/memory/memory_retrieval_service.dart';
 
 /// A grounded answer, plus whether the model itself decided this needs
 /// a human — see [BotKnowledgeService.answerGrounded]'s header for the
@@ -37,17 +63,86 @@ class GroundedAnswer {
     required this.text,
     required this.needsEscalation,
     required this.providerName,
+    this.citations = const [],
   });
 
   final String text;
   final bool needsEscalation;
   final String providerName;
+
+  /// PHASE 9 — which stored passages this answer was grounded in.
+  ///
+  /// Empty when the answer came from the legacy knowledgeSeed fallback
+  /// (there is nothing to cite: one undifferentiated blob of text isn't
+  /// a source), or when no knowledge applied at all. Non-empty means the
+  /// answer is traceable to specific documents and sections — the point
+  /// of Layer 2, and the thing that makes "cite where information came
+  /// from" checkable rather than a promise.
+  ///
+  /// Defaulted rather than required so every existing construction of
+  /// this class — including the const fallbacks in the catch blocks
+  /// below — keeps compiling unchanged.
+  final List<MemoryCitation> citations;
 }
 
 class BotKnowledgeService {
-  BotKnowledgeService({required AiOrchestrator aiOrchestrator}) : _ai = aiOrchestrator;
+  BotKnowledgeService({
+    required AiOrchestrator aiOrchestrator,
+    MemoryRetrievalService? retrieval,
+  })  : _ai = aiOrchestrator,
+        _retrieval = retrieval;
 
   final AiOrchestrator _ai;
+
+  /// PHASE 9. Nullable on purpose: the standalone verification scripts in
+  /// tool/ (test_grounded_qa.dart, test_escalation_loop.dart) construct
+  /// this service with an orchestrator alone and no database at all.
+  /// Null simply means "no long-term memory available here" and takes the
+  /// same knowledgeSeed path a workspace with no indexed documents takes
+  /// — so those scripts keep working without a Supabase connection.
+  final MemoryRetrievalService? _retrieval;
+
+  /// Resolves the knowledge block for one question: retrieved memory if
+  /// there is any, else the legacy seed, else nothing. This is the ONE
+  /// place that decision is made — [answerGrounded] and [decide] both
+  /// call it rather than each re-deriving the precedence and drifting
+  /// apart.
+  Future<_ResolvedKnowledge> _resolveKnowledge(Bot bot, String question) async {
+    final retrieval = _retrieval;
+    if (retrieval != null) {
+      final context = await retrieval.retrieve(
+        workspaceId: bot.workspaceId,
+        query: question,
+      );
+      if (!context.isEmpty) {
+        return _ResolvedKnowledge(
+          block: context.promptBlock,
+          citations: context.citations,
+          isRetrieved: true,
+        );
+      }
+    }
+
+    final seed = bot.knowledgeSeed?.trim();
+    if (seed != null && seed.isNotEmpty) {
+      return _ResolvedKnowledge(block: seed, citations: const [], isRetrieved: false);
+    }
+
+    return const _ResolvedKnowledge(block: '', citations: [], isRetrieved: false);
+  }
+
+  /// Instruction appended when the knowledge block came from real
+  /// retrieval. Only added in that case: the numbered `[1]`/`[2]` markers
+  /// it refers to exist only in MemoryRetrievalService's formatted block,
+  /// so telling the model to cite them when it's looking at an
+  /// unstructured knowledgeSeed blob would invite it to invent citations
+  /// — the exact opposite of what this feature is for.
+  static const _citationInstruction =
+      ' The information below is drawn from the business\'s own saved '
+      'documents, each numbered and labelled with its source. Base your '
+      'answer only on those passages. Do not mention the numbers, the '
+      'sources, or the fact that you are reading documents in your reply '
+      'to the customer — write naturally, as the business would.';
 
   // A plain, unambiguous marker the model is instructed to append — NOT
   // real AI tool-calling (that's Phase 3d's Errand/AI security-filter
@@ -100,8 +195,8 @@ class BotKnowledgeService {
     required Bot bot,
     required String question,
   }) async {
-    final seed = bot.knowledgeSeed?.trim();
-    final systemPrompt = ((seed != null && seed.isNotEmpty)
+    final knowledge = await _resolveKnowledge(bot, question);
+    final systemPrompt = (knowledge.hasContent
         ? 'You are a helpful assistant for this business. Answer the '
             'customer\'s question using ONLY the information below. If '
             'the answer isn\'t in it, say plainly that you don\'t have '
@@ -111,8 +206,9 @@ class BotKnowledgeService {
             '"connecting you with a person" reply for ANY reason (missing '
             'info, an angry or urgent customer, an explicit request for a '
             'human), end your message with exactly this token on its own '
-            'line, verbatim: $_escalateToken\n\n'
-            '--- BUSINESS INFORMATION ---\n$seed'
+            'line, verbatim: $_escalateToken'
+            '${knowledge.isRetrieved ? _citationInstruction : ''}\n\n'
+            '--- BUSINESS INFORMATION ---\n${knowledge.block}'
         : 'You are a helpful assistant for this business, but no '
             'business-specific information has been set up yet. Be '
             'honest that you don\'t have specific details to answer from, '
@@ -129,6 +225,7 @@ class BotKnowledgeService {
         text: cleanText,
         needsEscalation: needsEscalation,
         providerName: result.providerName,
+        citations: knowledge.citations,
       );
     } catch (_) {
       // No AI provider configured/reachable at all — fail honest, not
@@ -159,8 +256,8 @@ class BotKnowledgeService {
     required List<AiTool> tools,
     required String question,
   }) async {
-    final seed = bot.knowledgeSeed?.trim();
-    final systemPrompt = ((seed != null && seed.isNotEmpty)
+    final knowledge = await _resolveKnowledge(bot, question);
+    final systemPrompt = (knowledge.hasContent
         ? 'You are a helpful assistant for this business. Answer the '
             'customer\'s question using ONLY the information below when '
             'it\'s relevant. If one of your available tools can directly '
@@ -173,8 +270,9 @@ class BotKnowledgeService {
             'the customer is upset, urgent, or explicitly asking for a '
             'person, call the $kEscalateToHumanToolName tool rather than '
             'guessing. Never invent an answer that isn\'t supported by '
-            'this information.\n\n'
-            '--- BUSINESS INFORMATION ---\n$seed'
+            'this information.'
+            '${knowledge.isRetrieved ? _citationInstruction : ''}\n\n'
+            '--- BUSINESS INFORMATION ---\n${knowledge.block}'
         : 'You are a helpful assistant for this business, but no '
             'business-specific information has been set up yet. If one of '
             'your available tools can directly help the customer, call it '
@@ -193,6 +291,7 @@ class BotKnowledgeService {
         directAnswer: result.text,
         toolCall: result.toolCall,
         providerName: result.providerName,
+        citations: knowledge.citations,
       );
     } catch (_) {
       // Same "fail honest" posture as answerGrounded's catch block —
@@ -273,11 +372,41 @@ class KnowledgeDecision {
     this.directAnswer,
     this.toolCall,
     required this.providerName,
+    this.citations = const [],
   });
 
   final String? directAnswer;
   final AiToolCall? toolCall;
   final String providerName;
 
+  /// PHASE 9 — the stored passages that grounded this decision. Same
+  /// semantics and same defaulted-not-required reasoning as
+  /// [GroundedAnswer.citations].
+  final List<MemoryCitation> citations;
+
   bool get wantsToolCall => toolCall != null;
+}
+
+/// PHASE 9 — the knowledge block for one question plus where it came
+/// from. Internal to this file: callers get [GroundedAnswer.citations]
+/// or [KnowledgeDecision.citations], not this.
+class _ResolvedKnowledge {
+  const _ResolvedKnowledge({
+    required this.block,
+    required this.citations,
+    required this.isRetrieved,
+  });
+
+  /// The text to inject under "--- BUSINESS INFORMATION ---". Empty when
+  /// the workspace has neither indexed memory nor a knowledgeSeed.
+  final String block;
+
+  final List<MemoryCitation> citations;
+
+  /// True when [block] came from semantic retrieval (and therefore
+  /// carries the numbered source labels [_citationInstruction] refers
+  /// to), false when it's the legacy knowledgeSeed blob.
+  final bool isRetrieved;
+
+  bool get hasContent => block.isNotEmpty;
 }

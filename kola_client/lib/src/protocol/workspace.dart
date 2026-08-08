@@ -22,6 +22,8 @@ abstract class Workspace implements _i1.SerializableModel {
     required this.trialStartedAt,
     required this.trialFullAccessEndsAt,
     required this.trialEndsAt,
+    required this.region,
+    required this.isInternal,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -35,6 +37,8 @@ abstract class Workspace implements _i1.SerializableModel {
     required DateTime trialStartedAt,
     required DateTime trialFullAccessEndsAt,
     required DateTime trialEndsAt,
+    required String region,
+    required bool isInternal,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _WorkspaceImpl;
@@ -54,6 +58,10 @@ abstract class Workspace implements _i1.SerializableModel {
       ),
       trialEndsAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['trialEndsAt'],
+      ),
+      region: jsonSerialization['region'] as String,
+      isInternal: _i1.BoolJsonExtension.fromJson(
+        jsonSerialization['isInternal'],
       ),
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
@@ -80,6 +88,10 @@ abstract class Workspace implements _i1.SerializableModel {
 
   DateTime trialEndsAt;
 
+  String region;
+
+  bool isInternal;
+
   DateTime createdAt;
 
   DateTime updatedAt;
@@ -96,6 +108,8 @@ abstract class Workspace implements _i1.SerializableModel {
     DateTime? trialStartedAt,
     DateTime? trialFullAccessEndsAt,
     DateTime? trialEndsAt,
+    String? region,
+    bool? isInternal,
     DateTime? createdAt,
     DateTime? updatedAt,
   });
@@ -111,6 +125,8 @@ abstract class Workspace implements _i1.SerializableModel {
       'trialStartedAt': trialStartedAt.toJson(),
       'trialFullAccessEndsAt': trialFullAccessEndsAt.toJson(),
       'trialEndsAt': trialEndsAt.toJson(),
+      'region': region,
+      'isInternal': isInternal,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
     };
@@ -134,6 +150,8 @@ class _WorkspaceImpl extends Workspace {
     required DateTime trialStartedAt,
     required DateTime trialFullAccessEndsAt,
     required DateTime trialEndsAt,
+    required String region,
+    required bool isInternal,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : super._(
@@ -145,6 +163,8 @@ class _WorkspaceImpl extends Workspace {
          trialStartedAt: trialStartedAt,
          trialFullAccessEndsAt: trialFullAccessEndsAt,
          trialEndsAt: trialEndsAt,
+         region: region,
+         isInternal: isInternal,
          createdAt: createdAt,
          updatedAt: updatedAt,
        );
@@ -162,6 +182,8 @@ class _WorkspaceImpl extends Workspace {
     DateTime? trialStartedAt,
     DateTime? trialFullAccessEndsAt,
     DateTime? trialEndsAt,
+    String? region,
+    bool? isInternal,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -175,6 +197,8 @@ class _WorkspaceImpl extends Workspace {
       trialFullAccessEndsAt:
           trialFullAccessEndsAt ?? this.trialFullAccessEndsAt,
       trialEndsAt: trialEndsAt ?? this.trialEndsAt,
+      region: region ?? this.region,
+      isInternal: isInternal ?? this.isInternal,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -34,8 +34,16 @@ import 'package:kola_server/src/services/billing/trial_state_machine.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'paystack_service.dart';
 import 'flutterwave_service.dart';
+import 'stripe_service.dart';
 
-const validPaymentGateways = {'paystack', 'flutterwave'};
+/// Every gateway a business may connect.
+///
+/// THIS IS THE ONE LIST TO EXTEND when adding another. It is mirrored by
+/// a CHECK constraint in the database (migration 020) — both must move
+/// together, and the constraint is deliberately kept rather than dropped
+/// so a typo ('stipe') fails at connect time rather than at charge time
+/// in front of a customer.
+const validPaymentGateways = {'paystack', 'flutterwave', 'stripe'};
 
 /// Thrown when a checkout is requested against a gateway the workspace
 /// hasn't connected yet — lets both callers (PaymentEndpoint, the
@@ -65,6 +73,19 @@ class PaymentCheckoutService {
     required String gateway,
     required int amountKobo,
     required String customerEmail,
+    /// ISO-4217. Defaults to NGN so every existing caller keeps its
+    /// current, correct behaviour — this service was implicitly
+    /// Nigeria-only before Stripe was added.
+    ///
+    /// NOTE the parameter is still named `amountKobo` for source
+    /// compatibility, but it means "amount in the currency's smallest
+    /// unit". For most currencies that is 1/100; for JPY, KRW, XOF and
+    /// the rest of StripeService.zeroDecimalCurrencies there is no minor
+    /// unit and the value IS whole units.
+    String currency = 'NGN',
+    /// Shown to the customer on the hosted checkout page. Stripe
+    /// requires a product name; the others ignore it.
+    String? description,
     String? customerPhone,
     bool holdInEscrow = false,
     int? conversationId,
@@ -89,6 +110,18 @@ class PaymentCheckoutService {
       throw ArgumentError('amountKobo must be positive');
     }
 
+    // Flutterwave is given a MAJOR-unit decimal string, which means
+    // dividing by 100 — valid only for currencies that actually have two
+    // minor digits. Refusing here beats charging a customer 100x, which
+    // is what silently dividing a zero-decimal amount would do.
+    if (gateway == 'flutterwave' && StripeService.isZeroDecimal(currency)) {
+      throw ArgumentError(
+        '$currency has no minor unit, and the Flutterwave path converts '
+        'from minor units by dividing by 100. Use a different gateway for '
+        'this currency rather than risking a 100x charge.',
+      );
+    }
+
     final credential = await _credentials.findByWorkspaceAndGateway(workspaceId, gateway);
     if (credential == null) {
       throw InvalidPaymentGatewayCredentialException(
@@ -109,6 +142,22 @@ class PaymentCheckoutService {
         metadata: metadata,
       );
       checkoutUrl = (result['data'] as Map<String, dynamic>?)?['authorization_url'] as String?;
+    } else if (gateway == 'stripe') {
+      // Stripe takes the smallest unit like Paystack does, so no
+      // conversion here — but "smallest unit" is NOT always 1/100. JPY,
+      // KRW, XOF and others have no minor unit at all, and treating one
+      // of those as two-decimal charges the customer 100x. Callers
+      // supplying a zero-decimal currency must pass whole units; see
+      // StripeService.zeroDecimalCurrencies.
+      final result = await StripeService(secretKey: secretKey).createCheckoutSession(
+        currency: currency,
+        amount: amountKobo,
+        productName: description ?? 'Payment',
+        customerEmail: customerEmail,
+        clientReferenceId: reference,
+        metadata: metadata?.map((k, v) => MapEntry(k, v.toString())),
+      );
+      checkoutUrl = result['url'] as String?;
     } else {
       // Flutterwave wants a major-unit decimal string, not kobo — see
       // flutterwave_service.dart's header. NGN has 2 minor-unit digits,
@@ -130,7 +179,7 @@ class PaymentCheckoutService {
       gateway: gateway,
       reference: reference,
       amountKobo: amountKobo,
-      currency: 'NGN',
+      currency: currency,
       customerEmail: customerEmail,
       customerPhone: customerPhone,
       conversationId: conversationId,

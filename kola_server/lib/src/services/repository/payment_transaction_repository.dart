@@ -59,6 +59,14 @@ class PaymentTransactionRepository {
     String? checkoutUrl,
     String? metadataJson,
     String holdStatus = 'notHeld',
+    String status = 'pending',
+    /// 'gateway_verified' | 'human_marked'. Defaults to verified because
+    /// every caller before migration 022 was a gateway path. The manual
+    /// path passes 'human_marked' explicitly and can never pass anything
+    /// else — see ManualPaymentService.
+    String confirmationMethod = 'gateway_verified',
+    String? assignedTo,
+    DateTime? expectedBy,
   }) async {
     final now = DateTime.now().toUtc();
     _log.info('Creating payment transaction workspaceId=$workspaceId reference=$reference');
@@ -71,8 +79,12 @@ class PaymentTransactionRepository {
       currency: currency,
       customerEmail: customerEmail,
       customerPhone: customerPhone,
-      status: 'pending',
+      status: status,
       holdStatus: holdStatus,
+      confirmationMethod: confirmationMethod,
+      reminderCount: 0,
+      assignedTo: assignedTo,
+      expectedBy: expectedBy,
       conversationId: conversationId,
       channelId: channelId,
       checkoutUrl: checkoutUrl,
@@ -144,5 +156,104 @@ class PaymentTransactionRepository {
         .select()
         .single();
     return _dto.fromRow(response);
+  }
+
+  /// Records a HUMAN claim that a bank transfer arrived.
+  ///
+  /// Deliberately separate from [markCompleted], which is only ever
+  /// called after a gateway's own verify call independently confirmed
+  /// the money moved. Keeping them apart means there is no single method
+  /// that can write either kind of confirmation depending on a flag —
+  /// the two facts have different weight and different call sites.
+  ///
+  /// Sets confirmationMethod = 'human_marked' unconditionally. There is
+  /// no parameter to override it.
+  Future<PaymentTransaction> markHumanConfirmed({
+    required int transactionId,
+    required String confirmedBy,
+    required DateTime confirmedAt,
+    String? proofReference,
+    String? proofUrl,
+  }) async {
+    _log.warning('HUMAN-MARKED paid: txn=$transactionId by=$confirmedBy');
+    final response = await supabase
+        .from('payment_transactions')
+        .update({
+          'status': 'completed',
+          'confirmation_method': 'human_marked',
+          'confirmed_by': confirmedBy,
+          'confirmed_at': confirmedAt.toIso8601String(),
+          'proof_reference': proofReference,
+          'proof_url': proofUrl,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', transactionId)
+        .select()
+        .single();
+    return _dto.fromRow(response);
+  }
+
+  /// Sets a transaction's status directly. Used by the reminder sweep to
+  /// expire an unconfirmed transfer.
+  Future<PaymentTransaction> setStatus(int transactionId, String status) async {
+    _log.info('setStatus txn=$transactionId status=$status');
+    final response = await supabase
+        .from('payment_transactions')
+        .update({
+          'status': status,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', transactionId)
+        .select()
+        .single();
+    return _dto.fromRow(response);
+  }
+
+  /// Records that a reminder was sent, advancing the backoff counter.
+  Future<void> recordReminderSent(int transactionId, int newCount) async {
+    await supabase.from('payment_transactions').update({
+      'reminder_count': newCount,
+      'last_reminder_at': DateTime.now().toUtc().toIso8601String(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', transactionId);
+  }
+
+  /// Every bank transfer still awaiting confirmation, across ALL
+  /// workspaces — the reminder sweep needs one query, not one per
+  /// workspace. Same precedent as SupportTicketRepository
+  /// .listOpenPastDeadline.
+  Future<List<PaymentTransaction>> listAwaitingConfirmation() async {
+    final response = await supabase
+        .from('payment_transactions')
+        .select()
+        .eq('gateway', 'bank_transfer')
+        .eq('status', 'pending');
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// End-of-day reconciliation: transfers a person marked paid, and
+  /// transfers nobody confirmed, for a workspace over a period.
+  ///
+  /// This is the query that stops errors accumulating silently. Without
+  /// it, a wrongly-marked payment is indistinguishable from a real one
+  /// forever — and in a payments feature, errors accumulate as money.
+  Future<List<PaymentTransaction>> listForReconciliation({
+    required int workspaceId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final response = await supabase
+        .from('payment_transactions')
+        .select()
+        .eq('workspace_id', workspaceId)
+        .eq('gateway', 'bank_transfer')
+        .gte('created_at', from.toIso8601String())
+        .lte('created_at', to.toIso8601String())
+        .order('created_at');
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
   }
 }

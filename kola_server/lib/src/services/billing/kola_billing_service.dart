@@ -24,22 +24,36 @@ import 'package:kola_server/src/config/env.dart';
 import 'package:kola_server/src/services/repository/kola_billing_checkout_repository.dart';
 import 'plan_limits.dart';
 import 'paystack_service.dart';
+import 'plan_pricing.dart';
+import 'stripe_service.dart';
 import 'flutterwave_service.dart';
 
-const validKolaBillingGateways = {'paystack', 'flutterwave'};
+/// Gateways KOLA'S OWN subscription billing can collect through — not
+/// the same list as validPaymentGateways, which is what a BUSINESS may
+/// connect for its own customers. These are Kola's accounts.
+const validKolaBillingGateways = {'paystack', 'flutterwave', 'stripe'};
 
 class KolaBillingService {
   KolaBillingCheckoutRepository get _checkouts => getIt<KolaBillingCheckoutRepository>();
 
-  /// Starts a checkout for [workspaceId] to upgrade to 'pro'. Always
-  /// prices at [PlanLimits.paidPlanMonthlyPriceKobo] — there is exactly
-  /// one paid plan/price today, so there's nothing for a caller to get
-  /// wrong here yet (a second tier would add a [plan] param, not change
-  /// this method's shape).
+  /// Starts a checkout for [workspaceId] to upgrade to 'pro'.
+  ///
+  /// PRICE COMES FROM THE WORKSPACE'S REGION, not a single constant —
+  /// see plan_pricing.dart on why Kola prices per region at rough
+  /// purchasing-power parity rather than converting one figure.
+  ///
+  /// [region] is passed in by the caller (which reads it off the
+  /// workspace) rather than looked up here, so this service stays
+  /// Session-free and testable — the same reason PaymentCheckoutService
+  /// takes its inputs rather than fetching them.
+  ///
+  /// THE SERVER IS AUTHORITATIVE ON PRICE. A client can choose a
+  /// gateway; it can never influence the amount.
   Future<KolaBillingCheckout> initiateUpgrade({
     required int workspaceId,
     required String gateway,
     required String customerEmail,
+    String region = 'NG',
   }) async {
     if (!validKolaBillingGateways.contains(gateway)) {
       throw ArgumentError(
@@ -47,7 +61,20 @@ class KolaBillingService {
       );
     }
 
-    final amountKobo = PlanLimits.paidPlanMonthlyPriceKobo;
+    final price = PlanPricing.forRegion(region);
+
+    // Fail here, with a message that says what to do, rather than at the
+    // gateway API where the error is opaque. Kola's Paystack account
+    // cannot charge a card in Brazil, and Stripe is not the practical
+    // choice for naira — the gateway genuinely varies by market.
+    if (!PlanPricing.gatewaySupports(gateway, price)) {
+      throw ArgumentError(
+        'Workspaces in ${price.regionCode} are billed in ${price.currency} '
+        'via ${price.gateway}, not $gateway.',
+      );
+    }
+
+    final amountKobo = price.amountMinor;
     final reference = _generateReference();
     String? checkoutUrl;
 
@@ -62,9 +89,35 @@ class KolaBillingService {
         metadata: {'workspaceId': workspaceId, 'purpose': 'kola_subscription', 'plan': 'pro'},
       );
       checkoutUrl = (result['data'] as Map<String, dynamic>?)?['authorization_url'] as String?;
+    } else if (gateway == 'stripe') {
+      if (Env.stripeSecretKey.isEmpty) {
+        throw Exception('Stripe is not configured on this server yet.');
+      }
+      final result = await StripeService(secretKey: Env.stripeSecretKey).createCheckoutSession(
+        currency: price.currency,
+        amount: amountKobo,
+        productName: 'kola Pro — monthly',
+        customerEmail: customerEmail,
+        clientReferenceId: reference,
+        metadata: {
+          'workspaceId': workspaceId.toString(),
+          'purpose': 'kola_subscription',
+          'plan': 'pro',
+        },
+      );
+      checkoutUrl = result['url'] as String?;
     } else {
       if (Env.flutterwaveSecretKey.isEmpty) {
         throw Exception('Flutterwave is not configured on this server yet.');
+      }
+      // Major-unit decimal string — see payment_checkout_service.dart on
+      // why this path refuses zero-decimal currencies rather than
+      // dividing by 100 and charging 100x.
+      if (StripeService.isZeroDecimal(price.currency)) {
+        throw ArgumentError(
+          '${price.currency} has no minor unit and cannot go through the '
+          'Flutterwave path.',
+        );
       }
       final amountMajor = (amountKobo / 100).toStringAsFixed(2);
       final result = await FlutterwaveService(secretKey: Env.flutterwaveSecretKey).initializePayment(

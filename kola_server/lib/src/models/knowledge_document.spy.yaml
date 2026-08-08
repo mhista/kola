@@ -1,0 +1,100 @@
+##
+## knowledge_document.spy.yaml — PHASE 9 (Layer 2 — Business Memory).
+##
+## One ingested source of business knowledge: a pasted policy, an
+## uploaded file, a crawled page, later a synced connector record.
+## Finally delivers SRS.md §8's Document Parsing Engine, which
+## bot.spy.yaml's `knowledgeSeed` header has been explicitly holding a
+## place for since Phase 3b ("Once §8 ships, real KnowledgeDocument
+## retrieval replaces reading this field directly").
+##
+## WORKSPACE-SCOPED, NOT BOT-SCOPED — a deliberate decision, and the
+## single most consequential one in this model:
+##   A business's return policy is a fact about THE BUSINESS. If a
+##   workspace runs a customer-care bot and a catalog bot, both should
+##   know it, and the owner should not have to upload it twice and keep
+##   two copies in sync. This also follows the precedent Errands already
+##   set (errand.spy.yaml is workspace-scoped, SRS.md §7.3) and is what
+##   makes the specialized-agent architecture possible later: many
+##   agents, ONE shared memory. Bot-scoping now would have to be undone
+##   then.
+##
+## The trade-off, stated plainly: a workspace cannot yet give one bot a
+## narrower view of memory than another. If that's ever needed, it is an
+## additive join table (document ↔ bot visibility), not a re-scoping of
+## this model — which is exactly why it isn't being pre-built today.
+##
+
+class: KnowledgeDocument
+# table: knowledge_documents
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id. Every query in
+  # knowledge_document_repository.dart filters on this, per SRS.md §5's
+  # repository-layer isolation rule.
+  workspaceId: int
+
+  # Owner-facing name ("Return policy", "Q3 price list").
+  title: String
+
+  # Where this came from. Values:
+  #   'paste'      — typed/pasted into the dashboard (the only source MVP
+  #                  of this phase actually ingests)
+  #   'upload'     — an uploaded file; parsing is deliberately deferred,
+  #                  see document_ingestion_service.dart's header
+  #   'url'        — crawled page (not built)
+  #   'conversation' — promoted from a real customer conversation, the
+  #                  seam Layer 9 (Continuous Learning) plugs into later
+  #   'connector'  — synced from an external system (Layer 3)
+  # Only 'paste' and 'conversation' can actually be produced today; the
+  # others exist so adding them is a handler, not a schema change.
+  sourceType: String
+
+  # Free-form pointer back to the origin — a filename, a URL, a
+  # conversation id. Null for pasted text, which has no origin beyond
+  # the person who typed it.
+  sourceRef: String?
+
+  # SHA-256 of the raw source text. The dedupe mechanism: re-ingesting
+  # byte-identical content is detected here rather than by comparing
+  # text, and rather than by embedding it again first (embedding is the
+  # expensive step — checking the hash BEFORE embedding is the entire
+  # point of storing it). Directly serves the project instruction's
+  # "knowledge deduplication" requirement under Continuous Learning.
+  contentHash: String
+
+  # The full original text, kept verbatim alongside the chunks derived
+  # from it. Costs storage, but means re-chunking with a better strategy
+  # later (or re-embedding after a model change) never requires the
+  # owner to re-upload anything — a real, foreseeable need, not
+  # hypothetical, given this phase's chunker is explicitly a v1.
+  rawText: String
+
+  # Lifecycle. Values: 'pending' | 'indexed' | 'failed'.
+  # 'pending' means rows exist but chunks/embeddings do not yet —
+  # retrieval MUST ignore these, otherwise a half-indexed document
+  # produces confidently incomplete answers.
+  status: String
+
+  # Populated once status = 'indexed'. Denormalized on purpose: the
+  # dashboard lists documents with their chunk counts, and doing that as
+  # a count() per row is a needless N+1 for a number that never changes
+  # after indexing.
+  chunkCount: int
+
+  # Human-readable reason when status = 'failed' (quota exhausted, empty
+  # after parsing, provider error). Shown to the owner rather than
+  # swallowed — a document that silently failed to index is the worst
+  # outcome here, because the bot then answers "I don't know" about
+  # something the owner believes it was told.
+  errorMessage: String?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  knowledge_document_workspace_idx:
+    fields: workspaceId
+  knowledge_document_hash_idx:
+    fields: workspaceId, contentHash

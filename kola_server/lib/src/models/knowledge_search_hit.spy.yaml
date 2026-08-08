@@ -1,0 +1,48 @@
+##
+## knowledge_search_hit.spy.yaml — PHASE 9 (Layer 2 — Business Memory).
+##
+## One result from a memory search, shaped for the DASHBOARD rather than
+## for storage.
+##
+## NOT A TABLE — there is no `# table:` line and no migration for this,
+## deliberately. It exists only so KnowledgeEndpoint.searchMemory can
+## return something meaningful across Serverpod's generated client: a
+## plain Dart class (KnowledgeChunkMatch, in knowledge_chunk_repository
+## .dart) cannot cross the RPC boundary, and returning bare
+## KnowledgeChunk rows would drop the two fields that make a result
+## useful to look at — which document it came from, and how good a match
+## it was.
+##
+## WHY THE DASHBOARD NEEDS THIS AT ALL: it powers the memory browser —
+## an owner typing a real customer question and seeing exactly which of
+## their own documents the bot would answer from, with the similarity
+## score visible. That turns "the AI seems to have got that wrong" from
+## an unfalsifiable complaint into something inspectable, which is the
+## practical payoff of storing citations rather than just embeddings.
+##
+
+class: KnowledgeSearchHit
+fields:
+  # knowledge_chunks.id — lets the dashboard link a hit back to the exact
+  # stored passage.
+  chunkId: int
+
+  documentId: int
+
+  # Denormalized so the dashboard can label a hit without a second
+  # request per result.
+  documentTitle: String
+
+  # 0-based, matching KnowledgeChunk.chunkIndex. The dashboard displays
+  # it 1-based (see MemoryCitation.label's note on why).
+  chunkIndex: int
+
+  # The passage text — exactly what would be injected into the bot's
+  # prompt for this question, not a summary of it. Showing anything else
+  # would defeat the purpose of an inspection tool.
+  content: String
+
+  # Cosine similarity in [0, 1], higher is closer. Surfaced rather than
+  # hidden: an owner seeing 0.38 next to a result understands "it barely
+  # matched" in a way no amount of ranking alone conveys.
+  similarity: double

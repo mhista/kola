@@ -58,6 +58,16 @@ import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_template_cr
 import 'package:kola_server/src/services/repository/kola_billing_checkout_repository.dart';
 import 'package:kola_server/src/services/billing/kola_billing_service.dart';
 import 'package:kola_server/src/config/env.dart';
+// Phase 9 (Layer 2 — Business Memory).
+import 'package:kola_server/src/services/memory/embedding_orchestrator.dart';
+import 'package:kola_server/src/services/memory/document_ingestion_service.dart';
+import 'package:kola_server/src/services/memory/memory_retrieval_service.dart';
+import 'package:kola_server/src/services/repository/knowledge_document_repository.dart';
+import 'package:kola_server/src/services/repository/knowledge_chunk_repository.dart';
+// Phase 10 (Release Control).
+import 'package:kola_server/src/services/features/feature_flag_service.dart';
+import 'package:kola_server/src/services/repository/feature_flag_repository.dart';
+import 'package:kola_server/src/services/repository/workspace_feature_override_repository.dart';
 
 final getIt = GetIt.instance;
 
@@ -145,8 +155,74 @@ void setupDependencyInjection() {
   // everything else here: cheap to construct (just reads Env for API
   // keys), no need for more than one instance server-wide.
   getIt.registerLazySingleton<AiOrchestrator>(() => AiOrchestrator());
+
+  // ── PHASE 10 — RELEASE CONTROL ────────────────────────────────────────────
+  //
+  // Registered EARLY because everything gated depends on it. See
+  // feature_flag_service.dart for the resolution order and why the cache
+  // TTL is short (the kill switch has to actually kill).
+  //
+  // Depends on TrialStateMachine for minimum-plan checks, which is
+  // registered further down — safe because registerLazySingleton defers
+  // construction until first use, by which point every registration in
+  // this function has run.
+  getIt.registerLazySingleton<FeatureFlagRepository>(
+    () => const FeatureFlagRepository(),
+  );
+  getIt.registerLazySingleton<WorkspaceFeatureOverrideRepository>(
+    () => const WorkspaceFeatureOverrideRepository(),
+  );
+  getIt.registerLazySingleton<FeatureFlagService>(
+    () => FeatureFlagService(
+      flags: getIt<FeatureFlagRepository>(),
+      overrides: getIt<WorkspaceFeatureOverrideRepository>(),
+      trialStateMachine: getIt<TrialStateMachine>(),
+    ),
+  );
+
+  // ── PHASE 9 — LAYER 2: BUSINESS MEMORY ────────────────────────────────────
+  //
+  // Registered BEFORE BotKnowledgeService because that service now takes
+  // MemoryRetrievalService as a dependency — the one change to an
+  // existing registration in this whole phase.
+  //
+  // ZERO ADDITIONAL COST BY DESIGN: EmbeddingOrchestrator uses the SAME
+  // Env.geminiApiKey the chat-side GeminiProvider already uses — no new
+  // credential, no new vendor relationship, and gemini-embedding-001 has
+  // a real free tier (1,500 requests/day). If that key is unset, every
+  // service below degrades gracefully rather than failing: ingestion
+  // returns IngestionStatus.unavailable, retrieval returns an empty
+  // context, and BotKnowledgeService falls straight back to the legacy
+  // Bot.knowledgeSeed path. Nothing here can start billing on its own.
+  getIt.registerLazySingleton<EmbeddingOrchestrator>(() => EmbeddingOrchestrator());
+  getIt.registerLazySingleton<KnowledgeDocumentRepository>(
+    () => const KnowledgeDocumentRepository(),
+  );
+  getIt.registerLazySingleton<KnowledgeChunkRepository>(
+    () => const KnowledgeChunkRepository(),
+  );
+  getIt.registerLazySingleton<MemoryRetrievalService>(
+    () => MemoryRetrievalService(
+      embeddings: getIt<EmbeddingOrchestrator>(),
+      chunks: getIt<KnowledgeChunkRepository>(),
+      documents: getIt<KnowledgeDocumentRepository>(),
+    ),
+  );
+  getIt.registerLazySingleton<DocumentIngestionService>(
+    () => DocumentIngestionService(
+      embeddings: getIt<EmbeddingOrchestrator>(),
+      documents: getIt<KnowledgeDocumentRepository>(),
+      chunks: getIt<KnowledgeChunkRepository>(),
+    ),
+  );
+
   getIt.registerLazySingleton<BotKnowledgeService>(
-    () => BotKnowledgeService(aiOrchestrator: getIt<AiOrchestrator>()),
+    () => BotKnowledgeService(
+      aiOrchestrator: getIt<AiOrchestrator>(),
+      // Phase 9 — real long-term memory, replacing the knowledgeSeed-only
+      // grounding this service shipped with in Phase 3b.
+      retrieval: getIt<MemoryRetrievalService>(),
+    ),
   );
   // Task #139 — Bot Mother v1 (see bot_mother_service.dart's header for
   // exactly how narrow "v1" is here).

@@ -13,3 +13,12 @@ workspace:
   # this workspace since kola_client itself uses `resolution: workspace`
   # (same reason kola_flutter is listed above, not a new pattern).
   - kola_dashboard
+  # kymaa_dashboard — the frozen competition build, recovered from git
+  # HEAD. Listed here for exactly the same reason kola_dashboard is: its
+  # pubspec declares `resolution: workspace`, and a package that says
+  # that MUST have a workspace root above it or `dart pub get` refuses
+  # to run at all.
+  #
+  # Being a workspace member does not couple it to the redesign — they
+  # share no source, only dependency resolution.
+  - kymaa_dashboard

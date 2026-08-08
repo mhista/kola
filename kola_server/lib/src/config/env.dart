@@ -237,6 +237,15 @@ abstract class Env {
       ? _Env.flutterwaveSecretKey
       : Platform.environment['FLUTTERWAVE_SECRET_KEY'] ?? '';
 
+  /// KOLA'S OWN Stripe secret key — for charging workspaces outside the
+  /// markets Paystack and Flutterwave serve. NOT a business's own key:
+  /// those are per-workspace and encrypted at rest (see
+  /// payment_gateway_credential.spy.yaml).
+  @EnviedField(varName: 'STRIPE_SECRET_KEY', obfuscate: true, defaultValue: '')
+  static final String stripeSecretKey = _Env.stripeSecretKey.isNotEmpty
+      ? _Env.stripeSecretKey
+      : Platform.environment['STRIPE_SECRET_KEY'] ?? '';
+
   // The arbitrary string configured as each gateway's webhook secret in
   // its own dashboard — see each service's verifyWebhookSignature() for
   // how it's actually used (HMAC key for Paystack, plain shared string

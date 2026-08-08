@@ -26,6 +26,15 @@ errand:
   - createWebhookErrand:
   - createDbCredentialErrand:
   - executeErrand:
+feature:
+  - listEnabledFeatures:
+  - isFeatureEnabled:
+knowledge:
+  - listDocuments:
+  - addDocument:
+  - deleteDocument:
+  - updateDocument:
+  - searchMemory:
 ownerNotification:
   - getSettings:
   - updateSettings:
