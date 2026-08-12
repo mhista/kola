@@ -16,7 +16,7 @@ class QuickstartPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Quickstart'),
       docLede(
         "Four calls take you from a new workspace to a bot that's live on Telegram and can "

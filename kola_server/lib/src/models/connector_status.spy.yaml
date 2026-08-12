@@ -1,0 +1,77 @@
+##
+## connector_status.spy.yaml — one row of the Integrations marketplace.
+##
+## NOT A TABLE. This is a computed view: catalog definition + feature
+## flag + whichever of the three stores actually holds this connector's
+## state, merged by ConnectorService into the single shape the design's
+## connector card draws.
+##
+## WHY THE SERVER COMPUTES THIS AND NOT THE DASHBOARD:
+##
+## The previous integrations page hardcoded its own connector list, so
+## the server and the UI could disagree about what exists — and the UI
+## always won, because it was the one drawing the screen. Merging on the
+## client would also mean shipping the catalog, the flag set and three
+## storage shapes to the browser and hoping it combined them the same way
+## twice.
+##
+## WHAT IS DELIBERATELY ABSENT: any secret. [displayDetail] is a masked
+## tail or an account name; ConnectorField.secret values never appear in
+## a response at all. A read endpoint that returns the secret it just
+## stored is how credentials end up in browser history and log files.
+##
+
+class: ConnectorStatus
+fields:
+  # Stable catalog key, e.g. 'google_drive'.
+  key: String
+
+  name: String
+
+  # Category id: 'sell' | 'pay' | 'know' | 'operate'.
+  category: String
+
+  description: String
+
+  # THE DESIGN'S FOUR STATES, resolved server-side:
+  #
+  #   'soon'       the capability is not released to this workspace.
+  #                Renders as a coming-soon tile. This is how a BUILT BUT
+  #                LOCKED connector looks — not a decision to leave it
+  #                unbuilt. Flipping the flag in kola_admin moves it to
+  #                'available' with no deploy.
+  #   'available'  released, nothing stored for this workspace.
+  #   'connected'  released, stored, healthy.
+  #   'error'      released, stored, last attempt failed.
+  #
+  # ConnectorService sorts by how much the owner needs to care:
+  # error, connected, available, soon. Category grouping and filtering
+  # happen in the UI, which already has the category on every row.
+  status: String
+
+  # How the owner connects it: 'fields' | 'oauth' | 'manage' |
+  # 'keyDisplay'. Decides which modal body the card opens.
+  authType: String
+
+  # For authType 'manage' — the in-app route where this is really
+  # configured, e.g. '/billing' for Paystack. The card links there
+  # instead of duplicating the form.
+  manageRoute: String?
+
+  # Where to find the credentials, in the provider's own terms. Shown
+  # inside the connect modal.
+  helpText: String
+
+  # The form to render for authType 'fields'. Empty for every other auth
+  # type. Field-level `secret` decides input masking.
+  fields: List<ConnectorFieldSpec>
+
+  # Safe-to-show detail for a connected account — 'Secret key:
+  # sk_live_••••3f2a', a sheet name, an account email. Null unless
+  # connected. Never a secret.
+  displayDetail: String?
+
+  lastSyncedAt: DateTime?
+
+  # Owner-facing failure reason. Non-null only when [status] is 'error'.
+  lastError: String?

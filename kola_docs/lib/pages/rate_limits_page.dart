@@ -13,7 +13,7 @@ class RateLimitsPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Rate limits & plans'),
       docLede(
         "Every workspace starts on a two-stage trial, not a hard paywall from day one. What a "

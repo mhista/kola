@@ -16,7 +16,7 @@ class ErrandsPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Errands'),
       docLede(
         "An Errand is a named, described task a bot can hand off to — either running Kola's "

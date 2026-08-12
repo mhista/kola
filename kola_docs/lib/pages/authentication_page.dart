@@ -21,7 +21,7 @@ class AuthenticationPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Authentication'),
       docLede(
         "Every Kola endpoint that touches a workspace takes an accessToken as an explicit "

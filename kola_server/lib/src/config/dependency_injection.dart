@@ -18,6 +18,8 @@ import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_member_repository.dart';
 import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
+import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
+import 'package:kola_server/src/services/connectors/connector_service.dart';
 import 'package:kola_server/src/services/repository/waitlist_signup_repository.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/errand_credential_repository.dart';
@@ -177,6 +179,36 @@ void setupDependencyInjection() {
       flags: getIt<FeatureFlagRepository>(),
       overrides: getIt<WorkspaceFeatureOverrideRepository>(),
       trialStateMachine: getIt<TrialStateMachine>(),
+    ),
+  );
+
+  // ── LAYER 3: CONNECTORS ───────────────────────────────────────────────────
+  //
+  // Registered after FeatureFlagService because ConnectorService resolves
+  // every connector's visible state from its capability flag — see
+  // connector_catalog.dart on why release state lives in feature_flags
+  // and not in the catalog.
+  //
+  // ConnectorService reads THREE stores, not one: channels (WhatsApp,
+  // Telegram), payment_gateway_credentials (Paystack, Flutterwave,
+  // Stripe) and workspace_connectors (everything else).
+  //
+  // PaymentGatewayCredentialRepository is registered further DOWN this
+  // function, not above. That is safe for the same reason the
+  // FeatureFlagService block above says it is: registerLazySingleton
+  // defers construction until first use, by which point every
+  // registration here has run. Resolution order, not registration order,
+  // is what matters.
+  getIt.registerLazySingleton<WorkspaceConnectorRepository>(
+    () => const WorkspaceConnectorRepository(),
+  );
+  getIt.registerLazySingleton<ConnectorService>(
+    () => ConnectorService(
+      features: getIt<FeatureFlagService>(),
+      bots: getIt<BotRepository>(),
+      channels: getIt<ChannelRepository>(),
+      gateways: getIt<PaymentGatewayCredentialRepository>(),
+      generic: getIt<WorkspaceConnectorRepository>(),
     ),
   );
 

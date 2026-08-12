@@ -1,0 +1,27 @@
+##
+## connector_field_spec.spy.yaml — one input on a connector's connect form.
+##
+## The serialisable half of ConnectorField in connector_catalog.dart,
+## sent to the dashboard so the form is DEFINED ONCE, on the server.
+##
+## Its own file because Serverpod generates one class per .spy.yaml —
+## every other model here follows that (29 model files, 29 generated
+## files). A second `class:` after a `---` separator in
+## connector_status.spy.yaml would not have generated.
+##
+## Referenced from ConnectorStatus.fields.
+##
+
+class: ConnectorFieldSpec
+fields:
+  # Matches ConnectorField.key — what the connect endpoint expects back
+  # in its values map, e.g. 'botToken', 'storeUrl'.
+  key: String
+
+  label: String
+  placeholder: String
+
+  # Masked on input, and NEVER returned by any read endpoint. A store URL
+  # or an app id is not secret, and masking those makes a form harder to
+  # check without making anything safer.
+  secret: bool

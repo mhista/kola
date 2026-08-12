@@ -26,6 +26,7 @@ class OwnerNotificationSendRepository implements OwnerNotificationSendRepository
 
   /// Records one successful (or successfully-attempted) notification
   /// send, for rate-limit counting.
+  @override
   Future<void> record({required int workspaceId, required String channel}) async {
     _log.fine('record workspaceId=$workspaceId channel=$channel');
     await supabase.from('owner_notification_sends').insert({
@@ -38,6 +39,7 @@ class OwnerNotificationSendRepository implements OwnerNotificationSendRepository
   /// How many [channel] notifications [workspaceId] has sent since
   /// [since] (typically the start of today, UTC) — what
   /// NotificationRateLimiter compares against a plan's daily cap.
+  @override
   Future<int> countSince({
     required int workspaceId,
     required String channel,

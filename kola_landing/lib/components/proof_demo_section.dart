@@ -199,7 +199,7 @@ class _ProofDemoSectionState extends State<ProofDemoSection> {
   }
 
   Component _answer(DemoMatch match) {
-    return fragment([
+    return Component.fragment([
       div(
         attributes: {
           'style': 'background:${KolaColors.cardBg};border-radius:12px;padding:14px 16px;'
@@ -220,7 +220,7 @@ class _ProofDemoSectionState extends State<ProofDemoSection> {
   }
 
   Component _noMatch() {
-    return fragment([
+    return Component.fragment([
       div(
         attributes: {
           'style': 'background:${KolaColors.cardBg};border-radius:12px;padding:14px 16px;'

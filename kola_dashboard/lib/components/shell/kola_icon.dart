@@ -35,7 +35,7 @@ Component kolaIcon(
   String? extraStyle,
 }) {
   final style = extraStyle == null ? '' : ' style="$extraStyle"';
-  return raw(
+  return RawText(
     '<svg width="$size" height="$size" viewBox="0 0 24 24" fill="none" '
     'stroke="currentColor" stroke-width="$strokeWidth" '
     'stroke-linecap="round" stroke-linejoin="round" '
@@ -56,7 +56,7 @@ Component kolaIcon(
 /// an override for the one place it sits on an accent-filled surface
 /// and has to invert.
 Component kolaMark({double size = 20, String fill = 'var(--kola-accent)'}) {
-  return raw(
+  return RawText(
     '<svg width="$size" height="$size" viewBox="0 0 26 26" fill="none" '
     'aria-hidden="true" focusable="false">'
     '<path d="M13 2C13 2 6 8.5 6 15.5C6 20 9 24 13 24C17 24 20 20 20 15.5C20 8.5 13 2 13 2Z" '

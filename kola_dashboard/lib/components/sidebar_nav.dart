@@ -99,7 +99,7 @@ class SidebarNav extends StatelessComponent {
         div(
           attributes: {'style': 'display:flex;align-items:center;gap:9px;padding:6px 8px 22px'},
           [
-            raw(_kolaDropSvg),
+            RawText(_kolaDropSvg),
             span(
               attributes: {
                 'style': 'font-family:${KolaDashboardFonts.display};font-size:19px;font-weight:700',

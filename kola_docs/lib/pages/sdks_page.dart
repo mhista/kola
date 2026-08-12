@@ -13,7 +13,7 @@ class SdksPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('SDKs'),
       docLede(
         'One real client library today: kola_client, generated directly from kola_server\'s '

@@ -1,3 +1,7 @@
+// ignore_for_file: avoid_print
+// ^ One-off CLI script: stdout IS the output. avoid_print stays ON for
+//   lib/ — this is a targeted ignore rather than an analyzer exclude, so
+//   real errors in this file are still reported.
 // tool/test_builtin_errand.dart
 //
 // One-off script exercising Phase 3b's "built-in Errand type working
@@ -79,7 +83,7 @@ Future<void> main(List<String> args) async {
   try {
     final result = await executor.execute(errand: errand, input: {'reason': reason});
     print('✅ Execution succeeded and was logged:');
-    print('   ${result}');
+    print('   $result');
     print('');
     print('Check errand_execution_logs (workspace_id=${workspace.id}, '
         'errand_id=${errand.id}) in Supabase to see the logged row.');

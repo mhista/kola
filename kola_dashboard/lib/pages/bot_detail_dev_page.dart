@@ -235,7 +235,7 @@ class _BotDetailDevPageState extends State<BotDetailDevPage> {
       KnowledgeDocSummary(
         icon: '📝',
         name: 'Knowledge seed text',
-        status: hasSeed ? 'Set — ${seed!.trim().length} chars' : 'Not set yet',
+        status: hasSeed ? 'Set — ${seed.trim().length} chars' : 'Not set yet',
       ),
     ];
   }

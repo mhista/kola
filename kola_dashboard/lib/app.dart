@@ -78,6 +78,14 @@ class _DashboardAppState extends State<DashboardApp> {
   List<Workspace> _workspaces = const [];
   Workspace? _selectedWorkspace;
 
+  /// True when [_loadWorkspaces] threw rather than legitimately finding
+  /// no workspaces. Both states route to /create-workspace today, so
+  /// this changes nothing the visitor sees — it exists so that "I can't
+  /// reach my workspace" is answerable without guessing.
+  ///
+  /// Same distinction, and same reason, as FeatureGate.loadFailed.
+  bool _workspaceLoadFailed = false;
+
   /// Which features this workspace can see. Loaded once per workspace,
   /// read synchronously by the shell and every page after that.
   ///
@@ -141,6 +149,7 @@ class _DashboardAppState extends State<DashboardApp> {
   /// doc comment describes, and now also correct for a returning
   /// multi-workspace user.
   Future<void> _loadWorkspaces(AuthSession session) async {
+    _workspaceLoadFailed = false;
     try {
       final workspaces = await _client.workspace.listMyWorkspaces(session.accessToken);
       _workspaces = workspaces;
@@ -171,12 +180,31 @@ class _DashboardAppState extends State<DashboardApp> {
       } else {
         _gate = FeatureGate.empty();
       }
-    } catch (_) {
-      // A failed fetch and a genuinely zero-workspace account look the
-      // same from here — both send the visitor to /create-workspace.
-      // Not distinguishing them yet is a real gap, not an oversight;
-      // flagged rather than silently "fixed" with a guess at the right
-      // error UI.
+    } catch (e, stack) {
+      // A failed fetch and a genuinely zero-workspace account still look
+      // the same to the ROUTER — both send the visitor to
+      // /create-workspace, and picking the right error UI is still an
+      // open design question.
+      //
+      // But they must not look the same to whoever is debugging. This
+      // used to be `catch (_)` with the error dropped entirely, and the
+      // cost was immediate: "I can't reach my workspace any more" became
+      // undiagnosable from the outside, because the one piece of
+      // evidence — what actually threw — was discarded before anyone
+      // could read it. The symptom is identical whether the cause is an
+      // expired token, an HTTP 500, a serialisation mismatch between a
+      // regenerated client and an older deployed server (BUILD_AUDIT_5
+      // §2.2), or an account that genuinely has no workspace yet.
+      //
+      // FeatureGate already draws exactly this distinction with its
+      // `loadFailed` flag, and for exactly this reason. This is the same
+      // lesson applied one layer up.
+      // ignore: avoid_print
+      print('kola: workspace load FAILED — $e');
+      // ignore: avoid_print
+      print('kola: $stack');
+      _workspaceLoadFailed = true;
+
       _workspaces = const [];
       _selectedWorkspace = null;
       // Reset with the rest. A gate left over from a previous workspace
@@ -446,12 +474,22 @@ class _DashboardAppState extends State<DashboardApp> {
         ),
         Route(
           path: '/billing',
-          builder: (context, state) => BillingPage(
-            client: _client,
-            accessToken: _session!.accessToken,
-            workspaceId: _selectedWorkspace!.id!,
-            workspaces: _workspaces,
-            userEmail: _session!.email,
+          // Rebuilt on the new design system — wears AppShell.
+          //
+          // `workspaces` is no longer passed: the cross-workspace
+          // billing list was a workaround for having no workspace
+          // switcher. The shell's profile menu owns that now, so this
+          // page shows the SELECTED workspace only — which is the one
+          // whose money it is talking about.
+          builder: (context, state) => shellFor(
+            state,
+            BillingPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              userEmail: _session!.email,
+              gate: _gate,
+            ),
           ),
         ),
         Route(

@@ -1,3 +1,7 @@
+// ignore_for_file: avoid_print
+// ^ This file IS the logging framework. avoid_print exists to push callers
+//   here; the lint firing on the destination is definitionally a false
+//   positive.
 // kola_logger.dart
 //
 // Dual-destination logger for the Kola server: every call goes to both

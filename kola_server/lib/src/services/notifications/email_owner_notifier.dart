@@ -20,7 +20,7 @@ import 'package:mailer/mailer.dart' as mailer_lib;
 import 'package:mailer/smtp_server.dart';
 import 'package:kola_server/kola_logger.dart';
 import 'package:kola_server/src/config/env.dart';
-import 'package:kola_server/src/generated/protocol.dart' hide Message, Address;
+import 'package:kola_server/src/generated/protocol.dart' hide Message;
 import 'owner_notifier.dart';
 
 class EmailOwnerNotifier implements OwnerNotifier {

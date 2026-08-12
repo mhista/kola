@@ -15,7 +15,6 @@
 // a single "preferred channel" field).
 
 import 'package:kola_server/kola_logger.dart';
-import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/repository/owner_notification_settings_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'notification_rate_limiter.dart';

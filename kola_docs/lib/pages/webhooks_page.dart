@@ -14,7 +14,7 @@ class WebhooksPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Webhooks'),
       docLede(
         "Two directions: things that call Kola (WhatsApp, Telegram, the payment gateways), and "

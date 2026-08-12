@@ -28,7 +28,7 @@ class FeatureAvailabilityPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Why some features appear later'),
       docLede(
         'Kola is built in full and released in waves. A capability can be finished, running on '

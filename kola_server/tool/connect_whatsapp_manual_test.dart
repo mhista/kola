@@ -1,3 +1,7 @@
+// ignore_for_file: avoid_print
+// ^ One-off CLI script: stdout IS the output. avoid_print stays ON for
+//   lib/ — this is a targeted ignore rather than an analyzer exclude, so
+//   real errors in this file are still reported.
 // tool/connect_whatsapp_manual_test.dart
 //
 // One-off script to connect a real WhatsApp number the same way

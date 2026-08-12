@@ -22,7 +22,6 @@
 // customer inspecting network traffic should not be able to read it.
 
 import 'package:serverpod/serverpod.dart';
-import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/auth/workspace_access.dart';
 import 'package:kola_server/src/services/features/feature_flag_service.dart';

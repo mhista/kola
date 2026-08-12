@@ -18,7 +18,7 @@ class ConnectWhatsAppPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Connect your WhatsApp'),
       docLede(
         'Five values, one Meta App, about 20 minutes the first time. This is the manual path — '

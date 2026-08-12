@@ -1,0 +1,83 @@
+##
+## workspace_connector.spy.yaml — Layer 3. Per-workspace connector STATE.
+##
+## Schema: migration 025. Read that file's header first — it explains why
+## there are three connector stores rather than one, and why `available`
+## and `soon` are deliberately not storable here.
+##
+## WHICH connectors exist is NOT here and not in the table. That is
+## product definition and lives in connector_catalog.dart: adding a
+## connector is a deploy, not an INSERT. This row only records what a
+## given workspace has done about one.
+##
+## This table is the "everything else" store. WhatsApp and Telegram keep
+## their credentials in `channels`; Paystack, Flutterwave and Stripe in
+## `payment_gateway_credentials`. Both predate this layer and both carry
+## real domain behaviour — bot registries that bootstrap from rows at
+## startup, probe-before-persist on connect — that a generic row cannot
+## express. ConnectorService merges all three.
+##
+
+class: WorkspaceConnector
+# table: workspace_connectors
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id, ON DELETE CASCADE.
+  workspaceId: int
+
+  # Matches ConnectorDefinition.key in connector_catalog.dart, e.g.
+  # 'google_drive'. UNIQUE per workspace — connecting twice is a
+  # rotation, not a second connection.
+  #
+  # Never renamed once shipped: an unknown key is REPORTED rather than
+  # thrown on (ConnectorCatalog.byKey returns null deliberately), so a
+  # rename would orphan live connections silently rather than loudly.
+  connectorKey: String
+
+  # Stored lifecycle: 'connected' | 'error' | 'disconnected'.
+  #
+  # NOT the design's four states. `available` and `soon` are computed —
+  # `available` is the ABSENCE of a row, `soon` is the feature flag being
+  # off — so neither can be written here. See connector_catalog.dart.
+  #
+  # 'disconnected' is distinct from having no row at all: an owner who
+  # disconnected Dropbox but whose credentials we still hold pending
+  # cleanup is not the same as one who never connected it.
+  status: String
+
+  # Ciphertext ONLY, from ChannelCredentialEncryptionService (AES-256-GCM
+  # — see channel_credential_encryption_service.dart, and do NOT write a
+  # second encryption service; one already exists and is used at 24 call
+  # sites).
+  #
+  # Nothing writes this yet. The first writer will be the Google OAuth
+  # work — this is the first connector family to use the generic store.
+  #
+  # The column name is a promise. A readable token in a column called
+  # encryptedConfig is worse than one called config, because the next
+  # reader will trust the name.
+  encryptedConfig: String?
+
+  # Safe-to-show identifier for the connected account — a masked key
+  # tail, a sheet name, an account email. Read straight onto the
+  # connector card in the marketplace, so it must NEVER hold a secret.
+  displayDetail: String?
+
+  lastSyncedAt: DateTime?
+
+  # Why the last attempt failed, in the owner's language. Populated when
+  # [status] is 'error'. This is the text the design's error state shows
+  # — "Credentials expired 3 days ago — kola can no longer read this
+  # sheet" — so it is written for a shop owner, not a log reader.
+  lastError: String?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  workspace_connector_unique_idx:
+    fields: workspaceId, connectorKey
+    unique: true
+  workspace_connector_workspace_idx:
+    fields: workspaceId

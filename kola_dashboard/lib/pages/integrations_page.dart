@@ -1,47 +1,59 @@
-// integrations_page.dart — the channels customers actually message.
+// integrations_page.dart — the connector marketplace.
 //
-// REBUILT on the new design system. The previous version used
-// KolaDashboardColors throughout; nothing here does.
+// REBUILT against Kola Integrations.dc.html. The previous version of this
+// file grouped channels by bot, which is a different screen from the one
+// the design specifies — see DESIGN_DELTA.md, "Integrations — WRONG".
 //
-// ── CHANNELS BELONG TO BOTS, NOT TO THE WORKSPACE ────────────────────
+// ── WHAT THE DESIGN SPECIFIES ────────────────────────────────────────
 //
-// There is no "list every channel in this workspace" endpoint —
-// `listChannelsForBot(token, workspaceId, botId)` is bot-scoped. That is
-// not an oversight in the API; it is the real ownership model. A
-// WhatsApp number is connected to one bot, and the same number cannot
-// answer as two different bots.
+//   15 connectors, 4 categories        ← served, not hardcoded
+//   search                             ← name + description
+//   category filter with counts        ← "All (15)", "Sell (5)" …
+//   per-connector modal                ← 5 auth types
+//   4 states                           ← connected / available / soon / error
 //
-// So this page loads the bots, then fans out one channel request per
-// bot, and groups by bot. Grouping is not decoration: "connect a
-// channel" is meaningless without saying WHICH bot will answer on it,
-// and a flat list would hide exactly that.
+// ── THE LIST COMES FROM THE SERVER ───────────────────────────────────
 //
-// ── WHAT IS REAL ─────────────────────────────────────────────────────
+// ConnectorEndpoint.listConnectors returns all 15 with this workspace's
+// state already resolved. This page holds NO connector list of its own.
+// The previous one did, which meant the server and the UI could disagree
+// about what exists — and the UI always won, because it was the one
+// drawing the screen.
 //
-//   bot.listBotsForWorkspace          → the groups
-//   channel.listChannelsForBot        → what is connected
-//   channel.connectTelegramChannel    → connect, inline, one token
+// So: no catalog here, no hardcoded names, no client-side decision about
+// what is coming soon. `soon` arrives from the server, computed from the
+// capability flag.
 //
-// ── WHAT IS NOT ──────────────────────────────────────────────────────
+// ── WHY `soon` TILES APPEAR AT ALL ───────────────────────────────────
 //
-//   DISCONNECT — no endpoint exists. Not offered.
+// FeatureGate deliberately hides the unreleased roadmap — the server
+// returns only enabled keys. This screen is a narrow, deliberate
+// exception: the design shows coming-soon tiles, and a connector NAME is
+// a much smaller disclosure than a feature key and its state. Nothing
+// here reveals which flag governs what.
 //
-//   WHATSAPP — connectWhatsAppChannelManual takes FIVE credentials
-//     (access token, phone number id, WABA id, app id, app secret),
-//     each obtained from Meta's Business Manager through a multi-step
-//     process. Cramming that into five inputs with no guidance produces
-//     a form people fail at silently and blame the product for. It
-//     links to the written walkthrough instead — which is what that
-//     document exists for.
+// ── FIVE AUTH TYPES, NOT FOUR ────────────────────────────────────────
+//
+//   fields      paste credentials into a form        → connectConnector
+//   whatsapp    Meta's setup, its own copy           → same endpoint
+//   manage      configured elsewhere; link there     → manageRoute
+//   oauth       redirect to the provider             → NOT BUILT
+//   keydisplay  we show a key to paste into THEM     → NOT BUILT
+//
+// `whatsapp` is its own type in the export, branching in two places.
+// Reading that file with a field-order regex reports four types and
+// silently loses it.
+//
+// oauth and keydisplay render an honest explanation rather than a button
+// that does nothing. A connect button that fails silently is worse than
+// one that says why it cannot work yet.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
-import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
-import '../config/env.dart';
 import '../services/feature_gate.dart';
 import '../theme.dart';
 
@@ -63,20 +75,19 @@ class IntegrationsPage extends StatefulComponent {
 }
 
 class _IntegrationsPageState extends State<IntegrationsPage> {
+  List<ConnectorStatus> _connectors = const [];
   bool _loading = true;
-  String? _error;
+  String? _loadError;
 
-  List<Bot> _bots = const [];
+  String _search = '';
+  String _category = 'all';
 
-  /// botId → its channels.
-  Map<int, List<Channel>> _channels = const {};
+  /// Key of the connector whose modal is open. Null means none.
+  String? _openKey;
 
-  /// Which bot's Telegram form is open. Only ever one — two open forms
-  /// invite pasting the token into the wrong bot's box, and a token
-  /// connected to the wrong bot is silent, not an error.
-  int? _connecting;
-  String _token = '';
-  bool _saving = false;
+  final Map<String, String> _formValues = {};
+  bool _submitting = false;
+  String? _submitError;
 
   @override
   void initState() {
@@ -87,140 +98,276 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   Future<void> _load() async {
     setState(() {
       _loading = true;
-      _error = null;
+      _loadError = null;
     });
-
     try {
-      final bots = await component.client.bot.listBotsForWorkspace(
+      final list = await component.client.connector.listConnectors(
         component.accessToken,
         component.workspaceId,
       );
-
-      // One request per bot, all at once. Sequentially this is N round
-      // trips, and on a slow connection the page would fill in one bot
-      // at a time.
-      final lists = await Future.wait([
-        for (final b in bots)
-          component.client.channel.listChannelsForBot(
-            component.accessToken,
-            component.workspaceId,
-            b.id!,
-          ),
-      ]);
-
       if (!mounted) return;
       setState(() {
-        _bots = bots;
-        _channels = {
-          for (var i = 0; i < bots.length; i++)
-            if (bots[i].id != null) bots[i].id!: lists[i],
-        };
+        _connectors = list;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
+      // Named, not swallowed. An empty marketplace and a failed fetch
+      // look identical otherwise, and "my integrations disappeared" then
+      // has no answer — the mistake app.dart's workspace loader made and
+      // had to be corrected for.
       setState(() {
-        _error = e.toString();
+        _loadError = _human('$e');
         _loading = false;
       });
     }
   }
 
-  Future<void> _connectTelegram(Bot bot) async {
-    final token = _token.trim();
-    if (token.isEmpty || _saving) return;
+  // ── Derived ────────────────────────────────────────────────────────
 
+  List<ConnectorStatus> get _visible {
+    final q = _search.trim().toLowerCase();
+    return [
+      for (final c in _connectors)
+        if (_category == 'all' || c.category == _category)
+          if (q.isEmpty ||
+              c.name.toLowerCase().contains(q) ||
+              c.description.toLowerCase().contains(q))
+            c,
+    ];
+  }
+
+  ConnectorStatus? get _open {
+    final key = _openKey;
+    if (key == null) return null;
+    for (final c in _connectors) {
+      if (c.key == key) return c;
+    }
+    return null;
+  }
+
+  /// Counted over EVERYTHING, not the filtered list — a chip reading
+  /// "Sell (5)" must keep saying 5 while a search narrows the grid, or
+  /// it is reporting the search rather than the category.
+  int _countFor(String id) => id == 'all'
+      ? _connectors.length
+      : _connectors.where((c) => c.category == id).length;
+
+  // ── Actions ────────────────────────────────────────────────────────
+
+  void _openModal(ConnectorStatus c) {
     setState(() {
-      _saving = true;
-      _error = null;
+      _openKey = c.key;
+      _submitError = null;
+      _formValues
+        ..clear()
+        ..addEntries(c.fields.map((f) => MapEntry(f.key, '')));
     });
+  }
 
+  void _closeModal() {
+    setState(() {
+      _openKey = null;
+      _submitError = null;
+      _submitting = false;
+      _formValues.clear();
+    });
+  }
+
+  void _replace(ConnectorStatus updated) {
+    _connectors = [
+      for (final existing in _connectors)
+        if (existing.key == updated.key) updated else existing,
+    ];
+  }
+
+  Future<void> _submit(ConnectorStatus c) async {
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
     try {
-      await component.client.channel.connectTelegramChannel(
+      final updated = await component.client.connector.connectConnector(
         component.accessToken,
         component.workspaceId,
-        bot.id!,
-        token,
+        c.key,
+        Map<String, String>.from(_formValues),
       );
       if (!mounted) return;
       setState(() {
-        _saving = false;
-        _connecting = null;
-        _token = '';
+        _replace(updated);
+        _openKey = null;
+        _submitting = false;
+        _formValues.clear();
       });
-      await _load();
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _saving = false;
-        // Named, because the usual cause is a token pasted with the
-        // "bot" prefix or an extra space, and a generic failure gives
-        // no hint of that.
-        _error = 'Telegram would not accept that token: $e';
+        _submitting = false;
+        _submitError = _human('$e');
       });
     }
   }
+
+  Future<void> _disconnect(ConnectorStatus c) async {
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      final updated = await component.client.connector.disconnectConnector(
+        component.accessToken,
+        component.workspaceId,
+        c.key,
+      );
+      if (!mounted) return;
+      setState(() {
+        _replace(updated);
+        _openKey = null;
+        _submitting = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = _human('$e');
+      });
+    }
+  }
+
+  /// Serverpod prefixes thrown exceptions with a class name. An owner
+  /// does not need to read "Exception: " to learn their token was
+  /// rejected.
+  String _human(String raw) {
+    var s = raw;
+    for (final p in const ['Exception: ', 'ServerpodClientException: ']) {
+      if (s.startsWith(p)) s = s.substring(p.length);
+    }
+    return s;
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────
 
   @override
   Component build(BuildContext context) {
     return div(
-      attributes: {
-        'style': 'max-width:1040px;margin:0 auto;width:100%;'
-            'padding:28px 20px 40px;display:flex;flex-direction:column;gap:18px',
-      },
+      attributes: {'style': 'padding:${KolaSpace.lg};max-width:1080px'},
       [
         _header(),
-        if (_error != null) _errorBanner(),
         if (_loading)
           _skeleton()
-        else if (_bots.isEmpty)
-          _noBots()
-        else
-          for (final b in _bots) _botGroup(b),
+        else if (_loadError != null)
+          _errorState()
+        else ...[
+          _controls(),
+          if (_visible.isEmpty) _emptyState() else _grid(),
+        ],
+        if (_open != null) _modal(_open!),
       ],
     );
   }
 
-  Component _header() {
-    final total = _channels.values.fold<int>(0, (n, c) => n + c.length);
+  Component _header() => div(
+        attributes: {'style': 'margin-bottom:${KolaSpace.lg}'},
+        [
+          div(
+            attributes: {
+              'style': 'font-family:${KolaFonts.display};'
+                  'font-size:${KolaType.h2};color:${KolaVar.text};'
+                  'font-weight:700;margin-bottom:6px',
+            },
+            [Component.text('Integrations')],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.body};color:${KolaVar.muted};'
+                  'line-height:1.55;max-width:60ch',
+            },
+            [
+              Component.text(
+                'Connect the tools you already use. kola reads from them so '
+                'you do not have to enter the same thing twice.',
+              ),
+            ],
+          ),
+        ],
+      );
 
-    return div(
-      attributes: {'style': 'display:flex;flex-direction:column;gap:4px'},
-      [
-        h1(
-          attributes: {
-            'style': 'font-family:${KolaFonts.display};font-size:${KolaType.h2};'
-                'font-weight:700;color:${KolaVar.text};margin:0',
-          },
-          [Component.text('Integrations')],
-        ),
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                'line-height:1.5;max-width:560px',
-          },
-          [
-            Component.text(total == 0
-                ? 'Where customers reach you. Nothing is connected yet, so '
-                    'nothing can arrive.'
-                : total == 1
-                    ? '1 channel connected.'
-                    : '$total channels connected.'),
-          ],
-        ),
-      ],
+  Component _controls() => div(
+        attributes: {
+          'style': 'display:flex;flex-wrap:wrap;gap:${KolaSpace.smd};'
+              'align-items:center;margin-bottom:${KolaSpace.md}',
+        },
+        [
+          input(
+            type: InputType.search,
+            attributes: {
+              'aria-label': 'Search integrations',
+              'placeholder': 'Search integrations',
+              'value': _search,
+              'style': 'flex:1 1 220px;min-width:180px;padding:9px 12px;'
+                  'border-radius:${KolaRadius.md};'
+                  'border:1px solid ${KolaVar.border};'
+                  'background:${KolaVar.card};color:${KolaVar.text};'
+                  'font-family:inherit;font-size:${KolaType.body}',
+            },
+            events: {
+              'input': (e) {
+                final v = (e.target as dynamic).value as String? ?? '';
+                setState(() => _search = v);
+              },
+            },
+          ),
+          div(
+            attributes: {'style': 'display:flex;flex-wrap:wrap;gap:6px'},
+            [
+              _chip('all', 'All'),
+              _chip('sell', 'Sell'),
+              _chip('pay', 'Get paid'),
+              _chip('know', 'Know'),
+              _chip('operate', 'Operate'),
+            ],
+          ),
+        ],
+      );
+
+  Component _chip(String id, String label) {
+    final active = _category == id;
+    return button(
+      attributes: {
+        'type': 'button',
+        'aria-pressed': active ? 'true' : 'false',
+        'style': 'padding:7px 13px;border-radius:${KolaRadius.pill};'
+            'border:1px solid ${active ? KolaVar.accent : KolaVar.border};'
+            'background:${active ? KolaVar.accent : 'transparent'};'
+            'color:${active ? KolaVar.accentText : KolaVar.mutedStrong};'
+            'font-family:inherit;font-size:${KolaType.small};'
+            'font-weight:600;cursor:pointer',
+      },
+      events: {'click': (_) => setState(() => _category = id)},
+      [Component.text('$label (${_countFor(id)})')],
     );
   }
 
-  Component _botGroup(Bot bot) {
-    final channels = _channels[bot.id] ?? const <Channel>[];
-    final isOpen = _connecting == bot.id;
+  Component _grid() => div(
+        attributes: {
+          'style': 'display:grid;gap:${KolaSpace.smd};'
+              'grid-template-columns:repeat(auto-fill,minmax(280px,1fr))',
+        },
+        [for (final c in _visible) _card(c)],
+      );
 
+  Component _card(ConnectorStatus c) {
+    final soon = c.status == 'soon';
     return div(
       attributes: {
-        'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:16px;'
-            'display:flex;flex-direction:column;gap:12px',
+        // Coming-soon tiles are dimmed AND labelled. Opacity alone is not
+        // a state anyone can perceive reliably, and it disappears
+        // entirely in a printed report.
+        'style': 'border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};background:${KolaVar.card};'
+            'padding:${KolaSpace.md};display:flex;flex-direction:column;'
+            'gap:10px;opacity:${soon ? '0.62' : '1'}',
       },
       [
         div(
@@ -228,269 +375,434 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
           [
             div(
               attributes: {
-                'style': 'flex:none;color:${KolaVar.muted};display:flex',
+                'style': 'width:34px;height:34px;flex:none;'
+                    'border-radius:${KolaRadius.md};'
+                    'background:${KolaVar.tintSurface(_tintFor(c.category))};'
+                    'color:${KolaVar.tintIcon(_tintFor(c.category))};'
+                    'display:flex;align-items:center;justify-content:center',
               },
-              [kolaIcon(Icons.bot, size: 16)],
+              [kolaIcon(_iconFor(c.category), size: 17)],
             ),
             div(
               attributes: {
-                'style': 'flex:1;min-width:0;font-size:${KolaType.bodyLg};'
-                    'font-weight:600;color:${KolaVar.text};overflow:hidden;'
-                    'text-overflow:ellipsis;white-space:nowrap',
+                'style': 'flex:1;min-width:0;font-size:${KolaType.ui};'
+                    'font-weight:700;color:${KolaVar.text}',
               },
-              [Component.text(bot.name)],
+              [Component.text(c.name)],
             ),
+            _badge(c),
           ],
         ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                'line-height:1.5',
+          },
+          [Component.text(c.description)],
+        ),
+        if (c.displayDetail != null)
+          div(
+            attributes: {
+              'style': 'font-family:${KolaFonts.mono};'
+                  'font-size:${KolaType.tiny};color:${KolaVar.mutedStrong};'
+                  'word-break:break-all',
+            },
+            [Component.text(c.displayDetail!)],
+          ),
+        if (c.lastError != null)
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.tiny};color:${KolaVar.danger};'
+                  'line-height:1.45',
+            },
+            [Component.text(c.lastError!)],
+          ),
+        div(
+          attributes: {'style': 'margin-top:auto;padding-top:4px'},
+          [_cardAction(c)],
+        ),
+      ],
+    );
+  }
 
-        if (channels.isEmpty)
+  Component _cardAction(ConnectorStatus c) {
+    if (c.status == 'soon') {
+      return div(
+        attributes: {
+          'style': 'font-size:${KolaType.micro};font-weight:600;'
+              'color:${KolaVar.muted}',
+        },
+        [Component.text('Coming soon')],
+      );
+    }
+    final connected = c.status == 'connected';
+    final label = switch (c.status) {
+      'connected' => 'Manage',
+      'error' => 'Reconnect',
+      _ => 'Connect',
+    };
+    return button(
+      attributes: {
+        'type': 'button',
+        'style': 'padding:8px 14px;border-radius:${KolaRadius.md};'
+            'border:1px solid ${connected ? KolaVar.border : 'transparent'};'
+            'background:${connected ? 'transparent' : KolaVar.accentFill};'
+            'color:${connected ? KolaVar.text : KolaVar.accentText};'
+            'font-family:inherit;font-size:${KolaType.small};'
+            'font-weight:600;cursor:pointer',
+      },
+      events: {'click': (_) => _openModal(c)},
+      [Component.text(label)],
+    );
+  }
+
+  Component _badge(ConnectorStatus c) {
+    final (tone, label) = switch (c.status) {
+      'connected' => (KolaTone.positive, 'Connected'),
+      'error' => (KolaTone.negative, 'Needs attention'),
+      'available' => (KolaTone.neutral, 'Not connected'),
+      _ => (KolaTone.neutral, 'Soon'),
+    };
+    return span(
+      attributes: {'style': '${tone.badgeCss};flex:none;white-space:nowrap'},
+      [Component.text(label)],
+    );
+  }
+
+  // ── Modal ──────────────────────────────────────────────────────────
+
+  Component _modal(ConnectorStatus c) => div(
+        attributes: {
+          'role': 'dialog',
+          'aria-modal': 'true',
+          'aria-label': '${c.name} setup',
+          'style': 'position:fixed;inset:0;z-index:60;display:flex;'
+              'align-items:center;justify-content:center;'
+              'padding:${KolaSpace.md};background:rgba(0,0,0,0.55)',
+        },
+        events: {'click': (_) => _closeModal()},
+        [
+          div(
+            // Stops a click inside the form from dismissing the thing
+            // being typed into.
+            events: {'click': (e) => e.stopPropagation()},
+            attributes: {
+              'style': 'background:${KolaVar.card};'
+                  'border:1px solid ${KolaVar.border};'
+                  'border-radius:${KolaRadius.lg};padding:${KolaSpace.lg};'
+                  'width:min(520px,100%);max-height:86vh;overflow-y:auto',
+            },
+            [
+              div(
+                attributes: {
+                  'style': 'display:flex;align-items:flex-start;gap:10px;'
+                      'margin-bottom:${KolaSpace.sm}',
+                },
+                [
+                  div(attributes: {'style': 'flex:1'}, [
+                    div(
+                      attributes: {
+                        'style': 'font-family:${KolaFonts.display};'
+                            'font-size:${KolaType.title};font-weight:700;'
+                            'color:${KolaVar.text};margin-bottom:4px',
+                      },
+                      [Component.text(c.name)],
+                    ),
+                    div(
+                      attributes: {
+                        'style': 'font-size:${KolaType.small};'
+                            'color:${KolaVar.muted};line-height:1.5',
+                      },
+                      [Component.text(c.description)],
+                    ),
+                  ]),
+                  button(
+                    attributes: {
+                      'type': 'button',
+                      'aria-label': 'Close',
+                      'style': 'background:transparent;border:none;'
+                          'color:${KolaVar.muted};cursor:pointer;'
+                          'font-size:22px;line-height:1;padding:0 4px',
+                    },
+                    events: {'click': (_) => _closeModal()},
+                    [Component.text('×')],
+                  ),
+                ],
+              ),
+              ..._modalBody(c),
+            ],
+          ),
+        ],
+      );
+
+  List<Component> _modalBody(ConnectorStatus c) => switch (c.authType) {
+        'fields' || 'whatsapp' => _formBody(c),
+        'manage' => _manageBody(c),
+        'oauth' => _notYet(
+            'Connecting ${c.name} works by signing in with ${c.name}. That '
+            'sign-in flow is not built yet.',
+          ),
+        'keydisplay' => _notYet(
+            'This works by giving you a kola API key to paste into '
+            '${c.name}. The public API that key would open does not exist '
+            'yet, so kola will not hand out one that cannot work.',
+          ),
+        _ => _notYet('This connector cannot be set up here yet.'),
+      };
+
+  List<Component> _formBody(ConnectorStatus c) => [
+        if (c.authType == 'whatsapp')
+          _note('WhatsApp needs five values from your Meta app. The last '
+              'one — the verify token — is any phrase you choose; you '
+              'paste the same phrase into Meta.'),
+        if (c.helpText.isNotEmpty) _note(c.helpText),
+        for (final f in c.fields) _field(f),
+        if (_submitError != null)
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.danger};'
+                  'line-height:1.5;margin-top:10px',
+            },
+            [Component.text(_submitError!)],
+          ),
+        div(
+          attributes: {
+            'style': 'display:flex;gap:8px;margin-top:${KolaSpace.md}',
+          },
+          [
+            button(
+              attributes: {
+                'type': 'button',
+                if (_submitting) 'disabled': 'disabled',
+                'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                    'border:none;background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};font-family:inherit;'
+                    'font-size:${KolaType.body};font-weight:600;'
+                    'cursor:${_submitting ? 'default' : 'pointer'};'
+                    'opacity:${_submitting ? '0.65' : '1'}',
+              },
+              events: {
+                'click': (_) {
+                  if (!_submitting) _submit(c);
+                },
+              },
+              [Component.text(_submitting ? 'Connecting…' : 'Connect')],
+            ),
+            if (c.status == 'connected' || c.status == 'error')
+              button(
+                attributes: {
+                  'type': 'button',
+                  if (_submitting) 'disabled': 'disabled',
+                  'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                      'border:1px solid ${KolaVar.border};'
+                      'background:transparent;color:${KolaVar.danger};'
+                      'font-family:inherit;font-size:${KolaType.body};'
+                      'font-weight:600;cursor:pointer',
+                },
+                events: {
+                  'click': (_) {
+                    if (!_submitting) _disconnect(c);
+                  },
+                },
+                [Component.text('Disconnect')],
+              ),
+          ],
+        ),
+      ];
+
+  List<Component> _manageBody(ConnectorStatus c) => [
+        _note('${c.name} is set up in your billing settings, so kola keeps '
+            'one copy of those details rather than two that can disagree.'),
+        if (c.displayDetail != null)
+          div(
+            attributes: {
+              'style': 'font-family:${KolaFonts.mono};'
+                  'font-size:${KolaType.small};color:${KolaVar.mutedStrong};'
+                  'margin-bottom:${KolaSpace.sm};word-break:break-all',
+            },
+            [Component.text(c.displayDetail!)],
+          ),
+        a(
+          href: c.manageRoute ?? '/billing',
+          attributes: {
+            'style': 'display:inline-block;padding:10px 16px;'
+                'border-radius:${KolaRadius.md};'
+                'background:${KolaVar.accentFill};'
+                'color:${KolaVar.accentText};font-size:${KolaType.body};'
+                'font-weight:600;text-decoration:none',
+          },
+          [Component.text('Open settings')],
+        ),
+      ];
+
+  List<Component> _notYet(String explanation) => [
+        _note(explanation),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                'line-height:1.55',
+          },
+          [
+            Component.text('Nothing is broken — this part simply is not '
+                'finished. It will appear here when it is.'),
+          ],
+        ),
+      ];
+
+  Component _note(String message) => div(
+        attributes: {
+          'style': 'background:${KolaVar.pill};'
+              'border-radius:${KolaRadius.md};padding:10px 12px;'
+              'font-size:${KolaType.small};color:${KolaVar.mutedStrong};'
+              'line-height:1.55;margin-bottom:${KolaSpace.sm}',
+        },
+        [Component.text(message)],
+      );
+
+  Component _field(ConnectorFieldSpec f) => label(
+        attributes: {'style': 'display:block;margin-bottom:10px'},
+        [
+          span(
+            attributes: {
+              'style': 'display:block;font-size:${KolaType.small};'
+                  'font-weight:600;color:${KolaVar.mutedStrong};'
+                  'margin-bottom:4px',
+            },
+            [Component.text(f.label)],
+          ),
+          input(
+            type: f.secret ? InputType.password : InputType.text,
+            attributes: {
+              'placeholder': f.placeholder,
+              'autocomplete': 'off',
+              'value': _formValues[f.key] ?? '',
+              'style': 'width:100%;box-sizing:border-box;padding:9px 12px;'
+                  'border-radius:${KolaRadius.md};'
+                  'border:1px solid ${KolaVar.border};'
+                  'background:${KolaVar.bg};color:${KolaVar.text};'
+                  'font-family:${f.secret ? KolaFonts.mono : 'inherit'};'
+                  'font-size:${KolaType.body}',
+            },
+            events: {
+              // Deliberately NOT setState: rebuilding on every keystroke
+              // would reset the caret in every other field on the form.
+              // The map is read on submit.
+              'input': (e) {
+                _formValues[f.key] = (e.target as dynamic).value as String? ?? '';
+              },
+            },
+          ),
+        ],
+      );
+
+  // ── States ─────────────────────────────────────────────────────────
+
+  Component _skeleton() => div(
+        attributes: {
+          'style': 'display:grid;gap:${KolaSpace.smd};'
+              'grid-template-columns:repeat(auto-fill,minmax(280px,1fr))',
+        },
+        [
+          for (var i = 0; i < 6; i++)
+            div(
+              attributes: {
+                'style': 'height:150px;border-radius:${KolaRadius.lg};'
+                    'border:1px solid ${KolaVar.border};'
+                    'background:${KolaVar.card}',
+              },
+              const [],
+            ),
+        ],
+      );
+
+  Component _errorState() => div(
+        attributes: {
+          'style': 'border:1px solid ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};background:${KolaVar.card};'
+              'padding:${KolaSpace.lg}',
+        },
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.ui};font-weight:700;'
+                  'color:${KolaVar.text};margin-bottom:6px',
+            },
+            [Component.text('Could not load your integrations')],
+          ),
           div(
             attributes: {
               'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                  'line-height:1.5',
+                  'line-height:1.55;margin-bottom:12px',
             },
             [
-              Component.text(
-                'No channel connected. This bot cannot be reached by anyone '
-                'yet.',
-              ),
+              Component.text('This is a connection problem, not a sign that '
+                  'anything was disconnected. Your existing integrations are '
+                  'untouched.'),
             ],
-          )
-        else
-          for (final c in channels) _channelRow(c),
-
-        _connectRow(bot, isOpen),
-        if (isOpen) _telegramForm(bot),
-      ],
-    );
-  }
-
-  Component _channelRow(Channel c) {
-    final live = c.status == 'active';
-
-    return div(
-      attributes: {
-        'style': 'display:flex;align-items:center;gap:10px;'
-            'padding:10px 12px;background:${KolaVar.bg};'
-            'border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.md};flex-wrap:wrap',
-      },
-      [
-        div(
-          attributes: {
-            'style': 'color:${KolaVar.accent};display:flex;flex:none',
-          },
-          [kolaIcon(_platformIcon(c.platformType), size: 15)],
-        ),
-        div(
-          attributes: {'style': 'flex:1;min-width:0'},
-          [
-            div(
-              attributes: {
-                'style': 'font-size:${KolaType.body};font-weight:600;'
-                    'color:${KolaVar.text}',
-              },
-              [Component.text(_platformLabel(c.platformType))],
-            ),
-            if (c.displayName != null && c.displayName!.isNotEmpty)
-              div(
-                attributes: {
-                  'style': 'font-size:${KolaType.micro};color:${KolaVar.muted};'
-                      'overflow:hidden;text-overflow:ellipsis;'
-                      'white-space:nowrap',
-                },
-                [Component.text(c.displayName!)],
-              ),
-          ],
-        ),
-        span(
-          attributes: {
-            'style': (live ? KolaTone.positive : KolaTone.caution).badgeCss,
-          },
-          [Component.text(live ? 'Live' : c.status)],
-        ),
-      ],
-    );
-  }
-
-  Component _connectRow(Bot bot, bool isOpen) => div(
-        attributes: {
-          'style': 'display:flex;gap:8px;flex-wrap:wrap;align-items:center',
-        },
-        [
+          ),
+          div(
+            attributes: {
+              'style': 'font-family:${KolaFonts.mono};'
+                  'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                  'margin-bottom:12px;word-break:break-word',
+            },
+            [Component.text(_loadError ?? '')],
+          ),
           button(
             attributes: {
-              'class': 'kola-pressable',
               'type': 'button',
-              'style': 'background:transparent;'
-                  'border:1px solid ${KolaVar.border};color:${KolaVar.text};'
-                  'border-radius:${KolaRadius.pill};padding:8px 16px;'
-                  'font-size:${KolaType.micro};font-weight:600;'
-                  'font-family:inherit',
+              'style': 'padding:9px 15px;border-radius:${KolaRadius.md};'
+                  'border:none;background:${KolaVar.accentFill};'
+                  'color:${KolaVar.accentText};font-family:inherit;'
+                  'font-size:${KolaType.body};font-weight:600;cursor:pointer',
             },
-            events: {
-              'click': (_) => setState(() {
-                    _connecting = isOpen ? null : bot.id;
-                    _token = '';
-                  }),
-            },
-            [Component.text(isOpen ? 'Cancel' : 'Connect Telegram')],
-          ),
-
-          // WhatsApp needs five credentials from Meta's Business
-          // Manager. A five-input form with no guidance is a form people
-          // fail at silently — the walkthrough is the honest route.
-          a(
-            attributes: {
-              'class': 'kola-pressable',
-              'style': 'border:1px solid ${KolaVar.border};'
-                  'color:${KolaVar.muted};border-radius:${KolaRadius.pill};'
-                  'padding:8px 16px;font-size:${KolaType.micro};'
-                  'font-weight:600;text-decoration:none',
-              'target': '_blank',
-              'rel': 'noopener noreferrer',
-            },
-            [Component.text('Connect WhatsApp →')],
-            href: '${Env.kolaDocsUrl}/whatsapp-setup',
+            events: {'click': (_) => _load()},
+            [Component.text('Try again')],
           ),
         ],
       );
 
-  Component _telegramForm(Bot bot) => div(
-        attributes: {
-          'style': 'background:${KolaVar.bg};border:1px solid ${KolaVar.border};'
-              'border-radius:${KolaRadius.md};padding:14px;'
-              'display:flex;flex-direction:column;gap:10px',
-        },
-        [
-          div(
-            attributes: {
-              'style': 'font-size:${KolaType.micro};color:${KolaVar.muted};'
-                  'line-height:1.5',
-            },
-            [
-              Component.text(
-                'Message @BotFather on Telegram, send /newbot, and paste the '
-                'token it gives you. It looks like 123456789:AA…',
-              ),
-            ],
-          ),
-          input(
-            type: InputType.text,
-            attributes: {
-              'aria-label': 'Telegram bot token',
-              'placeholder': '123456789:AAExample-Token',
-              'autocomplete': 'off',
-              'spellcheck': 'false',
-              'style': 'width:100%;box-sizing:border-box;'
-                  'background:${KolaVar.card};'
-                  'border:1px solid ${KolaVar.border};'
-                  'border-radius:${KolaRadius.sm};padding:10px 12px;'
-                  'color:${KolaVar.text};font-family:${KolaFonts.mono};'
-                  'font-size:${KolaType.small};outline:none',
-            },
-            events: {
-              'input': (e) => _token = (e.target as dynamic).value as String? ?? '',
-              'keydown': (e) {
-                if ((e as dynamic).key == 'Enter') _connectTelegram(bot);
-              },
-            },
-          ),
-          div(
-            attributes: {'style': 'display:flex;gap:8px'},
-            [
-              button(
-                attributes: {
-                  'class': 'kola-pressable',
-                  'type': 'button',
-                  'style': 'background:${KolaVar.accentFill};'
-                      'color:${KolaVar.accentText};border:none;'
-                      'border-radius:${KolaRadius.pill};padding:8px 18px;'
-                      'font-size:${KolaType.micro};font-weight:600;'
-                      'font-family:inherit;${_saving ? 'opacity:0.6' : ''}',
-                },
-                events: {'click': (_) => _connectTelegram(bot)},
-                [Component.text(_saving ? 'Connecting…' : 'Connect')],
-              ),
-            ],
-          ),
-        ],
-      );
-
-  Component _noBots() => div(
+  Component _emptyState() => div(
         attributes: {
           'style': 'border:1px dashed ${KolaVar.border};'
-              'border-radius:${KolaRadius.xl};padding:32px 24px;'
+              'border-radius:${KolaRadius.lg};padding:${KolaSpace.lg};'
               'text-align:center',
         },
         [
           div(
             attributes: {
-              'style': 'font-size:${KolaType.lead};font-weight:600;'
-                  'color:${KolaVar.text};margin-bottom:6px',
+              'style': 'font-size:${KolaType.ui};font-weight:700;'
+                  'color:${KolaVar.text};margin-bottom:4px',
             },
-            [Component.text('Create an agent first')],
+            [Component.text('Nothing matches that')],
           ),
           div(
             attributes: {
-              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                  'line-height:1.6;max-width:400px;margin:0 auto 16px',
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted}',
             },
             [
-              // Explains the dependency rather than just blocking. A
-              // channel connects TO something, and without a bot there
-              // is nothing on the other end of the number.
-              Component.text(
-                'A channel connects a phone number or Telegram account to an '
-                'agent. Without an agent there is nothing to answer on it.',
-              ),
+              Component.text('Try a different word, or clear the category '
+                  'filter.'),
             ],
           ),
-          Link(
-            to: '/bots/new',
-            attributes: {
-              'class': 'kola-pressable',
-              'style': 'display:inline-block;background:${KolaVar.accentFill};'
-                  'color:${KolaVar.accentText};'
-                  'border-radius:${KolaRadius.pill};padding:9px 20px;'
-                  'font-size:${KolaType.small};font-weight:600;'
-                  'text-decoration:none',
-            },
-            children: [Component.text('Create an agent')],
-          ),
         ],
       );
 
-  Component _skeleton() => div(
-        attributes: {'style': 'display:flex;flex-direction:column;gap:14px'},
-        [
-          for (var i = 0; i < 2; i++)
-            div(
-              classes: 'kola-skel',
-              attributes: {'style': 'height:120px;border-radius:${KolaRadius.lg}'},
-              [],
-            ),
-        ],
-      );
+  // ── Helpers ────────────────────────────────────────────────────────
 
-  Component _errorBanner() => div(
-        attributes: {
-          'role': 'alert',
-          'style': 'padding:10px 14px;background:${KolaVar.dangerBg};'
-              'color:${KolaVar.danger};border:1px solid ${KolaVar.danger};'
-              'border-radius:${KolaRadius.md};font-size:${KolaType.small}',
-        },
-        [Component.text(_error!)],
-      );
-
-  static String _platformLabel(String p) => switch (p) {
-        'whatsapp' => 'WhatsApp',
-        'telegram' => 'Telegram',
-        _ => p,
+  /// Fixed category → tint mapping rather than index-modulo, so a
+  /// category keeps its colour when another is added.
+  int _tintFor(String category) => switch (category) {
+        'pay' => 0,
+        'sell' => 1,
+        'know' => 2,
+        _ => 3,
       };
 
-  static String _platformIcon(String p) => switch (p) {
-        'whatsapp' => Icons.whatsapp,
-        _ => Icons.plug,
+  String _iconFor(String category) => switch (category) {
+        'sell' => Icons.catalog,
+        'pay' => Icons.billing,
+        'know' => Icons.book,
+        _ => Icons.workflow,
       };
 }

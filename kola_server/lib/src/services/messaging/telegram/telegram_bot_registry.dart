@@ -27,7 +27,6 @@
 // exact same canned reply until Phase 3 wires a real handler in.
 
 import 'dart:async';
-import 'dart:convert';
 import 'package:serverpod/serverpod.dart' hide Message, Logger;
 import 'package:televerse/telegram.dart' show Update;
 // REQUIRED for ctx.reply()/etc. below — found via a real `dart analyze` run

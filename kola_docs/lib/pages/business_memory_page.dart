@@ -27,7 +27,7 @@ class BusinessMemoryPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Business memory'),
       docLede(
         'What your bots know, where it came from, and how to check what they would actually say. '

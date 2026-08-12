@@ -14,23 +14,24 @@ import 'package:serverpod_client/serverpod_client.dart' as _i1;
 import 'dart:async' as _i2;
 import 'package:kola_client/src/protocol/bot.dart' as _i3;
 import 'package:kola_client/src/protocol/channel.dart' as _i4;
-import 'package:kola_client/src/protocol/conversation.dart' as _i5;
-import 'package:kola_client/src/protocol/message.dart' as _i6;
-import 'package:kola_client/src/protocol/errand.dart' as _i7;
-import 'package:kola_client/src/protocol/knowledge_document.dart' as _i8;
-import 'package:kola_client/src/protocol/knowledge_search_hit.dart' as _i9;
+import 'package:kola_client/src/protocol/connector_status.dart' as _i5;
+import 'package:kola_client/src/protocol/conversation.dart' as _i6;
+import 'package:kola_client/src/protocol/message.dart' as _i7;
+import 'package:kola_client/src/protocol/errand.dart' as _i8;
+import 'package:kola_client/src/protocol/knowledge_document.dart' as _i9;
+import 'package:kola_client/src/protocol/knowledge_search_hit.dart' as _i10;
 import 'package:kola_client/src/protocol/owner_notification_settings.dart'
-    as _i10;
-import 'package:kola_client/src/protocol/payment_gateway_credential.dart'
     as _i11;
-import 'package:kola_client/src/protocol/payment_transaction.dart' as _i12;
-import 'package:kola_client/src/protocol/support_ticket.dart' as _i13;
-import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i14;
+import 'package:kola_client/src/protocol/payment_gateway_credential.dart'
+    as _i12;
+import 'package:kola_client/src/protocol/payment_transaction.dart' as _i13;
+import 'package:kola_client/src/protocol/support_ticket.dart' as _i14;
+import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i15;
 import 'package:kola_client/src/protocol/whatsapp_message_template.dart'
-    as _i15;
-import 'package:kola_client/src/protocol/workspace.dart' as _i16;
-import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i17;
-import 'protocol.dart' as _i18;
+    as _i16;
+import 'package:kola_client/src/protocol/workspace.dart' as _i17;
+import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i18;
+import 'protocol.dart' as _i19;
 
 /// {@category Endpoint}
 class EndpointBot extends _i1.EndpointRef {
@@ -315,6 +316,77 @@ class EndpointChannel extends _i1.EndpointRef {
 }
 
 /// {@category Endpoint}
+class EndpointConnector extends _i1.EndpointRef {
+  EndpointConnector(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'connector';
+
+  /// Every connector in the catalog with this workspace's state resolved
+  /// onto it — all 15, always. A connector the workspace cannot use yet
+  /// comes back as `soon` rather than being omitted, because the
+  /// marketplace draws it either way.
+  ///
+  /// Unlike FeatureEndpoint.listEnabledFeatures, this DOES disclose the
+  /// existence of unreleased capabilities — that is the design's
+  /// coming-soon tile, and it is a deliberate exception to the
+  /// absence-not-false rule rather than an oversight. The exception is
+  /// narrow: connector names only. No flag key, no state, nothing about
+  /// the rest of the roadmap.
+  _i2.Future<List<_i5.ConnectorStatus>> listConnectors(
+    String accessToken,
+    int workspaceId,
+  ) => caller.callServerEndpoint<List<_i5.ConnectorStatus>>(
+    'connector',
+    'listConnectors',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+    },
+  );
+
+  /// Connects a generic-store connector by storing the values from its
+  /// catalog-defined form.
+  ///
+  /// [values] is keyed by ConnectorField.key. Anything not declared on
+  /// the connector's own definition is DROPPED rather than stored —
+  /// a caller cannot invent fields, so the encrypted blob's shape stays
+  /// the one the catalog describes.
+  _i2.Future<_i5.ConnectorStatus> connectConnector(
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+    Map<String, String> values,
+  ) => caller.callServerEndpoint<_i5.ConnectorStatus>(
+    'connector',
+    'connectConnector',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+      'values': values,
+    },
+  );
+
+  /// Disconnects, clearing the stored credential but keeping the row —
+  /// 'disconnected' and "never connected" are different states, and the
+  /// row is the only record that this business ever had it working.
+  _i2.Future<_i5.ConnectorStatus> disconnectConnector(
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+  ) => caller.callServerEndpoint<_i5.ConnectorStatus>(
+    'connector',
+    'disconnectConnector',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+    },
+  );
+}
+
+/// {@category Endpoint}
 class EndpointConversation extends _i1.EndpointRef {
   EndpointConversation(_i1.EndpointCaller caller) : super(caller);
 
@@ -323,10 +395,10 @@ class EndpointConversation extends _i1.EndpointRef {
 
   /// Every escalated conversation for a workspace, most recently active
   /// first — the inbox's main queue.
-  _i2.Future<List<_i5.Conversation>> listEscalated(
+  _i2.Future<List<_i6.Conversation>> listEscalated(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i5.Conversation>>(
+  ) => caller.callServerEndpoint<List<_i6.Conversation>>(
     'conversation',
     'listEscalated',
     {
@@ -337,10 +409,10 @@ class EndpointConversation extends _i1.EndpointRef {
 
   /// Every conversation for a workspace regardless of status — for a
   /// future "all conversations" view beyond just the escalated queue.
-  _i2.Future<List<_i5.Conversation>> listAll(
+  _i2.Future<List<_i6.Conversation>> listAll(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i5.Conversation>>(
+  ) => caller.callServerEndpoint<List<_i6.Conversation>>(
     'conversation',
     'listAll',
     {
@@ -350,11 +422,11 @@ class EndpointConversation extends _i1.EndpointRef {
   );
 
   /// The full message thread for one conversation, oldest first.
-  _i2.Future<List<_i6.Message>> getMessages(
+  _i2.Future<List<_i7.Message>> getMessages(
     String accessToken,
     int workspaceId,
     int conversationId,
-  ) => caller.callServerEndpoint<List<_i6.Message>>(
+  ) => caller.callServerEndpoint<List<_i7.Message>>(
     'conversation',
     'getMessages',
     {
@@ -372,12 +444,12 @@ class EndpointConversation extends _i1.EndpointRef {
   /// stays 'escalated' until the human explicitly closes it (see
   /// [closeConversation]), since one reply doesn't necessarily resolve
   /// things.
-  _i2.Future<_i6.Message> sendHumanReply(
+  _i2.Future<_i7.Message> sendHumanReply(
     String accessToken,
     int workspaceId,
     int conversationId,
     String body,
-  ) => caller.callServerEndpoint<_i6.Message>(
+  ) => caller.callServerEndpoint<_i7.Message>(
     'conversation',
     'sendHumanReply',
     {
@@ -391,11 +463,11 @@ class EndpointConversation extends _i1.EndpointRef {
   /// Marks a conversation resolved — status flips to 'closed', so the
   /// bot resumes auto-replying if the customer messages again (see
   /// ConversationRepository.findOrCreate's reopen-on-new-message logic).
-  _i2.Future<_i5.Conversation> closeConversation(
+  _i2.Future<_i6.Conversation> closeConversation(
     String accessToken,
     int workspaceId,
     int conversationId,
-  ) => caller.callServerEndpoint<_i5.Conversation>(
+  ) => caller.callServerEndpoint<_i6.Conversation>(
     'conversation',
     'closeConversation',
     {
@@ -419,7 +491,7 @@ class EndpointErrand extends _i1.EndpointRef {
   /// 'escalateToHuman') — validated against Meta... no, against that
   /// registry directly, so a typo'd key fails here with a clear message
   /// instead of at first invocation.
-  _i2.Future<_i7.Errand> createBuiltinErrand(
+  _i2.Future<_i8.Errand> createBuiltinErrand(
     String accessToken,
     int workspaceId,
     String name,
@@ -429,7 +501,7 @@ class EndpointErrand extends _i1.EndpointRef {
     required String permissionScope,
     required String inputSchemaJson,
     required String sensitiveInputKeysJson,
-  }) => caller.callServerEndpoint<_i7.Errand>(
+  }) => caller.callServerEndpoint<_i8.Errand>(
     'errand',
     'createBuiltinErrand',
     {
@@ -446,10 +518,10 @@ class EndpointErrand extends _i1.EndpointRef {
   );
 
   /// Every Errand belonging to a workspace, regardless of status.
-  _i2.Future<List<_i7.Errand>> listErrandsForWorkspace(
+  _i2.Future<List<_i8.Errand>> listErrandsForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i7.Errand>>(
+  ) => caller.callServerEndpoint<List<_i8.Errand>>(
     'errand',
     'listErrandsForWorkspace',
     {
@@ -460,11 +532,11 @@ class EndpointErrand extends _i1.EndpointRef {
 
   /// Fetch one Errand by id — access-checked via its workspace, same
   /// posture as BotEndpoint.getBot.
-  _i2.Future<_i7.Errand> getErrand(
+  _i2.Future<_i8.Errand> getErrand(
     String accessToken,
     int workspaceId,
     int errandId,
-  ) => caller.callServerEndpoint<_i7.Errand>(
+  ) => caller.callServerEndpoint<_i8.Errand>(
     'errand',
     'getErrand',
     {
@@ -475,12 +547,12 @@ class EndpointErrand extends _i1.EndpointRef {
   );
 
   /// Toggle an Errand active/disabled without deleting its history/logs.
-  _i2.Future<_i7.Errand> setErrandStatus(
+  _i2.Future<_i8.Errand> setErrandStatus(
     String accessToken,
     int workspaceId,
     int errandId,
     String status,
-  ) => caller.callServerEndpoint<_i7.Errand>(
+  ) => caller.callServerEndpoint<_i8.Errand>(
     'errand',
     'setErrandStatus',
     {
@@ -548,7 +620,7 @@ class EndpointErrand extends _i1.EndpointRef {
   /// local dev/testing against plain http is a real, legitimate case).
   /// [authHeaderName]/[authHeaderValue] are optional and sent together
   /// or not at all — see webhook_errand_credential.dart.
-  _i2.Future<_i7.Errand> createWebhookErrand(
+  _i2.Future<_i8.Errand> createWebhookErrand(
     String accessToken,
     int workspaceId,
     String name,
@@ -560,7 +632,7 @@ class EndpointErrand extends _i1.EndpointRef {
     required String permissionScope,
     required String inputSchemaJson,
     required String sensitiveInputKeysJson,
-  }) => caller.callServerEndpoint<_i7.Errand>(
+  }) => caller.callServerEndpoint<_i8.Errand>(
     'errand',
     'createWebhookErrand',
     {
@@ -587,7 +659,7 @@ class EndpointErrand extends _i1.EndpointRef {
   /// here at registration time AND again at execution time by
   /// DbCredentialErrandExecutor (defense in depth against the template
   /// being edited later without a matching permission upgrade).
-  _i2.Future<_i7.Errand> createDbCredentialErrand(
+  _i2.Future<_i8.Errand> createDbCredentialErrand(
     String accessToken,
     int workspaceId,
     String name,
@@ -598,7 +670,7 @@ class EndpointErrand extends _i1.EndpointRef {
     required String permissionScope,
     required String inputSchemaJson,
     required String sensitiveInputKeysJson,
-  }) => caller.callServerEndpoint<_i7.Errand>(
+  }) => caller.callServerEndpoint<_i8.Errand>(
     'errand',
     'createDbCredentialErrand',
     {
@@ -692,10 +764,10 @@ class EndpointKnowledge extends _i1.EndpointRef {
   String get name => 'knowledge';
 
   /// Every document in the workspace, newest first.
-  _i2.Future<List<_i8.KnowledgeDocument>> listDocuments(
+  _i2.Future<List<_i9.KnowledgeDocument>> listDocuments(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i8.KnowledgeDocument>>(
+  ) => caller.callServerEndpoint<List<_i9.KnowledgeDocument>>(
     'knowledge',
     'listDocuments',
     {
@@ -718,13 +790,13 @@ class EndpointKnowledge extends _i1.EndpointRef {
   /// existing document, so the dashboard can offer "save it anyway"
   /// (which calls this again with [allowDuplicate] true) rather than
   /// presenting a dead end.
-  _i2.Future<_i8.KnowledgeDocument> addDocument(
+  _i2.Future<_i9.KnowledgeDocument> addDocument(
     String accessToken,
     int workspaceId,
     String title,
     String text, {
     required bool allowDuplicate,
-  }) => caller.callServerEndpoint<_i8.KnowledgeDocument>(
+  }) => caller.callServerEndpoint<_i9.KnowledgeDocument>(
     'knowledge',
     'addDocument',
     {
@@ -754,13 +826,13 @@ class EndpointKnowledge extends _i1.EndpointRef {
   );
 
   /// Replaces an existing document's content in place, keeping its id.
-  _i2.Future<_i8.KnowledgeDocument> updateDocument(
+  _i2.Future<_i9.KnowledgeDocument> updateDocument(
     String accessToken,
     int workspaceId,
     int documentId,
     String title,
     String text,
-  ) => caller.callServerEndpoint<_i8.KnowledgeDocument>(
+  ) => caller.callServerEndpoint<_i9.KnowledgeDocument>(
     'knowledge',
     'updateDocument',
     {
@@ -780,11 +852,11 @@ class EndpointKnowledge extends _i1.EndpointRef {
   /// owner can type a question a customer actually asked and see exactly
   /// which passages ground the answer, rather than having to trust the
   /// bot or argue with it.
-  _i2.Future<List<_i9.KnowledgeSearchHit>> searchMemory(
+  _i2.Future<List<_i10.KnowledgeSearchHit>> searchMemory(
     String accessToken,
     int workspaceId,
     String query,
-  ) => caller.callServerEndpoint<List<_i9.KnowledgeSearchHit>>(
+  ) => caller.callServerEndpoint<List<_i10.KnowledgeSearchHit>>(
     'knowledge',
     'searchMemory',
     {
@@ -805,10 +877,10 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
   /// Returns null if the workspace has never configured notification
   /// settings yet — callers should treat that as "every channel
   /// disabled," not an error.
-  _i2.Future<_i10.OwnerNotificationSettings?> getSettings(
+  _i2.Future<_i11.OwnerNotificationSettings?> getSettings(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<_i10.OwnerNotificationSettings?>(
+  ) => caller.callServerEndpoint<_i11.OwnerNotificationSettings?>(
     'ownerNotification',
     'getSettings',
     {
@@ -821,7 +893,7 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
   /// Any field left null/false simply disables that channel; there's no
   /// partial-update semantics here on purpose, since a settings form
   /// naturally submits the whole shape at once.
-  _i2.Future<_i10.OwnerNotificationSettings> updateSettings(
+  _i2.Future<_i11.OwnerNotificationSettings> updateSettings(
     String accessToken,
     int workspaceId, {
     String? ownerEmail,
@@ -834,7 +906,7 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
     required bool smsEnabled,
     String? slackWebhookUrl,
     required bool slackEnabled,
-  }) => caller.callServerEndpoint<_i10.OwnerNotificationSettings>(
+  }) => caller.callServerEndpoint<_i11.OwnerNotificationSettings>(
     'ownerNotification',
     'updateSettings',
     {
@@ -863,13 +935,13 @@ class EndpointPayment extends _i1.EndpointRef {
 
   /// Connects (or rotates) a workspace's OWN Paystack/Flutterwave secret
   /// key. Probes it against the real gateway before persisting anything.
-  _i2.Future<_i11.PaymentGatewayCredential> connectGateway(
+  _i2.Future<_i12.PaymentGatewayCredential> connectGateway(
     String accessToken,
     int workspaceId,
     String gateway,
     String secretKey, {
     String? webhookSecret,
-  }) => caller.callServerEndpoint<_i11.PaymentGatewayCredential>(
+  }) => caller.callServerEndpoint<_i12.PaymentGatewayCredential>(
     'payment',
     'connectGateway',
     {
@@ -884,10 +956,10 @@ class EndpointPayment extends _i1.EndpointRef {
   /// Every gateway this workspace has connected (never returns the
   /// decrypted key — this exists so a dashboard can show "Paystack:
   /// connected" without exposing the secret back to any client).
-  _i2.Future<List<_i11.PaymentGatewayCredential>> listConnectedGateways(
+  _i2.Future<List<_i12.PaymentGatewayCredential>> listConnectedGateways(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i11.PaymentGatewayCredential>>(
+  ) => caller.callServerEndpoint<List<_i12.PaymentGatewayCredential>>(
     'payment',
     'listConnectedGateways',
     {
@@ -899,7 +971,7 @@ class EndpointPayment extends _i1.EndpointRef {
   /// Starts a checkout against the workspace's OWN connected [gateway]
   /// account. See payment_checkout_service.dart for what actually
   /// happens — this method's only job is the auth check.
-  _i2.Future<_i12.PaymentTransaction> initializeCheckout(
+  _i2.Future<_i13.PaymentTransaction> initializeCheckout(
     String accessToken,
     int workspaceId,
     String gateway,
@@ -910,7 +982,7 @@ class EndpointPayment extends _i1.EndpointRef {
     int? conversationId,
     int? channelId,
     Map<String, dynamic>? metadata,
-  }) => caller.callServerEndpoint<_i12.PaymentTransaction>(
+  }) => caller.callServerEndpoint<_i13.PaymentTransaction>(
     'payment',
     'initializeCheckout',
     {
@@ -927,11 +999,11 @@ class EndpointPayment extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i12.PaymentTransaction?> getTransaction(
+  _i2.Future<_i13.PaymentTransaction?> getTransaction(
     String accessToken,
     int workspaceId,
     int transactionId,
-  ) => caller.callServerEndpoint<_i12.PaymentTransaction?>(
+  ) => caller.callServerEndpoint<_i13.PaymentTransaction?>(
     'payment',
     'getTransaction',
     {
@@ -948,11 +1020,11 @@ class EndpointPayment extends _i1.EndpointRef {
   /// know that, per this codebase's usual "never trust a caller-supplied
   /// precondition" rule (same reasoning as db_credential_errand_executor's
   /// double read-only check).
-  _i2.Future<_i12.PaymentTransaction> releaseHold(
+  _i2.Future<_i13.PaymentTransaction> releaseHold(
     String accessToken,
     int workspaceId,
     int transactionId,
-  ) => caller.callServerEndpoint<_i12.PaymentTransaction>(
+  ) => caller.callServerEndpoint<_i13.PaymentTransaction>(
     'payment',
     'releaseHold',
     {
@@ -972,11 +1044,11 @@ class EndpointSupportTicket extends _i1.EndpointRef {
 
   /// Every ticket for a workspace, newest first. [status] optionally
   /// narrows to one status (e.g. just the open queue).
-  _i2.Future<List<_i13.SupportTicket>> list(
+  _i2.Future<List<_i14.SupportTicket>> list(
     String accessToken,
     int workspaceId, {
     String? status,
-  }) => caller.callServerEndpoint<List<_i13.SupportTicket>>(
+  }) => caller.callServerEndpoint<List<_i14.SupportTicket>>(
     'supportTicket',
     'list',
     {
@@ -990,12 +1062,12 @@ class EndpointSupportTicket extends _i1.EndpointRef {
   /// 'closed'. Setting to 'resolved'/'closed' stamps resolvedAt
   /// automatically (see SupportTicketRepository.setStatus); reopening
   /// back to 'open'/'inProgress' clears it.
-  _i2.Future<_i13.SupportTicket> setStatus(
+  _i2.Future<_i14.SupportTicket> setStatus(
     String accessToken,
     int workspaceId,
     int ticketId,
     String status,
-  ) => caller.callServerEndpoint<_i13.SupportTicket>(
+  ) => caller.callServerEndpoint<_i14.SupportTicket>(
     'supportTicket',
     'setStatus',
     {
@@ -1021,13 +1093,13 @@ class EndpointWaitlist extends _i1.EndpointRef {
   /// A basic shape check on [email] happens here rather than trusting the
   /// browser's <input type="email"> alone, since this endpoint is public
   /// and reachable by anything, not just our own landing page.
-  _i2.Future<_i14.WaitlistSignup> joinWaitlist(
+  _i2.Future<_i15.WaitlistSignup> joinWaitlist(
     String email,
     String source, {
     String? name,
     String? phone,
     String? businessType,
-  }) => caller.callServerEndpoint<_i14.WaitlistSignup>(
+  }) => caller.callServerEndpoint<_i15.WaitlistSignup>(
     'waitlist',
     'joinWaitlist',
     {
@@ -1054,7 +1126,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// wrapper for the one shape the owner specifically asked for.
   /// Auth-checked here, then delegated to WhatsAppTemplateCreationService
   /// — see this file's header.
-  _i2.Future<_i15.WhatsAppMessageTemplate> createTemplate(
+  _i2.Future<_i16.WhatsAppMessageTemplate> createTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
@@ -1063,7 +1135,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
     String language,
     String bodyText,
     List<String> bodyExampleValues,
-  ) => caller.callServerEndpoint<_i15.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i16.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createTemplate',
     {
@@ -1090,14 +1162,14 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// values Meta's review requires for the two placeholders — not sent
   /// to any real customer, only shown to Meta's reviewer alongside the
   /// template.
-  _i2.Future<_i15.WhatsAppMessageTemplate> createProductListTemplate(
+  _i2.Future<_i16.WhatsAppMessageTemplate> createProductListTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
     String businessLabel,
     String customerNameExample,
     String productListExample,
-  ) => caller.callServerEndpoint<_i15.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i16.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createProductListTemplate',
     {
@@ -1112,10 +1184,10 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
 
   /// Every template submitted for this workspace, newest first — the
   /// dashboard's template status list.
-  _i2.Future<List<_i15.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
+  _i2.Future<List<_i16.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i15.WhatsAppMessageTemplate>>(
+  ) => caller.callServerEndpoint<List<_i16.WhatsAppMessageTemplate>>(
     'whatsAppTemplate',
     'listTemplatesForWorkspace',
     {
@@ -1127,11 +1199,11 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// Polls Meta for [templateId]'s current review outcome and persists
   /// any change — see whatsapp_template_service.dart's header on why
   /// this is polling, not a webhook, for now.
-  _i2.Future<_i15.WhatsAppMessageTemplate> refreshTemplateStatus(
+  _i2.Future<_i16.WhatsAppMessageTemplate> refreshTemplateStatus(
     String accessToken,
     int workspaceId,
     int templateId,
-  ) => caller.callServerEndpoint<_i15.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i16.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'refreshTemplateStatus',
     {
@@ -1156,11 +1228,11 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// Deliberately does NOT go through requireWorkspaceAccess — there's no
   /// workspace to check membership against yet. Only session verification
   /// (proving accessToken is a genuine, current Supabase session) applies.
-  _i2.Future<_i16.Workspace> createWorkspace(
+  _i2.Future<_i17.Workspace> createWorkspace(
     String accessToken,
     String name,
     String? industryTag,
-  ) => caller.callServerEndpoint<_i16.Workspace>(
+  ) => caller.callServerEndpoint<_i17.Workspace>(
     'workspace',
     'createWorkspace',
     {
@@ -1173,8 +1245,8 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// Every workspace the caller belongs to, for the dashboard's workspace
   /// switcher (relevant now for a user with zero or one workspace, and
   /// unchanged when the agency/multi-workspace tier adds more).
-  _i2.Future<List<_i16.Workspace>> listMyWorkspaces(String accessToken) =>
-      caller.callServerEndpoint<List<_i16.Workspace>>(
+  _i2.Future<List<_i17.Workspace>> listMyWorkspaces(String accessToken) =>
+      caller.callServerEndpoint<List<_i17.Workspace>>(
         'workspace',
         'listMyWorkspaces',
         {'accessToken': accessToken},
@@ -1182,10 +1254,10 @@ class EndpointWorkspace extends _i1.EndpointRef {
 
   /// Fetch one workspace by id — access-checked, so a user can never read
   /// a workspace they're not a member of by guessing an id.
-  _i2.Future<_i16.Workspace> getWorkspace(
+  _i2.Future<_i17.Workspace> getWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<_i16.Workspace>(
+  ) => caller.callServerEndpoint<_i17.Workspace>(
     'workspace',
     'getWorkspace',
     {
@@ -1238,12 +1310,12 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// workspace collecting from ITS OWN customers). [customerEmail] is
   /// the signed-in dashboard user's email — the gateway needs an email
   /// on file for the checkout page/receipt regardless of who's paying.
-  _i2.Future<_i17.KolaBillingCheckout> initiateUpgrade(
+  _i2.Future<_i18.KolaBillingCheckout> initiateUpgrade(
     String accessToken,
     int workspaceId,
     String gateway,
     String customerEmail,
-  ) => caller.callServerEndpoint<_i17.KolaBillingCheckout>(
+  ) => caller.callServerEndpoint<_i18.KolaBillingCheckout>(
     'workspace',
     'initiateUpgrade',
     {
@@ -1275,7 +1347,7 @@ class Client extends _i1.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i18.Protocol(),
+         _i19.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -1286,6 +1358,7 @@ class Client extends _i1.ServerpodClientShared {
        ) {
     bot = EndpointBot(this);
     channel = EndpointChannel(this);
+    connector = EndpointConnector(this);
     conversation = EndpointConversation(this);
     errand = EndpointErrand(this);
     feature = EndpointFeature(this);
@@ -1301,6 +1374,8 @@ class Client extends _i1.ServerpodClientShared {
   late final EndpointBot bot;
 
   late final EndpointChannel channel;
+
+  late final EndpointConnector connector;
 
   late final EndpointConversation conversation;
 
@@ -1326,6 +1401,7 @@ class Client extends _i1.ServerpodClientShared {
   Map<String, _i1.EndpointRef> get endpointRefLookup => {
     'bot': bot,
     'channel': channel,
+    'connector': connector,
     'conversation': conversation,
     'errand': errand,
     'feature': feature,

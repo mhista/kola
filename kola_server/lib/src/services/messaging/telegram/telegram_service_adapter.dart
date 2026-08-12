@@ -17,7 +17,6 @@
 // already fully generic (SRS.md §9).
 
 import 'package:televerse/telegram.dart' show Message, InlineKeyboardButton, ParseMode, ChatAction, InputPollOption;
-import 'package:televerse/televerse.dart';
 import '../messaging_result.dart';
 import '../messaging_service_interface.dart';
 import 'telegram_service.dart';

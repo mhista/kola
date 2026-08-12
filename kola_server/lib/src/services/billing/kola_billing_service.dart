@@ -22,7 +22,6 @@ import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/config/env.dart';
 import 'package:kola_server/src/services/repository/kola_billing_checkout_repository.dart';
-import 'plan_limits.dart';
 import 'paystack_service.dart';
 import 'plan_pricing.dart';
 import 'stripe_service.dart';

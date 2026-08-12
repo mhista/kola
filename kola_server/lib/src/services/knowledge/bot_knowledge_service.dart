@@ -174,7 +174,7 @@ class BotKnowledgeService {
 
     final options = [
       if (hasTelegram) 'Telegram ($telegram)',
-      if (hasAlt) altWhatsapp!,
+      if (hasAlt) altWhatsapp,
     ].join(' or ');
 
     return '\n\nIf this conversation runs long or becomes back-and-forth-heavy, '

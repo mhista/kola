@@ -16,7 +16,7 @@ class ChannelsPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Channels'),
       docLede(
         "A Channel connects one bot to one messaging platform. Two platforms today: Telegram "

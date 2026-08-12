@@ -1,9 +1,6 @@
 import 'dart:convert';
 
-import 'package:logging/logging.dart';
-import 'package:serverpod/serverpod.dart' hide Logger;
-
-final _log = Logger('DashboardApiRoute');
+import 'package:serverpod/serverpod.dart';
 
 // ── CORS headers added to every response ─────────────────────────────────────
 

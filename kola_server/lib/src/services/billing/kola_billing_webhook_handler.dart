@@ -167,13 +167,13 @@ class KolaBillingWebhookHandler {
 
     final paidAt = extractPaidAt(data);
     await _checkouts.markCompleted(
-      reference: checkout.reference as String,
+      reference: checkout.reference,
       gatewayTransactionId: extractTransactionId(data),
       paidAt: paidAt,
     );
 
-    final workspaceId = checkout.workspaceId as int;
-    final plan = checkout.plan as String;
+    final workspaceId = checkout.workspaceId;
+    final plan = checkout.plan;
 
     await _workspaces.setPlanAndStatus(workspaceId: workspaceId, plan: plan, status: 'active');
 

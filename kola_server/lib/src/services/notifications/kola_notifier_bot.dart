@@ -54,7 +54,9 @@ class KolaNotifierBot {
     final service = TelegramService(botToken: Env.kolaNotifierTelegramBotToken);
     service.bot.command('start', (ctx) {
       final chatId = ctx.chat?.id;
-      return ctx.reply(
+      // Fire-and-forget: televerse's command handler is void-returning, so
+      // this future was never awaited even when it was `return`ed.
+      ctx.reply(
         chatId == null
             ? "Sorry, I couldn't read your chat ID — please try again."
             : "👋 This is Kola's notification bot.\n\n"

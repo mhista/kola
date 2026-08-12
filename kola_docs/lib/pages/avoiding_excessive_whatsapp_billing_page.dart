@@ -33,7 +33,7 @@ class AvoidingExcessiveWhatsAppBillingPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return fragment([
+    return Component.fragment([
       docH1('Avoiding excessive WhatsApp billing'),
       docLede(
         'WhatsApp messaging through Kola is billed by Meta, not by Kola — and Meta is changing how it '

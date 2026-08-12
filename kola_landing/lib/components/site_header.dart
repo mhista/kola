@@ -66,7 +66,7 @@ class SiteHeader extends StatelessComponent {
                     'color:${KolaColors.text}',
               },
               [
-                raw(_kolaDropSvg),
+                RawText(_kolaDropSvg),
                 span(
                   attributes: {
                     'style': 'font-family:${KolaFonts.serif};font-size:22px;'

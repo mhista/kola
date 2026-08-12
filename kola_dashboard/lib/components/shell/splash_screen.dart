@@ -189,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen> {
             classes: 'kola-mark-wrap',
             attributes: {'style': 'position:relative;z-index:2'},
             [
-              raw(
+              RawText(
                 '<svg width="60" height="60" viewBox="0 0 26 26" fill="none" '
                 'aria-hidden="true">'
                 '<path class="kola-leaf-outline" d="$_leafPath" '

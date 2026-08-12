@@ -10,6 +10,10 @@ channel:
   - connectTelegramChannel:
   - listChannelsForBot:
   - connectWhatsAppChannelManual:
+connector:
+  - listConnectors:
+  - connectConnector:
+  - disconnectConnector:
 conversation:
   - listEscalated:
   - listAll:
