@@ -2377,6 +2377,37 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['productId'],
                   ),
         ),
+        'listMediaForProducts': _i1.MethodConnector(
+          name: 'listMediaForProducts',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productIds': _i1.ParameterDescription(
+              name: 'productIds',
+              type: _i1.getType<List<int>>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['product'] as _i12.ProductEndpoint)
+                  .listMediaForProducts(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productIds'],
+                  ),
+        ),
         'addProductMedia': _i1.MethodConnector(
           name: 'addProductMedia',
           params: {

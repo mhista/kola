@@ -1364,6 +1364,32 @@ class EndpointProduct extends _i1.EndpointRef {
     },
   );
 
+  /// Media for MANY products in one call.
+  ///
+  /// The catalog list shows a thumbnail per row and the design puts it
+  /// first in the row — it is how an owner recognises a product at a
+  /// glance, far faster than reading the name. Fetching per product
+  /// would be a round trip per row: forty products, forty calls, on a
+  /// connection where each costs 400ms.
+  ///
+  /// Returns a flat list; the caller groups by productId. Serverpod
+  /// cannot return Map<int, List<Model>> across the wire, and inventing
+  /// a wrapper model for a shape the client regroups in three lines
+  /// would be a .spy.yaml and a codegen run for nothing.
+  _i2.Future<List<_i19.ProductMedia>> listMediaForProducts(
+    String accessToken,
+    int workspaceId,
+    List<int> productIds,
+  ) => caller.callServerEndpoint<List<_i19.ProductMedia>>(
+    'product',
+    'listMediaForProducts',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productIds': productIds,
+    },
+  );
+
   /// Records a file the browser has already put on ImageKit.
   ///
   /// Validated even though the values came from ImageKit rather than

@@ -62,6 +62,7 @@ import 'pages/logout_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/catalog_page.dart';
 import 'pages/product_detail_page.dart';
+import 'pages/catalog_import_page.dart';
 import 'pages/errand_builder_page.dart';
 import 'pages/knowledge_page.dart';
 import 'pages/conversations_page.dart';
@@ -530,6 +531,20 @@ class _DashboardAppState extends State<DashboardApp> {
         // Same gating as /catalog — the server checks both commerce flags
         // on every read, so a locked workspace gets the honest refusal
         // rather than an empty page.
+        // BEFORE /catalog/:id — jaspr_router matches in declaration
+        // order, so a dynamic segment declared first would swallow
+        // "import" as an id and this page would never be reachable.
+        Route(
+          path: '/catalog/import',
+          builder: (context, state) => shellFor(
+            state,
+            CatalogImportPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+            ),
+          ),
+        ),
         Route(
           path: '/catalog/:id',
           // Parsed at the boundary, as /bots/:id does: a non-numeric id

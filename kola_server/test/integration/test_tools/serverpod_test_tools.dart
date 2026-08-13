@@ -2575,6 +2575,43 @@ class _ProductEndpoint {
     });
   }
 
+  _i3.Future<List<_i20.ProductMedia>> listMediaForProducts(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    List<int> productIds,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'product',
+            method: 'listMediaForProducts',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'product',
+          methodName: 'listMediaForProducts',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'productIds': productIds,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<List<_i20.ProductMedia>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
   _i3.Future<_i20.ProductMedia> addProductMedia(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,

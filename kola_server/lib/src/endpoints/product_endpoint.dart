@@ -452,6 +452,40 @@ class ProductEndpoint extends Endpoint {
     return _products.listMedia(productId);
   }
 
+  /// Media for MANY products in one call.
+  ///
+  /// The catalog list shows a thumbnail per row and the design puts it
+  /// first in the row — it is how an owner recognises a product at a
+  /// glance, far faster than reading the name. Fetching per product
+  /// would be a round trip per row: forty products, forty calls, on a
+  /// connection where each costs 400ms.
+  ///
+  /// Returns a flat list; the caller groups by productId. Serverpod
+  /// cannot return Map<int, List<Model>> across the wire, and inventing
+  /// a wrapper model for a shape the client regroups in three lines
+  /// would be a .spy.yaml and a codegen run for nothing.
+  Future<List<ProductMedia>> listMediaForProducts(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    List<int> productIds,
+  ) async {
+    await _require(accessToken, workspaceId);
+    if (productIds.isEmpty) return const [];
+
+    // Scoped by re-reading the caller's own products and intersecting.
+    // Without this, a crafted id list would return another workspace's
+    // media — the ids are supplied by the client and product_media has
+    // no workspace_id of its own to filter on.
+    final own = await _products.listByWorkspace(workspaceId, includeArchived: true);
+    final ownIds = {for (final p in own) if (p.id != null) p.id!};
+    final safe = [for (final id in productIds) if (ownIds.contains(id)) id];
+    if (safe.isEmpty) return const [];
+
+    final grouped = await _products.listMediaForProducts(safe);
+    return [for (final list in grouped.values) ...list];
+  }
+
   /// Records a file the browser has already put on ImageKit.
   ///
   /// Validated even though the values came from ImageKit rather than

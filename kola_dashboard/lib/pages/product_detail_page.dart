@@ -49,6 +49,7 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/product_editor.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/error_text.dart';
@@ -80,9 +81,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   Product? _product;
   List<ProductVariant> _variants = const [];
+  List<ProductMedia> _media = const [];
 
   /// 'seller' | 'customer'. The export's `side`.
   String _side = 'seller';
+
+  /// The shared editor, mounted over this page.
+  bool _editorOpen = false;
 
   static const _archetypeLabels = <String, String>{
     'packaged': 'Packaged goods',
@@ -131,10 +136,25 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         }
       }
 
+      // Photos. The design leads this page with them, and the page
+      // shipped without fetching them at all — a product with four
+      // images on ImageKit looked like a product with none.
+      var media = const <ProductMedia>[];
+      try {
+        media = await component.client.product.listMedia(
+          component.accessToken,
+          component.workspaceId,
+          component.productId,
+        );
+      } catch (_) {
+        // A thinner page, not a broken one.
+      }
+
       if (!mounted) return;
       setState(() {
         _product = product;
         _variants = variants;
+        _media = media;
         _phase = _Phase.ready;
       });
     } catch (e) {
@@ -202,6 +222,21 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               Component.text('Catalog'),
             ],
           ),
+          if (_editorOpen && _product != null)
+            ProductEditor(
+              client: component.client,
+              accessToken: component.accessToken,
+              workspaceId: component.workspaceId,
+              product: _product,
+              onSaved: (_) {
+                setState(() => _editorOpen = false);
+                // Re-reads rather than patching the local copy: a save
+                // can change more than was edited, and the server's
+                // version is the true one.
+                _load();
+              },
+              onClose: () => setState(() => _editorOpen = false),
+            ),
           switch (_phase) {
             _Phase.loading => _skeleton(),
             _Phase.error => _errorCard(),
@@ -269,6 +304,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     final showMargin = price != null && cost != null && price > 0;
 
     return [
+      if (_media.isNotEmpty) _gallery(),
       _titleBlock(p, status),
       div(
         attributes: {
@@ -295,20 +331,22 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       div(
         attributes: {'style': 'margin-top:18px'},
         [
-          // Editing lives in the Catalog's drawer — one editor, not two.
-          // A second copy here would be a second place for the two to
-          // disagree about what a valid product is.
-          Link(
-            to: '/catalog',
+          // Edits HERE, not "edit in catalog". Sending someone back to a
+          // list to change the thing they are already looking at is the
+          // complaint that moved the editor into its own component —
+          // this page and the catalog now mount the same one.
+          button(
             attributes: {
+              'type': 'button',
               'class': 'kola-pressable',
-              'style': 'display:inline-block;padding:11px 20px;'
-                  'border-radius:${KolaRadius.pill};'
-                  'background:${KolaVar.accentFill};'
-                  'color:${KolaVar.accentText};font-size:${KolaType.small};'
-                  'font-weight:600;text-decoration:none',
+              'style': 'padding:11px 20px;border-radius:${KolaRadius.pill};'
+                  'border:none;background:${KolaVar.accentFill};'
+                  'color:${KolaVar.accentText};font-family:inherit;'
+                  'font-size:${KolaType.small};font-weight:600;'
+                  'cursor:pointer',
             },
-            children: [Component.text('Edit in catalog')],
+            events: {'click': (_) => setState(() => _editorOpen = true)},
+            [Component.text('Edit')],
           ),
         ],
       ),
@@ -327,6 +365,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               'padding:${KolaSpace.md}',
         },
         [
+          if (_media.isNotEmpty) _gallery(),
           div(
             attributes: {
               'style': 'font-family:${KolaFonts.display};'
@@ -496,19 +535,33 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ],
       );
 
+  /// A labelled block.
+  ///
+  /// ── THE HIERARCHY WAS INVERTED ───────────────────────────────────
+  ///
+  /// The label used to be tiny/muted and the body full-brightness, so
+  /// "Category" and "Services" read as one undifferentiated pair and it
+  /// was impossible to tell which was the heading. The design does the
+  /// opposite: the LABEL is the bright, weighted thing that lets you
+  /// scan the page, and the value sits under it in a quieter tone.
+  ///
+  /// Spacing carries it too — 22px between blocks against 6px inside
+  /// one, so a label visibly belongs to the value beneath it rather
+  /// than floating between two.
   Component _section(String label, String body) => div(
-        attributes: {'style': 'margin-bottom:16px'},
+        attributes: {'style': 'margin-bottom:22px'},
         [
           div(
             attributes: {
-              'style': 'font-size:${KolaType.tiny};font-weight:700;'
-                  'color:${KolaVar.mutedStrong};margin-bottom:6px',
+              'style': 'font-size:${KolaType.small};font-weight:700;'
+                  'color:${KolaVar.text};margin-bottom:6px;'
+                  'letter-spacing:0.01em',
             },
             [Component.text(label)],
           ),
           div(
             attributes: {
-              'style': 'font-size:${KolaType.body};color:${KolaVar.text};'
+              'style': 'font-size:${KolaType.body};color:${KolaVar.muted};'
                   'line-height:1.6;max-width:62ch',
             },
             [Component.text(body)],
@@ -516,13 +569,74 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ],
       );
 
+  /// The photo strip.
+  ///
+  /// Main image large, the rest as a row beneath. Uploading and
+  /// reordering stay in the editor — this page shows what is there.
+  Component _gallery() {
+    final main = _media.first;
+    final rest = _media.skip(1).toList();
+
+    return div(
+      attributes: {'style': 'margin-bottom:18px'},
+      [
+        div(
+          attributes: {
+            'style': 'width:100%;max-width:340px;aspect-ratio:1;'
+                'border-radius:${KolaRadius.lg};overflow:hidden;'
+                'border:1px solid ${KolaVar.border};'
+                'background:${KolaVar.pill}',
+          },
+          [
+            img(
+              src: main.url,
+              alt: '',
+              attributes: {
+                'style': 'width:100%;height:100%;object-fit:cover;'
+                    'display:block',
+              },
+            ),
+          ],
+        ),
+        if (rest.isNotEmpty)
+          div(
+            attributes: {
+              'style': 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap',
+            },
+            [
+              for (final m in rest)
+                div(
+                  attributes: {
+                    'style': 'width:64px;height:64px;border-radius:'
+                        '${KolaRadius.md};overflow:hidden;'
+                        'border:1px solid ${KolaVar.border};'
+                        'background:${KolaVar.pill}',
+                  },
+                  [
+                    img(
+                      src: m.thumbnailUrl ?? m.url,
+                      alt: '',
+                      attributes: {
+                        'loading': 'lazy',
+                        'style': 'width:100%;height:100%;'
+                            'object-fit:cover;display:block',
+                      },
+                    ),
+                  ],
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
   Component _variantTable(Product p) => div(
         attributes: {'style': 'margin-bottom:16px'},
         [
           div(
             attributes: {
-              'style': 'font-size:${KolaType.tiny};font-weight:700;'
-                  'color:${KolaVar.mutedStrong};margin-bottom:8px',
+              'style': 'font-size:${KolaType.small};font-weight:700;'
+                  'color:${KolaVar.text};margin-bottom:8px',
             },
             [Component.text('Variants')],
           ),
@@ -601,8 +715,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         [
           div(
             attributes: {
-              'style': 'font-size:${KolaType.tiny};font-weight:700;'
-                  'color:${KolaVar.mutedStrong};margin-bottom:8px',
+              'style': 'font-size:${KolaType.small};font-weight:700;'
+                  'color:${KolaVar.text};margin-bottom:8px',
             },
             [Component.text('History')],
           ),

@@ -64,6 +64,7 @@ import '../components/shell/kola_icon.dart';
 import '../services/feature_gate.dart';
 import '../services/dom_files.dart';
 import '../services/file_intake.dart';
+import '../services/money.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
 
@@ -106,6 +107,15 @@ class _KnowledgePageState extends State<KnowledgePage> {
   String _tab = 'documents';
 
   List<KnowledgeDocument> _docs = const [];
+
+  /// How many products the workspace has.
+  ///
+  /// The precondition for "Build from what's already here" is DATA, not
+  /// a feature flag — see _dataSourceRow. Null means not counted yet.
+  int? _productCount;
+
+  /// Which build-from row is currently generating, if any.
+  String? _generating;
   bool _loading = true;
   String? _loadError;
 
@@ -148,19 +158,53 @@ class _KnowledgePageState extends State<KnowledgePage> {
     _load();
   }
 
+  /// First load. Shows the skeleton, because there is genuinely nothing
+  /// on screen yet.
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _loadError = null;
     });
+    await _fetch();
+  }
+
+  /// Reload WITHOUT flipping the page back to a skeleton.
+  ///
+  /// This is why adding knowledge appeared to reload the whole screen:
+  /// _onFiles finished by calling _load(), which set _loading = true, so
+  /// the upload queue the owner was watching — with its own progress
+  /// stages — vanished and the entire page redrew as placeholders. The
+  /// list they were waiting for was replaced by a spinner at the exact
+  /// moment it finally had something to show.
+  ///
+  /// A refresh after a write should update what changed and disturb
+  /// nothing else.
+  Future<void> _refresh() => _fetch();
+
+  Future<void> _fetch() async {
     try {
       final docs = await component.client.knowledge.listDocuments(
         component.accessToken,
         component.workspaceId,
       );
+
+      // Product count, for the build-from rows. Failure is silent: those
+      // rows degrading to "nothing to build from" is a smaller problem
+      // than the documents list not appearing.
+      int? products;
+      try {
+        final list = await component.client.product.listProducts(
+          component.accessToken,
+          component.workspaceId,
+          includeArchived: false,
+        );
+        products = list.length;
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         _docs = docs;
+        if (products != null) _productCount = products;
         _loading = false;
       });
     } catch (e) {
@@ -235,7 +279,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
         _addMessage = 'Saved. kola can answer from this now.';
         _tab = 'documents';
       });
-      await _load();
+      await _refresh();
     } catch (e) {
       if (!mounted) return;
       final msg = ErrorText.of(e);
@@ -321,7 +365,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
         });
       }
     }
-    await _load();
+    await _refresh();
   }
 
   Future<void> _runProbe([String? preset]) async {
@@ -1048,6 +1092,104 @@ class _KnowledgePageState extends State<KnowledgePage> {
     );
   }
 
+  /// Turns the catalog into a document kola can answer from.
+  ///
+  /// ── WHY THIS IS COMPOSED HERE AND NOT ON THE SERVER ────────────────
+  ///
+  /// It writes a normal knowledge document through the normal endpoint,
+  /// so it is chunked, embedded and cited exactly like something the
+  /// owner pasted. No second retrieval path, no special-casing at answer
+  /// time, and if the wording is wrong the owner can open it and edit it
+  /// like any other document.
+  ///
+  /// ── IT REPEATS THE NULL RULES, BECAUSE THIS IS TEXT A BOT WILL QUOTE ─
+  ///
+  /// A null price becomes "price on request", never ₦0. A null stock
+  /// becomes "made to order", never "out of stock". Getting that wrong
+  /// here would be worse than on a screen — a screen is read by the
+  /// owner, this is read back to a customer.
+  Future<void> _generateFrom(String key) async {
+    setState(() {
+      _generating = key;
+      _addMessage = null;
+    });
+
+    try {
+      final products = await component.client.product.listProducts(
+        component.accessToken,
+        component.workspaceId,
+        includeArchived: false,
+      );
+
+      final buffer = StringBuffer();
+      final isInventory = key == 'inventory';
+      buffer.writeln(
+        isInventory
+            ? 'What we have in stock right now.'
+            : 'What we sell, with prices.',
+      );
+      buffer.writeln();
+
+      for (final p in products) {
+        buffer.write('- ${p.name}');
+        if (p.category != null) buffer.write(' (${p.category})');
+        buffer.writeln();
+
+        if (!isInventory) {
+          buffer.writeln(
+            p.priceMinor == null
+                ? '  Price: on request — ask us for a quote.'
+                : '  Price: ${Money.format(p.priceMinor!, p.priceCurrency)}'
+                    '${p.priceUnit ?? ''}',
+          );
+          if (p.description != null && p.description!.trim().isNotEmpty) {
+            buffer.writeln('  ${p.description!.trim()}');
+          }
+        }
+
+        final stock = p.stock;
+        buffer.writeln(
+          stock == null
+              ? '  Made to order — not something we keep in stock.'
+              : stock == 0
+                  ? '  Currently out of stock.'
+                  : stock <= p.lowStockThreshold
+                      ? '  Only a few left.'
+                      : '  In stock.',
+        );
+        if (p.sku != null) buffer.writeln('  Reference: ${p.sku}');
+        buffer.writeln();
+      }
+
+      await component.client.knowledge.addDocument(
+        component.accessToken,
+        component.workspaceId,
+        isInventory ? 'Stock levels' : 'Product catalog',
+        buffer.toString(),
+        // Re-generating after adding products SHOULD replace, and the
+        // duplicate check would otherwise refuse the second run — which
+        // is the run that matters.
+        allowDuplicate: true,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _generating = null;
+        _addMessage =
+            'Built from ${products.length} products. kola can answer from '
+            'this now.';
+        _tab = 'documents';
+      });
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _generating = null;
+        _addMessage = ErrorText.of(e);
+      });
+    }
+  }
+
   Component _buildFromCard() => _card([
         _cardTitle("Build from what's already here"),
         _cardSub('Turn your catalog, inventory and sales history into '
@@ -1065,31 +1207,36 @@ class _KnowledgePageState extends State<KnowledgePage> {
     // ENABLED means "there is something to generate FROM", which is not
     // the same question as "is the capability released".
     //
-    // This gated on Features.commerceCatalog and was therefore ENABLED,
-    // because commerce.catalog is `released` in the live database — a
-    // deliberate seed from migration 019 that describes the PLAN, not
-    // the state. There is no catalog table, no catalog endpoint and no
-    // products, so the button offered to generate knowledge from
-    // nothing.
+    // This originally gated on Features.commerceCatalog and was
+    // therefore always enabled, because the flag said `released` while
+    // no products table existed. Then it was hardcoded false, because
+    // there was genuinely nothing to build from. Now there is: the
+    // catalog is real, so the precondition is a COUNT.
     //
-    // Hardcoded false until the commerce backend exists, at which point
-    // this becomes a real count and the row's detail line can carry it
-    // ("6 products — prices, stock, descriptions", per the design).
-    // A flag is the wrong signal for a button whose precondition is
-    // DATA.
-    // Rendered directly in the not-available state rather than behind
-    // `const available = false`, which made five branches dead code —
-    // the analyzer was right, and a ternary on a compile-time constant
-    // is a worse way to say "not yet" than just saying it.
+    // A flag was always the wrong signal for a button whose precondition
+    // is data.
     //
-    // When commerce lands this method takes a count, and the detail line
-    // carries it ("6 products — prices, stock, descriptions", per the
-    // design). [detail] is kept in the signature for that day.
+    // 'sales' stays unavailable on its own terms — there is no orders
+    // table, so sales history has nothing behind it regardless of how
+    // many products exist.
+    final count = _productCount ?? 0;
+    final available = key == 'sales' ? false : count > 0;
+
+    // The design's own detail line carries the count: "6 products —
+    // prices, stock, descriptions". [detail] is the tail of that.
+    final subtitle = available
+        ? '$count product${count == 1 ? '' : 's'} — $detail'
+        : (key == 'sales'
+            ? 'Nothing to build from yet — this needs sales to have '
+                'happened.'
+            : 'Nothing to build from yet — this needs your catalog.');
+
     return div(
       attributes: {
         'style': 'display:flex;gap:12px;align-items:center;'
             'padding:14px;border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.md};margin-bottom:8px;opacity:0.7',
+            'border-radius:${KolaRadius.md};margin-bottom:8px;'
+            'opacity:${available ? '1' : '0.7'}',
       },
       [
         div(
@@ -1115,24 +1262,31 @@ class _KnowledgePageState extends State<KnowledgePage> {
               'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
                   'line-height:1.5;margin-top:2px',
             },
-            [
-              Component.text(
-                'Nothing to build from yet — this needs your catalog.',
-              ),
-            ],
+            [Component.text(subtitle)],
           ),
         ]),
         button(
           attributes: {
             'type': 'button',
-            'disabled': 'disabled',
+            if (!available || _generating != null) 'disabled': 'disabled',
             'style': 'padding:9px 15px;border-radius:${KolaRadius.pill};'
                 'border:none;flex:none;font-family:inherit;'
                 'font-size:${KolaType.small};font-weight:600;'
-                'background:${KolaVar.pill};color:${KolaVar.muted};'
-                'cursor:default',
+                'cursor:${available ? 'pointer' : 'default'};'
+                'background:'
+                '${available ? KolaVar.accentFill : KolaVar.pill};'
+                'color:${available ? KolaVar.accentText : KolaVar.muted}',
           },
-          [Component.text('Generate knowledge')],
+          events: {
+            'click': (_) {
+              if (available && _generating == null) _generateFrom(key);
+            },
+          },
+          [
+            Component.text(
+              _generating == key ? 'Building…' : 'Generate knowledge',
+            ),
+          ],
         ),
       ],
     );

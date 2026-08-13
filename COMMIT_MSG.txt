@@ -1,0 +1,181 @@
+Product media on ImageKit, CSV import, and four silent runtime bugs
+
+Photos and video end to end, bulk import from a spreadsheet, and the
+root cause behind Knowledge upload doing nothing — which turned out to
+be four separate broken features sharing one mistake.
+
+── TWO INGESTION PATHS, ONE DESTINATION ─────────────────────────────
+
+  owner, in the dashboard    browser ──signed token──▶ ImageKit
+  customer, on WhatsApp      Meta ──▶ kola ──▶ ImageKit
+  customer, on Telegram      Telegram ──▶ kola ──▶ ImageKit
+
+Both end as an ImageKit URL, so the dashboard renders either with the
+same <img src> and never needs to know how a picture arrived.
+
+The dashboard path does NOT proxy through kola_server. A Serverpod
+parameter is JSON, so a 5MB photo would become ~6.7MB of base64, cross
+the wire twice, and arrive as one opaque request with no way to report
+progress. The server signs one-shot credentials (HMAC-SHA1, 10 minute
+expiry against ImageKit's 1 hour ceiling) and the bytes go direct.
+
+The inbound path CANNOT work that way — there is no browser in that
+story — and ImageKit cannot fetch the provider URL itself either:
+
+  Telegram   the download URL embeds the bot token. Handing it to
+             ImageKit hands a third party the credential that can read
+             and send every message for that business.
+  WhatsApp   the media URL needs an Authorization header and expires in
+             minutes. ImageKit cannot supply the header.
+
+So inbound media is downloaded with the workspace's own credentials and
+re-uploaded. asami_server's server-side shape is right for that case and
+wrong for the dashboard; both now exist for the case each fits.
+
+── messages WAS DROPPING PHOTOS ENTIRELY ────────────────────────────
+
+Message had only `body: String`. A customer sending a picture produced
+an empty message and nothing else — for a shop where "do you have this?"
+IS a photo, the most important message type there is.
+
+Migration 032 adds media_kind / media_url / media_thumbnail_url /
+media_imagekit_file_id / media_mime_type. media_kind set with media_url
+NULL is a deliberate, meaningful state: the file arrived and could not be
+stored. Every media method returns null instead of throwing, so a CDN
+blip costs the picture and never the message.
+
+Not yet wired into the webhook parsers — they still only extract text.
+
+── FOUR FEATURES BROKEN BY ONE MISTAKE ──────────────────────────────
+
+`(x as dynamic).member` on a DOM object throws NoSuchMethodError.
+dart:js_interop extension types are ERASED at compile time, so the
+lookup is for a Dart member named `files`/`value`/`style`/`key` on a
+plain JS object. It analyses clean. It never runs.
+
+main.dart's `(root as dynamic).style` was only VISIBLY fatal because it
+ran before runApp. Inside an event handler the same throw is swallowed
+by the event loop, and the feature simply does nothing:
+
+  knowledge_page   file picker — upload did nothing. No error, no
+                   progress. The entire staged progress UI (uploadStages
+                   / _tickStages / queue rows) has been correct all along
+                   and never once ran, because _onFiles was unreachable.
+  ask_kola         composer never captured typed text, never grew, and
+                   Enter never sent
+  command_palette  Escape did nothing
+  operations_page  Enter to send a reply did nothing
+
+I introduced this pattern and then defended it in a comment claiming it
+was "known to work" because it compiled. Compiling is not running.
+
+New lib/services/dom_files.dart declares the DOM surface explicitly:
+filesFrom (returns web.File, so FileIntake is untouched — only the
+EXTRACTION was broken), resetFileInput, valueOf, autoGrow. Keyboard
+events use `as web.KeyboardEvent`, the cast app_shell.dart already uses
+for Cmd-K and which demonstrably works. Verified: no `as dynamic` member
+access remains anywhere in lib/.
+
+resetFileInput matters on its own — without clearing the input's value,
+re-picking the SAME file after a failure fires no change event at all,
+so a retry looks broken twice over.
+
+── PHOTOS & VIDEO TAB ───────────────────────────────────────────────
+
+Choose files, or take one with the camera — `capture="environment"`
+opens the rear camera on a phone rather than the gallery, which is the
+point for someone photographing stock on a market stall.
+
+Progress is real bytes-sent, not a spinner: XHR's upload.onprogress is
+the only browser API that reports it, which is the other reason the
+upload does not go through kola_server. Uploads run sequentially — four
+at once on a shared mobile connection makes all four slow and the bars
+jump; one at a time finishes the first quickly, which is what makes the
+wait feel bounded. A failed upload STAYS on screen with its reason.
+
+Photos added before a new product is saved are held and attached the
+moment createProduct returns an id. The alternative was refusing photos
+until the form is saved, which is the complaint that started this work.
+The tradeoff is orphans on abandonment; they are tagged for sweeping.
+
+── CSV IMPORT ───────────────────────────────────────────────────────
+
+CSV and not PDF, deliberately: a CSV has structure, a PDF has LAYOUT.
+Reading a PDF price list correctly needs a model that can tell a column
+from a coincidence, and a wrong guess writes wrong prices into a live
+catalog silently.
+
+Every column except `name` is optional, and headers are matched through
+an alias table (qty/quantity/stock, price/amount/selling price, and so
+on) so an export from another platform usually just works. A file with
+one name column imports fifty named products the owner can then fill in
+— refusing on a missing column is how an import tool becomes something
+people give up on.
+
+Images arrive as URLs, so ProductEndpoint.importMediaFromUrl fetches
+them SERVER-SIDE and takes a copy. That check is not decoration: without
+the scheme and private-address guards this endpoint is a server-side
+request forgery tool aimed at 169.254.169.254. The guard is honest about
+being a first line — a hostile DNS record can still point a public name
+at loopback, and closing that needs resolve-then-check-then-connect,
+which Dart's http client does not expose.
+
+Row failures never abort the run. "Added 47 of 50" with the three
+failures named is the answer an owner needs; an import that stops at row
+12 and leaves them guessing is not.
+
+The parser is hand-rolled (no CSV dependency in the browser bundle) and
+handles the RFC 4180 parts real spreadsheets emit: quoted fields, commas
+inside quotes, doubled quotes, CRLF. Verified field-for-field against
+Python's csv module across all 50 rows of the sample file.
+
+── SCHEMA ───────────────────────────────────────────────────────────
+
+  031  product_media reshaped for ImageKit — imagekit_file_id, url,
+       thumbnail_url, width, height. The fileId is not optional even
+       though the URL renders: only the fileId can DELETE, and without
+       it every removed photo stays live on the CDN forever, which is a
+       growing bill and a link that keeps working for anyone who saw it.
+
+       products.tag renamed to products.category. It was always the
+       category; two names for one idea is how a schema drifts.
+
+  032  message media columns, above.
+
+── SAMPLE DATA ──────────────────────────────────────────────────────
+
+docs/samples/kola-sample-products.csv — 50 Nigerian fashion products
+across 8 categories, covering every case that matters: all three
+archetypes, 3 by-quote products (null price, NOT free), 6 not-stocked
+services (null stock, NOT out of stock), and 1 genuinely out of stock.
+Image URLs are picsum.photos seeded per product — real, deterministic,
+no API key, and permanently reachable.
+
+docs/samples/kola-sample-knowledge.md — the same fictional shop's
+policies, written the way an owner would actually write them. Deliberately
+full of the facts customers ask about and kola currently cannot answer:
+delivery prices per area, what can and cannot be returned, sizing, aso-ebi
+bulk tiers, fabric care. It exists to give the Knowledge probe something
+real to retrieve against, and to make a wrong answer obvious.
+
+── NOTE ON SERVERPOD, AGAIN ─────────────────────────────────────────
+
+A default on an endpoint's named parameter does not survive codegen:
+`bool includeArchived = false` becomes `required bool includeArchived`
+in the client. I flagged this last commit and then walked straight into
+it. Every call site now passes them explicitly, checked programmatically
+against the generated client rather than one analyzer error at a time.
+
+── TWO THINGS CAUGHT WHILE PREPARING THIS COMMIT ────────────────────
+
+Migration 032 had been applied to the database with no .sql file — the
+same failure BUILD_AUDIT_5 §2.7 records for migration 025, which existed
+only in the database for weeks. The file is written now, so the schema
+can be rebuilt from docs/migrations alone.
+
+And /docs/* is gitignored (deny-by-default, with named files allowed
+back), so the sample CSV would not have been committed at all despite
+being the file the importer is meant to be tested with. .gitignore now
+allows /docs/samples/ back explicitly, with a note on why that content
+is safe to publish: fictional products and public stock-image links, no
+customer data.

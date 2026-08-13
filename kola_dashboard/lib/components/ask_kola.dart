@@ -30,14 +30,17 @@
 // When the reasoning layer exists this component gets an answer above
 // the citations. The citations do not get removed; they are the point.
 
+import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:jaspr_router/jaspr_router.dart';
 import 'package:web/web.dart' as web;
 import 'package:kola_client/kola_client.dart';
 
 import '../services/dom_files.dart';
+import '../services/error_text.dart';
 import '../theme.dart';
 import 'shell/icons.dart';
 import 'shell/kola_icon.dart';
@@ -72,6 +75,40 @@ class _AskKolaState extends State<AskKola> {
   List<KnowledgeSearchHit> _hits = const [];
   String _answeredQuestion = '';
 
+  /// Which "what is kola doing" caption is showing.
+  ///
+  /// The export runs a fixed 700ms think before streaming, because a
+  /// static file has nothing to wait for. Here the wait is a REAL round
+  /// trip of unknown length, so the captions cycle until it returns —
+  /// and they say what is actually happening rather than spinning.
+  int _stage = 0;
+  Timer? _stageTimer;
+
+  /// How much of the answer has been revealed. The export's
+  /// streamAnswer: 3 characters every 18ms.
+  ///
+  /// The full text is not held in a field — the timer closes over it,
+  /// and a second copy on the state would only be another thing to keep
+  /// in step.
+  String _streamed = '';
+  Timer? _streamTimer;
+  bool get _streaming => _streamTimer?.isActive ?? false;
+
+  static const _thinkingStages = <String>[
+    'Reading what you have taught me',
+    'Checking your catalog',
+    'Putting it together',
+  ];
+
+  @override
+  void dispose() {
+    // Both fire setState. A timer outliving the component would call it
+    // after unmount, which is a crash rather than a cosmetic problem.
+    _stageTimer?.cancel();
+    _streamTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _ask() async {
     final q = _query.trim();
     if (q.isEmpty || _searching) return;
@@ -81,7 +118,10 @@ class _AskKolaState extends State<AskKola> {
       _error = null;
       _hasSearched = true;
       _answeredQuestion = q;
+      _stage = 0;
+      _streamed = '';
     });
+    _startStages();
 
     try {
       final hits = await component.client.knowledge.searchMemory(
@@ -90,19 +130,138 @@ class _AskKolaState extends State<AskKola> {
         q,
       );
       if (!mounted) return;
+      _stageTimer?.cancel();
       setState(() {
         _hits = hits;
         _searching = false;
       });
+      // Nothing found is still an ANSWER, and it streams like one — the
+      // alternative is a blank card that reads as a failure.
+      _startStreaming(hits.isEmpty ? _noAnswerFor(q) : _leadFor(hits));
     } catch (e) {
       if (!mounted) return;
+      _stageTimer?.cancel();
       setState(() {
         _searching = false;
-        _error = e.toString();
+        // Was e.toString(), which put "ServerpodClientException: ..." in
+        // front of an owner. See error_text.dart.
+        _error = ErrorText.of(e);
       });
     }
   }
 
+  void _startStages() {
+    _stageTimer?.cancel();
+    _stageTimer = Timer.periodic(const Duration(milliseconds: 900), (_) {
+      if (!mounted) return;
+      // Holds on the LAST caption rather than looping back to the first.
+      // A cycle that restarts reads as stuck; one that settles reads as
+      // nearly done.
+      setState(() {
+        if (_stage < _thinkingStages.length - 1) _stage++;
+      });
+    });
+  }
+
+  /// Reveals the answer a few characters at a time.
+  ///
+  /// The export's own cadence: 3 characters every 18ms. It is not
+  /// decoration — text that appears all at once is read as a lookup,
+  /// text that arrives is read as an answer, and the difference changes
+  /// how much an owner trusts it.
+  void _startStreaming(String text) {
+    _streamTimer?.cancel();
+    setState(() => _streamed = '');
+
+    var i = 0;
+    _streamTimer = Timer.periodic(const Duration(milliseconds: 18), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      i += 3;
+      setState(() {
+        _streamed = i >= text.length ? text : text.substring(0, i);
+      });
+      if (i >= text.length) t.cancel();
+    });
+  }
+
+  /// The one-line summary above the citations.
+  String _leadFor(List<KnowledgeSearchHit> hits) {
+    final n = hits.length;
+    return 'I found $n place${n == 1 ? '' : 's'} in what you have taught me '
+        'that answer this. They are quoted below, so you can see exactly '
+        'what I would tell a customer.';
+  }
+
+  /// What to say when memory has nothing.
+  String _noAnswerFor(String q) {
+    if (!component.hasDocuments) {
+      return "I have not been taught anything yet, so I cannot answer that "
+          "from your own words. Add a price list, an FAQ or your delivery "
+          "terms and ask me again.";
+    }
+    return "I could not find that in what you have taught me. Either it is "
+        "not in there yet, or it is worded differently — try the words a "
+        "customer would use.";
+  }
+
+  /// Where this question could be answered instead.
+  ///
+  /// ── WHY SUGGEST ACTIONS AT ALL ─────────────────────────────────────
+  ///
+  /// Asking "check my catalog" and being told "I don't have enough
+  /// signal" is a dead end, and it is WRONG — the catalog exists, kola
+  /// just cannot answer from memory about it. Pointing at the screen
+  /// that does answer it turns a refusal into a route.
+  ///
+  /// Only destinations that are REGISTERED and RELEASED appear. A
+  /// suggestion leading to a locked or unbuilt screen would be the dead
+  /// link problem again, wearing a helpful face.
+  List<({String label, String route})> _actionsFor(String question) {
+    final q = question.toLowerCase();
+    final out = <({String label, String route})>[];
+
+    void add(String label, String route) {
+      if (!out.any((a) => a.route == route)) {
+        out.add((label: label, route: route));
+      }
+    }
+
+    if (q.contains('catalog') || q.contains('product') || q.contains('price') ||
+        q.contains('stock') || q.contains('sell') || q.contains('item')) {
+      add('Open your catalog', '/catalog');
+    }
+    if (q.contains('teach') || q.contains('know') || q.contains('document') ||
+        q.contains('upload') || q.contains('learn')) {
+      add('Open Knowledge', '/knowledge');
+    }
+    if (q.contains('message') || q.contains('customer') ||
+        q.contains('conversation') || q.contains('reply') ||
+        q.contains('attention') || q.contains('waiting')) {
+      add('Open Operations', '/operations');
+    }
+    if (q.contains('agent') || q.contains('bot') || q.contains('answer')) {
+      add('Open Agents', '/bots');
+    }
+    if (q.contains('whatsapp') || q.contains('telegram') ||
+        q.contains('channel') || q.contains('connect')) {
+      add('Open Integrations', '/integrations');
+    }
+    if (q.contains('plan') || q.contains('bill') || q.contains('pay') ||
+        q.contains('upgrade')) {
+      add('Open Billing', '/billing');
+    }
+    return out;
+  }
+
+  // ── Results ─────────────────────────────────────────────────────────
+
+  /// Suggested destinations for the question just asked.
+  ///
+  /// Renders nothing when there is nowhere useful to send the owner —
+  /// an empty row of chips is worse than no row.
   @override
   Component build(BuildContext context) {
     return div(
@@ -196,7 +355,51 @@ class _AskKolaState extends State<AskKola> {
         ],
       );
 
-  // ── Results ─────────────────────────────────────────────────────────
+  /// Returns a LIST rather than a single Component so "nothing to
+  /// suggest" is just an empty list. Component.fragment would do the
+  /// same job but has no use anywhere else in this codebase, and an
+  /// unverified API for a one-line convenience is not a trade worth
+  /// making — see media_upload.dart's header.
+  List<Component> _actions() {
+    final actions = _actionsFor(_answeredQuestion);
+    if (actions.isEmpty) return const [];
+
+    return [div(
+      attributes: {'style': 'margin-top:14px'},
+      [
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                'margin-bottom:8px',
+          },
+          [
+            Component.text(
+              _hits.isEmpty
+                  ? 'You can look here instead:'
+                  : 'You might also want:',
+            ),
+          ],
+        ),
+        div(
+          attributes: {'style': 'display:flex;gap:8px;flex-wrap:wrap'},
+          [
+            for (final a in actions)
+              Link(
+                to: a.route,
+                attributes: {
+                  'class': 'kola-pressable',
+                  'style': 'padding:8px 14px;border-radius:${KolaRadius.pill};'
+                      'border:1px solid ${KolaVar.border};'
+                      'font-size:${KolaType.tiny};font-weight:600;'
+                      'color:${KolaVar.text};text-decoration:none',
+                },
+                children: [Component.text(a.label)],
+              ),
+          ],
+        ),
+      ],
+    )];
+  }
 
   Component _results() {
     return div(
@@ -245,8 +448,27 @@ class _AskKolaState extends State<AskKola> {
         ),
         if (_searching)
           div(
-            attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
+            attributes: {'style': 'display:flex;flex-direction:column;gap:10px'},
             [
+              // Says what kola is doing, not merely that it is busy. Two
+              // grey rectangles tell an owner nothing; "Checking your
+              // catalog" tells them the wait is earning something.
+              div(
+                attributes: {
+                  'style': 'display:flex;align-items:center;gap:8px;'
+                      'font-size:${KolaType.small};color:${KolaVar.muted}',
+                },
+                [
+                  div(
+                    attributes: {
+                      'style': 'width:6px;height:6px;border-radius:50%;'
+                          'background:${KolaVar.accent};flex:none',
+                    },
+                    [],
+                  ),
+                  Component.text('${_thinkingStages[_stage]}…'),
+                ],
+              ),
               for (var i = 0; i < 2; i++)
                 div(
                   classes: 'kola-skel',
@@ -263,15 +485,51 @@ class _AskKolaState extends State<AskKola> {
               'style': 'font-size:${KolaType.small};color:${KolaVar.danger};'
                   'line-height:1.5',
             },
-            [Component.text("Couldn't search memory: $_error")],
+            // _error is already a finished sentence from ErrorText.of —
+            // prefixing it produced "Couldn't search memory: You're
+            // offline.", which says the same thing twice.
+            [Component.text(_error!)],
           )
-        else if (_hits.isEmpty)
-          _noMatch()
-        else
-          div(
-            attributes: {'style': 'display:flex;flex-direction:column;gap:10px'},
-            [for (final h in _hits) _hit(h)],
-          ),
+        else ...[
+          // The streamed answer, above whatever it is grounded in.
+          if (_streamed.isNotEmpty)
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.body};color:${KolaVar.text};'
+                    'line-height:1.6;margin-bottom:12px;max-width:64ch',
+              },
+              [
+                Component.text(_streamed),
+                // A caret while text is still arriving. Removed the
+                // instant it finishes, so a finished answer never looks
+                // like it stopped halfway.
+                if (_streaming)
+                  span(
+                    attributes: {
+                      'style': 'display:inline-block;width:2px;height:1em;'
+                          'background:${KolaVar.accent};'
+                          'vertical-align:text-bottom;margin-left:2px',
+                    },
+                    [],
+                  ),
+              ],
+            ),
+
+          if (_hits.isEmpty)
+            _noMatch()
+          else
+            div(
+              attributes: {
+                'style': 'display:flex;flex-direction:column;gap:10px',
+              },
+              [for (final h in _hits) _hit(h)],
+            ),
+
+          // Where to go instead. Shown once the answer has finished
+          // arriving — offering the exit before kola has finished
+          // speaking reads as giving up.
+          if (!_streaming) ..._actions(),
+        ],
       ],
     );
   }

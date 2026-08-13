@@ -65,6 +65,7 @@ product:
   - replaceVariants:
   - getMediaUploadAuth:
   - listMedia:
+  - listMediaForProducts:
   - addProductMedia:
   - deleteProductMedia:
   - reorderProductMedia:

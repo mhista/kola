@@ -27,6 +27,67 @@
 // exist. Refusing on a missing column is how an import tool becomes
 // something people give up on.
 
+/// How sure kola is that a column means what it thinks.
+///
+/// The design colours the mapping list by exactly this: green for a
+/// confident match, amber for "check this", grey for not imported. It
+/// is not decoration — an amber row is the one place a wrong guess gets
+/// caught before it writes wrong prices into a live catalog.
+enum MappingConfidence { confident, unsure, ignored }
+
+/// One column of the uploaded file, and what kola will do with it.
+class ColumnMapping {
+  const ColumnMapping({
+    required this.index,
+    required this.source,
+    required this.field,
+    required this.confidence,
+  });
+
+  /// Column position, so an override can be keyed on it. Two columns
+  /// can share a header ("Price", "Price") and a name-keyed map would
+  /// silently merge them.
+  final int index;
+
+  /// The header exactly as the owner's file wrote it.
+  final String source;
+
+  /// kola's field id, or null for "not imported".
+  final String? field;
+
+  final MappingConfidence confidence;
+
+  /// Human label for the target, for the mapping list.
+  String get targetLabel => switch (field) {
+        'name' => 'Product name',
+        'description' => 'Description',
+        'category' => 'Category',
+        'archetype' => 'Type',
+        'sku' => 'SKU',
+        'price' => 'Price',
+        'cost' => 'What it costs you',
+        'stock' => 'Stock',
+        'lowStock' => 'Low-stock alert',
+        'unit' => 'Unit',
+        'imageUrl' => 'Photo link',
+        _ => 'Not imported',
+      };
+}
+
+/// The fields an owner can map a column onto, for the override picker.
+const csvTargetFields = <({String id, String label})>[
+  (id: 'name', label: 'Product name'),
+  (id: 'description', label: 'Description'),
+  (id: 'category', label: 'Category'),
+  (id: 'sku', label: 'SKU'),
+  (id: 'price', label: 'Price'),
+  (id: 'cost', label: 'What it costs you'),
+  (id: 'stock', label: 'Stock'),
+  (id: 'lowStock', label: 'Low-stock alert'),
+  (id: 'unit', label: 'Unit'),
+  (id: 'imageUrl', label: 'Photo link'),
+];
+
 /// One parsed row, before it becomes a product.
 class CsvProductRow {
   CsvProductRow({
@@ -69,8 +130,7 @@ class CsvParseResult {
   const CsvParseResult({
     required this.rows,
     required this.skipped,
-    required this.recognisedHeaders,
-    required this.unknownHeaders,
+    required this.mappings,
   });
 
   final List<CsvProductRow> rows;
@@ -80,11 +140,13 @@ class CsvParseResult {
   /// must say which three and why.
   final List<({int row, String reason})> skipped;
 
-  final List<String> recognisedHeaders;
+  /// Every column in the file and what kola will do with it. Shown to
+  /// the owner BEFORE anything imports — see MappingConfidence.
+  final List<ColumnMapping> mappings;
 
-  /// Columns kola did not understand. Shown so the owner knows what was
-  /// ignored instead of assuming it came through.
-  final List<String> unknownHeaders;
+  /// True when no column could be read as a product name, which is the
+  /// one field an import cannot proceed without.
+  bool get hasName => mappings.any((m) => m.field == 'name');
 }
 
 abstract class ProductCsv {
@@ -138,32 +200,86 @@ abstract class ProductCsv {
   static String _normalise(String header) =>
       header.toLowerCase().replaceAll(RegExp(r'[\s_\-]'), '').trim();
 
-  static CsvParseResult parse(String content) {
+  /// A looser second pass, for headers the alias table does not know.
+  ///
+  /// "Selling Price (NGN)" is not in the table and never will be —
+  /// every shop writes its own. Substring matching catches those and
+  /// marks them UNSURE rather than confident, so they surface in amber
+  /// and the owner confirms. Guessing silently is what this whole
+  /// screen exists to prevent.
+  static String? _fuzzy(String normalised) {
+    if (normalised.contains('name') || normalised.contains('product')) {
+      return 'name';
+    }
+    if (normalised.contains('cost') || normalised.contains('buy')) return 'cost';
+    if (normalised.contains('price') || normalised.contains('amount')) {
+      return 'price';
+    }
+    if (normalised.contains('qty') || normalised.contains('stock') ||
+        normalised.contains('quantity')) {
+      return 'stock';
+    }
+    if (normalised.contains('categor') || normalised.contains('group')) {
+      return 'category';
+    }
+    if (normalised.contains('desc')) return 'description';
+    if (normalised.contains('sku') || normalised.contains('code')) return 'sku';
+    if (normalised.contains('image') || normalised.contains('photo') ||
+        normalised.contains('picture')) {
+      return 'imageUrl';
+    }
+    return null;
+  }
+
+  /// [overrides] maps a column INDEX to a field id, or to null meaning
+  /// "do not import this column". Supplied after the owner corrects
+  /// kola's proposal on the mapping screen; an entry always wins.
+  static CsvParseResult parse(
+    String content, {
+    Map<int, String?> overrides = const {},
+  }) {
     final table = _parseTable(content);
     if (table.isEmpty) {
-      return const CsvParseResult(
-        rows: [],
-        skipped: [],
-        recognisedHeaders: [],
-        unknownHeaders: [],
-      );
+      return const CsvParseResult(rows: [], skipped: [], mappings: []);
     }
 
     final header = table.first;
     final map = <int, String>{};
-    final recognised = <String>[];
-    final unknown = <String>[];
+    final mappings = <ColumnMapping>[];
 
     for (var i = 0; i < header.length; i++) {
       final raw = header[i].trim();
       if (raw.isEmpty) continue;
-      final field = _aliases[_normalise(raw)];
-      if (field == null) {
-        unknown.add(raw);
+
+      String? field;
+      MappingConfidence confidence;
+
+      if (overrides.containsKey(i)) {
+        // The owner said so. No confidence judgement to make.
+        field = overrides[i];
+        confidence = field == null
+            ? MappingConfidence.ignored
+            : MappingConfidence.confident;
       } else {
-        map[i] = field;
-        recognised.add(raw);
+        final normalised = _normalise(raw);
+        field = _aliases[normalised];
+        if (field != null) {
+          confidence = MappingConfidence.confident;
+        } else {
+          field = _fuzzy(normalised);
+          confidence = field == null
+              ? MappingConfidence.ignored
+              : MappingConfidence.unsure;
+        }
       }
+
+      if (field != null) map[i] = field;
+      mappings.add(ColumnMapping(
+        index: i,
+        source: raw,
+        field: field,
+        confidence: confidence,
+      ));
     }
 
     final rows = <CsvProductRow>[];
@@ -208,12 +324,7 @@ abstract class ProductCsv {
       ));
     }
 
-    return CsvParseResult(
-      rows: rows,
-      skipped: skipped,
-      recognisedHeaders: recognised,
-      unknownHeaders: unknown,
-    );
+    return CsvParseResult(rows: rows, skipped: skipped, mappings: mappings);
   }
 
   /// Maps whatever the file said to one of kola's three archetypes.
