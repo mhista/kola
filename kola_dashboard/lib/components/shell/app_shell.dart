@@ -73,6 +73,7 @@ class _AppShellState extends State<AppShell> {
   bool _profileOpen = false;
 
   web.EventListener? _keyListener;
+  web.EventListener? _pointerListener;
 
   @override
   void initState() {
@@ -98,12 +99,58 @@ class _AppShellState extends State<AppShell> {
     }.toJS;
 
     web.document.addEventListener('keydown', _keyListener);
+
+    // ── CLICKING AWAY CLOSES THE MENU ───────────────────────────────
+    //
+    // The profile dropdown only closed by pressing its own trigger
+    // again or hitting Escape. Every other menu on the web closes when
+    // you click elsewhere, so an owner who opened it and moved on was
+    // left with it floating over the page.
+    //
+    // POINTERDOWN, not click. A `click` fires after mouseup, so
+    // pressing on a page control would leave the menu open through the
+    // whole press and close it only on release — visibly late. It also
+    // covers touch and pen without a second listener.
+    //
+    // Bound on the document because the point is to catch events that
+    // are NOT in this subtree.
+    _pointerListener = (web.Event event) {
+      // PROFILE ONLY, deliberately.
+      //
+      // CommandPalette and MobileMoreSheet are full-screen overlays that
+      // already have their own backdrop wired to onClose. Including them
+      // here would mean a pointerdown inside the palette's own search
+      // input closed the palette — the listener cannot tell the
+      // difference without marking every overlay, and marking them buys
+      // nothing they do not already have.
+      if (!_profileOpen) return;
+
+      try {
+        final target = event.target;
+        if (target == null) return;
+        // Inside a marked overlay region → not an outside click. This is
+        // what stops the opening press from immediately closing it.
+        if ((target as web.Element).closest('[data-kola-overlay]') != null) {
+          return;
+        }
+      } catch (_) {
+        // A pointerdown whose target is not an Element (the document
+        // itself, a text node) has no closest(). That IS an outside
+        // click, so fall through and close.
+      }
+      _closeAll();
+    }.toJS;
+
+    web.document.addEventListener('pointerdown', _pointerListener);
   }
 
   @override
   void dispose() {
     if (_keyListener != null) {
       web.document.removeEventListener('keydown', _keyListener);
+    }
+    if (_pointerListener != null) {
+      web.document.removeEventListener('pointerdown', _pointerListener);
     }
     super.dispose();
   }

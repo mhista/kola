@@ -46,6 +46,8 @@
 // the instruction produces a plain answer with no products and no
 // actions, which is degraded but correct.
 
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
 
 import 'package:kola_server/src/generated/protocol.dart';
@@ -86,7 +88,26 @@ class WorkspaceAnswerService {
   // Deliberately NOT including anything gated or unbuilt. An action
   // pointing at a locked feature is a dead end wearing a helpful face,
   // which is the specific failure this vocabulary exists to prevent.
+  /// The one intent with NO route, deliberately.
+  ///
+  /// kola answered "you can refer to our knowledge base on delivery" and
+  /// offered a button labelled "See delivery details". There is no
+  /// delivery page — the detail is a PASSAGE in a document the owner
+  /// uploaded, and the honest destination is that passage, not a screen.
+  ///
+  /// Sending them to /knowledge instead would technically resolve and
+  /// still be wrong: they would land on a document list and have to find
+  /// the paragraph kola had just read. So this intent resolves to an
+  /// empty route and the dashboard renders it as an EXPANDER over the
+  /// citations already attached to the answer.
+  ///
+  /// Empty string rather than null so the field stays non-nullable on the
+  /// wire, and so `route.isEmpty` is the single check that means "this
+  /// one does something here rather than going somewhere".
+  static const kShowSourcesIntent = 'show_details';
+
   static const kIntents = <String, String>{
+    kShowSourcesIntent: '',
     'open_catalog': '/catalog',
     'add_product': '/catalog',
     'import_products': '/catalog/import',
@@ -105,6 +126,11 @@ class WorkspaceAnswerService {
   /// between "suggest something relevant" and a model that offers
   /// "Open Settings" after every question.
   static const _intentHelp = <String, String>{
+    kShowSourcesIntent:
+        'reveal the exact saved passage this answer came from, in place. '
+            'Use this when the answer points at something the owner has '
+            'written down — a policy, delivery terms, sizing — rather than '
+            'at a screen',
     'open_catalog': 'show the full product list',
     'add_product': 'create a new product',
     'import_products': 'bring in many products from a spreadsheet',
@@ -186,17 +212,63 @@ class WorkspaceAnswerService {
 
       final call = result.toolCall;
       if (call == null || call.toolName != _toolName) {
-        // The model answered in prose instead of calling the tool. Not a
-        // failure — the prose is the part that matters — so it is shown
-        // with no products and no actions rather than discarded.
         final text = (result.text ?? '').trim();
         if (text.isEmpty) {
           return _fallback(_couldNotAnswer, _defaultActions(catalog));
         }
+
+        // ── THE TOOL CALL MAY ARRIVE AS TEXT ────────────────────────
+        //
+        // Observed on screen, verbatim:
+        //
+        //   {reply_to_owner}{"answer": "Aside from the Ankara products
+        //   we also have ...","product_ids": [10, 9, 8, ...]}
+        //
+        // The provider did not report a tool call, so this fell into the
+        // "model answered in prose" branch and the JSON was printed to
+        // the owner — braces, key names, unparsed \u escapes and all.
+        // That is worse than the raw-chunk dump this whole service was
+        // built to replace.
+        //
+        // It is not a rare glitch either. Models that emit
+        // `<function=name>{...}`, `{name}{...}`, a ```json fence, or
+        // `{"name":..,"arguments":{..}}` in the content stream instead of
+        // the tool-call channel are common below the frontier tier, and
+        // this product deliberately routes cheap questions to cheap
+        // models.
+        //
+        // So the structure is recovered rather than shown. The answer was
+        // RIGHT in every observed case — the model understood the
+        // question and named the correct products; only the envelope was
+        // wrong.
+        final salvaged = _salvage(text);
+        if (salvaged != null) {
+          _log.info('recovered a tool call from text for $workspaceId');
+          return _fromToolCall(
+            call: AiToolCall(toolName: _toolName, arguments: salvaged),
+            workspaceId: workspaceId,
+            catalog: catalog,
+            citations: citations,
+            providerName: result.providerName,
+          );
+        }
+
+        // Not recoverable. If it still LOOKS like machine output, show
+        // the honest failure instead: an owner reading `{"answer":` has
+        // learned nothing except that something is broken.
+        if (_looksLikeScaffolding(text)) {
+          _log.warning('unparseable tool-call text for $workspaceId');
+          return _fallback(_couldNotAnswer, _defaultActions(catalog));
+        }
+
+        // Genuine prose. The part the owner came for, minus enrichment.
         return WorkspaceAnswer(
           answer: text,
           productIds: const [],
-          actions: _resolve(const [], workspaceId, catalog),
+          // _resolve(const []) would return NOTHING — it maps model
+          // intents, and there are none on this path. The server picks
+          // generic-but-real destinations instead.
+          actions: _actionsFromIntents(_defaultActions(catalog)),
           citations: citations,
           generated: true,
           providerName: result.providerName,
@@ -211,11 +283,62 @@ class WorkspaceAnswerService {
         providerName: result.providerName,
       );
     } catch (e) {
-      // Degrade, do not break. An owner asking a question during a
+      // ── TOOL CALLING FAILED. THE QUESTION IS STILL ANSWERABLE. ────
+      //
+      // Observed in production, both providers in one request:
+      //
+      //   groq    400 tool_use_failed — the model emitted
+      //           `<function=reply_to_owner>{...}` TWICE, in its own
+      //           non-JSON wrapper, splitting the answer across two
+      //           malformed calls.
+      //   gemini  404, model shut down (see gemini_provider.dart).
+      //
+      // The groq case is the interesting one: the model UNDERSTOOD the
+      // question and had the answer — the log shows it listing the
+      // correct out-of-stock products — and the whole reply was thrown
+      // away because it could not format a function call. Smaller models
+      // fail at schemas long before they fail at answering.
+      //
+      // So: retry once WITHOUT tools. The prose is what the owner came
+      // for; product cards and action chips are enrichment. Losing the
+      // enrichment is a worse answer, losing the answer is no answer.
+      //
+      // Retrieval and the catalog digest are NOT re-run — they already
+      // succeeded and cost a round trip each.
+      _log.warning('tool call failed for workspace $workspaceId, '
+          'retrying without tools: $e');
+      try {
+        final plain = await _ai.complete(
+          systemPrompt: _systemPrompt(
+            memoryBlock: retrieved.promptBlock,
+            catalog: catalog,
+          ),
+          userMessage: trimmed,
+        );
+        final text = plain.text.trim();
+        if (text.isNotEmpty) {
+          return WorkspaceAnswer(
+            answer: text,
+            productIds: const [],
+            // Server-chosen, since there is no model intent to read.
+            // Generic, and honestly so — better a plain "Open your
+            // catalog" than a guess dressed as a suggestion.
+            actions: _actionsFromIntents(_defaultActions(catalog)),
+            citations: citations,
+            // TRUE: a model did write this. It just could not call a
+            // tool. Claiming otherwise would be as wrong as the reverse.
+            generated: true,
+            providerName: plain.providerName,
+          );
+        }
+      } catch (e2) {
+        _log.warning('plain retry also failed for $workspaceId: $e2');
+      }
+
+      // Degrade, do not break. An owner asking a question during a full
       // provider outage should get a usable screen and an honest note,
-      // not a red error — and `generated: false` is how the dashboard
-      // knows to say so.
-      _log.warning('ask failed for workspace $workspaceId: $e');
+      // not a red error — `generated: false` is how the dashboard knows
+      // to say so.
       return _fallback(_couldNotAnswer, _defaultActions(catalog));
     }
   }
@@ -263,7 +386,21 @@ class WorkspaceAnswerService {
     if (catalog.isNotEmpty) {
       buffer
         ..writeln()
-        ..writeln('--- PRODUCTS (id | name | category | price | stock) ---');
+        // ── SAY WHAT THIS LIST IS NOT ─────────────────────────────
+        //
+        // The digest is ACTIVE products only (listByWorkspace with
+        // includeArchived: false). Asked "list our products, also check
+        // my archived ones", the model listed the active ones and said
+        // nothing about the omission — so the answer read as complete
+        // when it had silently skipped half the question.
+        //
+        // The model cannot know a filter it was never told about. Naming
+        // the boundary here is what lets it say "I can only see your
+        // active products" instead of quietly answering a narrower
+        // question than the one asked.
+        ..writeln('--- ACTIVE PRODUCTS ONLY (archived ones are NOT listed '
+            'here; say so if asked about them) ---')
+        ..writeln('(id | name | category | price | stock)');
       for (final e in catalog) {
         buffer.writeln(e.promptLine);
       }
@@ -388,7 +525,12 @@ class WorkspaceAnswerService {
     return WorkspaceAnswer(
       answer: answer.isEmpty ? _couldNotAnswer : answer,
       productIds: productIds,
-      actions: _resolve(actions, workspaceId, catalog),
+      actions: _resolve(
+        actions,
+        workspaceId,
+        catalog,
+        hasCitations: citations.isNotEmpty,
+      ),
       citations: citations,
       generated: true,
       providerName: providerName,
@@ -399,8 +541,9 @@ class WorkspaceAnswerService {
   List<WorkspaceAnswerAction> _resolve(
     List<({String intent, String label, int? productId})> raw,
     int workspaceId,
-    List<_CatalogEntry> catalog,
-  ) {
+    List<_CatalogEntry> catalog, {
+    bool hasCitations = false,
+  }) {
     final known = {for (final e in catalog) e.id};
     final out = <WorkspaceAnswerAction>[];
 
@@ -412,6 +555,20 @@ class WorkspaceAnswerService {
 
       var route = base;
       int? productId;
+
+      // Offered only when there is actually something to reveal.
+      if (a.intent == kShowSourcesIntent) {
+        if (!hasCitations) continue;
+        out.add(WorkspaceAnswerAction(
+          intent: a.intent,
+          label: a.label.trim().isEmpty
+              ? _fallbackLabel(a.intent)
+              : _cap(a.label.trim()),
+          route: '',
+        ));
+        if (out.length == 3) break;
+        continue;
+      }
 
       if (a.intent == 'view_product') {
         final id = a.productId;
@@ -430,9 +587,7 @@ class WorkspaceAnswerService {
         // A model asked for a button label occasionally writes a
         // sentence. Truncated rather than rejected — the intent is still
         // good, and a button is not where you find out.
-        label: label.isEmpty
-            ? _fallbackLabel(a.intent)
-            : (label.length > 42 ? '${label.substring(0, 41)}…' : label),
+        label: label.isEmpty ? _fallbackLabel(a.intent) : _cap(label),
         route: route,
         productId: productId,
       ));
@@ -442,7 +597,14 @@ class WorkspaceAnswerService {
     return out;
   }
 
+  /// A model asked for a button label occasionally writes a sentence.
+  /// Truncated rather than rejected — the intent is still good, and a
+  /// button is not where you find that out.
+  static String _cap(String label) =>
+      label.length > 42 ? '${label.substring(0, 41)}…' : label;
+
   static String _fallbackLabel(String intent) => switch (intent) {
+        kShowSourcesIntent => 'Show me where',
         'open_catalog' || 'add_product' => 'Open your catalog',
         'import_products' => 'Import products',
         'view_product' => 'Open this product',
@@ -460,15 +622,7 @@ class WorkspaceAnswerService {
       WorkspaceAnswer(
         answer: text,
         productIds: const [],
-        actions: [
-          for (final (intent, label) in intents)
-            if (kIntents[intent] case final route?)
-              WorkspaceAnswerAction(
-                intent: intent,
-                label: label,
-                route: route,
-              ),
-        ],
+        actions: _actionsFromIntents(intents),
         citations: const [],
         // FALSE, and this matters. It is how the dashboard can tell the
         // owner "this one is not from the model" during an outage
@@ -476,6 +630,20 @@ class WorkspaceAnswerService {
         generated: false,
         providerName: 'none',
       );
+
+  /// Builds actions from a server-chosen intent list.
+  ///
+  /// Used by every path where there is no MODEL intent to read — the
+  /// two prose fallbacks and the nothing-taught-yet case. An unknown
+  /// intent is skipped rather than guessed at, same rule as _resolve.
+  List<WorkspaceAnswerAction> _actionsFromIntents(
+    List<(String, String)> intents,
+  ) =>
+      [
+        for (final (intent, label) in intents)
+          if (kIntents[intent] case final route?)
+            WorkspaceAnswerAction(intent: intent, label: label, route: route),
+      ];
 
   List<(String, String)> _defaultActions(List<_CatalogEntry> catalog) => [
         if (catalog.isEmpty)
@@ -509,6 +677,138 @@ class WorkspaceAnswerService {
       _log.warning('catalog digest failed for $workspaceId: $e');
       return const [];
     }
+  }
+
+  // ── RECOVERING A TOOL CALL FROM THE CONTENT STREAM ─────────────────
+
+  /// Pulls `{answer, product_ids, actions}` out of text a model emitted
+  /// instead of a real tool call, or null if there is nothing to pull.
+  ///
+  /// Scans for every BALANCED `{...}` region and tries each one, rather
+  /// than matching a wrapper format. Wrappers are the part that varies —
+  /// `<function=name>`, `{name}`, a ```json fence, `<tool_call>` — and a
+  /// regex per wrapper is a list that is always one provider out of date.
+  /// The JSON object inside is the part that does not vary.
+  ///
+  /// Scanning also handles the double-emission case for free: Groq split
+  /// one reply across TWO objects, the first carrying the answer and
+  /// product ids, the second the actions. Merging every object found
+  /// reassembles it; a format-matching parser would have taken the first
+  /// and dropped the buttons.
+  static Map<String, dynamic>? _salvage(String text) {
+    String? answer;
+    final productIds = <int>[];
+    final actions = <Object?>[];
+
+    for (final candidate in _balancedObjects(text)) {
+      Object? decoded;
+      try {
+        decoded = jsonDecode(candidate);
+      } catch (_) {
+        continue; // Not JSON. Prose with braces in it, most likely.
+      }
+      if (decoded is! Map) continue;
+      var map = decoded;
+
+      // `{"name": "reply_to_owner", "arguments": {...}}` — the OpenAI
+      // tool-call envelope, sometimes emitted as content verbatim.
+      final args = map['arguments'];
+      if (args is Map) map = args;
+
+      final a = map['answer'];
+      // FIRST non-empty answer wins. A second object repeating the field
+      // (observed) is a fragment, not a correction.
+      if (answer == null && a is String && a.trim().isNotEmpty) {
+        answer = a.trim();
+      }
+
+      final ids = map['product_ids'];
+      if (ids is List) {
+        for (final raw in ids) {
+          final id = _asInt(raw);
+          if (id != null && !productIds.contains(id)) productIds.add(id);
+        }
+      }
+
+      final acts = map['actions'];
+      if (acts is List) actions.addAll(acts);
+    }
+
+    // No answer means nothing worth showing, even if ids were found.
+    if (answer == null) return null;
+    return {
+      'answer': answer,
+      'product_ids': productIds,
+      'actions': actions,
+    };
+  }
+
+  /// Every balanced `{...}` span, aware of strings and escapes.
+  ///
+  /// String-awareness is load-bearing: a brace inside a quoted value
+  /// ("we open at {9am}") would otherwise unbalance the scan and swallow
+  /// the rest of the message.
+  static List<String> _balancedObjects(String text) {
+    final out = <String>[];
+    var i = 0;
+    while (i < text.length) {
+      if (text[i] != '{') {
+        i++;
+        continue;
+      }
+      var depth = 0;
+      var inString = false;
+      var escaped = false;
+      var closed = false;
+      for (var j = i; j < text.length; j++) {
+        final c = text[j];
+        if (inString) {
+          if (escaped) {
+            escaped = false;
+            // NOT r'\' — a raw string cannot end in a backslash, which
+            // is a compile error, and one I have now written twice.
+          } else if (c == '\\') {
+            escaped = true;
+          } else if (c == '"') {
+            inString = false;
+          }
+          continue;
+        }
+        if (c == '"') {
+          inString = true;
+        } else if (c == '{') {
+          depth++;
+        } else if (c == '}') {
+          depth--;
+          if (depth == 0) {
+            out.add(text.substring(i, j + 1));
+            i = j + 1;
+            closed = true;
+            break;
+          }
+        }
+      }
+      // An unterminated object means the rest of the text is one broken
+      // span — nothing further can balance, so stop.
+      if (!closed) break;
+    }
+    return out;
+  }
+
+  /// Whether unparseable text still reads as machine output.
+  ///
+  /// Used to choose between showing it (prose) and replacing it with an
+  /// honest failure. An owner shown `{"answer":` learns only that
+  /// something is broken, and learns it in the least useful way.
+  static bool _looksLikeScaffolding(String text) {
+    final t = text.trimLeft();
+    return t.startsWith('{') ||
+        t.startsWith('[') ||
+        t.startsWith('<function') ||
+        t.startsWith('<tool_call') ||
+        t.contains('"answer"') ||
+        t.contains('"product_ids"') ||
+        t.contains(_toolName);
   }
 
   // ── Coercion ────────────────────────────────────────────────────────

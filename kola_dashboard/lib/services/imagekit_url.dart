@@ -31,10 +31,14 @@
 // function of the original URL:
 //
 //   .../somtech/kola/workspaces/12/x.jpg
-//   .../somtech/tr:w-84,h-84,c-maintain_ratio,fo-auto/kola/workspaces/12/x.jpg
+//   .../somtech/tr:w-168/kola/workspaces/12/x.jpg
 //
-// w/h/c/fo are core transformations available on every plan, unlike the
-// named ML preset.
+// `w` is a plain resize, available on every plan.
+//
+// The first version of this file emitted `w,h,c-maintain_ratio,fo-auto`
+// and STILL DID NOT WORK, because `fo-auto` is automatic focus — another
+// AI add-on. Fixing a paid-feature dependency by reaching for a
+// different paid feature. See [thumb].
 //
 // Deriving at RENDER time rather than fixing the stored column also
 // repairs the fifty rows already in the database without a data
@@ -73,7 +77,25 @@ abstract class ImageKitUrl {
 
     final head = url.substring(0, slash + 1);
     final tail = url.substring(slash + 1);
-    return '${head}tr:w-$size,h-$size,c-maintain_ratio,fo-auto/$tail';
+    // ── WIDTH ONLY. NO CROP MODE, NO FOCUS. ─────────────────────────
+    //
+    // This used to emit `w-$size,h-$size,c-maintain_ratio,fo-auto`, and
+    // `fo-auto` is ImageKit's AUTOMATIC FOCUS — an AI add-on, exactly
+    // like the `n-ik_ml_thumbnail` preset this file was written to
+    // replace. On an account without that add-on the URL does not
+    // resolve, so I fixed a paid-feature dependency by introducing a
+    // different one.
+    //
+    // The tell was in the split: product detail renders through [wide],
+    // which emits `w-` alone and worked. The catalog list and the
+    // answer cards render through here and showed grey boxes. Same
+    // photo, same account, different transformation.
+    //
+    // Cropping to a square was never this function's job anyway — every
+    // caller sets `object-fit:cover` on a fixed box, so the BROWSER
+    // crops. Asking ImageKit to do it too was work that could only
+    // fail.
+    return '${head}tr:w-$size/$tail';
   }
 
   /// A width-constrained version for a large single image, where the

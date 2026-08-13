@@ -66,6 +66,7 @@ import '../services/dom_files.dart';
 import '../services/file_intake.dart';
 import '../services/money.dart';
 import '../services/error_text.dart';
+import '../services/mini_markdown.dart';
 import '../theme.dart';
 
 /// One file the owner dropped, and what became of it.
@@ -875,12 +876,25 @@ class _KnowledgePageState extends State<KnowledgePage> {
                 ),
               ],
             ),
+            // ── RENDERED, NOT DUMPED ──────────────────────────────
+            //
+            // This printed the raw chunk with `white-space:pre-wrap`, so
+            // an owner inspecting their own memory saw literal ** and
+            // "## Sizing" and a stray "---" — the same thing that made
+            // the Overview's answers look broken.
+            //
+            // It is still the EXACT stored passage, which is the whole
+            // point of an inspection tool: MiniMarkdown reformats, it
+            // never edits. Nothing is summarised or dropped, headings
+            // keep their words, and a construct outside the subset falls
+            // through as plain text rather than disappearing.
             div(
-              attributes: {
-                'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                    'line-height:1.6;white-space:pre-wrap',
-              },
-              [Component.text(h.content)],
+              attributes: {'style': 'margin-top:2px'},
+              MiniMarkdown.render(
+                h.content,
+                color: KolaVar.muted,
+                fontSize: KolaType.small,
+              ),
             ),
           ],
         ),

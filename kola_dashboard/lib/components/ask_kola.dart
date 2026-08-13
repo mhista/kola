@@ -47,6 +47,39 @@ import 'answer_products.dart';
 import 'shell/icons.dart';
 import 'shell/kola_icon.dart';
 
+/// The last answer, kept across navigation.
+///
+/// ── WHY A MODULE-LEVEL STORE AND NOT STATE ──────────────────────────
+///
+/// AskKola is mounted by the Overview. Navigating to /catalog unmounts
+/// it and coming back builds a fresh State, so the answer an owner just
+/// read was gone the moment they followed one of its own suggestions —
+/// which is the single most likely thing for them to do next. Clicking
+/// "See all products" and losing the answer that produced it makes the
+/// suggestion feel like a trapdoor.
+///
+/// Deliberately IN MEMORY, not localStorage. This survives navigation
+/// inside the session, and a full reload clears it — which is the right
+/// boundary: an answer is a statement about the business at a moment in
+/// time, and silently re-showing yesterday's stock levels after a reload
+/// would be a false fact with a friendly face. The question stays in the
+/// composer either way, so re-asking is one keystroke.
+///
+/// Keyed by workspace, because switching workspaces must never show the
+/// previous one's answer — that would be a cross-tenant leak on screen,
+/// even if the data never crossed on the wire.
+class _LastAnswer {
+  static int? workspaceId;
+  static String question = '';
+  static WorkspaceAnswer? answer;
+
+  static void clear() {
+    workspaceId = null;
+    question = '';
+    answer = null;
+  }
+}
+
 class AskKola extends StatefulComponent {
   const AskKola({
     required this.client,
@@ -116,6 +149,24 @@ class _AskKolaState extends State<AskKola> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Restore whatever was on screen before the owner navigated away.
+    if (_LastAnswer.workspaceId == component.workspaceId &&
+        _LastAnswer.answer != null) {
+      _hasSearched = true;
+      _answer = _LastAnswer.answer;
+      _answeredQuestion = _LastAnswer.question;
+      _query = _LastAnswer.question;
+      // Fully revealed, not re-streamed. Replaying the typewriter on a
+      // sentence the owner has already read is theatre, and it would
+      // hide the actions and product cards for another second and a half
+      // every time they came back to the page.
+      _streamed = _LastAnswer.answer!.answer;
+    }
+  }
+
+  @override
   void dispose() {
     // Both fire setState. A timer outliving the component would call it
     // after unmount, which is a crash rather than a cosmetic problem.
@@ -146,6 +197,14 @@ class _AskKolaState extends State<AskKola> {
       );
       if (!mounted) return;
       _stageTimer?.cancel();
+      // Three plain assignments, NOT a cascade.
+      //
+      // `_LastAnswer..workspaceId = ...` targets the Type object, not
+      // the class's statics — cascades work on instances. It reads fine
+      // and does not compile.
+      _LastAnswer.workspaceId = component.workspaceId;
+      _LastAnswer.question = q;
+      _LastAnswer.answer = answer;
       setState(() {
         _answer = answer;
         _showSources = false;
@@ -355,11 +414,16 @@ class _AskKolaState extends State<AskKola> {
                     'font-family:inherit;line-height:1',
               },
               events: {
-                'click': (_) => setState(() {
-                      _hasSearched = false;
-                      _answer = null;
-                      _error = null;
-                    }),
+                'click': (_) {
+                  // Dismissing is an instruction, not a view change: it
+                  // must not come back on the next visit.
+                  _LastAnswer.clear();
+                  setState(() {
+                    _hasSearched = false;
+                    _answer = null;
+                    _error = null;
+                  });
+                },
               },
               [Component.text('×')],
             ),
@@ -460,18 +524,51 @@ class _AskKolaState extends State<AskKola> {
               },
               [
                 for (final a in answer.actions)
-                  Link(
-                    to: a.route,
-                    attributes: {
-                      'class': 'kola-pressable',
-                      'style': 'padding:8px 14px;'
-                          'border-radius:${KolaRadius.pill};'
-                          'border:1px solid ${KolaVar.border};'
-                          'font-size:${KolaType.tiny};font-weight:600;'
-                          'color:${KolaVar.text};text-decoration:none',
-                    },
-                    children: [Component.text(a.label)],
-                  ),
+                  // ── AN EMPTY ROUTE MEANS "DO IT HERE" ─────────────
+                  //
+                  // kola answered a delivery question with "refer to our
+                  // knowledge base on delivery" and offered "See delivery
+                  // details". There is no delivery page — the detail is a
+                  // PASSAGE in a document. Navigating to /knowledge would
+                  // resolve and still be wrong: the owner lands on a
+                  // document list and has to hunt for the paragraph kola
+                  // had just read.
+                  //
+                  // So the server emits show_details with route: '', and
+                  // it expands the citations already attached to this
+                  // answer, in place.
+                  if (a.route.isEmpty)
+                    button(
+                      attributes: {
+                        'type': 'button',
+                        'class': 'kola-pressable',
+                        'aria-expanded': _showSources ? 'true' : 'false',
+                        'style': 'padding:8px 14px;'
+                            'border-radius:${KolaRadius.pill};'
+                            'border:1px solid ${KolaVar.border};'
+                            'background:transparent;font-family:inherit;'
+                            'font-size:${KolaType.tiny};font-weight:600;'
+                            'color:${KolaVar.text};cursor:pointer',
+                      },
+                      events: {
+                        'click': (_) =>
+                            setState(() => _showSources = !_showSources),
+                      },
+                      [Component.text(a.label)],
+                    )
+                  else
+                    Link(
+                      to: a.route,
+                      attributes: {
+                        'class': 'kola-pressable',
+                        'style': 'padding:8px 14px;'
+                            'border-radius:${KolaRadius.pill};'
+                            'border:1px solid ${KolaVar.border};'
+                            'font-size:${KolaType.tiny};font-weight:600;'
+                            'color:${KolaVar.text};text-decoration:none',
+                      },
+                      children: [Component.text(a.label)],
+                    ),
               ],
             ),
 

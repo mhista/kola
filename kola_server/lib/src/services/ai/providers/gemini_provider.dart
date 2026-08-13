@@ -15,9 +15,34 @@ class GeminiProvider implements AiProvider {
 
   final String apiKey;
 
-  /// gemini-2.0-flash-lite — highest free-tier RPM, tried first.
-  /// gemini-2.0-flash      — fallback within Gemini alone.
-  static const _models = ['gemini-2.0-flash-lite', 'gemini-2.0-flash'];
+  /// ── BOTH PREVIOUS MODELS WERE SHUT DOWN ───────────────────────────
+  ///
+  /// This listed gemini-2.0-flash-lite and gemini-2.0-flash. Google has
+  /// retired both, so EVERY call through this provider returned 404:
+  ///
+  ///   "This model models/gemini-2.0-flash-lite is no longer available."
+  ///
+  /// The per-model loop below made that invisible for longer than it
+  /// should have been — it exists to survive one model failing, and
+  /// instead it walked a list where every entry was dead, then reported
+  /// one aggregate failure. Nothing distinguishes "temporarily rate
+  /// limited" from "this endpoint no longer exists" in that message.
+  ///
+  /// A hardcoded model id is a dependency on someone else's release
+  /// schedule, and the only real defence is that a 404 here now fails
+  /// LOUDLY: WorkspaceAnswerService falls back to a text-only completion
+  /// and marks the answer `generated: false`, so an owner is told the
+  /// reasoning could not be reached rather than being handed a canned
+  /// line dressed as an answer.
+  ///
+  /// gemini-3.5-flash-lite — cheapest current stable, tried first.
+  /// gemini-3.6-flash      — smarter fallback within Gemini alone.
+  ///
+  /// Deliberately NOT `gemini-flash-latest`. That alias hot-swaps
+  /// underneath us, and this provider is used for TOOL CALLING, where a
+  /// silent model change is a silent change in how reliably the schema
+  /// is honoured.
+  static const _models = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
 
   @override
   String get name => 'gemini';

@@ -229,7 +229,15 @@ class Sidebar extends StatelessComponent {
   // ── Workspace / profile ─────────────────────────────────────────────
 
   Component _profileBlock() => div(
-        attributes: {'style': 'position:relative'},
+        attributes: {
+          'style': 'position:relative',
+          // Marks the trigger AND the menu as one region, so AppShell's
+          // outside-click listener can ask "did this land inside?" with
+          // a single closest() call. Without it the listener would close
+          // the menu on the very click that opened it — the button is
+          // inside the document too.
+          'data-kola-overlay': 'profile',
+        },
         [
           if (profileMenuOpen) _profileMenu(),
           button(
