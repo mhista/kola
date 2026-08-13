@@ -32,6 +32,7 @@ import 'package:kola_server/src/services/errand/webhook_errand_executor.dart';
 import 'package:kola_server/src/services/errand/db_credential_errand_executor.dart';
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
+import 'package:kola_server/src/services/assistant/workspace_answer_service.dart';
 import 'package:kola_server/src/services/knowledge/bot_knowledge_service.dart';
 import 'package:kola_server/src/services/knowledge/bot_mother_service.dart';
 import 'package:kola_server/src/services/repository/conversation_repository.dart';
@@ -286,6 +287,18 @@ void setupDependencyInjection() {
       embeddings: getIt<EmbeddingOrchestrator>(),
       documents: getIt<KnowledgeDocumentRepository>(),
       chunks: getIt<KnowledgeChunkRepository>(),
+    ),
+  );
+
+  // Answers the OWNER, in the dashboard. Distinct from
+  // BotKnowledgeService, which answers CUSTOMERS on a channel — see
+  // workspace_answer_service.dart on why the two cannot share a posture
+  // (one escalates to a human, the other is talking TO the human).
+  getIt.registerLazySingleton<WorkspaceAnswerService>(
+    () => WorkspaceAnswerService(
+      aiOrchestrator: getIt<AiOrchestrator>(),
+      memory: getIt<MemoryRetrievalService>(),
+      products: getIt<ProductRepository>(),
     ),
   );
 

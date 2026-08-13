@@ -41,7 +41,9 @@ import 'package:kola_client/kola_client.dart';
 
 import '../services/dom_files.dart';
 import '../services/error_text.dart';
+import '../services/mini_markdown.dart';
 import '../theme.dart';
+import 'answer_products.dart';
 import 'shell/icons.dart';
 import 'shell/kola_icon.dart';
 
@@ -72,8 +74,21 @@ class _AskKolaState extends State<AskKola> {
   bool _searching = false;
   bool _hasSearched = false;
   String? _error;
-  List<KnowledgeSearchHit> _hits = const [];
+
+  /// The whole structured reply: prose, product ids, actions, citations.
+  ///
+  /// Replaces the bare List<KnowledgeSearchHit> this held when the box
+  /// called searchMemory and printed retrieved chunks verbatim. There was
+  /// no model in that path at all — see WorkspaceAnswerService.
+  WorkspaceAnswer? _answer;
   String _answeredQuestion = '';
+
+  /// Citations are collapsed by default now.
+  ///
+  /// When the passages WERE the answer they had to be open. Now they are
+  /// the evidence FOR an answer, and an owner who trusts the answer
+  /// should not have to scroll past its footnotes to reach the composer.
+  bool _showSources = false;
 
   /// Which "what is kola doing" caption is showing.
   ///
@@ -124,7 +139,7 @@ class _AskKolaState extends State<AskKola> {
     _startStages();
 
     try {
-      final hits = await component.client.knowledge.searchMemory(
+      final answer = await component.client.knowledge.askWorkspace(
         component.accessToken,
         component.workspaceId,
         q,
@@ -132,12 +147,11 @@ class _AskKolaState extends State<AskKola> {
       if (!mounted) return;
       _stageTimer?.cancel();
       setState(() {
-        _hits = hits;
+        _answer = answer;
+        _showSources = false;
         _searching = false;
       });
-      // Nothing found is still an ANSWER, and it streams like one — the
-      // alternative is a blank card that reads as a failure.
-      _startStreaming(hits.isEmpty ? _noAnswerFor(q) : _leadFor(hits));
+      _startStreaming(answer.answer);
     } catch (e) {
       if (!mounted) return;
       _stageTimer?.cancel();
@@ -187,74 +201,25 @@ class _AskKolaState extends State<AskKola> {
     });
   }
 
-  /// The one-line summary above the citations.
-  String _leadFor(List<KnowledgeSearchHit> hits) {
-    final n = hits.length;
-    return 'I found $n place${n == 1 ? '' : 's'} in what you have taught me '
-        'that answer this. They are quoted below, so you can see exactly '
-        'what I would tell a customer.';
-  }
-
-  /// What to say when memory has nothing.
-  String _noAnswerFor(String q) {
-    if (!component.hasDocuments) {
-      return "I have not been taught anything yet, so I cannot answer that "
-          "from your own words. Add a price list, an FAQ or your delivery "
-          "terms and ask me again.";
-    }
-    return "I could not find that in what you have taught me. Either it is "
-        "not in there yet, or it is worded differently — try the words a "
-        "customer would use.";
-  }
-
-  /// Where this question could be answered instead.
-  ///
-  /// ── WHY SUGGEST ACTIONS AT ALL ─────────────────────────────────────
-  ///
-  /// Asking "check my catalog" and being told "I don't have enough
-  /// signal" is a dead end, and it is WRONG — the catalog exists, kola
-  /// just cannot answer from memory about it. Pointing at the screen
-  /// that does answer it turns a refusal into a route.
-  ///
-  /// Only destinations that are REGISTERED and RELEASED appear. A
-  /// suggestion leading to a locked or unbuilt screen would be the dead
-  /// link problem again, wearing a helpful face.
-  List<({String label, String route})> _actionsFor(String question) {
-    final q = question.toLowerCase();
-    final out = <({String label, String route})>[];
-
-    void add(String label, String route) {
-      if (!out.any((a) => a.route == route)) {
-        out.add((label: label, route: route));
-      }
-    }
-
-    if (q.contains('catalog') || q.contains('product') || q.contains('price') ||
-        q.contains('stock') || q.contains('sell') || q.contains('item')) {
-      add('Open your catalog', '/catalog');
-    }
-    if (q.contains('teach') || q.contains('know') || q.contains('document') ||
-        q.contains('upload') || q.contains('learn')) {
-      add('Open Knowledge', '/knowledge');
-    }
-    if (q.contains('message') || q.contains('customer') ||
-        q.contains('conversation') || q.contains('reply') ||
-        q.contains('attention') || q.contains('waiting')) {
-      add('Open Operations', '/operations');
-    }
-    if (q.contains('agent') || q.contains('bot') || q.contains('answer')) {
-      add('Open Agents', '/bots');
-    }
-    if (q.contains('whatsapp') || q.contains('telegram') ||
-        q.contains('channel') || q.contains('connect')) {
-      add('Open Integrations', '/integrations');
-    }
-    if (q.contains('plan') || q.contains('bill') || q.contains('pay') ||
-        q.contains('upgrade')) {
-      add('Open Billing', '/billing');
-    }
-    return out;
-  }
+  // _leadFor, _noAnswerFor and _actionsFor USED TO LIVE HERE.
+  //
+  // All three were this component inventing an answer because nothing
+  // upstream produced one:
+  //
+  //   _leadFor      "I found 3 places..." — a sentence ABOUT the search,
+  //                 written because there was no actual answer to show.
+  //   _noAnswerFor  the two "I don't know" variants.
+  //   _actionsFor   keyword matching on the QUESTION. Asking "what do we
+  //                 have in the catalog" offered "Open your catalog"
+  //                 because the word "catalog" appeared — not because of
+  //                 anything in the reply. It could not do better: there
+  //                 was no reply to read.
+  //
+  // WorkspaceAnswerService now writes the prose and picks the actions
+  // from what it actually said, so all three are deleted rather than
+  // kept as a fallback. A second source of answer text is a second thing
+  // to keep in step, and this one would only ever run when the first had
+  // already failed — which is exactly when consistency matters most.
 
   // ── Results ─────────────────────────────────────────────────────────
 
@@ -355,52 +320,6 @@ class _AskKolaState extends State<AskKola> {
         ],
       );
 
-  /// Returns a LIST rather than a single Component so "nothing to
-  /// suggest" is just an empty list. Component.fragment would do the
-  /// same job but has no use anywhere else in this codebase, and an
-  /// unverified API for a one-line convenience is not a trade worth
-  /// making — see media_upload.dart's header.
-  List<Component> _actions() {
-    final actions = _actionsFor(_answeredQuestion);
-    if (actions.isEmpty) return const [];
-
-    return [div(
-      attributes: {'style': 'margin-top:14px'},
-      [
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                'margin-bottom:8px',
-          },
-          [
-            Component.text(
-              _hits.isEmpty
-                  ? 'You can look here instead:'
-                  : 'You might also want:',
-            ),
-          ],
-        ),
-        div(
-          attributes: {'style': 'display:flex;gap:8px;flex-wrap:wrap'},
-          [
-            for (final a in actions)
-              Link(
-                to: a.route,
-                attributes: {
-                  'class': 'kola-pressable',
-                  'style': 'padding:8px 14px;border-radius:${KolaRadius.pill};'
-                      'border:1px solid ${KolaVar.border};'
-                      'font-size:${KolaType.tiny};font-weight:600;'
-                      'color:${KolaVar.text};text-decoration:none',
-                },
-                children: [Component.text(a.label)],
-              ),
-          ],
-        ),
-      ],
-    )];
-  }
-
   Component _results() {
     return div(
       attributes: {
@@ -438,7 +357,7 @@ class _AskKolaState extends State<AskKola> {
               events: {
                 'click': (_) => setState(() {
                       _hasSearched = false;
-                      _hits = const [];
+                      _answer = null;
                       _error = null;
                     }),
               },
@@ -490,69 +409,131 @@ class _AskKolaState extends State<AskKola> {
             // offline.", which says the same thing twice.
             [Component.text(_error!)],
           )
-        else ...[
-          // The streamed answer, above whatever it is grounded in.
-          if (_streamed.isNotEmpty)
+        else if (_answer case final answer?) ...[
+          // ── THE ANSWER ─────────────────────────────────────────────
+          //
+          // Rendered through MiniMarkdown, not printed. The old version
+          // put raw text in one Component.text, which is why bullets and
+          // **bold** reached the owner as literal punctuation.
+          //
+          // While STREAMING the partial text is rendered too, so bold
+          // and bullets form as they arrive rather than snapping into
+          // shape at the end. MiniMarkdown handles a half-written `**`
+          // by leaving it literal, which is exactly right mid-stream.
+          div(
+            attributes: {'style': 'margin-bottom:4px'},
+            [
+              ...MiniMarkdown.render(_streamed),
+              if (_streaming)
+                span(
+                  attributes: {
+                    'style': 'display:inline-block;width:2px;height:1em;'
+                        'background:${KolaVar.accent};'
+                        'vertical-align:text-bottom;margin-left:2px',
+                  },
+                  [],
+                ),
+            ],
+          ),
+
+          // ── THE PRODUCTS IT IS ABOUT ───────────────────────────────
+          //
+          // Only after the text has finished. Cards appearing beside a
+          // half-written sentence makes the answer feel assembled rather
+          // than spoken, and it is the same reason the actions wait.
+          if (!_streaming && answer.productIds.isNotEmpty)
+            AnswerProducts(
+              client: component.client,
+              accessToken: component.accessToken,
+              workspaceId: component.workspaceId,
+              productIds: answer.productIds,
+            ),
+
+          // ── WHAT TO DO NEXT ────────────────────────────────────────
+          //
+          // The model chose the intent and wrote the label; the SERVER
+          // resolved the route. See workspace_answer_action.spy.yaml.
+          if (!_streaming && answer.actions.isNotEmpty)
             div(
               attributes: {
-                'style': 'font-size:${KolaType.body};color:${KolaVar.text};'
-                    'line-height:1.6;margin-bottom:12px;max-width:64ch',
+                'style': 'display:flex;gap:8px;flex-wrap:wrap;margin-top:14px',
               },
               [
-                Component.text(_streamed),
-                // A caret while text is still arriving. Removed the
-                // instant it finishes, so a finished answer never looks
-                // like it stopped halfway.
-                if (_streaming)
-                  span(
+                for (final a in answer.actions)
+                  Link(
+                    to: a.route,
                     attributes: {
-                      'style': 'display:inline-block;width:2px;height:1em;'
-                          'background:${KolaVar.accent};'
-                          'vertical-align:text-bottom;margin-left:2px',
+                      'class': 'kola-pressable',
+                      'style': 'padding:8px 14px;'
+                          'border-radius:${KolaRadius.pill};'
+                          'border:1px solid ${KolaVar.border};'
+                          'font-size:${KolaType.tiny};font-weight:600;'
+                          'color:${KolaVar.text};text-decoration:none',
                     },
-                    [],
+                    children: [Component.text(a.label)],
                   ),
               ],
             ),
 
-          if (_hits.isEmpty)
-            _noMatch()
-          else
+          // ── WHERE IT CAME FROM ─────────────────────────────────────
+          //
+          // Collapsed. These passages used to BE the answer, so they had
+          // to be open; now they are its evidence. Still one click away,
+          // because "every AI answer must cite where its information came
+          // from" is only true if the owner can actually reach it.
+          if (!_streaming && answer.citations.isNotEmpty) ...[
+            button(
+              attributes: {
+                'type': 'button',
+                'aria-expanded': _showSources ? 'true' : 'false',
+                'style': 'margin-top:14px;background:transparent;border:none;'
+                    'padding:0;color:${KolaVar.muted};font-family:inherit;'
+                    'font-size:${KolaType.tiny};font-weight:600;'
+                    'cursor:pointer;text-decoration:underline',
+              },
+              events: {
+                'click': (_) => setState(() => _showSources = !_showSources),
+              },
+              [
+                Component.text(
+                  _showSources
+                      ? 'Hide where this came from'
+                      : 'Where did this come from? '
+                          '(${answer.citations.length})',
+                ),
+              ],
+            ),
+            if (_showSources)
+              div(
+                attributes: {
+                  'style': 'display:flex;flex-direction:column;gap:10px;'
+                      'margin-top:10px',
+                },
+                [for (final h in answer.citations) _hit(h)],
+              ),
+          ],
+
+          // Said plainly rather than hidden. During a provider outage an
+          // owner deserves to know this sentence is a fallback, not
+          // kola's considered view — otherwise "kola got worse" is the
+          // only available explanation.
+          if (!_streaming && !answer.generated)
             div(
               attributes: {
-                'style': 'display:flex;flex-direction:column;gap:10px',
+                'style': 'margin-top:12px;font-size:${KolaType.tiny};'
+                    'color:${KolaVar.muted};line-height:1.5',
               },
-              [for (final h in _hits) _hit(h)],
+              [
+                Component.text(
+                  'This one was not written by kola\'s reasoning — it could '
+                  'not be reached just now.',
+                ),
+              ],
             ),
-
-          // Where to go instead. Shown once the answer has finished
-          // arriving — offering the exit before kola has finished
-          // speaking reads as giving up.
-          if (!_streaming) ..._actions(),
         ],
       ],
     );
   }
-
-  /// Nothing matched.
-  ///
-  /// Says WHY rather than just "no results". The two causes need
-  /// different actions from the owner — nothing taught yet vs. nothing
-  /// relevant taught — and only they can tell which applies.
-  Component _noMatch() => div(
-        attributes: {
-          'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-              'line-height:1.6',
-        },
-        [
-          Component.text(component.hasDocuments
-              ? 'Nothing in memory is close enough to answer that. kola only '
-                  'answers from what you have taught it — it will not guess. '
-                  'Adding a document that covers this makes it answerable.'
-              : 'kola has not been taught anything yet, so it has nothing to '
-                  'answer from. Add a price list, FAQ or policy and ask again.'),
-        ],
-      );
 
   /// One retrieved passage.
   Component _hit(KnowledgeSearchHit hit) {

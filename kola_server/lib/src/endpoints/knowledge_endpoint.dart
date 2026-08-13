@@ -28,6 +28,7 @@ import 'package:kola_server/src/services/documents/xlsx_extractor.dart';
 import 'package:serverpod/serverpod.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
+import 'package:kola_server/src/services/assistant/workspace_answer_service.dart';
 import 'package:kola_server/src/services/auth/workspace_access.dart';
 import 'package:kola_server/src/services/billing/plan_limits.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
@@ -230,6 +231,42 @@ class KnowledgeEndpoint extends Endpoint {
           similarity: match.similarity,
         ),
     ];
+  }
+
+  /// Answers a question the OWNER typed, in prose, with the products it
+  /// refers to and what they might do next.
+  ///
+  /// ── HOW THIS DIFFERS FROM searchMemory ABOVE ───────────────────────
+  ///
+  /// searchMemory is an INSPECTION tool: it returns passages and scores
+  /// so an owner can audit what the bot would ground an answer on. It
+  /// was also, until now, what the Overview's "Ask kola" box called —
+  /// which meant that box printed raw document text and no answer at
+  /// all. Two different jobs were being done by one method, and the
+  /// wrong one won.
+  ///
+  /// Both are kept. The Memory Inspector still wants searchMemory
+  /// exactly as it is; this is the one that answers.
+  ///
+  /// Never throws for an unanswerable question — see
+  /// WorkspaceAnswerService. A question during a provider outage returns
+  /// `generated: false` and an honest sentence, because an owner asking
+  /// their own dashboard a question should not be shown a stack trace.
+  Future<WorkspaceAnswer> askWorkspace(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String question,
+  ) async {
+    await requireWorkspaceAccess(
+      accessToken: accessToken,
+      workspaceId: workspaceId,
+    );
+
+    return getIt<WorkspaceAnswerService>().ask(
+      workspaceId: workspaceId,
+      question: question,
+    );
   }
 
   /// Adds a document from an uploaded FILE rather than pasted text.

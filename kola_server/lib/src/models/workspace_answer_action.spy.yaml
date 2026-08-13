@@ -1,0 +1,48 @@
+##
+## workspace_answer_action.spy.yaml — a thing the owner might do next.
+##
+## ── THE MODEL SUPPLIES INTENT. THE SERVER SUPPLIES THE ROUTE. ───────
+##
+## The obvious design is to let the model return `{label, url}` and render
+## it. Do not. A model asked for a URL will happily produce `/inventory`
+## or `/products/restock` — plausible, well-formed, and not a route this
+## app has. The owner clicks and lands nowhere.
+##
+## That is not hypothetical. Shipping `Link(to: '/settings')` and
+## `Link(to: '/catalog/:id')` with no registered route behind them is a
+## mistake already made twice in this codebase BY HAND. Handing the same
+## job to a model that cannot read the router would industrialise it.
+##
+## So the model chooses an [intent] from a closed vocabulary described to
+## it in the prompt, and WorkspaceAnswerService maps intent → route
+## against the real route table. An intent the server does not recognise
+## is dropped, not guessed at. The worst case is a missing button; the
+## worst case of the other design is a broken one.
+##
+## ── WHY THE LABEL IS STILL THE MODEL'S ─────────────────────────────
+##
+## Because "See the 6 that are low" reads better than "Open your
+## catalog", and it is the part that makes these feel like they belong to
+## the answer rather than a fixed toolbar. Label is presentation; route
+## is correctness. Only the second one can be wrong in a way that wastes
+## the owner's time, so only the second one is taken away from the model.
+##
+
+class: WorkspaceAnswerAction
+fields:
+  ## One of the closed set in WorkspaceAnswerService.kIntents. Kept on
+  ## the wire so the dashboard can pick an icon, and so a stored answer
+  ## stays meaningful if routes are renamed later.
+  intent: String
+
+  ## The model's own wording for the button. Trimmed and length-capped
+  ## server-side — a model asked for a button label will occasionally
+  ## write a sentence, and a button is not a place to discover that.
+  label: String
+
+  ## Resolved by the SERVER from [intent]. Never model-authored.
+  route: String
+
+  ## For intents that act on one product ('view_product'), the row it
+  ## refers to. Validated against the workspace before it is set.
+  productId: int?

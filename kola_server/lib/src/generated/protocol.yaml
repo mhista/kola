@@ -39,6 +39,7 @@ knowledge:
   - deleteDocument:
   - updateDocument:
   - searchMemory:
+  - askWorkspace:
   - addDocumentFromFile:
 ownerNotification:
   - getSettings:

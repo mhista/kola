@@ -426,17 +426,25 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               'padding:${KolaSpace.md}',
         },
         [
-          if (_media.isNotEmpty)
-            // Capped here rather than inside _gallery, which now fills
-            // whatever column it is given — on the seller side that is a
-            // 340px track, but this card is the full body width and an
-            // uncapped square photo would push the price off the screen.
-            div(
-              attributes: {
-                'style': 'max-width:320px;margin-bottom:18px',
-              },
-              [_gallery()],
-            ),
+          // Side by side here TOO, not just on the seller side.
+          //
+          // My previous pass reflowed the seller view and left this one
+          // stacked, which is the worse of the two places to leave it: a
+          // customer-facing card whose photo pushes the PRICE off the
+          // screen is showing the one fact the customer came for last.
+          //
+          // Same container/grid pair as the seller view, so both sides
+          // break to one column at the same width and switching tabs
+          // does not reflow the page under you.
+          _twoColumn(
+            left: _media.isEmpty
+                // No dashed "No photo yet" placeholder on this side. That
+                // message is addressed to the owner, and this column is
+                // meant to read as what a CUSTOMER sees — an empty box
+                // captioned with a to-do item is not that.
+                ? div(attributes: {'style': 'display:none'}, [])
+                : _gallery(),
+            right: [
           div(
             attributes: {
               'style': 'font-family:${KolaFonts.display};'
@@ -528,6 +536,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 ),
               ],
             ),
+            ],
+          ),
         ],
       ),
     ];

@@ -84,6 +84,7 @@ class _OverviewPageState extends State<OverviewPage> {
   List<Conversation> _escalated = const [];
   List<SupportTicket> _tickets = const [];
   List<KnowledgeDocument> _documents = const [];
+  List<Product> _products = const [];
   List<Bot> _bots = const [];
   List<Errand> _errands = const [];
   List<ConnectorStatus> _connectors = const [];
@@ -168,6 +169,28 @@ class _OverviewPageState extends State<OverviewPage> {
         gate.isEnabled(Features.channelWhatsapp)
             ? component.client.connector.listConnectors(token, id)
             : Future.value(const <ConnectorStatus>[]),
+
+        // Eighth read: the catalog.
+        //
+        // The Overview used to carry a "Products —" placeholder whose
+        // only job was to say "available once you can add a catalog". It
+        // was gated on the catalog being LOCKED, so releasing the
+        // catalog made the card vanish and nothing took its place — the
+        // header silently went from four cards to three. The placeholder
+        // was written; the real thing never was.
+        //
+        // This also feeds NextSteps.hasProducts, which has been hardcoded
+        // false since the day it was wired.
+        gate.isEnabled(Features.commerceCatalog)
+            ? component.client.product.listProducts(
+                token,
+                id,
+                // Explicit: Serverpod drops defaults when generating the
+                // client, so this is `required` there even though the
+                // endpoint declares it optional.
+                includeArchived: false,
+              )
+            : Future.value(const <Product>[]),
       ]);
 
       if (!mounted) return;
@@ -179,6 +202,7 @@ class _OverviewPageState extends State<OverviewPage> {
         _bots = results[4].cast<Bot>();
         _errands = results[5].cast<Errand>();
         _connectors = results[6].cast<ConnectorStatus>();
+        _products = results[7].cast<Product>();
         _phase = _Phase.ready;
       });
     } catch (e) {
@@ -614,11 +638,11 @@ class _OverviewPageState extends State<OverviewPage> {
       hasDocuments: _documents.isNotEmpty,
       hasConversations: _conversations.isNotEmpty,
       commerceEnabled: component.gate.isEnabled(Features.commerceCatalog),
-      // No catalog endpoint exists yet, so this is always false and the
-      // products hint never fires. Wired now rather than later so it
-      // starts working the moment the catalog does, instead of being
-      // forgotten.
-      hasProducts: false,
+      // Was hardcoded false with a note saying it would start working
+      // when the catalog shipped. The catalog shipped and this was not
+      // revisited, which is what that kind of note is for and exactly
+      // how it fails.
+      hasProducts: _products.isNotEmpty,
       dismissed: _dismissed,
     );
 
@@ -828,7 +852,17 @@ class _OverviewPageState extends State<OverviewPage> {
           value: '—',
           note: 'Starts counting when the sales counter arrives.',
         ),
-      if (!gate.isEnabled(Features.commerceCatalog))
+
+      // Products, in BOTH states.
+      //
+      // Only the locked branch existed, so releasing the catalog deleted
+      // the card instead of filling it in. A placeholder written without
+      // its counterpart is a card that disappears the moment the feature
+      // it was waiting for arrives — the opposite of what it was for.
+      if (gate.isEnabled(Features.commerceCatalog))
+        _stat('Products', _products.length,
+            'Add or import your first product and it appears here.')
+      else
         (
           label: 'Products',
           value: '—',

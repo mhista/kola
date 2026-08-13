@@ -1,0 +1,80 @@
+##
+## workspace_answer.spy.yaml — what kola says back to the OWNER.
+##
+## ── THIS IS NOT THE CUSTOMER-FACING ANSWER ──────────────────────────
+##
+## BotKnowledgeService.answerGrounded already answers CUSTOMERS, and its
+## whole posture is "never bluff, escalate to a human when unsure".
+## That is right for a stranger on WhatsApp and wrong here.
+##
+## This answers the OWNER, in their own dashboard, about their own
+## business. There is nobody to escalate to — they ARE the person a
+## customer would be escalated to. So when kola does not know something,
+## the useful reply is not "let me get someone", it is "I cannot answer
+## that yet, and here is the screen where you would record it".
+##
+## ── NOT A TABLE ─────────────────────────────────────────────────────
+##
+## No `# table:` line, same as knowledge_search_hit.spy.yaml: this shape
+## exists to cross the RPC boundary, not to be stored.
+##
+## Storing these IS worth doing — a question, the passages retrieved for
+## it, the model that answered, and whether the owner then had to correct
+## it, is the only training corpus that would ever be trustworthy. But
+## that is a table with retention and per-workspace consent attached to
+## it, and it is a different decision from this one. Recorded rather than
+## quietly skipped.
+##
+
+class: WorkspaceAnswer
+fields:
+  ## The prose, in a SMALL and deliberately fixed subset of markdown:
+  ## paragraphs, `- ` bullets, `**bold**`, and nothing else.
+  ##
+  ## The subset is enforced in the prompt and again in the renderer. Not
+  ## because markdown is dangerous — the renderer never injects HTML —
+  ## but because every construct the renderer does not understand reaches
+  ## the owner as literal asterisks and pipes. That is exactly what the
+  ## previous screen did when it printed raw retrieved chunks, and it is
+  ## what made the answers look broken.
+  answer: String
+
+  ## Products the answer is ABOUT, in the order the model referred to
+  ## them.
+  ##
+  ## Ids, not names. The model is told which products exist and echoes
+  ## back the ids it used; the dashboard then loads those rows itself and
+  ## renders real cards with real photos and real stock. Nothing the
+  ## model writes about a product is displayed as fact — it only gets to
+  ## POINT at rows, never to describe them. A model that hallucinates a
+  ## price cannot get that price onto the screen this way.
+  ##
+  ## Ids the workspace does not own are dropped server-side.
+  productIds: List<int>
+
+  ## What to offer doing next. See workspace_answer_action.spy.yaml —
+  ## the model picks an intent from a closed set and the SERVER decides
+  ## the route.
+  actions: List<WorkspaceAnswerAction>
+
+  ## Which stored passages grounded this, so the owner can check it.
+  ##
+  ## Reuses KnowledgeSearchHit rather than defining a parallel citation
+  ## type: it already carries documentTitle, chunkIndex, content and
+  ## similarity, which is exactly what "show me why you said that" needs,
+  ## and the Memory Inspector already renders it.
+  citations: List<KnowledgeSearchHit>
+
+  ## True when the answer came from a model, false when it is a
+  ## deterministic fallback (no provider configured, provider
+  ## unreachable, or the workspace has taught kola nothing yet).
+  ##
+  ## Surfaced rather than hidden. An owner comparing two answers deserves
+  ## to know which one a model wrote — and during a provider outage this
+  ## is the difference between "kola got worse" and "kola is degraded
+  ## right now".
+  generated: bool
+
+  ## The provider that answered, for the same reason. 'none' when
+  ## [generated] is false.
+  providerName: String

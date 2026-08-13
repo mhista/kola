@@ -180,13 +180,19 @@ abstract class ProductCsv {
     'cost': 'cost',
     'costprice': 'cost',
     'buyingprice': 'cost',
+    // Our own downloadable template's wording, so a file we handed the
+    // owner maps CONFIDENTLY rather than landing in amber "not sure"
+    // beside columns we chose ourselves.
+    'whatitcostsyou': 'cost',
     'stock': 'stock',
     'quantity': 'stock',
     'qty': 'stock',
     'instock': 'stock',
     'lowstock': 'lowStock',
     'lowstockthreshold': 'lowStock',
+    'lowstockalert': 'lowStock',
     'reorderlevel': 'lowStock',
+    'reorderpoint': 'lowStock',
     'unit': 'unit',
     'priceunit': 'unit',
     'measure': 'unit',
@@ -194,6 +200,8 @@ abstract class ProductCsv {
     'image': 'imageUrl',
     'photo': 'imageUrl',
     'photourl': 'imageUrl',
+    'photolink': 'imageUrl',
+    'imagelink': 'imageUrl',
     'picture': 'imageUrl',
   };
 
@@ -215,6 +223,33 @@ abstract class ProductCsv {
     if (normalised.contains('price') || normalised.contains('amount')) {
       return 'price';
     }
+
+    // ── LOW-STOCK BEFORE STOCK. THE ORDER IS THE WHOLE RULE ───────────
+    //
+    // "lowstockalert" contains "stock", so the generic stock test below
+    // claimed it first and a low-stock threshold column was mapped onto
+    // the stock count — overwriting real inventory with a reorder
+    // trigger. Silently, and confidently enough to look right.
+    //
+    // Found by running this importer's OWN canonical labels through it:
+    // "Low-stock alert" is the label csvTargetFields advertises, and it
+    // did not survive its own round trip. A file we generated would have
+    // imported wrong.
+    //
+    // Every low-stock spelling contains "stock", so this can only ever
+    // be fixed by ordering, not by adding more substrings below.
+    if (normalised.contains('stock') &&
+        (normalised.contains('low') ||
+            normalised.contains('reorder') ||
+            normalised.contains('threshold') ||
+            normalised.contains('alert') ||
+            normalised.contains('min'))) {
+      return 'lowStock';
+    }
+    if (normalised.contains('reorder') || normalised.contains('threshold')) {
+      return 'lowStock';
+    }
+
     if (normalised.contains('qty') || normalised.contains('stock') ||
         normalised.contains('quantity')) {
       return 'stock';

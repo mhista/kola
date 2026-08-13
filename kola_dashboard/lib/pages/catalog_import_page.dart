@@ -47,6 +47,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../services/csv_template.dart';
 import '../services/dom_files.dart';
 import '../services/error_text.dart';
 import '../services/file_intake.dart';
@@ -361,6 +362,65 @@ class _CatalogImportPageState extends State<CatalogImportPage> {
             ),
           ],
         ),
+        // ── FOR THE OWNER WHO HAS NO FILE AT ALL ──────────────────────
+        //
+        // Everything above assumes a spreadsheet already exists, which is
+        // true of a shop leaving another platform and false of most first
+        // catalogs — those live in a notebook. "Upload a CSV" is advice
+        // to that person, not help.
+        //
+        // sheets.new is named explicitly because it is the shortest path
+        // that exists: it opens a blank Google Sheet in one click, with
+        // no menu to find. Import the template into it, type down the
+        // columns, File → Download → CSV, come back here.
+        div(
+          attributes: {
+            'style': 'margin-top:18px;padding:14px 16px;'
+                'border:1px solid ${KolaVar.border};'
+                'border-radius:${KolaRadius.lg};background:${KolaVar.card}',
+          },
+          [
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.small};font-weight:700;'
+                    'color:${KolaVar.text};margin-bottom:4px',
+              },
+              [Component.text("Do not have a file yet?")],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                    'line-height:1.55;margin-bottom:12px;max-width:60ch',
+              },
+              [
+                Component.text(
+                  'Download the template, open sheets.new and import it, '
+                  'then type your products down the columns. It comes with '
+                  'two filled-in examples — one stocked product and one '
+                  'service — so you can see what goes where.',
+                ),
+              ],
+            ),
+            button(
+              attributes: {
+                'type': 'button',
+                'class': 'kola-pressable',
+                'style': 'display:inline-flex;align-items:center;gap:8px;'
+                    'padding:9px 16px;border-radius:${KolaRadius.pill};'
+                    'border:1px solid ${KolaVar.border};'
+                    'background:transparent;color:${KolaVar.text};'
+                    'font-family:inherit;font-size:${KolaType.tiny};'
+                    'font-weight:600;cursor:pointer',
+              },
+              events: {'click': (_) => CsvTemplate.download()},
+              [
+                kolaIcon(Icons.paperclip, size: 14),
+                Component.text('Download the template'),
+              ],
+            ),
+          ],
+        ),
+
         if (_error != null) _msg(_error!, KolaVar.danger),
       ]);
 

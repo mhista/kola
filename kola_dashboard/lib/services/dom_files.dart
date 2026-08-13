@@ -36,6 +36,7 @@
 // stable, identical in every browser, and if one were wrong it would
 // fail immediately and visibly rather than in a corner.
 
+import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
@@ -118,4 +119,47 @@ extension type _InlineStyle._(JSObject _) implements JSObject {
 /// nothing, which reads as the product being broken twice over.
 void resetFileInput(JSObject target) {
   (target as _FileInput).value = '';
+}
+
+// ── DOWNLOADING A FILE THE APP GENERATED ─────────────────────────────
+//
+// Same discipline as the rest of this file, and for the same reason:
+// `web.document.createElement('a') as web.HTMLAnchorElement` is a cast
+// across an extension type, which is the exact shape this file exists to
+// avoid guessing at. `href`, `download` and `click` are the DOM's own
+// names from the HTML spec — stable, unambiguous, and wrong loudly
+// rather than quietly if they were not.
+
+extension type _Anchor._(JSObject _) implements JSObject {
+  external set href(String v);
+
+  /// The attribute that makes the browser SAVE the target instead of
+  /// navigating to it, and supplies the filename. Without it a data:
+  /// URL opens the CSV as a page of text.
+  external set download(String v);
+
+  external void click();
+}
+
+/// Saves [content] to the visitor's downloads as [fileName].
+///
+/// The anchor is never added to the document. A detached element still
+/// dispatches a click, and appending would mean removing it afterwards —
+/// a cleanup step that leaves stray nodes behind the first time someone
+/// forgets it.
+void downloadText(
+  String content, {
+  required String fileName,
+  String mimeType = 'text/csv',
+}) {
+  // A BOM, deliberately. Without it Excel on Windows reads the file as
+  // the system codepage and any ₦ an owner types into a filled-in
+  // template comes back as mojibake. Sheets and LibreOffice ignore it.
+  final bytes = utf8.encode('\u{FEFF}$content');
+  final url = 'data:$mimeType;charset=utf-8;base64,${base64Encode(bytes)}';
+
+  final anchor = web.document.createElement('a') as _Anchor;
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
 }

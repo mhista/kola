@@ -1421,6 +1421,37 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['query'],
                   ),
         ),
+        'askWorkspace': _i1.MethodConnector(
+          name: 'askWorkspace',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'question': _i1.ParameterDescription(
+              name: 'question',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['knowledge'] as _i8.KnowledgeEndpoint)
+                  .askWorkspace(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['question'],
+                  ),
+        ),
         'addDocumentFromFile': _i1.MethodConnector(
           name: 'addDocumentFromFile',
           params: {
