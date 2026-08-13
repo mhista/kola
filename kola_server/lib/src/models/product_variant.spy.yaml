@@ -1,0 +1,58 @@
+##
+## product_variant.spy.yaml — one size, colour or option of a Product
+## (migration 029).
+##
+## ── WHY A ROW AND NOT A COUNT ────────────────────────────────────────
+##
+## The catalog export carries `variants: 4` on each product, and the
+## editor carries variantRows of {label, stock}. The count is a
+## rendering convenience. The rows are the fact, and they have to be
+## rows because each one holds its own stock — "Ready-made gown" being
+## in stock is not a useful answer when only the XL is left.
+##
+## ── A NULL PRICE INHERITS, IT DOES NOT MEAN FREE ─────────────────────
+##
+## priceMinor null means "same as the parent product", which is the
+## common case: four sizes at one price should not repeat that price
+## four times, because four copies of a number are four places for it
+## to drift when the owner raises it.
+##
+## This is a DIFFERENT meaning of null from Product.priceMinor, where
+## null means "on request". Deliberate, and the reason both are spelled
+## out: a variant always has a resolvable price, and a product may not.
+##
+## ── POSITION IS EXPLICIT ─────────────────────────────────────────────
+##
+## Sizes sorted alphabetically read L, M, S, XL. Customers notice
+## immediately, and it makes a careful shop look careless. The owner's
+## ordering is stored.
+##
+
+class: ProductVariant
+# table: product_variants
+fields:
+  id: int? # Supabase assigns this automatically
+
+  ## Parent product. Deleting the product deletes its variants
+  ## (on delete cascade) — a variant has no meaning alone.
+  productId: int
+
+  ## 'Small', 'XL', 'Red'. The export's variantRows[].label.
+  label: String
+
+  sku: String?
+
+  ## Null inherits the parent's price — see the note above.
+  priceMinor: int?
+
+  ## Null means this variant is not separately stock-tracked.
+  stock: int?
+
+  position: int
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  product_variants_product_idx:
+    fields: productId

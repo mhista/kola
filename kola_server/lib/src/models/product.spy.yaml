@@ -1,0 +1,88 @@
+##
+## product.spy.yaml — a thing the business sells (migration 029).
+##
+## The field list is Kola Catalog.dc.html's product editor, not an
+## invention: editName, editDesc, editArchetype, editSku, editTag,
+## editPrice, editCost, editStock, editLowStock all appear below.
+##
+## ── NULL PRICE AND NULL STOCK CARRY MEANING ──────────────────────────
+##
+## The design's own 'Custom tailoring' row has both null, and they are
+## NOT zero:
+##
+##   priceMinor null → "ask us". A bot quoting ₦0 for tailoring would be
+##                     a false fact with a real cost attached.
+##   stock      null → not stock-tracked. A service cannot run out, and
+##                     rendering it sold out turns away business the shop
+##                     can take.
+##
+## Nothing downstream may collapse either to 0 for display or for
+## arithmetic. The database enforces the non-negative half of this; the
+## meaning of null is this file's job to state.
+##
+## ── MONEY ────────────────────────────────────────────────────────────
+##
+## priceMinor is an integer count of the smallest unit of priceCurrency
+## (kobo for NGN), never a double. Same shape
+## WorkspaceEndpoint.getBillingSummary already returns for plan pricing,
+## and for the same reason: floating point cannot represent 0.1, and a
+## price list is the last place to find that out.
+##
+## priceCurrency is stored per product rather than derived from the
+## workspace's region at read time — region is where the business IS,
+## which is not always what it prices in.
+##
+
+class: Product
+# table: products
+fields:
+  id: int? # Supabase assigns this automatically
+
+  ## The multi-tenant boundary. Every query filters on it.
+  workspaceId: int
+
+  name: String
+  description: String?
+
+  ## 'packaged' | 'variants' | 'services' — the export's ARCHETYPES,
+  ## in the design's own shop-owner words rather than a taxonomy.
+  ## The create-workspace wizard already asks the same question the
+  ## same way.
+  archetype: String
+
+  sku: String?
+
+  ## Free-text label the owner groups by. Not a foreign key — small
+  ## shops categorise by whatever they actually say out loud, and a
+  ## managed category table would force them to file things.
+  tag: String?
+
+  ## See the money note. Null means "on request", never free.
+  priceMinor: int?
+  priceCurrency: String
+
+  ## '/yd', '/kg', '/hour'. Display only. It does not change the
+  ## arithmetic; it tells a customer what the number buys.
+  priceUnit: String?
+
+  ## What the business paid. NEVER sent to a customer — this is the
+  ## input to margin analysis and nothing else.
+  costMinor: int?
+
+  ## Null means not stock-tracked. See the note above.
+  stock: int?
+
+  ## Below this, the product is "low". The design defaults it to 5.
+  lowStockThreshold: int
+
+  ## 'active' | 'archived'. Archived rather than deleted, because a
+  ## product that has been sold is referenced by past orders and
+  ## removing it would rewrite history the business may need.
+  status: String
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  products_workspace_idx:
+    fields: workspaceId

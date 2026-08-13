@@ -39,6 +39,7 @@ import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../services/feature_gate.dart';
+import '../services/error_text.dart';
 import '../theme.dart';
 
 class BillingPage extends StatefulComponent {
@@ -94,7 +95,7 @@ class _BillingPageState extends State<BillingPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ErrorText.of(e);
         _loading = false;
       });
     }

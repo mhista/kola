@@ -44,6 +44,7 @@ import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/feature_gate.dart';
 import '../services/local_storage.dart';
+import '../services/error_text.dart';
 import '../theme.dart';
 
 class OverviewPage extends StatefulComponent {
@@ -85,6 +86,19 @@ class _OverviewPageState extends State<OverviewPage> {
   List<KnowledgeDocument> _documents = const [];
   List<Bot> _bots = const [];
   List<Errand> _errands = const [];
+  List<ConnectorStatus> _connectors = const [];
+
+  /// Whether a messaging channel is live, for the day-one card's step 2.
+  ///
+  /// Restricted to the two connectors that ARE channels rather than
+  /// "any connector is connected" — a workspace with Paystack wired up
+  /// and no WhatsApp has not connected a channel, and ticking the step
+  /// for it would be the same false fact in a subtler form.
+  bool get _channelConnected => _connectors.any(
+        (c) =>
+            (c.key == 'whatsapp' || c.key == 'telegram') &&
+            c.status == 'connected',
+      );
 
   /// Hints the owner has waved away. Persisted, because a suggestion
   /// that returns on every page load is nagging, and people stop reading
@@ -141,6 +155,19 @@ class _OverviewPageState extends State<OverviewPage> {
         gate.isEnabled(Features.errandsBuiltin)
             ? component.client.errand.listErrandsForWorkspace(token, id)
             : Future.value(const <Errand>[]),
+        // Sixth read, added for the day-one card's step 2.
+        //
+        // The setup card previously hardcoded "Connect a channel" as
+        // NOT done — copied from the design export, where it is a
+        // rendering sample. Shipped literally it tells an owner who has
+        // just connected WhatsApp that they have not, which is the
+        // false-fact case. There is no workspace-level channel list on
+        // the client (ChannelEndpoint.listChannelsForBot is per-bot), so
+        // the connector catalogue is the honest source: it already
+        // merges stored channels per workspace.
+        gate.isEnabled(Features.channelWhatsapp)
+            ? component.client.connector.listConnectors(token, id)
+            : Future.value(const <ConnectorStatus>[]),
       ]);
 
       if (!mounted) return;
@@ -151,13 +178,14 @@ class _OverviewPageState extends State<OverviewPage> {
         _documents = results[3].cast<KnowledgeDocument>();
         _bots = results[4].cast<Bot>();
         _errands = results[5].cast<Errand>();
+        _connectors = results[6].cast<ConnectorStatus>();
         _phase = _Phase.ready;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _phase = _Phase.error;
-        _errorMessage = e.toString();
+        _errorMessage = ErrorText.of(e);
       });
     }
   }
@@ -331,39 +359,115 @@ class _OverviewPageState extends State<OverviewPage> {
 
   // ── Empty / setup ───────────────────────────────────────────────────
 
+  /// The day-one card, rebuilt against `Kola Dashboard Shell.dc.html`.
+  ///
+  /// ── WHAT THE EXPORT ACTUALLY SPECIFIES ─────────────────────────────
+  ///
+  /// The export's `setupSteps` are, verbatim:
+  ///
+  ///   1. Create your workspace  — done: TRUE
+  ///   2. Connect a channel      — done: false
+  ///   3. Teach kola about the business — done: false
+  ///
+  /// The previous build's step 1 was "Create a bot", which appears in no
+  /// export. It also asked a first-time owner to do something they had
+  /// just implicitly done: you cannot reach this screen without a
+  /// workspace, so step 1 opens already ticked. That tick is the point —
+  /// the card starts with a win rather than three chores.
+  ///
+  /// The card is centred, dashed, and led by a 🌱, per the export. The
+  /// step list is capped at 480px and left-aligned inside the centred
+  /// card, which is why the two alignments differ here.
+  ///
+  /// ── ONE DELIBERATE DEVIATION: WHERE "EDIT" GOES ────────────────────
+  ///
+  /// The export points step 1 at `Kola Create Workspace.dc.html`,
+  /// because in a static export that is the only file where workspace
+  /// fields exist. Wiring "Edit" to /create-workspace in the running app
+  /// would hand an owner a form that CREATES A SECOND BUSINESS — the
+  /// data-corruption exception, not a style preference. It goes to
+  /// /settings, which is where those fields are editable.
+  ///
+  /// ── THE SUBTITLE COUNTS, IT DOES NOT ASSERT ────────────────────────
+  ///
+  /// The export's copy ends "Step one's done — two to go." That is a
+  /// fixed string in a design sample. Shipped as-is it would still say
+  /// "two to go" to someone who had finished a second step, so the tail
+  /// is computed from the real step states.
   List<Component> _setup() {
-    final steps = <({String title, String body, String cta, String route, bool done})>[
+    final steps = <({
+      String title,
+      String body,
+      String cta,
+      String? route,
+      String icon,
+      bool done,
+    })>[
       (
-        title: 'Create a bot',
-        body: 'The thing that answers your customers. One is enough to start.',
-        cta: 'Create a bot',
-        route: '/bots/new',
-        done: _bots.isNotEmpty,
+        title: 'Create your workspace',
+        body: 'Your business name, what you sell, and who owns the account.',
+        cta: 'Edit',
+        // NOT /create-workspace, which is where the export points.
+        //
+        // In a static export that file is the only place workspace
+        // fields exist, but in the running app it is a form that CREATES
+        // A SECOND BUSINESS. /settings edits the one you already have —
+        // it opens on the Workspaces section, which holds exactly the
+        // three fields this step collected.
+        route: '/settings',
+        icon: Icons.workspaceSetup,
+        done: true,
       ),
       (
         title: 'Connect a channel',
-        body: 'WhatsApp or Telegram — wherever your customers already message you.',
+        body: 'WhatsApp or Telegram — wherever customers actually message you.',
         cta: 'Connect a channel',
         route: '/integrations',
-        done: false,
+        icon: Icons.whatsapp,
+        done: _channelConnected,
       ),
       (
         title: 'Teach kola about the business',
-        body: 'Paste a price list, FAQ or returns policy. Its first answers cite '
-            'this instead of guessing.',
+        // Rewritten. The export's line — "Paste a price list, FAQ or
+        // policy — its first answers cite this, not a guess" — names
+        // three document types and leaves the owner to infer why it
+        // matters. Most shop owners do not have a "policy" document,
+        // and the ones who do will not think of it as the thing kola
+        // needs. So this names the FACTS a customer actually asks
+        // about, then states the consequence of skipping it plainly.
+        body: 'Your prices, what you have in stock, where you deliver, '
+            'your refund rules, your opening hours. kola answers from '
+            'whatever you give it — and cites it. Give it nothing and it '
+            'has to guess.',
+        // "Teach kola something" described the intent but not the
+        // action, so it was unclear what pressing it would do.
         cta: 'Add knowledge',
         route: '/knowledge',
+        icon: Icons.book,
         done: _documents.isNotEmpty,
       ),
     ];
 
+    final remaining = steps.where((s) => !s.done).length;
+    final tail = remaining == 0
+        ? " That's all three done — kola is working with real answers now."
+        : remaining == 1
+            ? " One left."
+            : " Step one's done — $remaining to go.";
+
     return [
       div(
         attributes: {
-          'style': 'background:${KolaVar.card};border:1px dashed ${KolaVar.border};'
-              'border-radius:${KolaRadius.xl};padding:28px 22px',
+          'style': 'background:${KolaVar.card};'
+              'border:1px dashed ${KolaVar.border};'
+              'border-radius:${KolaRadius.xl};padding:36px 28px;'
+              'text-align:center',
         },
         [
+          div(
+            attributes: {'style': 'font-size:26px;margin-bottom:10px'},
+            [Component.text('🌱')],
+          ),
           div(
             attributes: {
               'style': 'font-size:${KolaType.lead};font-weight:600;'
@@ -374,17 +478,19 @@ class _OverviewPageState extends State<OverviewPage> {
           div(
             attributes: {
               'style': 'font-size:${KolaType.body};color:${KolaVar.muted};'
-                  'line-height:1.5;margin-bottom:20px;max-width:460px',
+                  'line-height:1.5;max-width:440px;margin:0 auto 22px',
             },
             [
               Component.text(
-                'Three steps ground it in real answers instead of guesses.',
+                'Three steps get it grounded in real answers instead of '
+                'guesses.$tail',
               ),
             ],
           ),
           div(
             attributes: {
-              'style': 'display:flex;flex-direction:column;gap:10px',
+              'style': 'display:flex;flex-direction:column;gap:10px;'
+                  'max-width:480px;margin:0 auto;text-align:left',
             },
             [for (var i = 0; i < steps.length; i++) _setupStep(i + 1, steps[i])],
           ),
@@ -395,14 +501,21 @@ class _OverviewPageState extends State<OverviewPage> {
 
   Component _setupStep(
     int number,
-    ({String title, String body, String cta, String route, bool done}) step,
+    ({
+      String title,
+      String body,
+      String cta,
+      String? route,
+      String icon,
+      bool done,
+    }) step,
   ) {
     return div(
       attributes: {
         'style': 'background:${KolaVar.bg};'
             'border:1px solid ${step.done ? KolaVar.success : KolaVar.border};'
-            'border-radius:${KolaRadius.md};padding:14px;'
-            'display:flex;align-items:center;gap:12px;flex-wrap:wrap;'
+            'border-radius:${KolaRadius.md};padding:14px 16px;'
+            'display:flex;align-items:center;gap:14px;flex-wrap:wrap;'
             'opacity:${step.done ? '0.7' : '1'}',
       },
       [
@@ -415,6 +528,21 @@ class _OverviewPageState extends State<OverviewPage> {
                 'color:${step.done ? KolaVar.successBright : KolaVar.muted}',
           },
           [Component.text(step.done ? '✓' : '$number')],
+        ),
+        // The export gives every step its own glyph, tinted green once
+        // the step is done. It carries no information the number does
+        // not — it is there so the row reads as a thing rather than a
+        // list entry, which is most of why the designed card feels
+        // finished and a bare numbered list does not.
+        div(
+          attributes: {
+            'style': 'width:30px;height:30px;border-radius:${KolaRadius.sm};'
+                'flex:none;display:flex;align-items:center;'
+                'justify-content:center;'
+                'background:${step.done ? KolaVar.successBg : KolaVar.pill};'
+                'color:${step.done ? KolaVar.successBright : KolaVar.accent}',
+          },
+          [kolaIcon(step.icon, size: 15)],
         ),
         div(
           attributes: {'style': 'flex:1;min-width:180px'},
@@ -435,17 +563,32 @@ class _OverviewPageState extends State<OverviewPage> {
             ),
           ],
         ),
-        Link(
-          to: step.route,
-          attributes: {
-            'class': 'kola-pressable',
-            'style': 'flex:none;border-radius:${KolaRadius.pill};'
-                'padding:8px 16px;font-size:${KolaType.tiny};font-weight:600;'
-                'text-decoration:none;'
-                '${step.done ? 'background:transparent;border:1px solid ${KolaVar.border};color:${KolaVar.muted}' : 'background:${KolaVar.accentFill};color:${KolaVar.accentText}'}',
-          },
-          children: [Component.text(step.done ? 'Edit' : step.cta)],
-        ),
+        // A step with no route renders a static "Done" tag rather than
+        // a button. See the workspace step's `route: null` comment —
+        // the destination does not exist yet, and a button that goes
+        // nowhere reads as broken rather than unfinished.
+        if (step.route == null)
+          div(
+            attributes: {
+              'style': 'flex:none;border-radius:${KolaRadius.pill};'
+                  'padding:8px 16px;font-size:${KolaType.tiny};'
+                  'font-weight:600;background:${KolaVar.successBg};'
+                  'color:${KolaVar.successBright}',
+            },
+            [Component.text('Done')],
+          )
+        else
+          Link(
+            to: step.route!,
+            attributes: {
+              'class': 'kola-pressable',
+              'style': 'flex:none;border-radius:${KolaRadius.pill};'
+                  'padding:8px 16px;font-size:${KolaType.tiny};font-weight:600;'
+                  'text-decoration:none;'
+                  '${step.done ? 'background:transparent;border:1px solid ${KolaVar.border};color:${KolaVar.muted}' : 'background:${KolaVar.accentFill};color:${KolaVar.accentText}'}',
+            },
+            children: [Component.text(step.done ? 'Edit' : step.cta)],
+          ),
       ],
     );
   }
@@ -635,15 +778,48 @@ class _OverviewPageState extends State<OverviewPage> {
   /// new. Observations, recommendations and analytics are NOT announced,
   /// so they stay absent — a placeholder card is a roadmap announcement
   /// wearing a different hat.
+  /// A counted stat, or an em-dash and an explanation when the count is
+  /// zero. See the NEVER A ZERO note below for why.
+  ({String label, String value, String? note}) _stat(
+    String label,
+    int count,
+    String zeroNote,
+  ) =>
+      count == 0
+          ? (label: label, value: '—', note: zeroNote)
+          : (label: label, value: '$count', note: null);
+
   Component _stats() {
     final gate = component.gate;
 
     final stats = <({String label, String value, String? note})>[
-      (label: 'Conversations', value: '${_conversations.length}', note: null),
-      if (gate.isEnabled(Features.escalation))
-        (label: 'Waiting on you', value: '${_escalated.length}', note: null),
+      // ── NEVER A ZERO ─────────────────────────────────────────────────
+      //
+      // "Conversations 0 / Waiting on you 0 / Documents learned 0" was
+      // three zeros across the top of the first screen a new owner sees.
+      // A zero is a measurement, and it reads as a verdict: it says the
+      // product ran and found nothing, when the truth is that nothing
+      // has happened YET. Those are different facts and the second one
+      // is encouraging.
+      //
+      // So a count of zero becomes an em-dash plus the condition that
+      // starts it counting — the same treatment the commerce
+      // placeholders below already use, which is why they read fine and
+      // these did not.
+      _stat('Conversations', _conversations.length,
+          'Starts counting when a customer first messages you.'),
       if (gate.isEnabled(Features.memoryDocuments))
-        (label: 'Documents learned', value: '${_documents.length}', note: null),
+        _stat('Documents learned', _documents.length,
+            'Add a price list or FAQ and it appears here.'),
+
+      // "Waiting on you" DELIBERATELY REMOVED.
+      //
+      // It was the fourth of five cards and the least load-bearing. When
+      // it is zero it says nothing; when it is not, the "Needs your
+      // attention" section directly below lists the same items with far
+      // more detail — who is waiting and for how long — so the card was
+      // a worse duplicate of something already on screen. The design's
+      // own header carries three cards, not five.
 
       // Announced on the landing page, not shipped yet.
       if (!gate.isEnabled(Features.commerceCore))

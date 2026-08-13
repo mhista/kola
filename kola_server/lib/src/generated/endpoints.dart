@@ -21,10 +21,11 @@ import '../endpoints/knowledge_endpoint.dart' as _i8;
 import '../endpoints/owner_notification_endpoint.dart' as _i9;
 import '../endpoints/payment_endpoint.dart' as _i10;
 import '../endpoints/platform_endpoint.dart' as _i11;
-import '../endpoints/support_ticket_endpoint.dart' as _i12;
-import '../endpoints/waitlist_endpoint.dart' as _i13;
-import '../endpoints/whatsapp_template_endpoint.dart' as _i14;
-import '../endpoints/workspace_endpoint.dart' as _i15;
+import '../endpoints/product_endpoint.dart' as _i12;
+import '../endpoints/support_ticket_endpoint.dart' as _i13;
+import '../endpoints/waitlist_endpoint.dart' as _i14;
+import '../endpoints/whatsapp_template_endpoint.dart' as _i15;
+import '../endpoints/workspace_endpoint.dart' as _i16;
 
 class Endpoints extends _i1.EndpointDispatch {
   @override
@@ -90,25 +91,31 @@ class Endpoints extends _i1.EndpointDispatch {
           'platform',
           null,
         ),
-      'supportTicket': _i12.SupportTicketEndpoint()
+      'product': _i12.ProductEndpoint()
+        ..initialize(
+          server,
+          'product',
+          null,
+        ),
+      'supportTicket': _i13.SupportTicketEndpoint()
         ..initialize(
           server,
           'supportTicket',
           null,
         ),
-      'waitlist': _i13.WaitlistEndpoint()
+      'waitlist': _i14.WaitlistEndpoint()
         ..initialize(
           server,
           'waitlist',
           null,
         ),
-      'whatsAppTemplate': _i14.WhatsAppTemplateEndpoint()
+      'whatsAppTemplate': _i15.WhatsAppTemplateEndpoint()
         ..initialize(
           server,
           'whatsAppTemplate',
           null,
         ),
-      'workspace': _i15.WorkspaceEndpoint()
+      'workspace': _i16.WorkspaceEndpoint()
         ..initialize(
           server,
           'workspace',
@@ -1937,6 +1944,385 @@ class Endpoints extends _i1.EndpointDispatch {
         ),
       },
     );
+    connectors['product'] = _i1.EndpointConnector(
+      name: 'product',
+      endpoint: endpoints['product']!,
+      methodConnectors: {
+        'listProducts': _i1.MethodConnector(
+          name: 'listProducts',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'includeArchived': _i1.ParameterDescription(
+              name: 'includeArchived',
+              type: _i1.getType<bool>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['product'] as _i12.ProductEndpoint).listProducts(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    includeArchived: params['includeArchived'],
+                  ),
+        ),
+        'getProduct': _i1.MethodConnector(
+          name: 'getProduct',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['product'] as _i12.ProductEndpoint).getProduct(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                  ),
+        ),
+        'listVariants': _i1.MethodConnector(
+          name: 'listVariants',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['product'] as _i12.ProductEndpoint).listVariants(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                  ),
+        ),
+        'createProduct': _i1.MethodConnector(
+          name: 'createProduct',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'name': _i1.ParameterDescription(
+              name: 'name',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'description': _i1.ParameterDescription(
+              name: 'description',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'archetype': _i1.ParameterDescription(
+              name: 'archetype',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'sku': _i1.ParameterDescription(
+              name: 'sku',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'tag': _i1.ParameterDescription(
+              name: 'tag',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'priceMinor': _i1.ParameterDescription(
+              name: 'priceMinor',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+            'priceCurrency': _i1.ParameterDescription(
+              name: 'priceCurrency',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'priceUnit': _i1.ParameterDescription(
+              name: 'priceUnit',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'costMinor': _i1.ParameterDescription(
+              name: 'costMinor',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+            'stock': _i1.ParameterDescription(
+              name: 'stock',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+            'lowStockThreshold': _i1.ParameterDescription(
+              name: 'lowStockThreshold',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['product'] as _i12.ProductEndpoint).createProduct(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['name'],
+                    description: params['description'],
+                    archetype: params['archetype'],
+                    sku: params['sku'],
+                    tag: params['tag'],
+                    priceMinor: params['priceMinor'],
+                    priceCurrency: params['priceCurrency'],
+                    priceUnit: params['priceUnit'],
+                    costMinor: params['costMinor'],
+                    stock: params['stock'],
+                    lowStockThreshold: params['lowStockThreshold'],
+                  ),
+        ),
+        'updateProduct': _i1.MethodConnector(
+          name: 'updateProduct',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'name': _i1.ParameterDescription(
+              name: 'name',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'description': _i1.ParameterDescription(
+              name: 'description',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'archetype': _i1.ParameterDescription(
+              name: 'archetype',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'sku': _i1.ParameterDescription(
+              name: 'sku',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'tag': _i1.ParameterDescription(
+              name: 'tag',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'priceMinor': _i1.ParameterDescription(
+              name: 'priceMinor',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+            'clearPrice': _i1.ParameterDescription(
+              name: 'clearPrice',
+              type: _i1.getType<bool>(),
+              nullable: false,
+            ),
+            'priceCurrency': _i1.ParameterDescription(
+              name: 'priceCurrency',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'priceUnit': _i1.ParameterDescription(
+              name: 'priceUnit',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'costMinor': _i1.ParameterDescription(
+              name: 'costMinor',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+            'stock': _i1.ParameterDescription(
+              name: 'stock',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+            'clearStock': _i1.ParameterDescription(
+              name: 'clearStock',
+              type: _i1.getType<bool>(),
+              nullable: false,
+            ),
+            'lowStockThreshold': _i1.ParameterDescription(
+              name: 'lowStockThreshold',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['product'] as _i12.ProductEndpoint).updateProduct(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                    name: params['name'],
+                    description: params['description'],
+                    archetype: params['archetype'],
+                    sku: params['sku'],
+                    tag: params['tag'],
+                    priceMinor: params['priceMinor'],
+                    clearPrice: params['clearPrice'],
+                    priceCurrency: params['priceCurrency'],
+                    priceUnit: params['priceUnit'],
+                    costMinor: params['costMinor'],
+                    stock: params['stock'],
+                    clearStock: params['clearStock'],
+                    lowStockThreshold: params['lowStockThreshold'],
+                  ),
+        ),
+        'archiveProduct': _i1.MethodConnector(
+          name: 'archiveProduct',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['product'] as _i12.ProductEndpoint).archiveProduct(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                  ),
+        ),
+        'replaceVariants': _i1.MethodConnector(
+          name: 'replaceVariants',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'labels': _i1.ParameterDescription(
+              name: 'labels',
+              type: _i1.getType<List<String>>(),
+              nullable: false,
+            ),
+            'stocks': _i1.ParameterDescription(
+              name: 'stocks',
+              type: _i1.getType<List<int?>>(),
+              nullable: false,
+            ),
+            'priceMinors': _i1.ParameterDescription(
+              name: 'priceMinors',
+              type: _i1.getType<List<int?>>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['product'] as _i12.ProductEndpoint)
+                  .replaceVariants(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                    params['labels'],
+                    params['stocks'],
+                    params['priceMinors'],
+                  ),
+        ),
+      },
+    );
     connectors['supportTicket'] = _i1.EndpointConnector(
       name: 'supportTicket',
       endpoint: endpoints['supportTicket']!,
@@ -1965,7 +2351,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['supportTicket'] as _i12.SupportTicketEndpoint)
+                  (endpoints['supportTicket'] as _i13.SupportTicketEndpoint)
                       .list(
                         session,
                         params['accessToken'],
@@ -2002,7 +2388,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['supportTicket'] as _i12.SupportTicketEndpoint)
+                  (endpoints['supportTicket'] as _i13.SupportTicketEndpoint)
                       .setStatus(
                         session,
                         params['accessToken'],
@@ -2051,7 +2437,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['waitlist'] as _i13.WaitlistEndpoint).joinWaitlist(
+                  (endpoints['waitlist'] as _i14.WaitlistEndpoint).joinWaitlist(
                     session,
                     params['email'],
                     params['source'],
@@ -2116,7 +2502,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i14.WhatsAppTemplateEndpoint)
+                          as _i15.WhatsAppTemplateEndpoint)
                       .createTemplate(
                         session,
                         params['accessToken'],
@@ -2169,7 +2555,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i14.WhatsAppTemplateEndpoint)
+                          as _i15.WhatsAppTemplateEndpoint)
                       .createProductListTemplate(
                         session,
                         params['accessToken'],
@@ -2200,7 +2586,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i14.WhatsAppTemplateEndpoint)
+                          as _i15.WhatsAppTemplateEndpoint)
                       .listTemplatesForWorkspace(
                         session,
                         params['accessToken'],
@@ -2232,7 +2618,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i14.WhatsAppTemplateEndpoint)
+                          as _i15.WhatsAppTemplateEndpoint)
                       .refreshTemplateStatus(
                         session,
                         params['accessToken'],
@@ -2279,7 +2665,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i15.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i16.WorkspaceEndpoint)
                   .createWorkspace(
                     session,
                     params['accessToken'],
@@ -2302,7 +2688,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i15.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i16.WorkspaceEndpoint)
                   .listMyWorkspaces(
                     session,
                     params['accessToken'],
@@ -2326,11 +2712,54 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i15.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i16.WorkspaceEndpoint)
                   .getWorkspace(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
+                  ),
+        ),
+        'updateWorkspace': _i1.MethodConnector(
+          name: 'updateWorkspace',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'name': _i1.ParameterDescription(
+              name: 'name',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'industryTag': _i1.ParameterDescription(
+              name: 'industryTag',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'ownerName': _i1.ParameterDescription(
+              name: 'ownerName',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['workspace'] as _i16.WorkspaceEndpoint)
+                  .updateWorkspace(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    name: params['name'],
+                    industryTag: params['industryTag'],
+                    ownerName: params['ownerName'],
                   ),
         ),
         'getBillingSummary': _i1.MethodConnector(
@@ -2351,7 +2780,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i15.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i16.WorkspaceEndpoint)
                   .getBillingSummary(
                     session,
                     params['accessToken'],
@@ -2386,7 +2815,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i15.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i16.WorkspaceEndpoint)
                   .initiateUpgrade(
                     session,
                     params['accessToken'],

@@ -55,6 +55,14 @@ platform:
   - listWebhookEndpoints:
   - saveWebhookEndpoint:
   - deleteWebhookEndpoint:
+product:
+  - listProducts:
+  - getProduct:
+  - listVariants:
+  - createProduct:
+  - updateProduct:
+  - archiveProduct:
+  - replaceVariants:
 supportTicket:
   - list:
   - setStatus:
@@ -69,5 +77,6 @@ workspace:
   - createWorkspace:
   - listMyWorkspaces:
   - getWorkspace:
+  - updateWorkspace:
   - getBillingSummary:
   - initiateUpgrade:

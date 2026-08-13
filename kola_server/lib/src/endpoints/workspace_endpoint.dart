@@ -186,6 +186,74 @@ class WorkspaceEndpoint extends Endpoint {
     return workspace;
   }
 
+  /// Edits the three fields the create-workspace wizard collected.
+  ///
+  /// ── WHY THIS EXISTS ──────────────────────────────────────────────
+  ///
+  /// The wizard asked for a business name, what the business sells, and
+  /// the owner's name — and there was no way to change any of them
+  /// afterwards. Kola Settings.dc.html has a Workspaces section that
+  /// edits them; without this endpoint that section could only display.
+  ///
+  /// It also unblocks the Overview's day-one card, whose completed
+  /// "Create your workspace" step is supposed to offer Edit.
+  ///
+  /// ── WHAT IT DELIBERATELY WILL NOT TOUCH ──────────────────────────
+  ///
+  /// plan, status, trial dates, region, isInternal. Those are decided by
+  /// billing, by the trial state machine, and by admin — never by the
+  /// owner editing a form. WorkspaceRepository.update writes whatever
+  /// model it is handed, so this reads the CURRENT row and copies only
+  /// the three permitted fields onto it. Passing a client-supplied
+  /// Workspace straight through would let anyone with a session set
+  /// their own plan to enterprise.
+  ///
+  /// ── NULL MEANS "LEAVE IT" ────────────────────────────────────────
+  ///
+  /// Every parameter is optional and null means unchanged, so the
+  /// dashboard can save one field without having to send the others
+  /// back correctly. To CLEAR industryTag, send an empty string — that
+  /// is distinguishable from null and is normalised to null below.
+  Future<Workspace> updateWorkspace(
+    Session session,
+    String accessToken,
+    int workspaceId, {
+    String? name,
+    String? industryTag,
+    String? ownerName,
+  }) async {
+    await requireWorkspaceAccess(
+      accessToken: accessToken,
+      workspaceId: workspaceId,
+    );
+
+    final current = await _workspaces.findById(workspaceId);
+    if (current == null) {
+      throw KolaException(message: 'Workspace $workspaceId not found');
+    }
+
+    if (name != null) {
+      final trimmed = name.trim();
+      // A workspace with a blank name renders as an empty sidebar and an
+      // avatar with no initial. Refused rather than silently kept,
+      // because the owner needs to know the save did not take.
+      if (trimmed.isEmpty) {
+        throw KolaException(message: 'Your business needs a name.');
+      }
+      current.name = trimmed;
+    }
+    if (industryTag != null) {
+      final trimmed = industryTag.trim();
+      current.industryTag = trimmed.isEmpty ? null : trimmed;
+    }
+    if (ownerName != null) {
+      final trimmed = ownerName.trim();
+      current.ownerName = trimmed.isEmpty ? null : trimmed;
+    }
+
+    return _workspaces.update(current);
+  }
+
   /// Task #139/#8d — a workspace's plan/trial standing plus its current
   /// usage against PlanLimits, as one JSON string. Fills two gaps at
   /// once: the dashboard's "Billing" nav item had nothing real to show

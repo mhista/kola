@@ -28,13 +28,15 @@ import 'package:kola_client/src/protocol/payment_transaction.dart' as _i13;
 import 'package:kola_client/src/protocol/api_key.dart' as _i14;
 import 'package:kola_client/src/protocol/created_api_key.dart' as _i15;
 import 'package:kola_client/src/protocol/webhook_endpoint.dart' as _i16;
-import 'package:kola_client/src/protocol/support_ticket.dart' as _i17;
-import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i18;
+import 'package:kola_client/src/protocol/product.dart' as _i17;
+import 'package:kola_client/src/protocol/product_variant.dart' as _i18;
+import 'package:kola_client/src/protocol/support_ticket.dart' as _i19;
+import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i20;
 import 'package:kola_client/src/protocol/whatsapp_message_template.dart'
-    as _i19;
-import 'package:kola_client/src/protocol/workspace.dart' as _i20;
-import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i21;
-import 'protocol.dart' as _i22;
+    as _i21;
+import 'package:kola_client/src/protocol/workspace.dart' as _i22;
+import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i23;
+import 'protocol.dart' as _i24;
 
 /// {@category Endpoint}
 class EndpointBot extends _i1.EndpointRef {
@@ -1140,6 +1142,188 @@ class EndpointPlatform extends _i1.EndpointRef {
 }
 
 /// {@category Endpoint}
+class EndpointProduct extends _i1.EndpointRef {
+  EndpointProduct(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'product';
+
+  _i2.Future<List<_i17.Product>> listProducts(
+    String accessToken,
+    int workspaceId, {
+    required bool includeArchived,
+  }) => caller.callServerEndpoint<List<_i17.Product>>(
+    'product',
+    'listProducts',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'includeArchived': includeArchived,
+    },
+  );
+
+  _i2.Future<_i17.Product?> getProduct(
+    String accessToken,
+    int workspaceId,
+    int productId,
+  ) => caller.callServerEndpoint<_i17.Product?>(
+    'product',
+    'getProduct',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+    },
+  );
+
+  /// Variants for one product.
+  ///
+  /// Scoped through the product rather than queried directly: resolving
+  /// the parent first is what proves the caller is entitled to it.
+  _i2.Future<List<_i18.ProductVariant>> listVariants(
+    String accessToken,
+    int workspaceId,
+    int productId,
+  ) => caller.callServerEndpoint<List<_i18.ProductVariant>>(
+    'product',
+    'listVariants',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+    },
+  );
+
+  /// Creates a product.
+  ///
+  /// Note what is NOT a parameter: workspaceId comes from the argument
+  /// and is checked, and status is not settable — a product is created
+  /// active, and archiving is its own method with its own meaning.
+  _i2.Future<_i17.Product> createProduct(
+    String accessToken,
+    int workspaceId,
+    String name, {
+    String? description,
+    required String archetype,
+    String? sku,
+    String? tag,
+    int? priceMinor,
+    String? priceCurrency,
+    String? priceUnit,
+    int? costMinor,
+    int? stock,
+    required int lowStockThreshold,
+  }) => caller.callServerEndpoint<_i17.Product>(
+    'product',
+    'createProduct',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'name': name,
+      'description': description,
+      'archetype': archetype,
+      'sku': sku,
+      'tag': tag,
+      'priceMinor': priceMinor,
+      'priceCurrency': priceCurrency,
+      'priceUnit': priceUnit,
+      'costMinor': costMinor,
+      'stock': stock,
+      'lowStockThreshold': lowStockThreshold,
+    },
+  );
+
+  /// Edits a product. Null means "leave it alone".
+  ///
+  /// Clearing a price or a stock count therefore needs its own signal,
+  /// because null already means unchanged — [clearPrice] and
+  /// [clearStock] exist for that. Without them there would be no way to
+  /// turn a priced product into an on-request one, which is exactly what
+  /// happens when a shop stops publishing a price.
+  _i2.Future<_i17.Product> updateProduct(
+    String accessToken,
+    int workspaceId,
+    int productId, {
+    String? name,
+    String? description,
+    String? archetype,
+    String? sku,
+    String? tag,
+    int? priceMinor,
+    required bool clearPrice,
+    String? priceCurrency,
+    String? priceUnit,
+    int? costMinor,
+    int? stock,
+    required bool clearStock,
+    int? lowStockThreshold,
+  }) => caller.callServerEndpoint<_i17.Product>(
+    'product',
+    'updateProduct',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+      'name': name,
+      'description': description,
+      'archetype': archetype,
+      'sku': sku,
+      'tag': tag,
+      'priceMinor': priceMinor,
+      'clearPrice': clearPrice,
+      'priceCurrency': priceCurrency,
+      'priceUnit': priceUnit,
+      'costMinor': costMinor,
+      'stock': stock,
+      'clearStock': clearStock,
+      'lowStockThreshold': lowStockThreshold,
+    },
+  );
+
+  /// Archives. Does NOT delete — see product.spy.yaml.
+  _i2.Future<void> archiveProduct(
+    String accessToken,
+    int workspaceId,
+    int productId,
+  ) => caller.callServerEndpoint<void>(
+    'product',
+    'archiveProduct',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+    },
+  );
+
+  /// Replaces a product's variant set with exactly what is submitted.
+  ///
+  /// [labels], [stocks] and [priceMinors] are parallel lists rather than
+  /// a list of a variant model, because Serverpod cannot take a list of
+  /// a custom model as an endpoint parameter. Their lengths must match;
+  /// a mismatch is a client bug and is refused rather than zipped to the
+  /// shortest, which would silently drop a variant the owner entered.
+  _i2.Future<List<_i18.ProductVariant>> replaceVariants(
+    String accessToken,
+    int workspaceId,
+    int productId,
+    List<String> labels,
+    List<int?> stocks,
+    List<int?> priceMinors,
+  ) => caller.callServerEndpoint<List<_i18.ProductVariant>>(
+    'product',
+    'replaceVariants',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+      'labels': labels,
+      'stocks': stocks,
+      'priceMinors': priceMinors,
+    },
+  );
+}
+
+/// {@category Endpoint}
 class EndpointSupportTicket extends _i1.EndpointRef {
   EndpointSupportTicket(_i1.EndpointCaller caller) : super(caller);
 
@@ -1148,11 +1332,11 @@ class EndpointSupportTicket extends _i1.EndpointRef {
 
   /// Every ticket for a workspace, newest first. [status] optionally
   /// narrows to one status (e.g. just the open queue).
-  _i2.Future<List<_i17.SupportTicket>> list(
+  _i2.Future<List<_i19.SupportTicket>> list(
     String accessToken,
     int workspaceId, {
     String? status,
-  }) => caller.callServerEndpoint<List<_i17.SupportTicket>>(
+  }) => caller.callServerEndpoint<List<_i19.SupportTicket>>(
     'supportTicket',
     'list',
     {
@@ -1166,12 +1350,12 @@ class EndpointSupportTicket extends _i1.EndpointRef {
   /// 'closed'. Setting to 'resolved'/'closed' stamps resolvedAt
   /// automatically (see SupportTicketRepository.setStatus); reopening
   /// back to 'open'/'inProgress' clears it.
-  _i2.Future<_i17.SupportTicket> setStatus(
+  _i2.Future<_i19.SupportTicket> setStatus(
     String accessToken,
     int workspaceId,
     int ticketId,
     String status,
-  ) => caller.callServerEndpoint<_i17.SupportTicket>(
+  ) => caller.callServerEndpoint<_i19.SupportTicket>(
     'supportTicket',
     'setStatus',
     {
@@ -1197,13 +1381,13 @@ class EndpointWaitlist extends _i1.EndpointRef {
   /// A basic shape check on [email] happens here rather than trusting the
   /// browser's <input type="email"> alone, since this endpoint is public
   /// and reachable by anything, not just our own landing page.
-  _i2.Future<_i18.WaitlistSignup> joinWaitlist(
+  _i2.Future<_i20.WaitlistSignup> joinWaitlist(
     String email,
     String source, {
     String? name,
     String? phone,
     String? businessType,
-  }) => caller.callServerEndpoint<_i18.WaitlistSignup>(
+  }) => caller.callServerEndpoint<_i20.WaitlistSignup>(
     'waitlist',
     'joinWaitlist',
     {
@@ -1230,7 +1414,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// wrapper for the one shape the owner specifically asked for.
   /// Auth-checked here, then delegated to WhatsAppTemplateCreationService
   /// — see this file's header.
-  _i2.Future<_i19.WhatsAppMessageTemplate> createTemplate(
+  _i2.Future<_i21.WhatsAppMessageTemplate> createTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
@@ -1239,7 +1423,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
     String language,
     String bodyText,
     List<String> bodyExampleValues,
-  ) => caller.callServerEndpoint<_i19.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i21.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createTemplate',
     {
@@ -1266,14 +1450,14 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// values Meta's review requires for the two placeholders — not sent
   /// to any real customer, only shown to Meta's reviewer alongside the
   /// template.
-  _i2.Future<_i19.WhatsAppMessageTemplate> createProductListTemplate(
+  _i2.Future<_i21.WhatsAppMessageTemplate> createProductListTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
     String businessLabel,
     String customerNameExample,
     String productListExample,
-  ) => caller.callServerEndpoint<_i19.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i21.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createProductListTemplate',
     {
@@ -1288,10 +1472,10 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
 
   /// Every template submitted for this workspace, newest first — the
   /// dashboard's template status list.
-  _i2.Future<List<_i19.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
+  _i2.Future<List<_i21.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i19.WhatsAppMessageTemplate>>(
+  ) => caller.callServerEndpoint<List<_i21.WhatsAppMessageTemplate>>(
     'whatsAppTemplate',
     'listTemplatesForWorkspace',
     {
@@ -1303,11 +1487,11 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// Polls Meta for [templateId]'s current review outcome and persists
   /// any change — see whatsapp_template_service.dart's header on why
   /// this is polling, not a webhook, for now.
-  _i2.Future<_i19.WhatsAppMessageTemplate> refreshTemplateStatus(
+  _i2.Future<_i21.WhatsAppMessageTemplate> refreshTemplateStatus(
     String accessToken,
     int workspaceId,
     int templateId,
-  ) => caller.callServerEndpoint<_i19.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i21.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'refreshTemplateStatus',
     {
@@ -1350,13 +1534,13 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// A frozen package is frozen: it does not get edited to accommodate a
   /// signature change that had no reason to be breaking. Adding the new
   /// fields as NAMED and optional keeps every existing call valid.
-  _i2.Future<_i20.Workspace> createWorkspace(
+  _i2.Future<_i22.Workspace> createWorkspace(
     String accessToken,
     String name,
     String? industryTag, {
     String? ownerName,
     String? ownerPhone,
-  }) => caller.callServerEndpoint<_i20.Workspace>(
+  }) => caller.callServerEndpoint<_i22.Workspace>(
     'workspace',
     'createWorkspace',
     {
@@ -1371,8 +1555,8 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// Every workspace the caller belongs to, for the dashboard's workspace
   /// switcher (relevant now for a user with zero or one workspace, and
   /// unchanged when the agency/multi-workspace tier adds more).
-  _i2.Future<List<_i20.Workspace>> listMyWorkspaces(String accessToken) =>
-      caller.callServerEndpoint<List<_i20.Workspace>>(
+  _i2.Future<List<_i22.Workspace>> listMyWorkspaces(String accessToken) =>
+      caller.callServerEndpoint<List<_i22.Workspace>>(
         'workspace',
         'listMyWorkspaces',
         {'accessToken': accessToken},
@@ -1380,15 +1564,61 @@ class EndpointWorkspace extends _i1.EndpointRef {
 
   /// Fetch one workspace by id — access-checked, so a user can never read
   /// a workspace they're not a member of by guessing an id.
-  _i2.Future<_i20.Workspace> getWorkspace(
+  _i2.Future<_i22.Workspace> getWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<_i20.Workspace>(
+  ) => caller.callServerEndpoint<_i22.Workspace>(
     'workspace',
     'getWorkspace',
     {
       'accessToken': accessToken,
       'workspaceId': workspaceId,
+    },
+  );
+
+  /// Edits the three fields the create-workspace wizard collected.
+  ///
+  /// ── WHY THIS EXISTS ──────────────────────────────────────────────
+  ///
+  /// The wizard asked for a business name, what the business sells, and
+  /// the owner's name — and there was no way to change any of them
+  /// afterwards. Kola Settings.dc.html has a Workspaces section that
+  /// edits them; without this endpoint that section could only display.
+  ///
+  /// It also unblocks the Overview's day-one card, whose completed
+  /// "Create your workspace" step is supposed to offer Edit.
+  ///
+  /// ── WHAT IT DELIBERATELY WILL NOT TOUCH ──────────────────────────
+  ///
+  /// plan, status, trial dates, region, isInternal. Those are decided by
+  /// billing, by the trial state machine, and by admin — never by the
+  /// owner editing a form. WorkspaceRepository.update writes whatever
+  /// model it is handed, so this reads the CURRENT row and copies only
+  /// the three permitted fields onto it. Passing a client-supplied
+  /// Workspace straight through would let anyone with a session set
+  /// their own plan to enterprise.
+  ///
+  /// ── NULL MEANS "LEAVE IT" ────────────────────────────────────────
+  ///
+  /// Every parameter is optional and null means unchanged, so the
+  /// dashboard can save one field without having to send the others
+  /// back correctly. To CLEAR industryTag, send an empty string — that
+  /// is distinguishable from null and is normalised to null below.
+  _i2.Future<_i22.Workspace> updateWorkspace(
+    String accessToken,
+    int workspaceId, {
+    String? name,
+    String? industryTag,
+    String? ownerName,
+  }) => caller.callServerEndpoint<_i22.Workspace>(
+    'workspace',
+    'updateWorkspace',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'name': name,
+      'industryTag': industryTag,
+      'ownerName': ownerName,
     },
   );
 
@@ -1436,12 +1666,12 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// workspace collecting from ITS OWN customers). [customerEmail] is
   /// the signed-in dashboard user's email — the gateway needs an email
   /// on file for the checkout page/receipt regardless of who's paying.
-  _i2.Future<_i21.KolaBillingCheckout> initiateUpgrade(
+  _i2.Future<_i23.KolaBillingCheckout> initiateUpgrade(
     String accessToken,
     int workspaceId,
     String gateway,
     String customerEmail,
-  ) => caller.callServerEndpoint<_i21.KolaBillingCheckout>(
+  ) => caller.callServerEndpoint<_i23.KolaBillingCheckout>(
     'workspace',
     'initiateUpgrade',
     {
@@ -1473,7 +1703,7 @@ class Client extends _i1.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i22.Protocol(),
+         _i24.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -1492,6 +1722,7 @@ class Client extends _i1.ServerpodClientShared {
     ownerNotification = EndpointOwnerNotification(this);
     payment = EndpointPayment(this);
     platform = EndpointPlatform(this);
+    product = EndpointProduct(this);
     supportTicket = EndpointSupportTicket(this);
     waitlist = EndpointWaitlist(this);
     whatsAppTemplate = EndpointWhatsAppTemplate(this);
@@ -1518,6 +1749,8 @@ class Client extends _i1.ServerpodClientShared {
 
   late final EndpointPlatform platform;
 
+  late final EndpointProduct product;
+
   late final EndpointSupportTicket supportTicket;
 
   late final EndpointWaitlist waitlist;
@@ -1538,6 +1771,7 @@ class Client extends _i1.ServerpodClientShared {
     'ownerNotification': ownerNotification,
     'payment': payment,
     'platform': platform,
+    'product': product,
     'supportTicket': supportTicket,
     'waitlist': waitlist,
     'whatsAppTemplate': whatsAppTemplate,

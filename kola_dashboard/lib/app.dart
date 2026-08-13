@@ -58,6 +58,9 @@ import 'pages/bot_detail_chat_page.dart';
 import 'pages/bot_detail_dev_page.dart';
 import 'pages/login_page.dart';
 import 'pages/create_workspace_page.dart';
+import 'pages/logout_page.dart';
+import 'pages/settings_page.dart';
+import 'pages/catalog_page.dart';
 import 'pages/errand_builder_page.dart';
 import 'pages/knowledge_page.dart';
 import 'pages/conversations_page.dart';
@@ -282,6 +285,19 @@ class _DashboardAppState extends State<DashboardApp> {
       _workspaces = [..._workspaces, workspace];
       _selectedWorkspace = workspace;
     });
+    // WITHOUT THIS, A BRAND-NEW WORKSPACE HAS NO NAVIGATION.
+    //
+    // _gate was only ever loaded inside _loadWorkspaces, which runs at
+    // boot. Arriving here from the create-workspace wizard skips it
+    // entirely, so _gate stayed FeatureGate.empty() — an empty enabled
+    // set with loadFailed FALSE. Every gated nav item is then hidden and
+    // the shell shows no "couldn't check what's available" warning
+    // either, because as far as it knows the check succeeded and the
+    // answer was "nothing". The first thing a new owner saw was a
+    // sidebar containing only Overview.
+    //
+    // Fails silently by design: see _loadGate.
+    _loadGate(workspace);
   }
 
   /// The one real handler behind the switcher UI in SidebarNav/
@@ -295,6 +311,66 @@ class _DashboardAppState extends State<DashboardApp> {
   void _handleWorkspaceSwitch(Workspace workspace) {
     _persistSelectedWorkspaceId(workspace.id);
     setState(() => _selectedWorkspace = workspace);
+    // _loadWorkspaces' comment claims "switching workspace has to
+    // re-fetch it, and doing that from one place means a switch cannot
+    // leave the previous workspace's navigation on screen." That was
+    // the intent and it was never wired up — this handler set the
+    // workspace and nothing re-read the feature set, so switching from
+    // a full workspace to a bare one kept the full sidebar, and every
+    // item on it led to a page the new workspace cannot see.
+    _loadGate(workspace);
+  }
+
+  /// Applies an edit made in Settings.
+  ///
+  /// Replaces the entry in [_workspaces] as well as [_selectedWorkspace],
+  /// because both are read: the sidebar draws the selected one's name and
+  /// avatar, and the workspace switcher draws the list. Updating only the
+  /// selection would leave a renamed business showing its old name in its
+  /// own switcher.
+  ///
+  /// No gate reload — updateWorkspace cannot change plan or status, so
+  /// the enabled feature set cannot have moved.
+  void _handleWorkspaceUpdated(Workspace workspace) {
+    setState(() {
+      _workspaces = [
+        for (final w in _workspaces)
+          if (w.id == workspace.id) workspace else w,
+      ];
+      if (_selectedWorkspace?.id == workspace.id) {
+        _selectedWorkspace = workspace;
+      }
+    });
+  }
+
+  /// Re-reads the enabled feature set for [workspace] and rebuilds.
+  ///
+  /// Fire-and-forget on purpose. The callers are synchronous UI
+  /// handlers, and the workspace change itself has already been applied
+  /// by the time this starts — so the shell renders immediately with
+  /// the core navigation and fills in the gated items a moment later,
+  /// rather than holding the whole transition behind a network call on
+  /// a connection where that can be half a second.
+  ///
+  /// FeatureGate.load never throws (it fails closed and reports
+  /// loadFailed), so there is nothing here to catch.
+  Future<void> _loadGate(Workspace workspace) async {
+    final session = _session;
+    final id = workspace.id;
+    if (session == null || id == null) return;
+
+    final gate = await FeatureGate.load(
+      _client,
+      accessToken: session.accessToken,
+      workspaceId: id,
+    );
+    if (!mounted) return;
+
+    // Guards a race: two quick switches can land their responses out of
+    // order, and applying a stale one would draw the wrong workspace's
+    // navigation. Only the gate for the workspace still selected wins.
+    if (_selectedWorkspace?.id != id) return;
+    setState(() => _gate = gate);
   }
 
   void _persistSelectedWorkspaceId(int? id) {
@@ -337,6 +413,13 @@ class _DashboardAppState extends State<DashboardApp> {
     if (!loggedIn) {
       return loc == '/login' ? null : '/login';
     }
+    // Logging out is allowed from anywhere, and is checked BEFORE the
+    // workspace guard below. Without this ordering, an owner whose
+    // workspace failed to load is pinned to /create-workspace and
+    // cannot reach /logout at all — the one state where being able to
+    // sign out and start again matters most.
+    if (loc == '/logout') return null;
+
     if (_selectedWorkspace == null) {
       return loc == '/create-workspace' ? null : '/create-workspace';
     }
@@ -409,6 +492,52 @@ class _DashboardAppState extends State<DashboardApp> {
             onCreated: _handleWorkspaceCreated,
             onSignOut: _handleSignOut,
             loadFailed: _workspaceLoadFailed,
+          ),
+        ),
+        // The destination Sidebar's "Log out" entry has always pointed
+        // at. It was never registered, so the link matched no route and
+        // painted nothing while the session stayed alive — logout was
+        // dead across the whole app. See logout_page.dart.
+        //
+        // Deliberately NOT wrapped in shellFor: this page exists for a
+        // few milliseconds before the document is replaced, and drawing
+        // the sidebar and workspace chrome around a screen that is
+        // tearing down would flash the very navigation being left.
+        Route(
+          path: '/logout',
+          builder: (context, state) => LogoutPage(onSignOut: _handleSignOut),
+        ),
+        // Registered at last. Sidebar's profile menu has pointed both
+        // "Profile" and "Settings" here since it was written, and the
+        // Overview's day-one card wants it for the completed workspace
+        // step's Edit — three links, no route, nothing painted.
+        // Commerce, first screen. Gated at the server on commerce.core
+        // AND commerce.catalog; the nav item that leads here is gated on
+        // the same pair, so an unlocked workspace sees neither.
+        Route(
+          path: '/catalog',
+          builder: (context, state) => shellFor(
+            state,
+            CatalogPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+            ),
+          ),
+        ),
+        Route(
+          path: '/settings',
+          builder: (context, state) => shellFor(
+            state,
+            SettingsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspace: _selectedWorkspace!,
+              workspaces: _workspaces,
+              onWorkspaceSwitch: _handleWorkspaceSwitch,
+              onWorkspaceUpdated: _handleWorkspaceUpdated,
+              gate: _gate,
+            ),
           ),
         ),
         // FIRST PAGE ON THE REDESIGN. Wrapped in AppShell, which now

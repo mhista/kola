@@ -73,6 +73,7 @@ import 'package:kola_server/src/services/repository/knowledge_chunk_repository.d
 import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/repository/feature_flag_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_feature_override_repository.dart';
+import 'package:kola_server/src/services/repository/product_repository.dart';
 
 final getIt = GetIt.instance;
 
@@ -98,6 +99,15 @@ void setupDependencyInjection() {
   );
   getIt.registerLazySingleton<WaitlistSignupRepository>(
     () => const WaitlistSignupRepository(),
+  );
+
+  // Migration 029 — the catalog. Registered alongside the other
+  // repositories rather than behind a commerce check: DI wiring is not
+  // access control, and ProductEndpoint does the flag check on every
+  // method. A registration that appeared and disappeared with a feature
+  // flag would make startup depend on database state.
+  getIt.registerLazySingleton<ProductRepository>(
+    () => const ProductRepository(),
   );
 
   // Phase 3b — Errand system repositories.

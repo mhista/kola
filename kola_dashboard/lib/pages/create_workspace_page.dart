@@ -90,7 +90,32 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
     'Something else',
   ];
 
-  bool get _canContinueStep1 => _bizName.trim().isNotEmpty && _archetype != null;
+  /// The label that opens a free-text field instead of standing alone.
+  static const _otherLabel = 'Something else';
+
+  /// What the owner typed after choosing "Something else".
+  String _otherArchetype = '';
+
+  /// What actually gets stored as `workspaces.industry_tag`.
+  ///
+  /// The four named archetypes store their own label. "Something else"
+  /// stores what the owner TYPED, because the label itself is worthless
+  /// as a tag — it records only that none of the four fitted. The live
+  /// database already has a workspace tagged literally "Something else",
+  /// which tells kola nothing about what that business sells and is
+  /// exactly the outcome this replaces.
+  String? get _effectiveArchetype {
+    if (_archetype == null) return null;
+    if (_archetype != _otherLabel) return _archetype;
+    final typed = _otherArchetype.trim();
+    return typed.isEmpty ? null : typed;
+  }
+
+  /// "Something else" is not a complete answer on its own — it commits
+  /// the owner to describing the business, so Continue stays disabled
+  /// until they do rather than silently storing the placeholder.
+  bool get _canContinueStep1 =>
+      _bizName.trim().isNotEmpty && _effectiveArchetype != null;
 
   Future<void> _create() async {
     setState(() {
@@ -103,7 +128,7 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
       final workspace = await component.client.workspace.createWorkspace(
         component.accessToken,
         _bizName.trim(),
-        _archetype,
+        _effectiveArchetype,
         ownerName: _ownerName.trim(),
         ownerPhone: _ownerPhone.trim(),
       );
@@ -195,6 +220,25 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
           },
           [for (final a in _archetypes) _archetypeChip(a)],
         ),
+        // Revealed only on "Something else". Rendered after the chips
+        // rather than as a fifth chip-shaped input so it reads as a
+        // follow-up question, which is what it is.
+        if (_archetype == _otherLabel) ...[
+          // Deliberately not "What do you sell?" again — that label is
+          // already above the chips, and repeating it reads as the form
+          // not having registered the answer.
+          _label('Tell kola in your own words'),
+          input<String>(
+            type: InputType.text,
+            value: _otherArchetype,
+            onInput: (v) => setState(() => _otherArchetype = v),
+            attributes: {
+              'placeholder': 'e.g. Auto parts, event rentals, tutoring',
+              'aria-label': 'Describe what your business sells',
+              'style': _fieldCss,
+            },
+          ),
+        ],
         _primary(
           'Continue',
           enabled: _canContinueStep1,
@@ -290,9 +334,14 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
             _nextStep(2, 'Connect a channel',
                 'WhatsApp or Telegram — this is where customers actually '
                     'reach you.'),
-            _nextStep(3, 'Teach kola something',
-                'Paste a price list or policy so its first answers are '
-                    'grounded, not guesses.'),
+            // Kept in step with the Overview's day-one card, which
+            // lists these same three steps. Two screens describing the
+            // same task in different words reads as two different
+            // tasks, and the owner sees this one minutes before that
+            // one.
+            _nextStep(3, 'Add knowledge',
+                'Your prices, stock, delivery areas and refund rules — '
+                    'kola answers from these instead of guessing.'),
           ],
         ),
         div(

@@ -235,6 +235,7 @@ class MobileMoreSheet extends StatelessComponent {
               [],
             ),
             for (final group in navGroups) ..._group(group),
+            _signOutRow(),
           ],
         ),
       ],
@@ -292,6 +293,49 @@ class MobileMoreSheet extends StatelessComponent {
         ),
     ];
   }
+
+  /// Sign out, on mobile.
+  ///
+  /// This sheet is built entirely from `navGroups`, which describes the
+  /// PRODUCT's pages — so it had no sign-out row, and the mobile layout
+  /// hides the desktop sidebar that carries the profile menu. Between
+  /// them there was no way to log out on a phone at all. The desktop
+  /// entry was separately broken (it linked at an unregistered /logout);
+  /// now that /logout is a real route, the same link works here.
+  ///
+  /// Separated from the nav groups by a rule and rendered last, because
+  /// it is not a page you visit — it is an action that ends the session,
+  /// and it should not read as one more destination in the list.
+  Component _signOutRow() => div(
+        attributes: {
+          'style': 'border-top:1px solid ${KolaVar.border};'
+              'margin-top:10px;padding-top:8px',
+        },
+        [
+          div(
+            events: {'click': (_) => onClose()},
+            [
+              Link(
+                to: '/logout',
+                attributes: {
+                  'class': 'kola-nav-row kola-tab',
+                  'style': 'display:flex;align-items:center;gap:12px;'
+                      'padding:11px 14px;border-radius:${KolaRadius.sm};'
+                      'font-size:${KolaType.ui};text-decoration:none;'
+                      'color:${KolaVar.danger}',
+                },
+                children: [
+                  kolaIcon(Icons.logOut, size: 17, extraStyle: 'flex:none'),
+                  span(
+                    attributes: {'style': 'flex:1'},
+                    [Component.text('Log out')],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
 
   bool _isActive(String route) =>
       currentRoute == route || currentRoute.startsWith('$route/');

@@ -47,6 +47,7 @@ import 'package:kola_client/kola_client.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/feature_gate.dart';
+import '../services/error_text.dart';
 import '../theme.dart';
 
 enum _Tab { queue, tickets }
@@ -151,7 +152,7 @@ class _OperationsPageState extends State<OperationsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ErrorText.of(e);
         _loading = false;
       });
     }

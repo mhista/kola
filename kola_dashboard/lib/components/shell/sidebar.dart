@@ -326,14 +326,23 @@ class Sidebar extends StatelessComponent {
     String route,
     bool danger,
   })>[
-    (label: 'Profile', icon: Icons.user, route: '/settings', danger: false),
+    // "Profile" REMOVED — it pointed at /settings, which is exactly
+    // where the "Settings" row below goes. Two rows, one destination,
+    // and the first of them named after a page that does not exist as a
+    // separate thing. The workspace and owner-name fields it implied
+    // live in Settings → Workspaces.
     (label: 'Connectors', icon: Icons.plug, route: '/integrations', danger: false),
     (label: 'Settings', icon: Icons.settings, route: '/settings', danger: false),
     (label: 'Billing', icon: Icons.billing, route: '/billing', danger: false),
+    // Was '/workspaces', which was never a route and never painted. The
+    // export models switching as a menu ACTION (openWorkspaceSwitch),
+    // not a destination — but there is a real list with real Switch
+    // buttons in Settings → Workspaces, so this points there rather than
+    // duplicating the switcher inside the menu.
     (
       label: 'Switch workspace',
       icon: Icons.switchWorkspace,
-      route: '/workspaces',
+      route: '/settings',
       danger: false
     ),
     (label: 'Log out', icon: Icons.logOut, route: '/logout', danger: true),

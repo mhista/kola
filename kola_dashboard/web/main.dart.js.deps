@@ -535,6 +535,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/knowledge_document.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/knowledge_search_hit.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/kola_billing_checkout.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/kola_exception.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/message.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/otp_code.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/owner_notification_send.dart
@@ -591,9 +592,12 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/err
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/integrations_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/knowledge_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/login_page.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/logout_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/operations_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/overview_page.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/settings_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/auth_service.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/error_text.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/feature_gate.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/file_intake.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/local_storage.dart
