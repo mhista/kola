@@ -1,0 +1,66 @@
+##
+## api_key.spy.yaml — a workspace's programmatic credential.
+##
+## Schema: migration 026.
+##
+## ── THE PLAINTEXT KEY IS NOT IN THIS MODEL, ANYWHERE ────────────────
+##
+## Deliberate and load-bearing. [keyHash] is SHA-256 of the full key;
+## the key itself is generated, returned ONCE from createApiKey, and
+## never stored, never re-read, never serialisable.
+##
+## That is why the design's create-key flow has its own "here is your
+## key, copy it now" state (`newKeyValue`) rather than a row the owner
+## can expand later — the UI cannot show it again because the server
+## genuinely does not have it.
+##
+## NOT the AES approach used for channel tokens and gateway secrets.
+## Those must be DECRYPTED to be used — kola calls Telegram with the bot
+## token. An API key is only ever COMPARED. A reversible secret nobody
+## needs to reverse is a liability with no upside.
+##
+
+class: ApiKey
+# table: api_keys
+fields:
+  id: int? # Supabase assigns this automatically
+  workspaceId: int
+
+  ## Owner-chosen label — "Production", "Staging". Theirs to recognise,
+  ## not an identifier.
+  name: String
+
+  ## 'sk_live' or 'sk_test'. Held apart from the key so the card can
+  ## render the prefix without the server holding the secret.
+  keyPrefix: String
+
+  ## SHA-256 hex of the full key. The only copy of anything key-shaped
+  ## that exists after creation.
+  keyHash: String
+
+  ## Display only: renders `sk_live_••••8f2a` so two keys are tellable
+  ## apart. Four characters of a 32-byte random key narrows nothing.
+  lastFour: String
+
+  ## 'full' | 'read_only' | 'errands_only'.
+  ##
+  ## `errands_only` exists because "let my Zapier action run one errand"
+  ## should not require a key that can also read every conversation.
+  scope: String
+
+  ## Null until the key authenticates something — the design renders
+  ## "last used 3m ago", or "never".
+  lastUsedAt: DateTime?
+
+  ## Revocation is a TIMESTAMP, not a delete. A revoked key stays visible
+  ## long enough for an owner to understand what stopped working, and
+  ## deleting the row would destroy the trail of a key that may have
+  ## leaked.
+  revokedAt: DateTime?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  api_key_workspace_idx:
+    fields: workspaceId

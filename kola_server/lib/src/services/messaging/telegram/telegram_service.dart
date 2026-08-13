@@ -211,7 +211,7 @@ class TelegramService {
   /// telegram_bot_registry.dart after decoding the raw webhook POST body.
   ///
   /// IMPORTANT — WHY runZonedGuarded:
-  ///   Televerse's Bot.handleUpdate() is a VOID function (not Future<void>).
+  ///   Televerse's Bot.handleUpdate() is a VOID function (not `Future<void>`).
   ///   The official serverless example is: `bot.handleUpdate(update)` — no await.
   ///   It fires the handler chain asynchronously inside a new zone.
   ///   Errors thrown by our handlers do NOT bubble up through our try/catch —

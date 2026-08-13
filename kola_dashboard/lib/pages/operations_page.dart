@@ -646,20 +646,19 @@ class _OperationsPageState extends State<OperationsPage> {
             'display:flex;gap:8px;align-items:center',
       },
       [
-        input(
+        input<String>(
           type: InputType.text,
           attributes: {
             'placeholder': 'Reply as yourself…',
             'aria-label': 'Your reply',
-            'value': _reply,
             'style': 'flex:1;min-width:0;background:${KolaVar.card};'
                 'border:1px solid ${KolaVar.border};'
                 'border-radius:${KolaRadius.pill};padding:10px 16px;'
                 'color:${KolaVar.text};font-family:inherit;'
                 'font-size:${KolaType.body};outline:none',
           },
+          onInput: (v) => _reply = v,
           events: {
-            'input': (e) => _reply = (e.target as dynamic).value as String? ?? '',
             'keydown': (e) {
               if ((e as dynamic).key == 'Enter') _send();
             },

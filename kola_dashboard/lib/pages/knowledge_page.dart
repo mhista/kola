@@ -1,39 +1,56 @@
-// knowledge_page.dart — the Knowledge Center. What kola has been taught,
-// and a way to check what it would actually retrieve.
+// knowledge_page.dart — Knowledge Center.
 //
-// REBUILT on the new design system. The previous version of this file
-// used KolaDashboardColors throughout; nothing here does.
+// REBUILT against Kola Knowledge Base.dc.html, structure-first.
 //
-// ── TWO TABS, BOTH REAL ──────────────────────────────────────────────
+// ── HOW THIS WAS BUILT, BECAUSE THE METHOD WAS THE BUG ───────────────
 //
-//   Documents        → listDocuments / addDocument / deleteDocument
-//   Memory inspector → searchMemory
+// The previous version was written by opening the old page and asking
+// "what should change?". That anchors everything to the old screen, and
+// whatever it happened to do survives without ever being decided. The
+// result had two underline tabs and an inline add-card; the export
+// specifies three pill tabs, a document table with status filters, and a
+// "Build from what's already here" panel. None of those omissions was a
+// trade-off anyone weighed.
 //
-// The inspector is not a debug tool bolted on. It is the reason
-// KnowledgeSearchHit exists: an owner can type a question a customer
-// actually asked and see precisely which passages would ground the
-// answer, with real similarity scores. That is what makes the bot's
-// answers checkable rather than something to be trusted on faith.
+// So this file was built from the export's own `state` keys and arrays,
+// listed first, then built to:
 //
-// ── WHAT THE DESIGN SHOWS THAT IS NOT BUILT ──────────────────────────
+//   state : view · tab · searchQuery · statusFilter · inspectorQuery ·
+//           inspectorResult · addText · uploadQueue · generatedSources ·
+//           emptyDocsView
+//   arrays: DOCS(7) · EXAMPLES(3) · DATA_SOURCES(3)
 //
-//   UPLOAD A FILE — the picker accepts ANY file. What it cannot do is
-//     extract text from every one: PDF, Word, Excel, images and audio
-//     all need server-side extraction that does not exist yet. So every
-//     file is IDENTIFIED (see services/file_intake.dart) and the owner
-//     is told precisely what it is and what to do — never accepted and
-//     silently mangled into binary garbage stored as knowledge.
+// ── THE TABLE WAS ALWAYS SERVABLE ────────────────────────────────────
 //
-//   BUILD FROM WHAT'S ALREADY HERE — offers to generate knowledge from
-//     the product catalog. There is no catalog, no commerce backend and
-//     no endpoint. Omitted entirely.
+// Worth recording because it kills the usual excuse. KnowledgeDocument
+// already carries every column the design's table wants:
 //
-// ── DUPLICATES ARE A PROMPT, NOT AN ERROR ────────────────────────────
+//   TITLE    → title          SECTIONS → chunkCount
+//   SOURCE   → sourceRef      UPDATED  → updatedAt
+//   STATUS   → status         reason   → errorMessage
 //
-// addDocument refuses an exact duplicate and names the existing
-// document, and takes allowDuplicate to override. That round trip is
-// deliberate — see the endpoint's own header — so this page offers
-// "save it anyway" rather than presenting a dead end.
+// The table, the filter chips and the status badges were missing for no
+// backend reason at all. They were simply never built.
+//
+// ── STATUS: SERVER VOCABULARY vs DESIGN VOCABULARY ───────────────────
+//
+// The server writes 'indexed' and 'failed'. The design shows
+// searchable / processing / failed. `indexed` IS `searchable` — same
+// state, owner-facing word. Mapped at the boundary rather than renaming
+// the server, because 'indexed' is accurate to what the ingestion
+// pipeline did and 'searchable' is accurate to what the owner gets.
+//
+// `processing` is never written today — ingestion is synchronous — so
+// that chip legitimately reads (0). It is still rendered, because it
+// becomes real the moment extraction moves to a queue, and a filter that
+// appears later is a worse surprise than one that reads zero.
+//
+// ── NO TITLE FIELD, DELIBERATELY ─────────────────────────────────────
+//
+// The design's "Paste it in" card is one textarea and one button. The
+// old page had a separate Title input. addDocument still requires a
+// title, so it is DERIVED from the first line rather than asked for —
+// following the design without dropping data the server needs.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -46,7 +63,22 @@ import '../services/feature_gate.dart';
 import '../services/file_intake.dart';
 import '../theme.dart';
 
-enum _Tab { documents, inspector }
+/// One file the owner dropped, and what became of it.
+///
+/// The design's `uploadQueue`. A queue rather than a single slot because
+/// owners drop a folder's worth at once, and reporting only the first
+/// failure means the other four look like they worked.
+class _QueuedFile {
+  _QueuedFile(this.assessment);
+
+  final FileAssessment assessment;
+  String state = 'pending'; // pending · saving · done · failed
+  String? message;
+
+  /// Index into [_KnowledgePageState.uploadStages], advanced on a timer
+  /// while [state] is 'saving'.
+  int stage = 0;
+}
 
 class KnowledgePage extends StatefulComponent {
   const KnowledgePage({
@@ -66,32 +98,45 @@ class KnowledgePage extends StatefulComponent {
 }
 
 class _KnowledgePageState extends State<KnowledgePage> {
-  _Tab _tab = _Tab.documents;
+  // tab: documents · inspector · add
+  String _tab = 'documents';
 
-  bool _loading = true;
-  String? _error;
   List<KnowledgeDocument> _docs = const [];
+  bool _loading = true;
+  String? _loadError;
 
   String _search = '';
   String _statusFilter = 'all';
 
-  // Add form
-  String _newTitle = '';
-  String _newText = '';
+  // Add knowledge
+  String _pasteText = '';
   bool _saving = false;
   String? _addMessage;
   bool _duplicateOffer = false;
+  final List<_QueuedFile> _queue = [];
 
-  /// What the last picked file was judged to be. Drives the notice under
-  /// the picker — see file_intake.dart on why every file is classified
-  /// rather than optimistically read.
-  FileAssessment? _picked;
-
-  // Inspector
+  // Memory inspector
   String _probe = '';
   bool _probing = false;
   bool _probed = false;
   List<KnowledgeSearchHit> _hits = const [];
+
+  /// EXAMPLES(3) — sample questions with the kind of match each is meant
+  /// to demonstrate. Pure UI, carried verbatim from the export.
+  static const _examples = <(String, String)>[
+    ('Do you deliver to Abuja?', 'match'),
+    ('Can I exchange an item after a week?', 'nearmiss'),
+    ('Do you accept crypto payments?', 'none'),
+  ];
+
+  /// DATA_SOURCES(3) — "Build from what's already here".
+  static const _dataSources = <(String, String, String, String)>[
+    ('catalog', 'Product catalog', 'Prices, stock, descriptions', Icons.catalog),
+    ('inventory', 'Inventory & stock levels',
+        'Turns stock counts into "in stock / low / out" answers', Icons.catalog),
+    ('sales', 'Sales history',
+        'What sells together, popular sizes, repeat customers', Icons.activity),
+  ];
 
   @override
   void initState() {
@@ -102,7 +147,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
   Future<void> _load() async {
     setState(() {
       _loading = true;
-      _error = null;
+      _loadError = null;
     });
     try {
       final docs = await component.client.knowledge.listDocuments(
@@ -117,103 +162,171 @@ class _KnowledgePageState extends State<KnowledgePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _loadError = _human('$e');
         _loading = false;
       });
     }
   }
 
-  Future<void> _add({bool allowDuplicate = false}) async {
-    final title = _newTitle.trim();
-    final text = _newText.trim();
-    if (text.isEmpty || _saving) return;
+  // ── Derived ────────────────────────────────────────────────────────
 
+  /// 'indexed' → 'searchable'. See the header on why this maps rather
+  /// than renaming either side.
+  String _designStatus(KnowledgeDocument d) => switch (d.status) {
+        'indexed' => 'searchable',
+        'failed' => 'failed',
+        _ => 'processing',
+      };
+
+  int _countFor(String filter) => filter == 'all'
+      ? _docs.length
+      : _docs.where((d) => _designStatus(d) == filter).length;
+
+  List<KnowledgeDocument> get _visibleDocs {
+    final q = _search.trim().toLowerCase();
+    return [
+      for (final d in _docs)
+        if (_statusFilter == 'all' || _designStatus(d) == _statusFilter)
+          if (q.isEmpty || d.title.toLowerCase().contains(q)) d,
+    ];
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────
+
+  /// The design has no Title input. addDocument needs one, so it comes
+  /// from the first non-empty line — which is what a price list or
+  /// policy almost always leads with anyway.
+  String _deriveTitle(String text) {
+    for (final line in text.split('\n')) {
+      final t = line.trim();
+      if (t.isEmpty) continue;
+      return t.length <= 70 ? t : '${t.substring(0, 67)}…';
+    }
+    return 'Pasted note';
+  }
+
+  Future<void> _savePaste({bool allowDuplicate = false}) async {
+    final text = _pasteText.trim();
+    if (text.isEmpty) {
+      setState(() => _addMessage = 'Paste some text first.');
+      return;
+    }
     setState(() {
       _saving = true;
       _addMessage = null;
       _duplicateOffer = false;
     });
-
     try {
       await component.client.knowledge.addDocument(
         component.accessToken,
         component.workspaceId,
-        title.isEmpty ? 'Untitled note' : title,
+        _deriveTitle(text),
         text,
         allowDuplicate: allowDuplicate,
       );
       if (!mounted) return;
       setState(() {
+        _pasteText = '';
         _saving = false;
-        _newTitle = '';
-        _newText = '';
-        _addMessage = 'Saved. kola can answer from this within a few seconds.';
+        _addMessage = 'Saved. kola can answer from this now.';
+        _tab = 'documents';
       });
       await _load();
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString();
+      final msg = _human('$e');
       setState(() {
         _saving = false;
         _addMessage = msg;
-        // The endpoint refuses exact duplicates by design and names the
-        // existing document. That is not a failure — offer the override
-        // it was built to accept.
         _duplicateOffer = msg.toLowerCase().contains('already');
       });
     }
   }
 
-  /// Classifies a picked file, and reads it only if that is safe.
+  /// What kola is doing to a file, in the owner's language.
   ///
-  /// Anything not readable in the browser is REPORTED, not attempted —
-  /// handing a zip or a PDF to a text reader stores binary garbage as
-  /// business knowledge, and it looks like it worked.
-  Future<void> _pickFile(web.File file) async {
-    final assessment = await FileIntake.assess(file);
+  /// Ingestion is one server call with no progress events, so a
+  /// percentage bar would be a lie. These are the real phases that call
+  /// performs — read, split, embed, index — said in words a shop owner
+  /// recognises, cycling until the call returns.
+  ///
+  /// The point is not decoration. Uploading a price list and getting no
+  /// acknowledgement at all reads as "nothing happened", and the owner
+  /// uploads it again.
+  static const uploadStages = <String>[
+    'Received your file',
+    'Reading it through',
+    'Breaking it into passages',
+    'Learning what it says',
+    'Filing it away',
+  ];
+
+  /// Advances the stage caption of every file still saving.
+  void _tickStages() {
     if (!mounted) return;
+    final active = _queue.where((q) => q.state == 'saving').toList();
+    if (active.isEmpty) return;
     setState(() {
-      _picked = assessment;
-      _addMessage = null;
-      _duplicateOffer = false;
+      for (final q in active) {
+        q.stage = (q.stage + 1) % uploadStages.length;
+      }
     });
+    Future.delayed(const Duration(milliseconds: 900), _tickStages);
+  }
 
-    if (!assessment.canIngestNow) return;
-
-    try {
-      final text = await FileIntake.readText(file);
+  Future<void> _onFiles(List<web.File> files) async {
+    for (final f in files) {
+      final assessment = await FileIntake.assess(f);
       if (!mounted) return;
+      final q = _QueuedFile(assessment);
+      setState(() => _queue.add(q));
+
+      if (!assessment.canIngestNow) {
+        // The design already has a home for this: a `failed` row with a
+        // plain-language reason. Extraction for PDF/DOCX/XLSX is not
+        // built, and saying so per-file is better than a disabled drop
+        // zone that never explains itself.
+        setState(() {
+          q.state = 'failed';
+          q.message = assessment.explanation;
+        });
+        continue;
+      }
+
       setState(() {
-        _newText = text;
-        if (_newTitle.trim().isEmpty) _newTitle = assessment.name;
+        q.state = 'saving';
+        q.stage = 0;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _addMessage = e.toString());
+      _tickStages();
+      try {
+        final text = await FileIntake.readText(f);
+        await component.client.knowledge.addDocument(
+          component.accessToken,
+          component.workspaceId,
+          assessment.name,
+          text,
+          allowDuplicate: false,
+        );
+        if (!mounted) return;
+        setState(() => q.state = 'done');
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          q.state = 'failed';
+          q.message = _human('$e');
+        });
+      }
     }
+    await _load();
   }
 
-  Future<void> _delete(KnowledgeDocument doc) async {
-    try {
-      await component.client.knowledge.deleteDocument(
-        component.accessToken,
-        component.workspaceId,
-        doc.id!,
-      );
-      if (!mounted) return;
-      setState(() => _docs = [for (final d in _docs) if (d.id != doc.id) d]);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = 'Could not delete that document: $e');
-    }
-  }
-
-  Future<void> _probeMemory() async {
-    final q = _probe.trim();
-    if (q.isEmpty || _probing) return;
+  Future<void> _runProbe([String? preset]) async {
+    final q = (preset ?? _probe).trim();
+    if (q.isEmpty) return;
     setState(() {
+      _probe = q;
       _probing = true;
-      _probed = true;
+      _probed = false;
     });
     try {
       final hits = await component.client.knowledge.searchMemory(
@@ -225,434 +338,318 @@ class _KnowledgePageState extends State<KnowledgePage> {
       setState(() {
         _hits = hits;
         _probing = false;
+        _probed = true;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
+        _hits = const [];
         _probing = false;
-        _error = e.toString();
+        _probed = true;
+        _loadError = _human('$e');
       });
     }
   }
 
-  List<KnowledgeDocument> get _visible {
-    final q = _search.trim().toLowerCase();
-    return [
-      for (final d in _docs)
-        if ((_statusFilter == 'all' || d.status == _statusFilter) &&
-            (q.isEmpty || d.title.toLowerCase().contains(q)))
-          d,
-    ];
+  String _human(String raw) {
+    var s = raw;
+    for (final p in const ['Exception: ', 'ServerpodClientException: ']) {
+      if (s.startsWith(p)) s = s.substring(p.length);
+    }
+    return s;
   }
 
-  // ── Build ───────────────────────────────────────────────────────────
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _shortDate(DateTime d) => '${_months[d.month - 1]} ${d.day}';
+
+  /// Confidence → badge tone.
+  ///
+  /// KolaConfidenceStyle deliberately exposes `filledDots`, `label` and
+  /// `colorOn(KolaTokens)` — NOT a tone, and not a CSS-variable colour.
+  /// `colorOn` needs a resolved KolaTokens instance, which pages do not
+  /// hold (they interpolate KolaVar custom properties instead). So the
+  /// mapping happens here, reusing fromScore's thresholds rather than
+  /// inventing a second set that could drift from the design system.
+  KolaTone _confidenceTone(double score) =>
+      switch (KolaConfidenceStyle.fromScore(score)) {
+        KolaConfidence.high => KolaTone.positive,
+        KolaConfidence.medium => KolaTone.caution,
+        KolaConfidence.low => KolaTone.neutral,
+      };
+
+  // ── Build ──────────────────────────────────────────────────────────
 
   @override
   Component build(BuildContext context) {
     return div(
-      attributes: {
-        'style': 'max-width:1040px;margin:0 auto;width:100%;'
-            'padding:28px 20px 40px;display:flex;flex-direction:column;gap:20px',
-      },
+      attributes: {'style': 'padding:${KolaSpace.lg};max-width:1180px;margin:0 auto;width:100%;box-sizing:border-box'},
       [
         _header(),
-        if (_error != null) _errorBanner(),
-        if (_tab == _Tab.documents) ..._documentsTab() else _inspectorTab(),
+        _tabs(),
+        if (_loading)
+          _skeleton()
+        else if (_loadError != null && _tab == 'documents')
+          _errorState()
+        else if (_tab == 'documents')
+          _documentsTab()
+        else if (_tab == 'inspector')
+          _inspectorTab()
+        else
+          _addTab(),
       ],
     );
   }
 
   Component _header() => div(
-        attributes: {'style': 'display:flex;flex-direction:column;gap:12px'},
+        attributes: {'style': 'margin-bottom:${KolaSpace.md}'},
         [
-          h1(
+          div(
             attributes: {
-              'style': 'font-family:${KolaFonts.display};font-size:${KolaType.h2};'
-                  'font-weight:700;color:${KolaVar.text};margin:0',
+              'style': 'font-family:${KolaFonts.display};'
+                  'font-size:${KolaType.h2};font-weight:700;'
+                  'color:${KolaVar.text};margin-bottom:6px',
             },
-            [Component.text('Knowledge')],
+            [Component.text('Knowledge Center')],
           ),
           div(
             attributes: {
-              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                  'line-height:1.5;max-width:620px',
+              'style': 'font-size:${KolaType.body};color:${KolaVar.muted};'
+                  'line-height:1.55;max-width:70ch',
             },
             [
-              Component.text(
-                'What kola answers from. It cites these documents instead of '
-                'guessing — anything not in here, it will not invent.',
-              ),
-            ],
-          ),
-          div(
-            attributes: {
-              'style': 'display:flex;gap:4px;'
-                  'border-bottom:1px solid ${KolaVar.border}',
-            },
-            [
-              _tabButton(_Tab.documents, 'Documents', _docs.length),
-              if (component.gate.isEnabled(Features.memoryInspector))
-                _tabButton(_Tab.inspector, 'Memory inspector', 0),
+              Component.text("What kola knows, and exactly which passage it "
+                  "would answer a customer's question from."),
             ],
           ),
         ],
       );
 
-  Component _tabButton(_Tab tab, String label, int count) {
-    final active = _tab == tab;
+  /// Three PILL tabs, per the export. The old page had two underline
+  /// tabs and hid "Add knowledge" inside the Documents view.
+  Component _tabs() => div(
+        attributes: {
+          'style': 'display:inline-flex;gap:4px;padding:4px;'
+              'border-radius:${KolaRadius.pill};background:${KolaVar.pill};'
+              'margin-bottom:${KolaSpace.md}',
+        },
+        [
+          // "Documents (0)" reads as an error state. The count appears
+          // once there is something to count.
+          _tabPill(
+            'documents',
+            _docs.isEmpty ? 'Documents' : 'Documents (${_docs.length})',
+          ),
+          _tabPill('inspector', 'Memory Inspector'),
+          _tabPill('add', 'Add knowledge'),
+        ],
+      );
+
+  Component _tabPill(String id, String label) {
+    final active = _tab == id;
     return button(
       attributes: {
-        'class': 'kola-pressable',
         'type': 'button',
-        'aria-selected': active ? 'true' : 'false',
-        'style': 'background:transparent;border:none;font-family:inherit;'
-            'padding:9px 14px;font-size:${KolaType.body};font-weight:600;'
-            'border-bottom:2px solid ${active ? KolaVar.accent : 'transparent'};'
-            'color:${active ? KolaVar.accent : KolaVar.muted}',
+        'aria-pressed': active ? 'true' : 'false',
+        'style': 'padding:8px 16px;border-radius:${KolaRadius.pill};'
+            'border:none;font-family:inherit;font-size:${KolaType.small};'
+            'font-weight:600;cursor:pointer;'
+            'background:${active ? KolaVar.accent : 'transparent'};'
+            'color:${active ? KolaVar.accentText : KolaVar.mutedStrong}',
       },
-      events: {'click': (_) => setState(() => _tab = tab)},
-      [Component.text(count > 0 ? '$label ($count)' : label)],
+      events: {'click': (_) => setState(() => _tab = id)},
+      [Component.text(label)],
     );
   }
 
-  // ── Documents ───────────────────────────────────────────────────────
+  // ── Documents ──────────────────────────────────────────────────────
 
-  List<Component> _documentsTab() => [
-        _addPanel(),
-        if (_loading)
-          _skeleton()
-        else if (_docs.isEmpty)
-          _emptyDocs()
-        else ...[
-          _filters(),
-          _table(),
-        ],
-      ];
-
-  Component _addPanel() => div(
-        attributes: {
-          'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-              'border-radius:${KolaRadius.lg};padding:18px',
-        },
-        [
-          div(
-            attributes: {
-              'style': 'font-size:${KolaType.bodyLg};font-weight:600;'
-                  'color:${KolaVar.text};margin-bottom:4px',
-            },
-            [Component.text('Add knowledge')],
-          ),
-          div(
-            attributes: {
-              'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                  'margin-bottom:14px;line-height:1.5',
-            },
-            [
-              // Says what it takes, rather than offering a file picker
-              // that rejects the formats people reach for first.
-              Component.text(
-                'Paste a price list, FAQ, returns policy or anything else kola '
-                'should know. Text only for now — PDF and Word need parsing '
-                'that is not built yet, so copy the text across.',
-              ),
-            ],
-          ),
-          input(
-            type: InputType.text,
-            attributes: {
-              'aria-label': 'Document title',
-              'placeholder': 'Title — e.g. "Returns policy"',
-              'value': _newTitle,
-              'style': _fieldCss,
-            },
-            events: {
-              'input': (e) => _newTitle = (e.target as dynamic).value as String? ?? '',
-            },
-          ),
-          textarea(
-            attributes: {
-              'aria-label': 'Document text',
-              'placeholder': 'Paste the text here…',
-              'rows': '6',
-              'style': '$_fieldCss;resize:vertical;line-height:1.6;'
-                  'min-height:120px;margin-top:10px',
-            },
-            events: {
-              'input': (e) => _newText = (e.target as dynamic).value as String? ?? '',
-            },
-            [Component.text(_newText)],
-          ),
-          _filePicker(),
-          div(
-            attributes: {
-              'style': 'display:flex;align-items:center;gap:10px;'
-                  'margin-top:12px;flex-wrap:wrap',
-            },
-            [
-              button(
-                attributes: {
-                  'class': 'kola-pressable',
-                  'type': 'button',
-                  'style': 'background:${KolaVar.accentFill};'
-                      'color:${KolaVar.accentText};border:none;'
-                      'border-radius:${KolaRadius.pill};padding:9px 18px;'
-                      'font-size:${KolaType.small};font-weight:600;'
-                      'font-family:inherit;${_saving ? 'opacity:0.6' : ''}',
-                },
-                events: {'click': (_) => _add()},
-                [Component.text(_saving ? 'Saving…' : 'Teach kola this')],
-              ),
-              if (_duplicateOffer)
-                button(
-                  attributes: {
-                    'class': 'kola-pressable',
-                    'type': 'button',
-                    'style': 'background:transparent;'
-                        'border:1px solid ${KolaVar.border};'
-                        'color:${KolaVar.text};'
-                        'border-radius:${KolaRadius.pill};padding:9px 16px;'
-                        'font-size:${KolaType.small};font-weight:600;'
-                        'font-family:inherit',
-                  },
-                  events: {'click': (_) => _add(allowDuplicate: true)},
-                  [Component.text('Save it anyway')],
-                ),
-            ],
-          ),
-          if (_addMessage != null)
-            div(
-              attributes: {
-                'style': 'margin-top:10px;font-size:${KolaType.tiny};'
-                    'line-height:1.5;'
-                    'color:${_duplicateOffer ? KolaVar.warning : KolaVar.muted}',
-              },
-              [Component.text(_addMessage!)],
-            ),
-        ],
-      );
-
-  Component _filePicker() {
-    final a = _picked;
-    return div(
-      attributes: {'style': 'margin-top:12px'},
-      [
-        label(
-          attributes: {
-            'class': 'kola-pressable',
-            'style': 'display:inline-flex;align-items:center;gap:8px;'
-                'border:1px dashed ${KolaVar.border};color:${KolaVar.mutedStrong};'
-                'border-radius:${KolaRadius.md};padding:10px 16px;'
-                'font-size:${KolaType.small};font-weight:600',
-          },
-          [
-            kolaIcon(Icons.paperclip, size: 15),
-            Component.text('Choose a file'),
-            // Accepts EVERYTHING on purpose. Filtering by extension here
-            // would silently hide a file the owner can see on their disk,
-            // and they would conclude the product is broken. Better to
-            // accept it, identify it, and explain.
-            input(
-              type: InputType.file,
-              attributes: {'style': 'display:none', 'aria-label': 'Choose a file'},
-              events: {
-                'change': (e) {
-                  final files = (e.target as dynamic).files;
-                  if (files == null || files.length == 0) return;
-                  _pickFile(files.item(0) as web.File);
-                },
-              },
-            ),
-          ],
-        ),
-        if (a != null) _pickedNotice(a),
-      ],
-    );
-  }
-
-  Component _pickedNotice(FileAssessment a) {
-    final tone = a.canIngestNow
-        ? KolaTone.positive
-        : (a.kind == FileKind.rejected ? KolaTone.negative : KolaTone.caution);
-
-    return div(
-      attributes: {
-        'style': 'margin-top:10px;padding:10px 14px;'
-            'background:${KolaVar.bg};border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.md}',
-      },
-      [
-        div(
-          attributes: {
-            'style': 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;'
-                'margin-bottom:6px',
-          },
-          [
-            span(
-              attributes: {
-                'style': 'font-size:${KolaType.tiny};font-weight:600;'
-                    'color:${KolaVar.text};overflow:hidden;'
-                    'text-overflow:ellipsis;white-space:nowrap;max-width:260px',
-              },
-              [Component.text(a.name)],
-            ),
-            span(attributes: {'style': tone.badgeCss}, [Component.text(a.label)]),
-          ],
-        ),
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.micro};color:${KolaVar.muted};'
-                'line-height:1.5',
-          },
-          [Component.text(a.explanation)],
-        ),
-      ],
-    );
-  }
-
-  static const _fieldCss = 'width:100%;box-sizing:border-box;'
-      'background:${KolaVar.bg};border:1px solid ${KolaVar.border};'
-      'border-radius:${KolaRadius.md};padding:10px 14px;'
-      'color:${KolaVar.text};font-family:inherit;'
-      'font-size:${KolaType.body};outline:none';
-
-  Component _filters() => div(
-        attributes: {
-          'style': 'display:flex;gap:10px;align-items:center;flex-wrap:wrap',
-        },
-        [
-          input(
-            type: InputType.text,
+  Component _documentsTab() => div([
+        if (_docs.isNotEmpty) ...[
+          input<String>(
+            type: InputType.search,
             attributes: {
               'aria-label': 'Search documents',
-              'placeholder': 'Search titles…',
-              'style': 'flex:1;min-width:180px;box-sizing:border-box;'
-                  'background:${KolaVar.card};'
+              'placeholder': 'Search documents…',
+              'style': 'width:100%;box-sizing:border-box;padding:11px 14px;'
+                  'border-radius:${KolaRadius.md};'
                   'border:1px solid ${KolaVar.border};'
-                  'border-radius:${KolaRadius.pill};padding:9px 16px;'
-                  'color:${KolaVar.text};font-family:inherit;'
-                  'font-size:${KolaType.small};outline:none',
+                  'background:${KolaVar.card};color:${KolaVar.text};'
+                  'font-family:inherit;font-size:${KolaType.body};'
+                  'margin-bottom:${KolaSpace.sm}',
             },
-            events: {
-              'input': (e) => setState(() =>
-                  _search = (e.target as dynamic).value as String? ?? ''),
-            },
+            value: _search,
+            onInput: (v) => setState(() => _search = v),
           ),
-          for (final f in const ['all', 'indexed', 'pending'])
-            button(
+          div(
+            attributes: {
+              'style': 'display:flex;flex-wrap:wrap;gap:6px;'
+                  'margin-bottom:${KolaSpace.md}',
+            },
+            [
+              _filterChip('all', 'All'),
+              _filterChip('searchable', 'Searchable'),
+              _filterChip('processing', 'Processing'),
+              _filterChip('failed', 'Failed'),
+            ],
+          ),
+        ],
+        if (_docs.isEmpty) _emptyDocs() else _docTable(),
+      ]);
+
+  /// A filter chip, or nothing.
+  ///
+  /// "Failed (0)" and "Processing (0)" are noise on a healthy workspace —
+  /// they advertise problems the owner does not have. A chip appears
+  /// only when it would actually filter something. `All` always shows,
+  /// since it is the reset.
+  Component _filterChip(String id, String label) {
+    if (id != 'all' && _countFor(id) == 0) {
+      return div(const []);
+    }
+    final active = _statusFilter == id;
+    return button(
+      attributes: {
+        'type': 'button',
+        'aria-pressed': active ? 'true' : 'false',
+        'style': 'padding:6px 13px;border-radius:${KolaRadius.pill};'
+            'border:1px solid ${active ? KolaVar.accent : KolaVar.border};'
+            'background:${active ? KolaVar.accent : 'transparent'};'
+            'color:${active ? KolaVar.accentText : KolaVar.mutedStrong};'
+            'font-family:inherit;font-size:${KolaType.small};'
+            'font-weight:600;cursor:pointer',
+      },
+      events: {'click': (_) => setState(() => _statusFilter = id)},
+      [Component.text('$label (${_countFor(id)})')],
+    );
+  }
+
+  Component _docTable() => div(
+        attributes: {
+          'style': 'border:1px solid ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};overflow:hidden',
+        },
+        [
+          div(
+            attributes: {
+              'style': 'display:grid;'
+                  'grid-template-columns:minmax(200px,3fr) 1.2fr .7fr .8fr 1.4fr;'
+                  'gap:12px;padding:12px 16px;'
+                  'border-bottom:1px solid ${KolaVar.border};'
+                  'font-size:${KolaType.micro};font-weight:700;'
+                  'letter-spacing:.06em;color:${KolaVar.muted}',
+            },
+            [
+              for (final h in const [
+                'TITLE',
+                'SOURCE',
+                'SECTIONS',
+                'UPDATED',
+                'STATUS',
+              ])
+                div([Component.text(h)]),
+            ],
+          ),
+          if (_visibleDocs.isEmpty)
+            div(
               attributes: {
-                'class': 'kola-pressable',
-                'type': 'button',
-                'style': 'border-radius:${KolaRadius.pill};padding:8px 14px;'
-                    'font-size:${KolaType.micro};font-weight:600;'
-                    'font-family:inherit;'
-                    'border:1px solid ${KolaVar.border};'
-                    'background:${_statusFilter == f ? KolaVar.pill : 'transparent'};'
-                    'color:${_statusFilter == f ? KolaVar.text : KolaVar.muted}',
+                'style': 'padding:${KolaSpace.lg};text-align:center;'
+                    'font-size:${KolaType.small};color:${KolaVar.muted}',
               },
-              events: {'click': (_) => setState(() => _statusFilter = f)},
-              [Component.text(f == 'all' ? 'All' : f)],
-            ),
+              [Component.text('Nothing matches that filter.')],
+            )
+          else
+            for (final d in _visibleDocs) _docRow(d),
         ],
       );
 
-  Component _table() {
-    final rows = _visible;
-    if (rows.isEmpty) {
-      return div(
-        attributes: {
-          'style': 'padding:24px;text-align:center;'
-              'font-size:${KolaType.small};color:${KolaVar.muted}',
-        },
-        [Component.text('No documents match that.')],
-      );
-    }
-
+  Component _docRow(KnowledgeDocument d) {
+    final status = _designStatus(d);
+    final failed = status == 'failed';
     return div(
       attributes: {
-        'style': 'border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};overflow:hidden;'
-            'background:${KolaVar.card}',
+        // Red left border on a failed row, per the design — the row is
+        // findable by shape, not only by the badge's colour.
+        'style': 'display:grid;'
+            'grid-template-columns:minmax(200px,3fr) 1.2fr .7fr .8fr 1.4fr;'
+            'gap:12px;padding:14px 16px;align-items:start;'
+            'border-bottom:1px solid ${KolaVar.border};'
+            'border-left:3px solid ${failed ? KolaVar.danger : 'transparent'}',
       },
       [
-        for (var i = 0; i < rows.length; i++) _row(rows[i], i > 0),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.body};font-weight:600;'
+                'color:${KolaVar.text};word-break:break-word',
+          },
+          [Component.text(d.title)],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.muted}',
+          },
+          // sourceRef holds a filename when one exists. The server only
+          // ever writes sourceType 'paste' today, so this reports what is
+          // true rather than guessing an origin.
+          [Component.text(d.sourceRef == null ? 'Pasted text' : 'Uploaded file')],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                'font-family:${KolaFonts.mono}',
+          },
+          [Component.text('${d.chunkCount}')],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.muted}',
+          },
+          [Component.text(_shortDate(d.updatedAt))],
+        ),
+        div([
+          _statusBadge(status),
+          if (failed && d.errorMessage != null)
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.danger};'
+                    'line-height:1.45;margin-top:6px',
+              },
+              [Component.text(d.errorMessage!)],
+            ),
+        ]),
       ],
     );
   }
 
-  Component _row(KnowledgeDocument d, bool divider) {
-    final tone = switch (d.status) {
-      'indexed' => KolaTone.positive,
-      'pending' => KolaTone.caution,
-      'failed' => KolaTone.negative,
-      _ => KolaTone.neutral,
+  Component _statusBadge(String status) {
+    final (tone, label) = switch (status) {
+      'searchable' => (KolaTone.positive, 'Searchable'),
+      'processing' => (KolaTone.caution, 'Still processing'),
+      _ => (KolaTone.negative, "Failed — bot can't see this"),
     };
-
-    return div(
-      attributes: {
-        'style': 'display:flex;align-items:center;gap:12px;'
-            'padding:13px 16px;flex-wrap:wrap;'
-            '${divider ? 'border-top:1px solid ${KolaVar.border}' : ''}',
-      },
-      [
-        div(
-          attributes: {'style': 'color:${KolaVar.muted};display:flex;flex:none'},
-          [kolaIcon(Icons.book, size: 15)],
-        ),
-        div(
-          attributes: {'style': 'flex:1;min-width:160px'},
-          [
-            div(
-              attributes: {
-                'style': 'font-size:${KolaType.body};font-weight:600;'
-                    'color:${KolaVar.text};overflow:hidden;'
-                    'text-overflow:ellipsis;white-space:nowrap',
-              },
-              [Component.text(d.title)],
-            ),
-            div(
-              attributes: {
-                'style': 'font-size:${KolaType.micro};color:${KolaVar.muted}',
-              },
-              [
-                // chunkCount is what the design calls "Sections" — the
-                // number of separately-searchable passages, which is the
-                // number that actually affects retrieval.
-                Component.text(
-                  '${_sourceLabel(d.sourceType)} · '
-                  '${d.chunkCount} ${d.chunkCount == 1 ? 'section' : 'sections'} · '
-                  '${_shortDate(d.updatedAt)}',
-                ),
-              ],
-            ),
-          ],
-        ),
-        span(attributes: {'style': tone.badgeCss}, [Component.text(d.status)]),
-        button(
-          attributes: {
-            'class': 'kola-pressable',
-            'type': 'button',
-            'aria-label': 'Delete ${d.title}',
-            'style': 'flex:none;background:transparent;border:none;'
-                'color:${KolaVar.muted};font-family:inherit;'
-                'font-size:${KolaType.micro};font-weight:600',
-          },
-          events: {'click': (_) => _delete(d)},
-          [Component.text('Delete')],
-        ),
-      ],
+    return span(
+      attributes: {'style': '${tone.badgeCss};white-space:nowrap'},
+      [Component.text(label)],
     );
   }
 
   Component _emptyDocs() => div(
         attributes: {
           'style': 'border:1px dashed ${KolaVar.border};'
-              'border-radius:${KolaRadius.lg};padding:32px 24px;'
+              'border-radius:${KolaRadius.lg};padding:56px 24px;'
               'text-align:center',
         },
         [
           div(
+            attributes: {'style': 'color:${KolaVar.muted};margin-bottom:12px'},
+            [kolaIcon(Icons.book, size: 30)],
+          ),
+          div(
             attributes: {
-              'style': 'font-size:${KolaType.lead};font-weight:600;'
+              'style': 'font-size:${KolaType.title};font-weight:700;'
                   'color:${KolaVar.text};margin-bottom:6px',
             },
             [Component.text('No documents yet')],
@@ -660,197 +657,532 @@ class _KnowledgePageState extends State<KnowledgePage> {
           div(
             attributes: {
               'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                  'line-height:1.6;max-width:440px;margin:0 auto',
+                  'line-height:1.55',
             },
             [
-              Component.text(
-                'Until kola is taught something, it can only fall back on '
-                'general answers. One price list or returns policy changes '
-                'that immediately.',
-              ),
+              Component.text('Upload a file or paste text in "Add knowledge" '
+                  'to get started.'),
             ],
           ),
         ],
       );
 
-  // ── Inspector ───────────────────────────────────────────────────────
+  // ── Memory Inspector ───────────────────────────────────────────────
 
-  Component _inspectorTab() => div(
-        attributes: {'style': 'display:flex;flex-direction:column;gap:14px'},
-        [
+  Component _inspectorTab() => div([
+        _card([
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.bodyLg};font-weight:700;'
+                  'color:${KolaVar.text};margin-bottom:4px',
+            },
+            [Component.text('Ask kola a question a customer might send')],
+          ),
           div(
             attributes: {
               'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                  'line-height:1.6;max-width:620px',
+                  'line-height:1.55;margin-bottom:14px',
             },
             [
-              Component.text(
-                'Type a question a customer might ask and see exactly which '
-                'passages kola would answer from, and how strong each match '
-                'is. Nothing is sent to a customer — this only reads memory.',
-              ),
+              Component.text('See exactly which saved passages it would answer '
+                  'from, and how confident the match is.'),
             ],
           ),
           div(
             attributes: {'style': 'display:flex;gap:8px;flex-wrap:wrap'},
             [
-              input(
+              input<String>(
                 type: InputType.text,
                 attributes: {
-                  'aria-label': 'Test question',
-                  'placeholder': 'e.g. Can I return this after a week?',
-                  'style': 'flex:1;min-width:200px;box-sizing:border-box;'
-                      'background:${KolaVar.card};'
+                  'aria-label': 'Question to test',
+                  'placeholder': 'e.g. Do you deliver to Abuja?',
+                  'style': 'flex:1 1 260px;padding:11px 14px;'
+                      'border-radius:${KolaRadius.md};'
                       'border:1px solid ${KolaVar.border};'
-                      'border-radius:${KolaRadius.pill};padding:10px 16px;'
-                      'color:${KolaVar.text};font-family:inherit;'
-                      'font-size:${KolaType.body};outline:none',
+                      'background:${KolaVar.bg};color:${KolaVar.text};'
+                      'font-family:inherit;font-size:${KolaType.body}',
                 },
-                events: {
-                  'input': (e) =>
-                      _probe = (e.target as dynamic).value as String? ?? '',
-                  'keydown': (e) {
-                    if ((e as dynamic).key == 'Enter') _probeMemory();
-                  },
-                },
+                value: _probe,
+                onInput: (v) => _probe = v,
               ),
               button(
                 attributes: {
-                  'class': 'kola-pressable',
                   'type': 'button',
-                  'style': 'background:${KolaVar.accentFill};'
-                      'color:${KolaVar.accentText};border:none;'
-                      'border-radius:${KolaRadius.pill};padding:10px 20px;'
-                      'font-size:${KolaType.small};font-weight:600;'
-                      'font-family:inherit',
+                  if (_probing) 'disabled': 'disabled',
+                  'style': 'padding:11px 22px;border-radius:${KolaRadius.md};'
+                      'border:none;background:${KolaVar.accentFill};'
+                      'color:${KolaVar.accentText};font-family:inherit;'
+                      'font-size:${KolaType.body};font-weight:600;'
+                      'cursor:pointer;opacity:${_probing ? '0.65' : '1'}',
                 },
-                events: {'click': (_) => _probeMemory()},
-                [Component.text('Test')],
+                events: {
+                  'click': (_) {
+                    if (!_probing) _runProbe();
+                  },
+                },
+                [Component.text(_probing ? 'Testing…' : 'Test')],
               ),
             ],
           ),
-          if (_probing)
-            div(
-              classes: 'kola-skel',
-              attributes: {'style': 'height:80px;border-radius:${KolaRadius.md}'},
-              [],
-            )
-          else if (_probed && _hits.isEmpty)
-            div(
-              attributes: {
-                'style': 'background:${KolaVar.card};'
-                    'border:1px solid ${KolaVar.border};'
-                    'border-radius:${KolaRadius.lg};padding:16px;'
-                    'font-size:${KolaType.small};color:${KolaVar.muted};'
-                    'line-height:1.6',
-              },
-              [
-                Component.text(
-                  'Nothing in memory matches closely enough. A customer asking '
-                  'this today would get a general answer, not one from your '
-                  'documents — which is exactly the gap worth filling.',
+          div(
+            attributes: {
+              'style': 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;'
+                  'margin-top:12px',
+            },
+            [
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                      'margin-right:2px',
+                },
+                [Component.text('Try:')],
+              ),
+              for (final (q, _) in _examples)
+                button(
+                  attributes: {
+                    'type': 'button',
+                    'style': 'padding:6px 13px;'
+                        'border-radius:${KolaRadius.pill};'
+                        'border:1px solid ${KolaVar.border};'
+                        'background:transparent;color:${KolaVar.mutedStrong};'
+                        'font-family:inherit;font-size:${KolaType.small};'
+                        'cursor:pointer',
+                  },
+                  events: {'click': (_) => _runProbe(q)},
+                  [Component.text(q)],
                 ),
-              ],
-            )
-          else
-            for (final h in _hits) _hitCard(h),
-        ],
-      );
+            ],
+          ),
+        ]),
+        if (_probed) _probeResult(),
+      ]);
 
-  Component _hitCard(KnowledgeSearchHit h) {
-    final c = KolaConfidenceStyle.fromScore(h.similarity);
-    return div(
-      attributes: {
-        'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.md};padding:14px',
-      },
-      [
+  Component _probeResult() {
+    if (_hits.isEmpty) {
+      return _card([
         div(
           attributes: {
-            'style': 'display:flex;align-items:center;gap:8px;'
-                'margin-bottom:8px;flex-wrap:wrap',
+            'style': 'font-size:${KolaType.bodyLg};font-weight:700;'
+                'color:${KolaVar.text};margin-bottom:6px',
           },
-          [
-            span(
-              attributes: {
-                'style': 'font-size:${KolaType.micro};font-weight:600;'
-                    'color:${KolaVar.text}',
-              },
-              [Component.text(h.documentTitle)],
-            ),
-            span(
-              attributes: {
-                'style': 'font-size:${KolaType.micro};color:${KolaVar.muted}',
-              },
-              [Component.text('section ${h.chunkIndex + 1}')],
-            ),
-            span(attributes: {'style': 'flex:1'}, []),
-            span(
-              attributes: {'style': _confTone(c).badgeCss},
-              [Component.text(c.label)],
-            ),
-            span(
-              attributes: {
-                'style': 'font-family:${KolaFonts.mono};'
-                    'font-size:${KolaType.micro};color:${KolaVar.muted}',
-              },
-              [Component.text(h.similarity.toStringAsFixed(2))],
-            ),
-          ],
+          [Component.text('Nothing in your saved knowledge matches this')],
         ),
         div(
           attributes: {
-            'style': 'font-size:${KolaType.body};color:${KolaVar.mutedStrong};'
-                'line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere',
+            'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                'line-height:1.55',
           },
-          [Component.text(h.content)],
+          [
+            Component.text('kola would not invent an answer here — it would '
+                'say it does not know, or hand the conversation to you. Add a '
+                'document covering this and test again.'),
+          ],
+        ),
+      ]);
+    }
+    return _card([
+      div(
+        attributes: {
+          'style': 'font-size:${KolaType.small};font-weight:700;'
+              'color:${KolaVar.mutedStrong};margin-bottom:12px',
+        },
+        [
+          Component.text('${_hits.length} passage'
+              '${_hits.length == 1 ? '' : 's'} would ground this answer'),
+        ],
+      ),
+      for (final h in _hits)
+        div(
+          attributes: {
+            'style': 'border:1px solid ${KolaVar.border};'
+                'border-radius:${KolaRadius.md};padding:12px 14px;'
+                'margin-bottom:8px',
+          },
+          [
+            div(
+              attributes: {
+                'style': 'display:flex;justify-content:space-between;'
+                    'gap:10px;align-items:center;margin-bottom:6px',
+              },
+              [
+                div(
+                  attributes: {
+                    'style': 'font-size:${KolaType.small};font-weight:600;'
+                        'color:${KolaVar.text}',
+                  },
+                  [Component.text(h.documentTitle)],
+                ),
+                span(
+                  attributes: {
+                    'style': '${_confidenceTone(h.similarity).badgeCss};'
+                        'white-space:nowrap',
+                  },
+                  [
+                    Component.text(
+                      '${KolaConfidenceStyle.fromScore(h.similarity).label}'
+                      ' · ${(h.similarity * 100).round()}%',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                    'line-height:1.6;white-space:pre-wrap',
+              },
+              [Component.text(h.content)],
+            ),
+          ],
+        ),
+    ]);
+  }
+
+  // ── Add knowledge ──────────────────────────────────────────────────
+
+  Component _addTab() => div([
+        _pasteCard(),
+        _uploadCard(),
+        _buildFromCard(),
+      ]);
+
+  Component _pasteCard() => _card([
+        _cardTitle('Paste it in'),
+        _cardSub('Price lists, FAQs, policies, anything a customer might ask '
+            'about. Plain text works best — kola can use it right away.'),
+        textarea(
+          attributes: {
+            'aria-label': 'Text to save',
+            'placeholder': 'Paste your price list, FAQ or policy here…',
+            'rows': '8',
+            'style': 'width:100%;box-sizing:border-box;padding:12px 14px;'
+                'border-radius:${KolaRadius.md};'
+                'border:1px solid ${KolaVar.border};'
+                'background:${KolaVar.bg};color:${KolaVar.text};'
+                'font-family:inherit;font-size:${KolaType.body};'
+                'line-height:1.6;resize:vertical',
+          },
+          onInput: (v) => _pasteText = v,
+          [Component.text(_pasteText)],
+        ),
+        if (_addMessage != null)
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};margin-top:10px;'
+                  'line-height:1.5;color:${_duplicateOffer ? KolaVar.warning : KolaVar.mutedStrong}',
+            },
+            [Component.text(_addMessage!)],
+          ),
+        div(
+          attributes: {'style': 'display:flex;gap:8px;margin-top:14px'},
+          [
+            button(
+              attributes: {
+                'type': 'button',
+                if (_saving) 'disabled': 'disabled',
+                'style': 'padding:11px 18px;border-radius:${KolaRadius.md};'
+                    'border:none;background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};font-family:inherit;'
+                    'font-size:${KolaType.body};font-weight:600;'
+                    'cursor:pointer;opacity:${_saving ? '0.65' : '1'}',
+              },
+              events: {
+                'click': (_) {
+                  if (!_saving) _savePaste();
+                },
+              },
+              [Component.text(_saving ? 'Saving…' : 'Paste text to save')],
+            ),
+            if (_duplicateOffer)
+              button(
+                attributes: {
+                  'type': 'button',
+                  'style': 'padding:11px 18px;'
+                      'border-radius:${KolaRadius.md};'
+                      'border:1px solid ${KolaVar.border};'
+                      'background:transparent;color:${KolaVar.text};'
+                      'font-family:inherit;font-size:${KolaType.body};'
+                      'font-weight:600;cursor:pointer',
+                },
+                events: {'click': (_) => _savePaste(allowDuplicate: true)},
+                [Component.text('Save it anyway')],
+              ),
+          ],
+        ),
+      ]);
+
+  Component _uploadCard() => _card([
+        _cardTitle('Upload a file'),
+        _cardSub("PDF, Word, Excel or plain text. kola extracts the text and "
+            "flags anything it couldn't read cleanly."),
+        label(
+          attributes: {
+            'style': 'display:block;border:1px dashed ${KolaVar.border};'
+                'border-radius:${KolaRadius.lg};padding:38px 20px;'
+                'text-align:center;cursor:pointer',
+          },
+          [
+            div(
+              attributes: {'style': 'color:${KolaVar.muted};margin-bottom:10px'},
+              [kolaIcon(Icons.paperclip, size: 22)],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.body};font-weight:700;'
+                    'color:${KolaVar.text};margin-bottom:4px',
+              },
+              [Component.text('Drop files here, or click to browse')],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.small};color:${KolaVar.muted}',
+              },
+              [Component.text('PDF, DOCX, XLSX, CSV, TXT — up to 20MB each')],
+            ),
+            input(
+              type: InputType.file,
+              attributes: {
+                'multiple': 'multiple',
+                'style': 'display:none',
+              },
+              events: {
+                // Same access pattern the previous version used and that
+                // compiled: `(e.target as dynamic).files`, then
+                // `.item(i)`. Reaching for web.HTMLInputElement here was
+                // an unverified guess; this one is known to work.
+                'change': (e) {
+                  final list = (e.target as dynamic).files;
+                  if (list == null || list.length == 0) return;
+                  final files = <web.File>[
+                    for (var i = 0; i < (list.length as int); i++)
+                      list.item(i) as web.File,
+                  ];
+                  if (files.isNotEmpty) _onFiles(files);
+                },
+              },
+            ),
+          ],
+        ),
+        // uploadQueue — per-file outcome. Reporting only the first
+        // failure would make the other four look like they worked.
+        if (_queue.isNotEmpty) ...[
+          div(
+            attributes: {'style': 'margin-top:14px'},
+            [for (final q in _queue) _queueRow(q)],
+          ),
+          // A finished upload must SAY it finished. Silence after a save
+          // reads as "nothing happened", and the owner uploads the same
+          // price list again.
+          if (_queue.any((q) => q.state == 'done'))
+            div(
+              attributes: {
+                'style': 'display:flex;gap:8px;align-items:center;'
+                    'margin-top:10px;font-size:${KolaType.small};'
+                    'color:${KolaVar.success}',
+              },
+              [
+                kolaIcon(Icons.check, size: 15, strokeWidth: 2.2),
+                Component.text(
+                  '${_queue.where((q) => q.state == 'done').length} '
+                  'file${_queue.where((q) => q.state == 'done').length == 1 ? '' : 's'} '
+                  'added — kola can answer from them now. '
+                  'See them under Documents.',
+                ),
+              ],
+            ),
+        ],
+      ]);
+
+  Component _queueRow(_QueuedFile q) {
+    final (tone, label) = switch (q.state) {
+      'done' => (KolaTone.positive, 'Searchable'),
+      'saving' => (KolaTone.caution, uploadStages[q.stage]),
+      'failed' => (KolaTone.negative, "Couldn't read this"),
+      _ => (KolaTone.neutral, 'Waiting'),
+    };
+    return div(
+      attributes: {
+        'style': 'display:flex;gap:10px;align-items:flex-start;'
+            'padding:10px 12px;border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.md};margin-bottom:6px;'
+            'border-left:3px solid '
+            '${q.state == 'failed' ? KolaVar.danger : 'transparent'}',
+      },
+      [
+        div(
+          attributes: {'style': 'flex:1;min-width:0'},
+          [
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.small};font-weight:600;'
+                    'color:${KolaVar.text};word-break:break-all',
+              },
+              [Component.text(q.assessment.name)],
+            ),
+            if (q.message != null)
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};'
+                      'color:${KolaVar.muted};line-height:1.45;margin-top:4px',
+                },
+                [Component.text(q.message!)],
+              ),
+          ],
+        ),
+        span(
+          attributes: {'style': '${tone.badgeCss};white-space:nowrap'},
+          [Component.text(label)],
         ),
       ],
     );
   }
 
-  static KolaTone _confTone(KolaConfidence c) => switch (c) {
-        KolaConfidence.high => KolaTone.positive,
-        KolaConfidence.medium => KolaTone.caution,
-        KolaConfidence.low => KolaTone.negative,
-      };
+  Component _buildFromCard() => _card([
+        _cardTitle("Build from what's already here"),
+        _cardSub('Turn your catalog, inventory and sales history into '
+            'knowledge kola can answer from — no re-typing.'),
+        for (final (key, label, detail, icon) in _dataSources)
+          _dataSourceRow(key, label, detail, icon),
+      ]);
 
-  // ── Shared ──────────────────────────────────────────────────────────
+  Component _dataSourceRow(
+    String key,
+    String label,
+    String detail,
+    String icon,
+  ) {
+    // ENABLED means "there is something to generate FROM", which is not
+    // the same question as "is the capability released".
+    //
+    // This gated on Features.commerceCatalog and was therefore ENABLED,
+    // because commerce.catalog is `released` in the live database — a
+    // deliberate seed from migration 019 that describes the PLAN, not
+    // the state. There is no catalog table, no catalog endpoint and no
+    // products, so the button offered to generate knowledge from
+    // nothing.
+    //
+    // Hardcoded false until the commerce backend exists, at which point
+    // this becomes a real count and the row's detail line can carry it
+    // ("6 products — prices, stock, descriptions", per the design).
+    // A flag is the wrong signal for a button whose precondition is
+    // DATA.
+    // Rendered directly in the not-available state rather than behind
+    // `const available = false`, which made five branches dead code —
+    // the analyzer was right, and a ternary on a compile-time constant
+    // is a worse way to say "not yet" than just saying it.
+    //
+    // When commerce lands this method takes a count, and the detail line
+    // carries it ("6 products — prices, stock, descriptions", per the
+    // design). [detail] is kept in the signature for that day.
+    return div(
+      attributes: {
+        'style': 'display:flex;gap:12px;align-items:center;'
+            'padding:14px;border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.md};margin-bottom:8px;opacity:0.7',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'width:34px;height:34px;flex:none;'
+                'border-radius:${KolaRadius.md};'
+                'background:${KolaVar.tintSurface(2)};'
+                'color:${KolaVar.tintIcon(2)};display:flex;'
+                'align-items:center;justify-content:center',
+          },
+          [kolaIcon(icon, size: 17)],
+        ),
+        div(attributes: {'style': 'flex:1;min-width:0'}, [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.body};font-weight:700;'
+                  'color:${KolaVar.text}',
+            },
+            [Component.text(label)],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'line-height:1.5;margin-top:2px',
+            },
+            [
+              Component.text(
+                'Nothing to build from yet — this needs your catalog.',
+              ),
+            ],
+          ),
+        ]),
+        button(
+          attributes: {
+            'type': 'button',
+            'disabled': 'disabled',
+            'style': 'padding:9px 15px;border-radius:${KolaRadius.pill};'
+                'border:none;flex:none;font-family:inherit;'
+                'font-size:${KolaType.small};font-weight:600;'
+                'background:${KolaVar.pill};color:${KolaVar.muted};'
+                'cursor:default',
+          },
+          [Component.text('Generate knowledge')],
+        ),
+      ],
+    );
+  }
+
+  // ── Shared ─────────────────────────────────────────────────────────
+
+  Component _card(List<Component> children) => div(
+        attributes: {
+          'style': 'border:1px solid ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};background:${KolaVar.card};'
+              'padding:${KolaSpace.md};margin-bottom:${KolaSpace.smd}',
+        },
+        children,
+      );
+
+  Component _cardTitle(String t) => div(
+        attributes: {
+          'style': 'font-size:${KolaType.bodyLg};font-weight:700;'
+              'color:${KolaVar.text};margin-bottom:4px',
+        },
+        [Component.text(t)],
+      );
+
+  Component _cardSub(String t) => div(
+        attributes: {
+          'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+              'line-height:1.55;margin-bottom:14px',
+        },
+        [Component.text(t)],
+      );
 
   Component _skeleton() => div(
-        attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
-        [
-          for (var i = 0; i < 4; i++)
-            div(
-              classes: 'kola-skel',
-              attributes: {'style': 'height:56px;border-radius:${KolaRadius.md}'},
-              [],
-            ),
-        ],
-      );
-
-  Component _errorBanner() => div(
         attributes: {
-          'role': 'alert',
-          'style': 'padding:10px 14px;background:${KolaVar.dangerBg};'
-              'color:${KolaVar.danger};border:1px solid ${KolaVar.danger};'
-              'border-radius:${KolaRadius.md};font-size:${KolaType.small}',
+          'style': 'height:220px;border-radius:${KolaRadius.lg};'
+              'border:1px solid ${KolaVar.border};background:${KolaVar.card}',
         },
-        [Component.text(_error!)],
+        const [],
       );
 
-  static String _sourceLabel(String sourceType) => switch (sourceType) {
-        'paste' => 'Pasted',
-        'upload' => 'Uploaded file',
-        'url' => 'Web page',
-        _ => sourceType,
-      };
-
-  static String _shortDate(DateTime d) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[d.month - 1]} ${d.day}';
-  }
+  Component _errorState() => _card([
+        _cardTitle('Could not load your documents'),
+        _cardSub('This is a connection problem. Nothing was deleted.'),
+        div(
+          attributes: {
+            'style': 'font-family:${KolaFonts.mono};'
+                'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                'margin-bottom:12px;word-break:break-word',
+          },
+          [Component.text(_loadError ?? '')],
+        ),
+        button(
+          attributes: {
+            'type': 'button',
+            'style': 'padding:9px 15px;border-radius:${KolaRadius.md};'
+                'border:none;background:${KolaVar.accentFill};'
+                'color:${KolaVar.accentText};font-family:inherit;'
+                'font-size:${KolaType.body};font-weight:600;cursor:pointer',
+          },
+          events: {'click': (_) => _load()},
+          [Component.text('Try again')],
+        ),
+      ]);
 }

@@ -48,6 +48,13 @@ payment:
   - initializeCheckout:
   - getTransaction:
   - releaseHold:
+platform:
+  - listApiKeys:
+  - createApiKey:
+  - revokeApiKey:
+  - listWebhookEndpoints:
+  - saveWebhookEndpoint:
+  - deleteWebhookEndpoint:
 supportTicket:
   - list:
   - setStatus:

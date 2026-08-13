@@ -50,6 +50,7 @@
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
@@ -251,7 +252,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   @override
   Component build(BuildContext context) {
     return div(
-      attributes: {'style': 'padding:${KolaSpace.lg};max-width:1080px'},
+      attributes: {'style': 'padding:${KolaSpace.lg};max-width:1080px;margin:0 auto;width:100%;box-sizing:border-box'},
       [
         _header(),
         if (_loading)
@@ -299,24 +300,19 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
               'align-items:center;margin-bottom:${KolaSpace.md}',
         },
         [
-          input(
+          input<String>(
             type: InputType.search,
             attributes: {
               'aria-label': 'Search integrations',
               'placeholder': 'Search integrations',
-              'value': _search,
               'style': 'flex:1 1 220px;min-width:180px;padding:9px 12px;'
                   'border-radius:${KolaRadius.md};'
                   'border:1px solid ${KolaVar.border};'
                   'background:${KolaVar.card};color:${KolaVar.text};'
                   'font-family:inherit;font-size:${KolaType.body}',
             },
-            events: {
-              'input': (e) {
-                final v = (e.target as dynamic).value as String? ?? '';
-                setState(() => _search = v);
-              },
-            },
+            value: _search,
+            onInput: (v) => setState(() => _search = v),
           ),
           div(
             attributes: {'style': 'display:flex;flex-wrap:wrap;gap:6px'},
@@ -522,10 +518,10 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                       'aria-label': 'Close',
                       'style': 'background:transparent;border:none;'
                           'color:${KolaVar.muted};cursor:pointer;'
-                          'font-size:22px;line-height:1;padding:0 4px',
+                          'display:flex;padding:4px;line-height:1',
                     },
                     events: {'click': (_) => _closeModal()},
-                    [Component.text('×')],
+                    [kolaIcon(Icons.close, size: 17)],
                   ),
                 ],
               ),
@@ -622,8 +618,8 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
             },
             [Component.text(c.displayDetail!)],
           ),
-        a(
-          href: c.manageRoute ?? '/billing',
+        Link(
+          to: c.manageRoute ?? '/billing',
           attributes: {
             'style': 'display:inline-block;padding:10px 16px;'
                 'border-radius:${KolaRadius.md};'
@@ -631,7 +627,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                 'color:${KolaVar.accentText};font-size:${KolaType.body};'
                 'font-weight:600;text-decoration:none',
           },
-          [Component.text('Open settings')],
+          children: [Component.text('Open settings')],
         ),
       ];
 
@@ -670,12 +666,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
             },
             [Component.text(f.label)],
           ),
-          input(
+          input<String>(
             type: f.secret ? InputType.password : InputType.text,
             attributes: {
               'placeholder': f.placeholder,
               'autocomplete': 'off',
-              'value': _formValues[f.key] ?? '',
               'style': 'width:100%;box-sizing:border-box;padding:9px 12px;'
                   'border-radius:${KolaRadius.md};'
                   'border:1px solid ${KolaVar.border};'
@@ -683,14 +678,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                   'font-family:${f.secret ? KolaFonts.mono : 'inherit'};'
                   'font-size:${KolaType.body}',
             },
-            events: {
-              // Deliberately NOT setState: rebuilding on every keystroke
-              // would reset the caret in every other field on the form.
-              // The map is read on submit.
-              'input': (e) {
-                _formValues[f.key] = (e.target as dynamic).value as String? ?? '';
-              },
-            },
+            value: _formValues[f.key] ?? '',
+            // Deliberately NOT setState: rebuilding on every keystroke
+            // would reset the caret in every other field on the form.
+            // The map is read on submit.
+            onInput: (v) => _formValues[f.key] = v,
           ),
         ],
       );

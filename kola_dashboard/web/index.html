@@ -15,9 +15,28 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <!-- ROOT-RELATIVE, and it must stay that way.
+       These were `href="styles.css"` and `src="main.dart.js"`, with no
+       leading slash. That works on `/` and breaks on every nested route.
 
-  <script defer src="main.dart.js"></script>
+       This is a client-routed SPA, so a hard load of /bots/3 — a refresh,
+       a pasted link, a Back that leaves the app — serves index.html from
+       that path. The browser then resolves a RELATIVE asset against
+       /bots/, requesting /bots/main.dart.js. The SPA fallback answers
+       that with index.html, so the browser receives HTML where it expects
+       JavaScript, the script never runs, and the page renders blank.
+
+       Diagnosed from the dev server log, which showed exactly this:
+         GET /bots/3           304
+         GET /bots/styles.css  304
+         GET /bots/main.dart.js 304
+
+       It looks like a routing bug and is not one. In-app navigation works
+       because the assets were already loaded from `/`; only a hard load
+       of a nested path fails. The leading slash is the whole fix. -->
+  <link rel="stylesheet" href="/styles.css">
+
+  <script defer src="/main.dart.js"></script>
 </head>
 <body>
   <!-- Jaspr client-mode renders into #app -->

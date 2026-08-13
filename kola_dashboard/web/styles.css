@@ -47,6 +47,14 @@
   --kola-border: #2C2A28;
   --kola-pill: #242220;
 
+  /* The Overview glow — a warm wash bleeding down from above the fold.
+   * Carried verbatim from Kola Dashboard Shell.dc.html, where it is a
+   * THEME TOKEN sitting alongside bg/card/border, not a page style.
+   * Dark carries more alpha (0.10) than light (0.06) because the same
+   * warmth reads far weaker against a near-black background. */
+  --kola-glow: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(193,85,46,0.10), transparent 70%);
+
+
   /* text */
   --kola-text: #F3EEE7;
   --kola-muted-strong: #B9B3AC;
@@ -103,6 +111,10 @@
   --kola-card: #FFFFFF;
   --kola-border: #E8E1D6;
   --kola-pill: #F1EAE0;
+
+  /* Same wash, lower alpha — see the dark block. */
+  --kola-glow: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(193,85,46,0.06), transparent 70%);
+
 
   /* text */
   --kola-text: #1C1815;

@@ -263,7 +263,7 @@ class ErrandEndpoint extends Endpoint {
 
   /// Runs a 'builtin' Errand right now, synchronously, and returns its
   /// result as a JSON string — same "flexible shape lives in a JSON
-  /// string" pattern as inputSchemaJson, since a raw Map<String,dynamic>
+  /// string" pattern as inputSchemaJson, since a raw `Map<String,dynamic>`
   /// isn't a type Serverpod's codegen can safely serialize. [inputJson]
   /// is a JSON-encoded Map matching the Errand's inputSchemaJson shape.
   /// Every invocation is logged (success or failure) by

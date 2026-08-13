@@ -12,55 +12,62 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:serverpod/serverpod.dart' as _i1;
 import 'package:serverpod/protocol.dart' as _i2;
-import 'bot.dart' as _i3;
-import 'channel.dart' as _i4;
-import 'connector_field_spec.dart' as _i5;
-import 'connector_status.dart' as _i6;
-import 'conversation.dart' as _i7;
-import 'customer_profile.dart' as _i8;
-import 'errand.dart' as _i9;
-import 'errand_credential.dart' as _i10;
-import 'errand_execution_log.dart' as _i11;
-import 'feature_flag.dart' as _i12;
-import 'knowledge_chunk.dart' as _i13;
-import 'knowledge_document.dart' as _i14;
-import 'knowledge_search_hit.dart' as _i15;
-import 'kola_billing_checkout.dart' as _i16;
-import 'message.dart' as _i17;
-import 'otp_code.dart' as _i18;
-import 'owner_notification_send.dart' as _i19;
-import 'owner_notification_settings.dart' as _i20;
-import 'payment_bank_account.dart' as _i21;
-import 'payment_gateway_credential.dart' as _i22;
-import 'payment_transaction.dart' as _i23;
-import 'subscription.dart' as _i24;
-import 'support_ticket.dart' as _i25;
-import 'usage_record.dart' as _i26;
-import 'waitlist_signup.dart' as _i27;
-import 'whatsapp_message_template.dart' as _i28;
-import 'workspace.dart' as _i29;
-import 'workspace_connector.dart' as _i30;
-import 'workspace_feature_override.dart' as _i31;
-import 'workspace_member.dart' as _i32;
-import 'package:kola_server/src/generated/bot.dart' as _i33;
-import 'package:kola_server/src/generated/channel.dart' as _i34;
-import 'package:kola_server/src/generated/connector_status.dart' as _i35;
-import 'package:kola_server/src/generated/conversation.dart' as _i36;
-import 'package:kola_server/src/generated/message.dart' as _i37;
-import 'package:kola_server/src/generated/errand.dart' as _i38;
-import 'package:kola_server/src/generated/knowledge_document.dart' as _i39;
-import 'package:kola_server/src/generated/knowledge_search_hit.dart' as _i40;
+import 'api_key.dart' as _i3;
+import 'bot.dart' as _i4;
+import 'channel.dart' as _i5;
+import 'connector_field_spec.dart' as _i6;
+import 'connector_status.dart' as _i7;
+import 'conversation.dart' as _i8;
+import 'created_api_key.dart' as _i9;
+import 'customer_profile.dart' as _i10;
+import 'errand.dart' as _i11;
+import 'errand_credential.dart' as _i12;
+import 'errand_execution_log.dart' as _i13;
+import 'feature_flag.dart' as _i14;
+import 'knowledge_chunk.dart' as _i15;
+import 'knowledge_document.dart' as _i16;
+import 'knowledge_search_hit.dart' as _i17;
+import 'kola_billing_checkout.dart' as _i18;
+import 'message.dart' as _i19;
+import 'otp_code.dart' as _i20;
+import 'owner_notification_send.dart' as _i21;
+import 'owner_notification_settings.dart' as _i22;
+import 'payment_bank_account.dart' as _i23;
+import 'payment_gateway_credential.dart' as _i24;
+import 'payment_transaction.dart' as _i25;
+import 'subscription.dart' as _i26;
+import 'support_ticket.dart' as _i27;
+import 'usage_record.dart' as _i28;
+import 'waitlist_signup.dart' as _i29;
+import 'webhook_endpoint.dart' as _i30;
+import 'whatsapp_message_template.dart' as _i31;
+import 'workspace.dart' as _i32;
+import 'workspace_connector.dart' as _i33;
+import 'workspace_feature_override.dart' as _i34;
+import 'workspace_member.dart' as _i35;
+import 'package:kola_server/src/generated/bot.dart' as _i36;
+import 'package:kola_server/src/generated/channel.dart' as _i37;
+import 'package:kola_server/src/generated/connector_status.dart' as _i38;
+import 'package:kola_server/src/generated/conversation.dart' as _i39;
+import 'package:kola_server/src/generated/message.dart' as _i40;
+import 'package:kola_server/src/generated/errand.dart' as _i41;
+import 'package:kola_server/src/generated/knowledge_document.dart' as _i42;
+import 'package:kola_server/src/generated/knowledge_search_hit.dart' as _i43;
 import 'package:kola_server/src/generated/payment_gateway_credential.dart'
-    as _i41;
-import 'package:kola_server/src/generated/support_ticket.dart' as _i42;
+    as _i44;
+import 'package:kola_server/src/generated/api_key.dart' as _i45;
+import 'package:kola_server/src/generated/webhook_endpoint.dart' as _i46;
+import 'package:kola_server/src/generated/support_ticket.dart' as _i47;
 import 'package:kola_server/src/generated/whatsapp_message_template.dart'
-    as _i43;
-import 'package:kola_server/src/generated/workspace.dart' as _i44;
+    as _i48;
+import 'package:kola_server/src/generated/workspace.dart' as _i49;
+export 'api_key.dart';
 export 'bot.dart';
 export 'channel.dart';
 export 'connector_field_spec.dart';
 export 'connector_status.dart';
 export 'conversation.dart';
+export 'created_api_key.dart';
 export 'customer_profile.dart';
 export 'errand.dart';
 export 'errand_credential.dart';
@@ -81,6 +88,7 @@ export 'subscription.dart';
 export 'support_ticket.dart';
 export 'usage_record.dart';
 export 'waitlist_signup.dart';
+export 'webhook_endpoint.dart';
 export 'whatsapp_message_template.dart';
 export 'workspace.dart';
 export 'workspace_connector.dart';
@@ -125,219 +133,240 @@ class Protocol extends _i1.SerializationManagerServer {
       }
     }
 
-    if (t == _i3.Bot) {
-      return _i3.Bot.fromJson(data) as T;
+    if (t == _i3.ApiKey) {
+      return _i3.ApiKey.fromJson(data) as T;
     }
-    if (t == _i4.Channel) {
-      return _i4.Channel.fromJson(data) as T;
+    if (t == _i4.Bot) {
+      return _i4.Bot.fromJson(data) as T;
     }
-    if (t == _i5.ConnectorFieldSpec) {
-      return _i5.ConnectorFieldSpec.fromJson(data) as T;
+    if (t == _i5.Channel) {
+      return _i5.Channel.fromJson(data) as T;
     }
-    if (t == _i6.ConnectorStatus) {
-      return _i6.ConnectorStatus.fromJson(data) as T;
+    if (t == _i6.ConnectorFieldSpec) {
+      return _i6.ConnectorFieldSpec.fromJson(data) as T;
     }
-    if (t == _i7.Conversation) {
-      return _i7.Conversation.fromJson(data) as T;
+    if (t == _i7.ConnectorStatus) {
+      return _i7.ConnectorStatus.fromJson(data) as T;
     }
-    if (t == _i8.CustomerProfile) {
-      return _i8.CustomerProfile.fromJson(data) as T;
+    if (t == _i8.Conversation) {
+      return _i8.Conversation.fromJson(data) as T;
     }
-    if (t == _i9.Errand) {
-      return _i9.Errand.fromJson(data) as T;
+    if (t == _i9.CreatedApiKey) {
+      return _i9.CreatedApiKey.fromJson(data) as T;
     }
-    if (t == _i10.ErrandCredential) {
-      return _i10.ErrandCredential.fromJson(data) as T;
+    if (t == _i10.CustomerProfile) {
+      return _i10.CustomerProfile.fromJson(data) as T;
     }
-    if (t == _i11.ErrandExecutionLog) {
-      return _i11.ErrandExecutionLog.fromJson(data) as T;
+    if (t == _i11.Errand) {
+      return _i11.Errand.fromJson(data) as T;
     }
-    if (t == _i12.FeatureFlag) {
-      return _i12.FeatureFlag.fromJson(data) as T;
+    if (t == _i12.ErrandCredential) {
+      return _i12.ErrandCredential.fromJson(data) as T;
     }
-    if (t == _i13.KnowledgeChunk) {
-      return _i13.KnowledgeChunk.fromJson(data) as T;
+    if (t == _i13.ErrandExecutionLog) {
+      return _i13.ErrandExecutionLog.fromJson(data) as T;
     }
-    if (t == _i14.KnowledgeDocument) {
-      return _i14.KnowledgeDocument.fromJson(data) as T;
+    if (t == _i14.FeatureFlag) {
+      return _i14.FeatureFlag.fromJson(data) as T;
     }
-    if (t == _i15.KnowledgeSearchHit) {
-      return _i15.KnowledgeSearchHit.fromJson(data) as T;
+    if (t == _i15.KnowledgeChunk) {
+      return _i15.KnowledgeChunk.fromJson(data) as T;
     }
-    if (t == _i16.KolaBillingCheckout) {
-      return _i16.KolaBillingCheckout.fromJson(data) as T;
+    if (t == _i16.KnowledgeDocument) {
+      return _i16.KnowledgeDocument.fromJson(data) as T;
     }
-    if (t == _i17.Message) {
-      return _i17.Message.fromJson(data) as T;
+    if (t == _i17.KnowledgeSearchHit) {
+      return _i17.KnowledgeSearchHit.fromJson(data) as T;
     }
-    if (t == _i18.OtpCode) {
-      return _i18.OtpCode.fromJson(data) as T;
+    if (t == _i18.KolaBillingCheckout) {
+      return _i18.KolaBillingCheckout.fromJson(data) as T;
     }
-    if (t == _i19.OwnerNotificationSend) {
-      return _i19.OwnerNotificationSend.fromJson(data) as T;
+    if (t == _i19.Message) {
+      return _i19.Message.fromJson(data) as T;
     }
-    if (t == _i20.OwnerNotificationSettings) {
-      return _i20.OwnerNotificationSettings.fromJson(data) as T;
+    if (t == _i20.OtpCode) {
+      return _i20.OtpCode.fromJson(data) as T;
     }
-    if (t == _i21.PaymentBankAccount) {
-      return _i21.PaymentBankAccount.fromJson(data) as T;
+    if (t == _i21.OwnerNotificationSend) {
+      return _i21.OwnerNotificationSend.fromJson(data) as T;
     }
-    if (t == _i22.PaymentGatewayCredential) {
-      return _i22.PaymentGatewayCredential.fromJson(data) as T;
+    if (t == _i22.OwnerNotificationSettings) {
+      return _i22.OwnerNotificationSettings.fromJson(data) as T;
     }
-    if (t == _i23.PaymentTransaction) {
-      return _i23.PaymentTransaction.fromJson(data) as T;
+    if (t == _i23.PaymentBankAccount) {
+      return _i23.PaymentBankAccount.fromJson(data) as T;
     }
-    if (t == _i24.Subscription) {
-      return _i24.Subscription.fromJson(data) as T;
+    if (t == _i24.PaymentGatewayCredential) {
+      return _i24.PaymentGatewayCredential.fromJson(data) as T;
     }
-    if (t == _i25.SupportTicket) {
-      return _i25.SupportTicket.fromJson(data) as T;
+    if (t == _i25.PaymentTransaction) {
+      return _i25.PaymentTransaction.fromJson(data) as T;
     }
-    if (t == _i26.UsageRecord) {
-      return _i26.UsageRecord.fromJson(data) as T;
+    if (t == _i26.Subscription) {
+      return _i26.Subscription.fromJson(data) as T;
     }
-    if (t == _i27.WaitlistSignup) {
-      return _i27.WaitlistSignup.fromJson(data) as T;
+    if (t == _i27.SupportTicket) {
+      return _i27.SupportTicket.fromJson(data) as T;
     }
-    if (t == _i28.WhatsAppMessageTemplate) {
-      return _i28.WhatsAppMessageTemplate.fromJson(data) as T;
+    if (t == _i28.UsageRecord) {
+      return _i28.UsageRecord.fromJson(data) as T;
     }
-    if (t == _i29.Workspace) {
-      return _i29.Workspace.fromJson(data) as T;
+    if (t == _i29.WaitlistSignup) {
+      return _i29.WaitlistSignup.fromJson(data) as T;
     }
-    if (t == _i30.WorkspaceConnector) {
-      return _i30.WorkspaceConnector.fromJson(data) as T;
+    if (t == _i30.WebhookEndpoint) {
+      return _i30.WebhookEndpoint.fromJson(data) as T;
     }
-    if (t == _i31.WorkspaceFeatureOverride) {
-      return _i31.WorkspaceFeatureOverride.fromJson(data) as T;
+    if (t == _i31.WhatsAppMessageTemplate) {
+      return _i31.WhatsAppMessageTemplate.fromJson(data) as T;
     }
-    if (t == _i32.WorkspaceMember) {
-      return _i32.WorkspaceMember.fromJson(data) as T;
+    if (t == _i32.Workspace) {
+      return _i32.Workspace.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i3.Bot?>()) {
-      return (data != null ? _i3.Bot.fromJson(data) : null) as T;
+    if (t == _i33.WorkspaceConnector) {
+      return _i33.WorkspaceConnector.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i4.Channel?>()) {
-      return (data != null ? _i4.Channel.fromJson(data) : null) as T;
+    if (t == _i34.WorkspaceFeatureOverride) {
+      return _i34.WorkspaceFeatureOverride.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i5.ConnectorFieldSpec?>()) {
-      return (data != null ? _i5.ConnectorFieldSpec.fromJson(data) : null) as T;
+    if (t == _i35.WorkspaceMember) {
+      return _i35.WorkspaceMember.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i6.ConnectorStatus?>()) {
-      return (data != null ? _i6.ConnectorStatus.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i3.ApiKey?>()) {
+      return (data != null ? _i3.ApiKey.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i7.Conversation?>()) {
-      return (data != null ? _i7.Conversation.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i4.Bot?>()) {
+      return (data != null ? _i4.Bot.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i8.CustomerProfile?>()) {
-      return (data != null ? _i8.CustomerProfile.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i5.Channel?>()) {
+      return (data != null ? _i5.Channel.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i9.Errand?>()) {
-      return (data != null ? _i9.Errand.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i6.ConnectorFieldSpec?>()) {
+      return (data != null ? _i6.ConnectorFieldSpec.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i10.ErrandCredential?>()) {
-      return (data != null ? _i10.ErrandCredential.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i7.ConnectorStatus?>()) {
+      return (data != null ? _i7.ConnectorStatus.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i11.ErrandExecutionLog?>()) {
-      return (data != null ? _i11.ErrandExecutionLog.fromJson(data) : null)
+    if (t == _i1.getType<_i8.Conversation?>()) {
+      return (data != null ? _i8.Conversation.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i9.CreatedApiKey?>()) {
+      return (data != null ? _i9.CreatedApiKey.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i10.CustomerProfile?>()) {
+      return (data != null ? _i10.CustomerProfile.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i11.Errand?>()) {
+      return (data != null ? _i11.Errand.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i12.ErrandCredential?>()) {
+      return (data != null ? _i12.ErrandCredential.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i13.ErrandExecutionLog?>()) {
+      return (data != null ? _i13.ErrandExecutionLog.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i12.FeatureFlag?>()) {
-      return (data != null ? _i12.FeatureFlag.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i14.FeatureFlag?>()) {
+      return (data != null ? _i14.FeatureFlag.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i13.KnowledgeChunk?>()) {
-      return (data != null ? _i13.KnowledgeChunk.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i15.KnowledgeChunk?>()) {
+      return (data != null ? _i15.KnowledgeChunk.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i14.KnowledgeDocument?>()) {
-      return (data != null ? _i14.KnowledgeDocument.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i16.KnowledgeDocument?>()) {
+      return (data != null ? _i16.KnowledgeDocument.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i15.KnowledgeSearchHit?>()) {
-      return (data != null ? _i15.KnowledgeSearchHit.fromJson(data) : null)
+    if (t == _i1.getType<_i17.KnowledgeSearchHit?>()) {
+      return (data != null ? _i17.KnowledgeSearchHit.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i16.KolaBillingCheckout?>()) {
-      return (data != null ? _i16.KolaBillingCheckout.fromJson(data) : null)
+    if (t == _i1.getType<_i18.KolaBillingCheckout?>()) {
+      return (data != null ? _i18.KolaBillingCheckout.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i17.Message?>()) {
-      return (data != null ? _i17.Message.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i19.Message?>()) {
+      return (data != null ? _i19.Message.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i18.OtpCode?>()) {
-      return (data != null ? _i18.OtpCode.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i20.OtpCode?>()) {
+      return (data != null ? _i20.OtpCode.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i19.OwnerNotificationSend?>()) {
-      return (data != null ? _i19.OwnerNotificationSend.fromJson(data) : null)
+    if (t == _i1.getType<_i21.OwnerNotificationSend?>()) {
+      return (data != null ? _i21.OwnerNotificationSend.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i20.OwnerNotificationSettings?>()) {
+    if (t == _i1.getType<_i22.OwnerNotificationSettings?>()) {
       return (data != null
-              ? _i20.OwnerNotificationSettings.fromJson(data)
+              ? _i22.OwnerNotificationSettings.fromJson(data)
               : null)
           as T;
     }
-    if (t == _i1.getType<_i21.PaymentBankAccount?>()) {
-      return (data != null ? _i21.PaymentBankAccount.fromJson(data) : null)
+    if (t == _i1.getType<_i23.PaymentBankAccount?>()) {
+      return (data != null ? _i23.PaymentBankAccount.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i22.PaymentGatewayCredential?>()) {
+    if (t == _i1.getType<_i24.PaymentGatewayCredential?>()) {
       return (data != null
-              ? _i22.PaymentGatewayCredential.fromJson(data)
+              ? _i24.PaymentGatewayCredential.fromJson(data)
               : null)
           as T;
     }
-    if (t == _i1.getType<_i23.PaymentTransaction?>()) {
-      return (data != null ? _i23.PaymentTransaction.fromJson(data) : null)
+    if (t == _i1.getType<_i25.PaymentTransaction?>()) {
+      return (data != null ? _i25.PaymentTransaction.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i24.Subscription?>()) {
-      return (data != null ? _i24.Subscription.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i26.Subscription?>()) {
+      return (data != null ? _i26.Subscription.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i25.SupportTicket?>()) {
-      return (data != null ? _i25.SupportTicket.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i27.SupportTicket?>()) {
+      return (data != null ? _i27.SupportTicket.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i26.UsageRecord?>()) {
-      return (data != null ? _i26.UsageRecord.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i28.UsageRecord?>()) {
+      return (data != null ? _i28.UsageRecord.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i27.WaitlistSignup?>()) {
-      return (data != null ? _i27.WaitlistSignup.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i29.WaitlistSignup?>()) {
+      return (data != null ? _i29.WaitlistSignup.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i28.WhatsAppMessageTemplate?>()) {
-      return (data != null ? _i28.WhatsAppMessageTemplate.fromJson(data) : null)
+    if (t == _i1.getType<_i30.WebhookEndpoint?>()) {
+      return (data != null ? _i30.WebhookEndpoint.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i31.WhatsAppMessageTemplate?>()) {
+      return (data != null ? _i31.WhatsAppMessageTemplate.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i29.Workspace?>()) {
-      return (data != null ? _i29.Workspace.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i32.Workspace?>()) {
+      return (data != null ? _i32.Workspace.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i30.WorkspaceConnector?>()) {
-      return (data != null ? _i30.WorkspaceConnector.fromJson(data) : null)
+    if (t == _i1.getType<_i33.WorkspaceConnector?>()) {
+      return (data != null ? _i33.WorkspaceConnector.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i31.WorkspaceFeatureOverride?>()) {
+    if (t == _i1.getType<_i34.WorkspaceFeatureOverride?>()) {
       return (data != null
-              ? _i31.WorkspaceFeatureOverride.fromJson(data)
+              ? _i34.WorkspaceFeatureOverride.fromJson(data)
               : null)
           as T;
     }
-    if (t == _i1.getType<_i32.WorkspaceMember?>()) {
-      return (data != null ? _i32.WorkspaceMember.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i35.WorkspaceMember?>()) {
+      return (data != null ? _i35.WorkspaceMember.fromJson(data) : null) as T;
     }
-    if (t == List<_i5.ConnectorFieldSpec>) {
+    if (t == List<_i6.ConnectorFieldSpec>) {
       return (data as List)
-              .map((e) => deserialize<_i5.ConnectorFieldSpec>(e))
+              .map((e) => deserialize<_i6.ConnectorFieldSpec>(e))
               .toList()
           as T;
     }
-    if (t == List<_i33.Bot>) {
-      return (data as List).map((e) => deserialize<_i33.Bot>(e)).toList() as T;
+    if (t == List<String>) {
+      return (data as List).map((e) => deserialize<String>(e)).toList() as T;
     }
-    if (t == List<_i34.Channel>) {
-      return (data as List).map((e) => deserialize<_i34.Channel>(e)).toList()
+    if (t == List<_i36.Bot>) {
+      return (data as List).map((e) => deserialize<_i36.Bot>(e)).toList() as T;
+    }
+    if (t == List<_i37.Channel>) {
+      return (data as List).map((e) => deserialize<_i37.Channel>(e)).toList()
           as T;
     }
-    if (t == List<_i35.ConnectorStatus>) {
+    if (t == List<_i38.ConnectorStatus>) {
       return (data as List)
-              .map((e) => deserialize<_i35.ConnectorStatus>(e))
+              .map((e) => deserialize<_i38.ConnectorStatus>(e))
               .toList()
           as T;
     }
@@ -347,38 +376,38 @@ class Protocol extends _i1.SerializationManagerServer {
           )
           as T;
     }
-    if (t == List<_i36.Conversation>) {
+    if (t == List<_i39.Conversation>) {
       return (data as List)
-              .map((e) => deserialize<_i36.Conversation>(e))
+              .map((e) => deserialize<_i39.Conversation>(e))
               .toList()
           as T;
     }
-    if (t == List<_i37.Message>) {
-      return (data as List).map((e) => deserialize<_i37.Message>(e)).toList()
+    if (t == List<_i40.Message>) {
+      return (data as List).map((e) => deserialize<_i40.Message>(e)).toList()
           as T;
     }
-    if (t == List<_i38.Errand>) {
-      return (data as List).map((e) => deserialize<_i38.Errand>(e)).toList()
+    if (t == List<_i41.Errand>) {
+      return (data as List).map((e) => deserialize<_i41.Errand>(e)).toList()
           as T;
     }
     if (t == List<String>) {
       return (data as List).map((e) => deserialize<String>(e)).toList() as T;
     }
-    if (t == List<_i39.KnowledgeDocument>) {
+    if (t == List<_i42.KnowledgeDocument>) {
       return (data as List)
-              .map((e) => deserialize<_i39.KnowledgeDocument>(e))
+              .map((e) => deserialize<_i42.KnowledgeDocument>(e))
               .toList()
           as T;
     }
-    if (t == List<_i40.KnowledgeSearchHit>) {
+    if (t == List<_i43.KnowledgeSearchHit>) {
       return (data as List)
-              .map((e) => deserialize<_i40.KnowledgeSearchHit>(e))
+              .map((e) => deserialize<_i43.KnowledgeSearchHit>(e))
               .toList()
           as T;
     }
-    if (t == List<_i41.PaymentGatewayCredential>) {
+    if (t == List<_i44.PaymentGatewayCredential>) {
       return (data as List)
-              .map((e) => deserialize<_i41.PaymentGatewayCredential>(e))
+              .map((e) => deserialize<_i44.PaymentGatewayCredential>(e))
               .toList()
           as T;
     }
@@ -397,20 +426,30 @@ class Protocol extends _i1.SerializationManagerServer {
               : null)
           as T;
     }
-    if (t == List<_i42.SupportTicket>) {
+    if (t == List<_i45.ApiKey>) {
+      return (data as List).map((e) => deserialize<_i45.ApiKey>(e)).toList()
+          as T;
+    }
+    if (t == List<_i46.WebhookEndpoint>) {
       return (data as List)
-              .map((e) => deserialize<_i42.SupportTicket>(e))
+              .map((e) => deserialize<_i46.WebhookEndpoint>(e))
               .toList()
           as T;
     }
-    if (t == List<_i43.WhatsAppMessageTemplate>) {
+    if (t == List<_i47.SupportTicket>) {
       return (data as List)
-              .map((e) => deserialize<_i43.WhatsAppMessageTemplate>(e))
+              .map((e) => deserialize<_i47.SupportTicket>(e))
               .toList()
           as T;
     }
-    if (t == List<_i44.Workspace>) {
-      return (data as List).map((e) => deserialize<_i44.Workspace>(e)).toList()
+    if (t == List<_i48.WhatsAppMessageTemplate>) {
+      return (data as List)
+              .map((e) => deserialize<_i48.WhatsAppMessageTemplate>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_i49.Workspace>) {
+      return (data as List).map((e) => deserialize<_i49.Workspace>(e)).toList()
           as T;
     }
     try {
@@ -421,36 +460,39 @@ class Protocol extends _i1.SerializationManagerServer {
 
   static String? getClassNameForType(Type type) {
     return switch (type) {
-      _i3.Bot => 'Bot',
-      _i4.Channel => 'Channel',
-      _i5.ConnectorFieldSpec => 'ConnectorFieldSpec',
-      _i6.ConnectorStatus => 'ConnectorStatus',
-      _i7.Conversation => 'Conversation',
-      _i8.CustomerProfile => 'CustomerProfile',
-      _i9.Errand => 'Errand',
-      _i10.ErrandCredential => 'ErrandCredential',
-      _i11.ErrandExecutionLog => 'ErrandExecutionLog',
-      _i12.FeatureFlag => 'FeatureFlag',
-      _i13.KnowledgeChunk => 'KnowledgeChunk',
-      _i14.KnowledgeDocument => 'KnowledgeDocument',
-      _i15.KnowledgeSearchHit => 'KnowledgeSearchHit',
-      _i16.KolaBillingCheckout => 'KolaBillingCheckout',
-      _i17.Message => 'Message',
-      _i18.OtpCode => 'OtpCode',
-      _i19.OwnerNotificationSend => 'OwnerNotificationSend',
-      _i20.OwnerNotificationSettings => 'OwnerNotificationSettings',
-      _i21.PaymentBankAccount => 'PaymentBankAccount',
-      _i22.PaymentGatewayCredential => 'PaymentGatewayCredential',
-      _i23.PaymentTransaction => 'PaymentTransaction',
-      _i24.Subscription => 'Subscription',
-      _i25.SupportTicket => 'SupportTicket',
-      _i26.UsageRecord => 'UsageRecord',
-      _i27.WaitlistSignup => 'WaitlistSignup',
-      _i28.WhatsAppMessageTemplate => 'WhatsAppMessageTemplate',
-      _i29.Workspace => 'Workspace',
-      _i30.WorkspaceConnector => 'WorkspaceConnector',
-      _i31.WorkspaceFeatureOverride => 'WorkspaceFeatureOverride',
-      _i32.WorkspaceMember => 'WorkspaceMember',
+      _i3.ApiKey => 'ApiKey',
+      _i4.Bot => 'Bot',
+      _i5.Channel => 'Channel',
+      _i6.ConnectorFieldSpec => 'ConnectorFieldSpec',
+      _i7.ConnectorStatus => 'ConnectorStatus',
+      _i8.Conversation => 'Conversation',
+      _i9.CreatedApiKey => 'CreatedApiKey',
+      _i10.CustomerProfile => 'CustomerProfile',
+      _i11.Errand => 'Errand',
+      _i12.ErrandCredential => 'ErrandCredential',
+      _i13.ErrandExecutionLog => 'ErrandExecutionLog',
+      _i14.FeatureFlag => 'FeatureFlag',
+      _i15.KnowledgeChunk => 'KnowledgeChunk',
+      _i16.KnowledgeDocument => 'KnowledgeDocument',
+      _i17.KnowledgeSearchHit => 'KnowledgeSearchHit',
+      _i18.KolaBillingCheckout => 'KolaBillingCheckout',
+      _i19.Message => 'Message',
+      _i20.OtpCode => 'OtpCode',
+      _i21.OwnerNotificationSend => 'OwnerNotificationSend',
+      _i22.OwnerNotificationSettings => 'OwnerNotificationSettings',
+      _i23.PaymentBankAccount => 'PaymentBankAccount',
+      _i24.PaymentGatewayCredential => 'PaymentGatewayCredential',
+      _i25.PaymentTransaction => 'PaymentTransaction',
+      _i26.Subscription => 'Subscription',
+      _i27.SupportTicket => 'SupportTicket',
+      _i28.UsageRecord => 'UsageRecord',
+      _i29.WaitlistSignup => 'WaitlistSignup',
+      _i30.WebhookEndpoint => 'WebhookEndpoint',
+      _i31.WhatsAppMessageTemplate => 'WhatsAppMessageTemplate',
+      _i32.Workspace => 'Workspace',
+      _i33.WorkspaceConnector => 'WorkspaceConnector',
+      _i34.WorkspaceFeatureOverride => 'WorkspaceFeatureOverride',
+      _i35.WorkspaceMember => 'WorkspaceMember',
       _ => null,
     };
   }
@@ -465,65 +507,71 @@ class Protocol extends _i1.SerializationManagerServer {
     }
 
     switch (data) {
-      case _i3.Bot():
+      case _i3.ApiKey():
+        return 'ApiKey';
+      case _i4.Bot():
         return 'Bot';
-      case _i4.Channel():
+      case _i5.Channel():
         return 'Channel';
-      case _i5.ConnectorFieldSpec():
+      case _i6.ConnectorFieldSpec():
         return 'ConnectorFieldSpec';
-      case _i6.ConnectorStatus():
+      case _i7.ConnectorStatus():
         return 'ConnectorStatus';
-      case _i7.Conversation():
+      case _i8.Conversation():
         return 'Conversation';
-      case _i8.CustomerProfile():
+      case _i9.CreatedApiKey():
+        return 'CreatedApiKey';
+      case _i10.CustomerProfile():
         return 'CustomerProfile';
-      case _i9.Errand():
+      case _i11.Errand():
         return 'Errand';
-      case _i10.ErrandCredential():
+      case _i12.ErrandCredential():
         return 'ErrandCredential';
-      case _i11.ErrandExecutionLog():
+      case _i13.ErrandExecutionLog():
         return 'ErrandExecutionLog';
-      case _i12.FeatureFlag():
+      case _i14.FeatureFlag():
         return 'FeatureFlag';
-      case _i13.KnowledgeChunk():
+      case _i15.KnowledgeChunk():
         return 'KnowledgeChunk';
-      case _i14.KnowledgeDocument():
+      case _i16.KnowledgeDocument():
         return 'KnowledgeDocument';
-      case _i15.KnowledgeSearchHit():
+      case _i17.KnowledgeSearchHit():
         return 'KnowledgeSearchHit';
-      case _i16.KolaBillingCheckout():
+      case _i18.KolaBillingCheckout():
         return 'KolaBillingCheckout';
-      case _i17.Message():
+      case _i19.Message():
         return 'Message';
-      case _i18.OtpCode():
+      case _i20.OtpCode():
         return 'OtpCode';
-      case _i19.OwnerNotificationSend():
+      case _i21.OwnerNotificationSend():
         return 'OwnerNotificationSend';
-      case _i20.OwnerNotificationSettings():
+      case _i22.OwnerNotificationSettings():
         return 'OwnerNotificationSettings';
-      case _i21.PaymentBankAccount():
+      case _i23.PaymentBankAccount():
         return 'PaymentBankAccount';
-      case _i22.PaymentGatewayCredential():
+      case _i24.PaymentGatewayCredential():
         return 'PaymentGatewayCredential';
-      case _i23.PaymentTransaction():
+      case _i25.PaymentTransaction():
         return 'PaymentTransaction';
-      case _i24.Subscription():
+      case _i26.Subscription():
         return 'Subscription';
-      case _i25.SupportTicket():
+      case _i27.SupportTicket():
         return 'SupportTicket';
-      case _i26.UsageRecord():
+      case _i28.UsageRecord():
         return 'UsageRecord';
-      case _i27.WaitlistSignup():
+      case _i29.WaitlistSignup():
         return 'WaitlistSignup';
-      case _i28.WhatsAppMessageTemplate():
+      case _i30.WebhookEndpoint():
+        return 'WebhookEndpoint';
+      case _i31.WhatsAppMessageTemplate():
         return 'WhatsAppMessageTemplate';
-      case _i29.Workspace():
+      case _i32.Workspace():
         return 'Workspace';
-      case _i30.WorkspaceConnector():
+      case _i33.WorkspaceConnector():
         return 'WorkspaceConnector';
-      case _i31.WorkspaceFeatureOverride():
+      case _i34.WorkspaceFeatureOverride():
         return 'WorkspaceFeatureOverride';
-      case _i32.WorkspaceMember():
+      case _i35.WorkspaceMember():
         return 'WorkspaceMember';
     }
     className = _i2.Protocol().getClassNameForObject(data);
@@ -539,95 +587,104 @@ class Protocol extends _i1.SerializationManagerServer {
     if (dataClassName is! String) {
       return super.deserializeByClassName(data);
     }
+    if (dataClassName == 'ApiKey') {
+      return deserialize<_i3.ApiKey>(data['data']);
+    }
     if (dataClassName == 'Bot') {
-      return deserialize<_i3.Bot>(data['data']);
+      return deserialize<_i4.Bot>(data['data']);
     }
     if (dataClassName == 'Channel') {
-      return deserialize<_i4.Channel>(data['data']);
+      return deserialize<_i5.Channel>(data['data']);
     }
     if (dataClassName == 'ConnectorFieldSpec') {
-      return deserialize<_i5.ConnectorFieldSpec>(data['data']);
+      return deserialize<_i6.ConnectorFieldSpec>(data['data']);
     }
     if (dataClassName == 'ConnectorStatus') {
-      return deserialize<_i6.ConnectorStatus>(data['data']);
+      return deserialize<_i7.ConnectorStatus>(data['data']);
     }
     if (dataClassName == 'Conversation') {
-      return deserialize<_i7.Conversation>(data['data']);
+      return deserialize<_i8.Conversation>(data['data']);
+    }
+    if (dataClassName == 'CreatedApiKey') {
+      return deserialize<_i9.CreatedApiKey>(data['data']);
     }
     if (dataClassName == 'CustomerProfile') {
-      return deserialize<_i8.CustomerProfile>(data['data']);
+      return deserialize<_i10.CustomerProfile>(data['data']);
     }
     if (dataClassName == 'Errand') {
-      return deserialize<_i9.Errand>(data['data']);
+      return deserialize<_i11.Errand>(data['data']);
     }
     if (dataClassName == 'ErrandCredential') {
-      return deserialize<_i10.ErrandCredential>(data['data']);
+      return deserialize<_i12.ErrandCredential>(data['data']);
     }
     if (dataClassName == 'ErrandExecutionLog') {
-      return deserialize<_i11.ErrandExecutionLog>(data['data']);
+      return deserialize<_i13.ErrandExecutionLog>(data['data']);
     }
     if (dataClassName == 'FeatureFlag') {
-      return deserialize<_i12.FeatureFlag>(data['data']);
+      return deserialize<_i14.FeatureFlag>(data['data']);
     }
     if (dataClassName == 'KnowledgeChunk') {
-      return deserialize<_i13.KnowledgeChunk>(data['data']);
+      return deserialize<_i15.KnowledgeChunk>(data['data']);
     }
     if (dataClassName == 'KnowledgeDocument') {
-      return deserialize<_i14.KnowledgeDocument>(data['data']);
+      return deserialize<_i16.KnowledgeDocument>(data['data']);
     }
     if (dataClassName == 'KnowledgeSearchHit') {
-      return deserialize<_i15.KnowledgeSearchHit>(data['data']);
+      return deserialize<_i17.KnowledgeSearchHit>(data['data']);
     }
     if (dataClassName == 'KolaBillingCheckout') {
-      return deserialize<_i16.KolaBillingCheckout>(data['data']);
+      return deserialize<_i18.KolaBillingCheckout>(data['data']);
     }
     if (dataClassName == 'Message') {
-      return deserialize<_i17.Message>(data['data']);
+      return deserialize<_i19.Message>(data['data']);
     }
     if (dataClassName == 'OtpCode') {
-      return deserialize<_i18.OtpCode>(data['data']);
+      return deserialize<_i20.OtpCode>(data['data']);
     }
     if (dataClassName == 'OwnerNotificationSend') {
-      return deserialize<_i19.OwnerNotificationSend>(data['data']);
+      return deserialize<_i21.OwnerNotificationSend>(data['data']);
     }
     if (dataClassName == 'OwnerNotificationSettings') {
-      return deserialize<_i20.OwnerNotificationSettings>(data['data']);
+      return deserialize<_i22.OwnerNotificationSettings>(data['data']);
     }
     if (dataClassName == 'PaymentBankAccount') {
-      return deserialize<_i21.PaymentBankAccount>(data['data']);
+      return deserialize<_i23.PaymentBankAccount>(data['data']);
     }
     if (dataClassName == 'PaymentGatewayCredential') {
-      return deserialize<_i22.PaymentGatewayCredential>(data['data']);
+      return deserialize<_i24.PaymentGatewayCredential>(data['data']);
     }
     if (dataClassName == 'PaymentTransaction') {
-      return deserialize<_i23.PaymentTransaction>(data['data']);
+      return deserialize<_i25.PaymentTransaction>(data['data']);
     }
     if (dataClassName == 'Subscription') {
-      return deserialize<_i24.Subscription>(data['data']);
+      return deserialize<_i26.Subscription>(data['data']);
     }
     if (dataClassName == 'SupportTicket') {
-      return deserialize<_i25.SupportTicket>(data['data']);
+      return deserialize<_i27.SupportTicket>(data['data']);
     }
     if (dataClassName == 'UsageRecord') {
-      return deserialize<_i26.UsageRecord>(data['data']);
+      return deserialize<_i28.UsageRecord>(data['data']);
     }
     if (dataClassName == 'WaitlistSignup') {
-      return deserialize<_i27.WaitlistSignup>(data['data']);
+      return deserialize<_i29.WaitlistSignup>(data['data']);
+    }
+    if (dataClassName == 'WebhookEndpoint') {
+      return deserialize<_i30.WebhookEndpoint>(data['data']);
     }
     if (dataClassName == 'WhatsAppMessageTemplate') {
-      return deserialize<_i28.WhatsAppMessageTemplate>(data['data']);
+      return deserialize<_i31.WhatsAppMessageTemplate>(data['data']);
     }
     if (dataClassName == 'Workspace') {
-      return deserialize<_i29.Workspace>(data['data']);
+      return deserialize<_i32.Workspace>(data['data']);
     }
     if (dataClassName == 'WorkspaceConnector') {
-      return deserialize<_i30.WorkspaceConnector>(data['data']);
+      return deserialize<_i33.WorkspaceConnector>(data['data']);
     }
     if (dataClassName == 'WorkspaceFeatureOverride') {
-      return deserialize<_i31.WorkspaceFeatureOverride>(data['data']);
+      return deserialize<_i34.WorkspaceFeatureOverride>(data['data']);
     }
     if (dataClassName == 'WorkspaceMember') {
-      return deserialize<_i32.WorkspaceMember>(data['data']);
+      return deserialize<_i35.WorkspaceMember>(data['data']);
     }
     if (dataClassName.startsWith('serverpod.')) {
       data['className'] = dataClassName.substring(10);

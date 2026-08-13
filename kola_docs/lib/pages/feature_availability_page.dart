@@ -20,7 +20,6 @@
 // for what a given workspace can use.
 
 import 'package:jaspr/jaspr.dart';
-import 'package:jaspr/dom.dart';
 import '../components/doc_page_kit.dart';
 
 class FeatureAvailabilityPage extends StatelessComponent {

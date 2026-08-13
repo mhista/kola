@@ -28,12 +28,19 @@ class CreateWorkspacePage extends StatefulComponent {
     required this.accessToken,
     required this.onCreated,
     required this.onSignOut,
+    this.loadFailed = false,
   });
 
   final Client client;
   final String accessToken;
   final void Function(Workspace workspace) onCreated;
   final void Function() onSignOut;
+
+  /// True when the workspace list could not be FETCHED, as opposed to
+  /// genuinely being empty. Both land on this page, and telling a
+  /// returning owner to create the business they already have is a bad
+  /// way to report a network problem.
+  final bool loadFailed;
 
   @override
   State<CreateWorkspacePage> createState() => _CreateWorkspacePageState();
@@ -109,6 +116,29 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
               attributes: {'style': 'font-size:14px;color:${KolaDashboardColors.muted};margin-bottom:24px'},
               [Component.text("This is the workspace your bots and errands will live in.")],
             ),
+
+            // "We could not CHECK" is a different sentence from "you do
+            // not HAVE one", and the router cannot tell them apart — both
+            // land here. Without this, a returning owner whose connection
+            // dropped is invited to re-create a business they already
+            // have, and if they accept it they get a second empty
+            // workspace and lose sight of the real one.
+            if (component.loadFailed)
+              div(
+                attributes: {
+                  'style': 'background:#2A2114;border:1px solid #4A3A20;'
+                      'color:#E9C88C;border-radius:8px;padding:10px 12px;'
+                      'font-size:12.5px;line-height:1.55;margin-bottom:16px',
+                },
+                [
+                  Component.text(
+                    "We couldn't load your workspaces just now — this looks "
+                    'like a connection problem rather than a missing '
+                    'workspace. If you already have one, reload before '
+                    'creating another.',
+                  ),
+                ],
+              ),
 
             if (_error != null)
               div(

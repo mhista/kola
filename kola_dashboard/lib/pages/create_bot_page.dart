@@ -1,36 +1,42 @@
-// create_bot_page.dart — Phase 5's bot creation flow (task #114). Until
-// now, sidebar_nav.dart's "+ New Bot" CTA was a plain inert `href:'#'`
-// anchor and nothing in kola_dashboard ever called BotEndpoint.createBot
-// — every other page (Errand Builder, Knowledge, Integrations, the Chat/
-// Dev detail pages) assumed a Bot already existed, with no way to get
-// the first one short of the server's own test-seeding.
+// create_bot_page.dart — "New agent".
 //
-// SCOPED TO WHAT BotEndpoint.createBot ACTUALLY TAKES: name + archetype
-// only (confirmed directly against bot_endpoint.dart — see its
-// `_validArchetypes` check). status/knowledgeSeed/createdAt/updatedAt
-// are all server-set, not caller-supplied, so there's nothing else this
-// form could meaningfully ask for. knowledgeSeed is filled in
-// afterward, on the Knowledge page — this form doesn't try to front-load
-// it.
+// REBUILT. The previous version was a pre-redesign form: a Name field
+// and an archetype picker, calling BotEndpoint.createBot. The redesign
+// has no such screen.
 //
-// NO IMPERATIVE NAVIGATION EXISTS ANYWHERE IN THIS CODEBASE (confirmed —
-// no `Router.of(context)`/`.push(`/`.go(` call in kola_dashboard/lib):
-// every page navigates only via jaspr_router's declarative `Link`. So on
-// success this page doesn't try to redirect itself — it swaps the form
-// for a small "Bot created" confirmation with real `Link`s to that bot's
-// Chat Mode and Dev Mode pages, plus a way to create another. That's the
-// same shape create_workspace_page.dart's `onCreated` callback achieves
-// via a parent-level state change; Bot has no equivalent app.dart-level
-// state to hand back to, so this page owns its own post-create state
-// instead.
+// ── WHAT THE DESIGN ACTUALLY DOES ────────────────────────────────────
+//
+// There is no separate "create agent" screen in any export. An agent is
+// created by DESCRIBING THE BUSINESS, and kola drafts the rest — that is
+// step 1 of the Setup tab on Kola Bot Detail Chat.dc.html:
+//
+//   "Let's set up your agent. What does your business sell?"
+//   → "Got it — I've drafted these Errands: …"
+//
+// The export's own BOTS array carries the resulting state:
+// `{ name: 'Untitled agent', archetype: 'Not set up', hasSetup: false }`.
+//
+// So this page asks one question and hands off to the agent's Setup tab.
+// It does NOT ask for a name or an archetype: the server derives both
+// from the description via createBotFromDescription, and asking an owner
+// to pick "archetype" before they have described their shop is the kind
+// of question the redesign removed.
+//
+// ── WHY IT ENDS WITH A LINK RATHER THAN A REDIRECT ───────────────────
+//
+// kola_dashboard navigates declaratively — there is no
+// `Router.of(context).push` anywhere in lib/, every transition is a
+// jaspr_router `Link`. That convention is kept here rather than
+// introducing the one imperative navigation call in the codebase.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/icons.dart';
+import '../components/shell/kola_icon.dart';
 import '../theme.dart';
-import '../components/back_link.dart';
 
 class CreateBotPage extends StatefulComponent {
   const CreateBotPage({
@@ -48,20 +54,15 @@ class CreateBotPage extends StatefulComponent {
 }
 
 class _CreateBotPageState extends State<CreateBotPage> {
-  String _name = '';
-  // Must be one of 'customerCare' | 'catalog' | 'custom' — the exact set
-  // BotEndpoint.createBot validates against server-side. No shared
-  // constants module defines this anywhere yet (checked); hardcoded here
-  // the same way errand_builder_page.dart hardcodes its permission-scope
-  // options.
-  String _archetype = 'customerCare';
+  String _description = '';
   bool _creating = false;
   String? _error;
   Bot? _created;
 
   Future<void> _submit() async {
-    if (_name.trim().isEmpty) {
-      setState(() => _error = 'Give this bot a name.');
+    final text = _description.trim();
+    if (text.isEmpty) {
+      setState(() => _error = 'Tell kola what your business sells first.');
       return;
     }
     setState(() {
@@ -69,202 +70,195 @@ class _CreateBotPageState extends State<CreateBotPage> {
       _error = null;
     });
     try {
-      final bot = await component.client.bot.createBot(
+      final bot = await component.client.bot.createBotFromDescription(
         component.accessToken,
         component.workspaceId,
-        _name.trim(),
-        _archetype,
+        text,
       );
+      if (!mounted) return;
       setState(() {
         _created = bot;
         _creating = false;
       });
-    } catch (_) {
+    } catch (e) {
+      if (!mounted) return;
+      var msg = '$e';
+      for (final p in const ['Exception: ', 'ServerpodClientException: ']) {
+        if (msg.startsWith(p)) msg = msg.substring(p.length);
+      }
       setState(() {
-        _error = "Couldn't create this bot. Check your connection and try again.";
+        _error = msg;
         _creating = false;
       });
     }
   }
 
-  void _reset() {
-    setState(() {
-      _created = null;
-      _name = '';
-      _archetype = 'customerCare';
-      _error = null;
-    });
-  }
-
   @override
-  Component build(BuildContext context) {
-    return div(
-      attributes: {
-        'style':
-            "font-family:${KolaDashboardFonts.sans};background:${KolaDashboardColors.bg};"
-            'color:${KolaDashboardColors.text};width:100%;height:100vh;overflow-y:auto;'
-            'box-sizing:border-box;padding:40px 32px 60px;display:flex;justify-content:center',
-      },
-      [
+  Component build(BuildContext context) => div(
+        attributes: {
+          'style': 'padding:${KolaSpace.lg};max-width:760px;margin:0 auto;'
+              'width:100%;box-sizing:border-box',
+        },
+        [
+          Link(
+            to: '/bots',
+            attributes: {
+              'style': 'display:inline-flex;align-items:center;gap:6px;'
+                  'font-size:${KolaType.small};font-weight:600;'
+                  'color:${KolaVar.accent};text-decoration:none;'
+                  'padding:6px 10px;border-radius:${KolaRadius.md};'
+                  'margin-bottom:10px',
+            },
+            children: [
+              kolaIcon(Icons.arrowRight,
+                  size: 14, extraStyle: 'transform:rotate(180deg)'),
+              Component.text('Agents'),
+            ],
+          ),
+          if (_created == null) ..._form() else ..._done(_created!),
+        ],
+      );
+
+  List<Component> _form() => [
         div(
-          attributes: {'style': 'max-width:440px;width:100%'},
+          attributes: {
+            'style': 'font-family:${KolaFonts.display};'
+                'font-size:${KolaType.h2};font-weight:700;'
+                'color:${KolaVar.text};margin-bottom:6px',
+          },
+          [Component.text("Let's set up your agent")],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.body};color:${KolaVar.muted};'
+                'line-height:1.55;margin-bottom:18px;max-width:60ch',
+          },
           [
-            div(
-              attributes: {'style': 'margin-bottom:22px'},
-              [backLink()],
-            ),
-            div(
-              attributes: {'style': 'font-size:20px;font-weight:700;margin-bottom:4px'},
-              [Component.text('New bot')],
-            ),
-            div(
-              attributes: {'style': 'font-size:13.5px;color:${KolaDashboardColors.muted};margin-bottom:24px'},
-              [Component.text('Give it a name and a purpose — you can teach it knowledge and errands after.')],
-            ),
-            _created != null ? _successCard(_created!) : _createForm(),
+            Component.text('Describe the business in plain language — kola '
+                'drafts the plan as you go. You can change everything '
+                'afterwards.'),
           ],
         ),
-      ],
-    );
-  }
-
-  Component _createForm() {
-    return div(
-      attributes: {
-        'style':
-            'background:${KolaDashboardColors.card};border:1px solid ${KolaDashboardColors.border};'
-            'border-radius:14px;padding:20px;box-sizing:border-box',
-      },
-      [
-        if (_error != null)
-          div(
-            attributes: {
-              'style':
-                  'background:#2A1414;border:1px solid #4A2020;color:#E8A8A8;border-radius:8px;'
-                  'padding:9px 11px;font-size:12.5px;margin-bottom:14px',
-            },
-            [Component.text(_error!)],
-          ),
-
-        _field(
-          labelText: 'Bot name',
-          child: input<String>(
-            type: InputType.text,
-            value: _name,
-            onInput: (v) => setState(() => _name = v),
-            attributes: {'style': _inputStyle, 'placeholder': 'Aisha Assistant'},
-          ),
-        ),
-        _field(
-          labelText: 'What will it mainly do?',
-          child: select(
-            [
-              option(
-                [Component.text('Customer care — answer questions, escalate when stuck')],
-                value: 'customerCare',
-                selected: _archetype == 'customerCare',
-              ),
-              option(
-                [Component.text('Catalog — prices, stock, product Q&A')],
-                value: 'catalog',
-                selected: _archetype == 'catalog',
-              ),
-              option(
-                [Component.text('Custom — something else')],
-                value: 'custom',
-                selected: _archetype == 'custom',
-              ),
-            ],
-            value: _archetype,
-            onChange: (values) => setState(() => _archetype = values.first),
-            attributes: {'style': _inputStyle},
-          ),
-        ),
-
-        button(
-          [Component.text(_creating ? 'Creating…' : 'Create bot')],
-          type: ButtonType.button,
-          disabled: _creating,
-          onClick: _submit,
+        div(
           attributes: {
-            'style':
-                'width:100%;background:${KolaDashboardColors.accent};color:${KolaDashboardColors.accentText};'
-                'border:none;border-radius:10px;padding:12px;font-size:14.5px;font-weight:600;'
-                'margin-top:8px;cursor:pointer;opacity:${_creating ? '0.7' : '1'}',
+            'style': 'border:1px solid ${KolaVar.border};'
+                'border-radius:${KolaRadius.lg};background:${KolaVar.card};'
+                'padding:${KolaSpace.md}',
           },
-        ),
-      ],
-    );
-  }
-
-  Component _successCard(Bot bot) {
-    return div(
-      attributes: {
-        'style':
-            'background:${KolaDashboardColors.card};border:1px solid ${KolaDashboardColors.border};'
-            'border-radius:14px;padding:20px;box-sizing:border-box',
-      },
-      [
-        div(attributes: {'style': 'font-size:14.5px;font-weight:600;margin-bottom:6px'}, [
-          Component.text('${bot.name} is ready'),
-        ]),
-        div(
-          attributes: {'style': 'font-size:13px;color:${KolaDashboardColors.muted};margin-bottom:18px'},
-          [Component.text('It has no knowledge or errands yet — add those next.')],
-        ),
-        div(
-          attributes: {'style': 'display:flex;flex-direction:column;gap:10px'},
           [
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.bodyLg};font-weight:700;'
+                    'color:${KolaVar.text};margin-bottom:10px',
+              },
+              [Component.text('What does your business sell?')],
+            ),
+            textarea(
+              attributes: {
+                'aria-label': 'Describe your business',
+                'placeholder': 'e.g. Ankara fabric and ready-made outfits. '
+                    'Customers should be able to check prices and stock.',
+                'rows': '6',
+                'style': 'width:100%;box-sizing:border-box;padding:12px 14px;'
+                    'border-radius:${KolaRadius.md};'
+                    'border:1px solid ${KolaVar.border};'
+                    'background:${KolaVar.bg};color:${KolaVar.text};'
+                    'font-family:inherit;font-size:${KolaType.body};'
+                    'line-height:1.6;resize:vertical',
+              },
+              // Jaspr's TYPED callback. The events-map form
+              // (`events: {'input': (e) => (e.target as dynamic).value}`)
+              // is what the pre-redesign pages used and it does not bind
+              // here — the field stayed empty however much you typed, so
+              // "Draft my agent" reported an empty description over a
+              // full textarea. onInput is the API the rest of the app
+              // uses (18 call sites).
+              //
+              // Deliberately no setState: the value is echoed back as
+              // this element's child, and rebuilding on every keystroke
+              // resets the caret to the start.
+              onInput: (v) => _description = v,
+              [Component.text(_description)],
+            ),
+            if (_error != null)
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.small};'
+                      'color:${KolaVar.danger};line-height:1.5;'
+                      'margin-top:10px',
+                },
+                [Component.text(_error!)],
+              ),
+            button(
+              attributes: {
+                'type': 'button',
+                if (_creating) 'disabled': 'disabled',
+                'style': 'margin-top:14px;padding:11px 20px;'
+                    'border-radius:${KolaRadius.md};border:none;'
+                    'background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};font-family:inherit;'
+                    'font-size:${KolaType.body};font-weight:600;'
+                    'cursor:pointer;opacity:${_creating ? '0.65' : '1'}',
+              },
+              events: {
+                'click': (_) {
+                  if (!_creating) _submit();
+                },
+              },
+              [Component.text(_creating ? 'Drafting…' : 'Draft my agent')],
+            ),
+          ],
+        ),
+      ];
+
+  List<Component> _done(Bot bot) => [
+        div(
+          attributes: {
+            'style': 'border:1px solid ${KolaVar.border};'
+                'border-radius:${KolaRadius.lg};background:${KolaVar.card};'
+                'padding:${KolaSpace.lg};text-align:center',
+          },
+          [
+            div(
+              attributes: {
+                'style': 'color:${KolaVar.success};margin-bottom:10px',
+              },
+              [kolaIcon(Icons.check, size: 26, strokeWidth: 2.2)],
+            ),
+            div(
+              attributes: {
+                'style': 'font-family:${KolaFonts.display};'
+                    'font-size:${KolaType.title};font-weight:700;'
+                    'color:${KolaVar.text};margin-bottom:6px',
+              },
+              [Component.text('${bot.name} is drafted')],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.small};'
+                    'color:${KolaVar.muted};line-height:1.55;'
+                    'margin-bottom:16px',
+              },
+              [
+                Component.text('Next: review what it can do, teach it about '
+                    'your products, and connect a channel so customers can '
+                    'reach it.'),
+              ],
+            ),
             Link(
               to: '/bots/${bot.id}',
               attributes: {
-                'style':
-                    'display:block;text-align:center;background:${KolaDashboardColors.accent};'
-                    'color:${KolaDashboardColors.accentText};border-radius:10px;padding:11px;'
-                    'font-size:14px;font-weight:600;text-decoration:none',
+                'class': 'kola-pressable',
+                'style': 'display:inline-block;padding:11px 20px;'
+                    'border-radius:${KolaRadius.md};'
+                    'background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};'
+                    'font-size:${KolaType.body};font-weight:600;'
+                    'text-decoration:none',
               },
-              child: Component.text('Open bot'),
-            ),
-            Link(
-              to: '/knowledge',
-              attributes: {
-                'style':
-                    'display:block;text-align:center;border:1px solid ${KolaDashboardColors.border};'
-                    'color:${KolaDashboardColors.text};border-radius:10px;padding:11px;'
-                    'font-size:14px;font-weight:600;text-decoration:none',
-              },
-              child: Component.text('Add knowledge'),
-            ),
-            button(
-              [Component.text('Create another bot')],
-              type: ButtonType.button,
-              onClick: _reset,
-              attributes: {
-                'style':
-                    'width:100%;background:transparent;border:none;color:${KolaDashboardColors.mutedStrong};'
-                    'font-size:13px;padding:6px;cursor:pointer;margin-top:2px',
-              },
+              children: [Component.text('Open ${bot.name}')],
             ),
           ],
         ),
-      ],
-    );
-  }
-
-  static const _inputStyle =
-      'width:100%;background:#141416;border:1px solid #2C2A28;border-radius:9px;'
-      'padding:11px 12px;font-size:14px;color:#F3EEE7;box-sizing:border-box;font-family:inherit';
-
-  Component _field({required String labelText, required Component child}) => div(
-    attributes: {'style': 'margin-bottom:14px'},
-    [
-      label(
-        [Component.text(labelText)],
-        attributes: {
-          'style': 'display:block;font-size:12.5px;color:${KolaDashboardColors.mutedStrong};margin-bottom:6px',
-        },
-      ),
-      child,
-    ],
-  );
+      ];
 }

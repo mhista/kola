@@ -94,7 +94,7 @@ class ErrandExecutionLogRepository {
   }
 
   /// Replaces the value of every key in [input] that appears in
-  /// [sensitiveInputKeysJson] (a jsonEncode'd List<String>, see
+  /// [sensitiveInputKeysJson] (a jsonEncode'd `List<String>`, see
   /// errand.spy.yaml) with a fixed placeholder — never throws on
   /// malformed JSON, since a logging path failing should never be what
   /// breaks an Errand invocation; it just redacts nothing in that case

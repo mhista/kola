@@ -84,7 +84,7 @@ class _CommandPaletteState extends State<CommandPalette> {
         },
         [
           kolaIcon(Icons.search, size: 16),
-          input(
+          input<String>(
             type: InputType.text,
             attributes: {
               'placeholder': 'Jump to a page…',
@@ -94,11 +94,12 @@ class _CommandPaletteState extends State<CommandPalette> {
                   'color:${KolaVar.text};font-family:inherit;'
                   'font-size:${KolaType.ui}',
             },
+            // Typed onInput — the API the rest of the app binds with.
+            // The events-map 'input' form did not update _query, which
+            // left palette search inert.
+            value: _query,
+            onInput: (v) => setState(() => _query = v),
             events: {
-              'input': (e) {
-                final value = (e.target as dynamic).value as String? ?? '';
-                setState(() => _query = value);
-              },
               'keydown': (e) {
                 if ((e as dynamic).key == 'Escape') component.onClose();
               },

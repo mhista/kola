@@ -25,7 +25,6 @@
 // own "CONFIRMED WITH THE USER" vs "NOT CONFIRMED" comments).
 
 import 'package:jaspr/jaspr.dart';
-import 'package:jaspr/dom.dart';
 import '../components/doc_page_kit.dart';
 
 class AvoidingExcessiveWhatsAppBillingPage extends StatelessComponent {

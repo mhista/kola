@@ -261,7 +261,18 @@ class SidebarNav extends StatelessComponent {
   /// real Link. See this file's header comment.
   Component _link({required String href, required String style, required List<Component> children}) {
     if (href == '#') {
-      return a(attributes: {'style': style}, children, href: href);
+      // NOT an <a href="#">. A '#' anchor still navigates: it appends
+      // the fragment to the URL and pushes a HISTORY ENTRY, so Back walks
+      // back through phantom entries instead of leaving the page. That is
+      // the reported "back button doesn't go back properly".
+      //
+      // A span carries no href, so it cannot navigate and cannot pollute
+      // history. aria-disabled tells assistive tech it is inert.
+      return span(
+        attributes: {'style': '$style;cursor:default',
+            'aria-disabled': 'true'},
+        children,
+      );
     }
     if (href.startsWith('http://') || href.startsWith('https://')) {
       return a(

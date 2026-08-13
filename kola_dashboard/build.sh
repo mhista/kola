@@ -29,7 +29,7 @@ set -e
 
 SUPABASE_URL="${SUPABASE_URL:-}"
 SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
-KOLA_SERVER_URL="${KOLA_SERVER_URL:-http://localhost:8090}"
+KOLA_SERVER_URL="${KOLA_SERVER_URL:-https://p01--kola--hnnl8wyj78qp.code.run}"
 KOLA_DOCS_URL="${KOLA_DOCS_URL:-https://docs.kola.app}"
 
 if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then

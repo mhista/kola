@@ -322,16 +322,13 @@ class _DashboardAppState extends State<DashboardApp> {
     });
   }
 
-  /// Shared by every route below that needs an avatar initial (Bot
-  /// Detail Chat/Dev's plan panel today; DashboardHomePage derives its
-  /// own copy the same way rather than importing this, since it's a
-  /// three-line getter, not worth threading a shared util module for).
-  String get _avatarInitial {
-    final email = _session?.email;
-    if (email == null || email.isEmpty) return '?';
-    final local = email.split('@').first;
-    return local.isNotEmpty ? local[0].toUpperCase() : '?';
-  }
+  // NOTE: _avatarInitial used to live here. Its only consumers were Bot
+  // Detail Chat/Dev's plan panel, and the redesign of those screens
+  // replaced that panel — so the getter was left with no callers.
+  // DashboardHomePage derives its own copy, and the shell components
+  // that still take an `avatarInitial` are constructed elsewhere.
+  // Removed rather than kept "in case", since a dead getter is exactly
+  // the thing the next person assumes is load-bearing.
 
   String? _redirect(BuildContext context, RouteState state) {
     final loc = state.location;
@@ -401,11 +398,17 @@ class _DashboardAppState extends State<DashboardApp> {
         ),
         Route(
           path: '/create-workspace',
+          // loadFailed is the reason _workspaceLoadFailed exists. The
+          // router sends you here either way, so without it a CONNECTION
+          // FAILURE is indistinguishable from having no workspace — and
+          // the page would cheerfully ask a returning owner to create the
+          // business they already have.
           builder: (context, state) => CreateWorkspacePage(
             client: _client,
             accessToken: _session!.accessToken,
             onCreated: _handleWorkspaceCreated,
             onSignOut: _handleSignOut,
+            loadFailed: _workspaceLoadFailed,
           ),
         ),
         // FIRST PAGE ON THE REDESIGN. Wrapped in AppShell, which now
@@ -505,22 +508,29 @@ class _DashboardAppState extends State<DashboardApp> {
         ),
         Route(
           path: '/bots/:id',
+          // botId is parsed HERE rather than inside the page: the route
+          // param is the only place it arrives as a string, and parsing
+          // once at the boundary keeps every client call type-correct.
+          // A non-numeric id is a malformed URL, and int.tryParse
+          // falling back to 0 makes that a clean "not found" rather than
+          // an exception during build.
           builder: (context, state) => BotDetailChatPage(
             client: _client,
             accessToken: _session!.accessToken,
             workspaceId: _selectedWorkspace!.id!,
             workspaceName: _selectedWorkspace!.name,
-            avatarInitial: _avatarInitial,
-            botId: state.params['id']!,
+            botId: int.tryParse(state.params['id'] ?? '') ?? 0,
+            gate: _gate,
           ),
         ),
         Route(
           path: '/bots/:id/code',
+          // Parsed at the boundary, same as /bots/:id above.
           builder: (context, state) => BotDetailDevPage(
             client: _client,
             accessToken: _session!.accessToken,
             workspaceId: _selectedWorkspace!.id!,
-            botId: state.params['id']!,
+            botId: int.tryParse(state.params['id'] ?? '') ?? 0,
           ),
         ),
         Route(

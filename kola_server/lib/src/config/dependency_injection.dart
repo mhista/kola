@@ -20,6 +20,9 @@ import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
 import 'package:kola_server/src/services/connectors/connector_service.dart';
+import 'package:kola_server/src/services/repository/api_key_repository.dart';
+import 'package:kola_server/src/services/repository/webhook_endpoint_repository.dart';
+import 'package:kola_server/src/services/platform/api_key_service.dart';
 import 'package:kola_server/src/services/repository/waitlist_signup_repository.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/errand_credential_repository.dart';
@@ -210,6 +213,21 @@ void setupDependencyInjection() {
       gateways: getIt<PaymentGatewayCredentialRepository>(),
       generic: getIt<WorkspaceConnectorRepository>(),
     ),
+  );
+
+  // ── PLATFORM: API KEYS + OUTBOUND WEBHOOKS ────────────────────────────────
+  //
+  // Migration 026. Gated on platform.public_api, which is R6 and locked —
+  // so this is built, deployed and invisible, exactly as the release model
+  // intends (RELEASE_PHASES.md §0).
+  getIt.registerLazySingleton<ApiKeyRepository>(
+    () => const ApiKeyRepository(),
+  );
+  getIt.registerLazySingleton<WebhookEndpointRepository>(
+    () => const WebhookEndpointRepository(),
+  );
+  getIt.registerLazySingleton<ApiKeyService>(
+    () => ApiKeyService(keys: getIt<ApiKeyRepository>()),
   );
 
   // ── PHASE 9 — LAYER 2: BUSINESS MEMORY ────────────────────────────────────

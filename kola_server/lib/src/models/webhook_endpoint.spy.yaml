@@ -1,0 +1,66 @@
+##
+## webhook_endpoint.spy.yaml — where kola posts when something happens.
+##
+## Schema: migration 026.
+##
+## The outbound half of the platform surface: api_key.spy.yaml is how
+## someone calls IN, this is how kola calls OUT.
+##
+## ── encrypted_secret IS REVERSIBLE, AND api_key.keyHash IS NOT ──────
+##
+## The asymmetry is the point. kola must SIGN every delivery with this
+## secret so the receiver can verify the payload came from kola — which
+## means kola has to recover it. So it is AES-256-GCM through
+## ChannelCredentialEncryptionService, the same service used for channel
+## tokens. An API key, by contrast, is only ever compared, so it is
+## hashed and unrecoverable.
+##
+## Two secrets, two treatments, decided by whether the secret must be
+## USED or merely MATCHED.
+##
+
+class: WebhookEndpoint
+# table: webhook_endpoints
+fields:
+  id: int? # Supabase assigns this automatically
+  workspaceId: int
+
+  ## Where to POST. Unique per workspace — registering the same URL twice
+  ## is an edit, not a second endpoint, or every event delivers twice and
+  ## the duplicate is invisible on the card.
+  url: String
+
+  ## Subscribed events, from the design's EVENT_TYPES, stored snake_case:
+  ## new_conversation · errand_executed · bot_published · payment_confirmed
+  ##
+  ## A list rather than a join table: the set is small, fixed, and always
+  ## read whole. A join table would be three queries to draw one row of
+  ## chips.
+  events: List<String>
+
+  ## 'active' | 'paused' | 'failing'.
+  ##
+  ## `failing` is set by the delivery path, not by the owner. An endpoint
+  ## that silently stopped accepting posts is the failure mode worth
+  ## surfacing — the owner should learn it from kola, not from noticing
+  ## their own system has gone quiet.
+  status: String
+
+  ## Ciphertext. See the header on why this one is reversible.
+  encryptedSecret: String?
+
+  lastDeliveryAt: DateTime?
+
+  ## Why the last delivery failed, in plain language. Drives [status]
+  ## == 'failing' and is shown on the card.
+  lastError: String?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  webhook_endpoint_workspace_idx:
+    fields: workspaceId
+  webhook_endpoint_unique_idx:
+    fields: workspaceId, url
+    unique: true

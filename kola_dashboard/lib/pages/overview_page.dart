@@ -173,17 +173,37 @@ class _OverviewPageState extends State<OverviewPage> {
   @override
   Component build(BuildContext context) {
     return div(
+      // THE GLOW. A warm wash bleeding down from above the fold, per
+      // Kola Dashboard Shell.dc.html, where it is a theme token rather
+      // than a page style — hence KolaVar.glow and not a literal.
+      //
+      // It sits on an outer wrapper, not on the 1040px column: the
+      // ellipse is 900px wide and anchored at 50% -10%, so constraining
+      // it to the content column would clip it and centre it on the
+      // wrong axis at wide viewports.
+      //
+      // `background-image` rather than `background`, so it composes over
+      // --kola-bg instead of replacing it.
       attributes: {
-        'style': 'max-width:1040px;margin:0 auto;width:100%;'
-            'padding:28px 20px 40px;display:flex;flex-direction:column;gap:22px',
+        'style': 'background-image:${KolaVar.glow};'
+            'background-repeat:no-repeat;width:100%',
       },
       [
-        _greeting(),
-        ...switch (_phase) {
-          _Phase.loading => _skeletons(),
-          _Phase.error => [_errorCard()],
-          _Phase.ready => _isEmpty ? _setup() : _briefing(),
-        },
+        div(
+          attributes: {
+            'style': 'max-width:1040px;margin:0 auto;width:100%;'
+                'padding:28px 20px 40px;display:flex;'
+                'flex-direction:column;gap:22px',
+          },
+          [
+            _greeting(),
+            ...switch (_phase) {
+              _Phase.loading => _skeletons(),
+              _Phase.error => [_errorCard()],
+              _Phase.ready => _isEmpty ? _setup() : _briefing(),
+            },
+          ],
+        ),
       ],
     );
   }

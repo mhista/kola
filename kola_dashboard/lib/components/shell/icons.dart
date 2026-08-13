@@ -22,8 +22,24 @@ abstract class Icons {
   static const book = 'M4 5c2-1 5-1 8 0v14c-3-1-6-1-8 0Z M20 5c-2-1-5-1-8 0v14c3-1 6-1 8 0Z';
   static const bot = 'M9 3v2 M15 3v2 M9 19v2 M15 19v2 M3 9h2 M3 15h2 M19 9h2 M19 15h2 M6 6h12v12H6Z M9 9h6v6H9Z';
   static const catalog = 'M20 7 12 3 4 7l8 4 8-4Z M4 7v10l8 4 8-4V7 M12 11v10';
+  /// A bare tick, for a completed step in a stepper or a done row.
+  ///
+  /// Added alongside [checkSquare] rather than reusing it: the boxed
+  /// version reads as a checkbox the user could toggle, which is wrong
+  /// for a state they cannot change.
+  static const check = 'M20 6 9 17l-5-5';
+
   static const checkSquare = 'M9 12l2 2 4-4 M4 4h16v16H4Z';
   static const chevronDown = 'M6 9l6 6 6-6';
+
+  /// Dismiss. Added because modals were closing on a literal '×'
+  /// character, which does not inherit the icon set's stroke weight and
+  /// sits off-centre against real icons beside it.
+  static const close = 'M18 6 6 18 M6 6l12 12';
+
+  /// Add. Same reason as [close] — '+' as text is a different weight and
+  /// baseline from every icon next to it.
+  static const plus = 'M12 5v14 M5 12h14';
   static const diamond = 'M12 2 22 12 12 22 2 12Z';
   static const eye = 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z';
   static const headset = 'M4 13v-1a8 8 0 1 1 16 0v1 M3 13h2v6H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z M21 13h-2v6h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1Z';

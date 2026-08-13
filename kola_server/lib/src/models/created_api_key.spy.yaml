@@ -1,0 +1,32 @@
+##
+## created_api_key.spy.yaml — the ONLY time a plaintext key crosses the
+## wire.
+##
+## NOT A TABLE. Returned by ApiKeyEndpoint.createApiKey and never again.
+##
+## ── WHY THIS TYPE EXISTS AT ALL ─────────────────────────────────────
+##
+## createApiKey could have returned a plain ApiKey and put the secret in
+## a field. It does not, because a nullable `plaintext` on the stored
+## model would appear on every list response as `null` and invite
+## somebody to try populating it later. A separate return type makes the
+## one-time nature structural: there is exactly one method that produces
+## this class, and no read path that can.
+##
+## The design has a matching state (`newKeyValue`, `keyCreated`) — a
+## distinct screen after creation, not a row you can reopen. That is the
+## UI consequence of the same fact.
+##
+
+class: CreatedApiKey
+fields:
+  ## The stored record — safe to keep, safe to list.
+  key: ApiKey
+
+  ## The full plaintext key, e.g. `sk_live_9f2a…`.
+  ##
+  ## SHOW IT ONCE. The server holds only a SHA-256 hash, so this value
+  ## cannot be recovered — not by support, not by the owner, not by
+  ## reading the database. If it is lost, the key is revoked and a new
+  ## one issued.
+  plaintext: String

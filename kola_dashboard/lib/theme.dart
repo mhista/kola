@@ -419,6 +419,10 @@ abstract class KolaVar {
   static const warning = 'var(--kola-warning)';
   static const pill = 'var(--kola-pill)';
 
+  /// The Overview glow. A full `background` value, not a colour — assign
+  /// it directly, do not interpolate it into a shorthand.
+  static const glow = 'var(--kola-glow)';
+
   static const successBg = 'var(--kola-success-bg)';
   static const dangerBg = 'var(--kola-danger-bg)';
   static const warningBg = 'var(--kola-warning-bg)';

@@ -12,7 +12,6 @@
 // "don't promise a backend that doesn't exist" call this project makes.
 
 import 'package:jaspr/jaspr.dart';
-import 'package:jaspr/dom.dart';
 import '../components/code_block.dart';
 import '../components/doc_page_kit.dart';
 

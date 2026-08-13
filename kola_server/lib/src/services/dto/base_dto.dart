@@ -30,7 +30,7 @@
 abstract class BaseDto<T> {
   const BaseDto();
 
-  /// Convert a Supabase row (Map<String, dynamic>) into a Serverpod model.
+  /// Convert a Supabase row (`Map<String, dynamic>`) into a Serverpod model.
   T fromRow(Map<String, dynamic> row);
 
   /// Convert a Serverpod model into a Supabase row map ready for insert/upsert.

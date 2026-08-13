@@ -5,7 +5,6 @@
 // than presenting all three with equal confidence.
 
 import 'package:jaspr/jaspr.dart';
-import 'package:jaspr/dom.dart';
 import '../components/doc_page_kit.dart';
 
 class RateLimitsPage extends StatelessComponent {

@@ -19,7 +19,6 @@
 // bug rather than a deliberate scope decision.
 
 import 'package:jaspr/jaspr.dart';
-import 'package:jaspr/dom.dart';
 import '../components/doc_page_kit.dart';
 
 class BusinessMemoryPage extends StatelessComponent {

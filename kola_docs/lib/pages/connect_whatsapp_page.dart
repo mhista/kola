@@ -10,7 +10,6 @@
 // still open, so faking images here would be worse than this honest gap.
 
 import 'package:jaspr/jaspr.dart';
-import 'package:jaspr/dom.dart';
 import '../components/doc_page_kit.dart';
 
 class ConnectWhatsAppPage extends StatelessComponent {
