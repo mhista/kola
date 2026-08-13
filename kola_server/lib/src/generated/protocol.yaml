@@ -63,6 +63,12 @@ product:
   - updateProduct:
   - archiveProduct:
   - replaceVariants:
+  - getMediaUploadAuth:
+  - listMedia:
+  - addProductMedia:
+  - deleteProductMedia:
+  - reorderProductMedia:
+  - importMediaFromUrl:
 supportTicket:
   - list:
   - setStatus:

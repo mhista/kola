@@ -543,6 +543,9 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/payment_bank_account.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/payment_gateway_credential.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/payment_transaction.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/product.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/product_media.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/product_variant.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/protocol.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/subscription.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/support_ticket.dart
@@ -584,6 +587,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/bil
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/bot_detail_chat_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/bot_detail_dev_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/bots_page.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/catalog_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/conversations_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/create_bot_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/create_workspace_page.dart
@@ -595,12 +599,16 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/log
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/logout_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/operations_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/overview_page.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/product_detail_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/settings_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/auth_service.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/dom_files.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/error_text.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/feature_gate.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/file_intake.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/local_storage.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/media_upload.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/services/money.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/theme.dart
 file:///C:/flutter/bin/cache/dart-sdk/lib/_internal/dart2js_platform.dill
 file:///C:/flutter/bin/cache/dart-sdk/lib/libraries.json

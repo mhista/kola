@@ -38,6 +38,10 @@
 // service has null stock and renders "Booked, not stocked", NOT "Out of
 // stock". Showing a tailor as sold out turns away work they can take.
 
+import 'dart:js_interop';
+
+import 'package:web/web.dart' as web;
+
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr_router/jaspr_router.dart';
@@ -46,7 +50,11 @@ import 'package:kola_client/kola_client.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/error_text.dart';
+import '../services/file_intake.dart';
+import '../services/dom_files.dart';
+import '../services/media_upload.dart';
 import '../services/money.dart';
+import '../services/product_csv.dart';
 import '../theme.dart';
 
 class CatalogPage extends StatefulComponent {
@@ -80,7 +88,7 @@ class _Draft {
     description = p.description ?? '';
     archetype = p.archetype;
     sku = p.sku ?? '';
-    tag = p.tag ?? '';
+    category = p.category ?? '';
     currency = p.priceCurrency;
     price = p.priceMinor == null ? '' : Money.toInput(p.priceMinor!, p.priceCurrency);
     cost = p.costMinor == null ? '' : Money.toInput(p.costMinor!, p.priceCurrency);
@@ -104,7 +112,7 @@ class _Draft {
   String description = '';
   String archetype = 'packaged';
   String sku = '';
-  String tag = '';
+  String category = '';
   String currency = 'NGN';
   String price = '';
   String cost = '';
@@ -112,6 +120,24 @@ class _Draft {
   String stock = '';
   String lowStock = '5';
   List<({String label, String stock, String price})> rows = [];
+
+  /// Photos already saved against this product (edit mode).
+  List<ProductMedia> media = [];
+
+  /// Photos uploaded to ImageKit during THIS editing session but not yet
+  /// attached to a product row.
+  ///
+  /// Needed because a new product has no id until it is saved, and an
+  /// owner should not have to save a half-filled form before they can
+  /// add the picture they are looking at. They upload now; the rows are
+  /// written the moment createProduct returns an id.
+  ///
+  /// The tradeoff is orphans: abandoning a new product leaves those
+  /// files on the CDN with nothing pointing at them. Accepted knowingly
+  /// — a periodic sweep of untagged files is the cleanup, and the
+  /// alternative is refusing to let someone add a photo until they have
+  /// filled in a form, which is the complaint that started this work.
+  List<UploadedMedia> pendingMedia = [];
 }
 
 class _CatalogPageState extends State<CatalogPage> {
@@ -129,6 +155,22 @@ class _CatalogPageState extends State<CatalogPage> {
   String _tab = 'details';
   bool _saving = false;
   String? _editorError;
+
+  /// Live uploads, keyed by a per-file id. Value is 0.0–1.0.
+  ///
+  /// Kept on the STATE and not the draft, because it describes work in
+  /// flight rather than the product being edited — closing the editor
+  /// mid-upload should not leave a stale bar in the draft.
+  Map<int, ({String name, double progress, String? error})> _uploads = {};
+  int _uploadSeq = 0;
+
+  /// Cached signed credentials. One round trip per editor session
+  /// rather than one per photo — MediaUpload.send takes the auth string
+  /// precisely so a batch can share it.
+  String? _uploadAuth;
+
+  /// Bulk import. Null when the sheet is closed.
+  ({int done, int total, String label, List<String> problems})? _import;
 
   static const _archetypeLabels = <String, String>{
     'packaged': 'Packaged goods',
@@ -241,7 +283,7 @@ class _CatalogPageState extends State<CatalogPage> {
           description: _orNull(draft.description),
           archetype: draft.archetype,
           sku: _orNull(draft.sku),
-          tag: _orNull(draft.tag),
+          category: _orNull(draft.category),
           priceMinor: priceMinor,
           priceCurrency: draft.currency,
           priceUnit: _orNull(draft.priceUnit),
@@ -258,7 +300,7 @@ class _CatalogPageState extends State<CatalogPage> {
           description: draft.description,
           archetype: draft.archetype,
           sku: draft.sku,
-          tag: draft.tag,
+          category: draft.category,
           priceMinor: priceMinor,
           // The endpoint treats null as "leave alone", so emptying the
           // box needs its own signal — otherwise a price could be set
@@ -272,6 +314,12 @@ class _CatalogPageState extends State<CatalogPage> {
           clearStock: draft.stock.trim().isEmpty,
           lowStockThreshold: int.tryParse(draft.lowStock.trim()) ?? 5,
         );
+      }
+
+      // Photos uploaded before the product existed get their rows now
+      // that there is an id to attach them to. See _Draft.pendingMedia.
+      if (saved.id != null && draft.pendingMedia.isNotEmpty) {
+        await _attachPendingMedia(saved.id!, draft);
       }
 
       if (saved.id != null && draft.archetype == 'variants') {
@@ -301,6 +349,283 @@ class _CatalogPageState extends State<CatalogPage> {
     }
   }
 
+  // ── Bulk import ─────────────────────────────────────────────────────
+
+  /// Reads a spreadsheet and creates every row as a product.
+  ///
+  /// Sequential, and deliberately so: fifty parallel createProduct calls
+  /// would race on the SKU uniqueness check and hammer the server, and
+  /// the owner would get a progress bar that means nothing. One at a
+  /// time gives a real count and a real ETA.
+  ///
+  /// A row that fails does NOT stop the import. Its reason is collected
+  /// and shown at the end — an import that abandons row 12 of 50 and
+  /// leaves the owner guessing which ones landed is worse than one that
+  /// finishes and reports.
+  Future<void> _importCsv(web.File file) async {
+    setState(() {
+      _import = (done: 0, total: 0, label: 'Reading the file…', problems: []);
+    });
+
+    final String text;
+    try {
+      text = await FileIntake.readText(file);
+    } catch (e) {
+      setState(() => _import = (
+            done: 0,
+            total: 0,
+            label: "Couldn't read that file",
+            problems: [ErrorText.of(e)],
+          ));
+      return;
+    }
+
+    final parsed = ProductCsv.parse(text);
+    if (parsed.rows.isEmpty) {
+      setState(() => _import = (
+            done: 0,
+            total: 0,
+            label: 'Nothing to import',
+            problems: [
+              if (parsed.skipped.isEmpty)
+                'That file has no rows kola could read. It needs a header '
+                    'row with at least a "name" column.'
+              else
+                'Every row was missing a product name.',
+            ],
+          ));
+      return;
+    }
+
+    final problems = <String>[
+      for (final s in parsed.skipped) 'Row ${s.row}: ${s.reason}',
+      if (parsed.unknownHeaders.isNotEmpty)
+        'Ignored columns kola does not use: '
+            '${parsed.unknownHeaders.join(', ')}',
+    ];
+
+    var done = 0;
+    setState(() => _import = (
+          done: 0,
+          total: parsed.rows.length,
+          label: 'Adding your products…',
+          problems: problems,
+        ));
+
+    for (final row in parsed.rows) {
+      try {
+        final priceMinor =
+            row.price == null ? null : Money.parse(row.price!, 'NGN');
+        final costMinor =
+            row.cost == null ? null : Money.parse(row.cost!, 'NGN');
+
+        final product = await component.client.product.createProduct(
+          component.accessToken,
+          component.workspaceId,
+          row.name,
+          description: row.description,
+          archetype: row.archetype ?? 'packaged',
+          sku: row.sku,
+          category: row.category,
+          priceMinor: priceMinor,
+          priceUnit: row.unit,
+          costMinor: costMinor,
+          stock: row.stock == null ? null : int.tryParse(row.stock!),
+          lowStockThreshold:
+              row.lowStock == null ? 5 : (int.tryParse(row.lowStock!) ?? 5),
+        );
+
+        // The image is fetched SERVER-SIDE from the url in the sheet —
+        // see ProductEndpoint.importMediaFromUrl. A failure here is
+        // reported but never fails the product: the row is worth having
+        // without its picture.
+        if (row.imageUrl != null && product.id != null) {
+          try {
+            final media = await component.client.product.importMediaFromUrl(
+              component.accessToken,
+              component.workspaceId,
+              product.id!,
+              row.imageUrl!,
+            );
+            if (media == null) {
+              problems.add('Row ${row.rowNumber}: saved, but the photo '
+                  "link didn't load");
+            }
+          } catch (_) {
+            problems.add('Row ${row.rowNumber}: saved, but the photo '
+                "link didn't load");
+          }
+        }
+      } catch (e) {
+        problems.add('Row ${row.rowNumber} (${row.name}): ${ErrorText.of(e)}');
+      }
+
+      done++;
+      if (!mounted) return;
+      setState(() => _import = (
+            done: done,
+            total: parsed.rows.length,
+            label: 'Adding your products…',
+            problems: problems,
+          ));
+    }
+
+    if (!mounted) return;
+    setState(() => _import = (
+          done: done,
+          total: parsed.rows.length,
+          label: 'Done',
+          problems: problems,
+        ));
+    await _load();
+  }
+
+  // ── Photos ──────────────────────────────────────────────────────────
+
+  Future<String?> _authForUpload() async {
+    if (_uploadAuth != null) return _uploadAuth;
+    try {
+      final auth = await component.client.product.getMediaUploadAuth(
+        component.accessToken,
+        component.workspaceId,
+      );
+      _uploadAuth = auth;
+      return auth;
+    } catch (e) {
+      if (mounted) setState(() => _editorError = ErrorText.of(e));
+      return null;
+    }
+  }
+
+  /// Uploads each picked file, reporting progress per file.
+  ///
+  /// Sequential rather than parallel. Four photos at once on a shared
+  /// mobile connection makes all four slow and the progress bars jump
+  /// around; one at a time finishes the first one quickly, which is what
+  /// makes the wait feel bounded.
+  Future<void> _onPhotosPicked(List<web.File> files) async {
+    final draft = _editing;
+    if (draft == null || files.isEmpty) return;
+
+    final auth = await _authForUpload();
+    if (auth == null) return;
+
+    for (final file in files) {
+      final id = _uploadSeq++;
+      if (!mounted) return;
+      setState(() {
+        _uploads = {
+          ..._uploads,
+          id: (name: file.name, progress: 0, error: null),
+        };
+      });
+
+      try {
+        final uploaded = await MediaUpload.send(
+          file: file,
+          fileName: file.name,
+          auth: auth,
+          onProgress: (p) {
+            if (!mounted) return;
+            setState(() {
+              final row = _uploads[id];
+              if (row != null) {
+                _uploads = {
+                  ..._uploads,
+                  id: (name: row.name, progress: p, error: null),
+                };
+              }
+            });
+          },
+        );
+
+        if (!mounted) return;
+
+        // Attached immediately when the product already exists, held
+        // otherwise — see _Draft.pendingMedia.
+        if (draft.id != null) {
+          final saved = await component.client.product.addProductMedia(
+            component.accessToken,
+            component.workspaceId,
+            draft.id!,
+            uploaded.fileId,
+            uploaded.url,
+            kind: 'image',
+            thumbnailUrl: uploaded.thumbnailUrl,
+            width: uploaded.width,
+            height: uploaded.height,
+          );
+          if (!mounted) return;
+          setState(() {
+            draft.media = [...draft.media, saved];
+            _uploads = {..._uploads}..remove(id);
+          });
+        } else {
+          setState(() {
+            draft.pendingMedia = [...draft.pendingMedia, uploaded];
+            _uploads = {..._uploads}..remove(id);
+          });
+        }
+      } catch (e) {
+        if (!mounted) return;
+        // The row STAYS, carrying the reason. A failed upload that
+        // simply vanishes leaves the owner wondering whether it worked.
+        setState(() {
+          final row = _uploads[id];
+          _uploads = {
+            ..._uploads,
+            id: (
+              name: row?.name ?? file.name,
+              progress: 0,
+              error: e is UploadException ? e.message : ErrorText.of(e),
+            ),
+          };
+        });
+      }
+    }
+  }
+
+  Future<void> _removePhoto(ProductMedia media) async {
+    final draft = _editing;
+    if (draft == null || draft.id == null || media.id == null) return;
+    setState(() {
+      draft.media = [for (final m in draft.media) if (m.id != media.id) m];
+    });
+    try {
+      await component.client.product.deleteProductMedia(
+        component.accessToken,
+        component.workspaceId,
+        draft.id!,
+        media.id!,
+      );
+    } catch (_) {
+      // Already removed from view. Reload on next open will correct it
+      // if the server disagreed.
+    }
+  }
+
+  /// Writes pendingMedia against a product that now has an id.
+  Future<void> _attachPendingMedia(int productId, _Draft draft) async {
+    for (final m in draft.pendingMedia) {
+      try {
+        await component.client.product.addProductMedia(
+          component.accessToken,
+          component.workspaceId,
+          productId,
+          m.fileId,
+          m.url,
+          kind: 'image',
+          thumbnailUrl: m.thumbnailUrl,
+          width: m.width,
+          height: m.height,
+        );
+      } catch (_) {
+        // One photo failing to attach must not fail the product save —
+        // the product is the thing the owner was creating.
+      }
+    }
+  }
+
   Future<void> _archiveSelected() async {
     final ids = _selected.toList();
     setState(() => _selected = {});
@@ -324,6 +649,7 @@ class _CatalogPageState extends State<CatalogPage> {
         _editing = _Draft();
         _tab = 'details';
         _editorError = null;
+        _uploads = {};
       });
       return;
     }
@@ -337,11 +663,28 @@ class _CatalogPageState extends State<CatalogPage> {
         );
       } catch (_) {}
     }
+
+    var media = const <ProductMedia>[];
+    if (p.id != null) {
+      try {
+        media = await component.client.product.listMedia(
+          component.accessToken,
+          component.workspaceId,
+          p.id!,
+        );
+      } catch (_) {
+        // No photos shown rather than no editor.
+      }
+    }
+
     if (!mounted) return;
     setState(() {
-      _editing = _Draft.from(p, variants);
+      _editing = _Draft.from(p, variants)..media = [...media];
       _tab = 'details';
       _editorError = null;
+      // A fresh editor session gets fresh upload state — a bar left
+      // over from the last product would be nonsense here.
+      _uploads = {};
     });
   }
 
@@ -396,6 +739,7 @@ class _CatalogPageState extends State<CatalogPage> {
             if (_products.isEmpty) _empty() else ..._populated(),
           ],
           if (_editing != null) _editor(_editing!),
+          if (_import != null) _importSheet(_import!),
         ],
       );
 
@@ -426,6 +770,45 @@ class _CatalogPageState extends State<CatalogPage> {
                     'this, instead of passing every question to you.',
                   ),
                 ],
+              ),
+            ],
+          ),
+          // Import sits beside New product, not buried in a menu. An
+          // owner arriving with an existing product list wants it first,
+          // and adding fifty things one at a time is the reason people
+          // never finish setting up.
+          label(
+            htmlFor: 'kola-csv-import',
+            attributes: {
+              'class': 'kola-pressable',
+              'style': 'flex:none;padding:11px 18px;cursor:pointer;'
+                  'border-radius:${KolaRadius.pill};'
+                  'border:1px solid ${KolaVar.border};'
+                  'font-size:${KolaType.small};font-weight:600;'
+                  'color:${KolaVar.text}',
+            },
+            [
+              Component.text('Import a list'),
+              input(
+                type: InputType.file,
+                attributes: {
+                  'id': 'kola-csv-import',
+                  // .txt included because plenty of exports arrive with
+                  // the wrong extension, and FileIntake sniffs content
+                  // anyway. Refusing on extension alone would turn away
+                  // a perfectly readable file.
+                  'accept': '.csv,text/csv,text/plain',
+                  'style': 'display:none',
+                },
+                events: {
+                  'change': (e) {
+                    final target = e.target;
+                    if (target == null) return;
+                    final files = filesFrom(target as JSObject);
+                    if (files.isNotEmpty) _importCsv(files.first);
+                    resetFileInput(target);
+                  },
+                },
               ),
             ],
           ),
@@ -834,7 +1217,7 @@ class _CatalogPageState extends State<CatalogPage> {
                 ],
               ),
               if (_tab == 'details') ..._editorDetails(d),
-              if (_tab == 'media') _editorMedia(),
+              if (_tab == 'media') ..._editorMedia(d),
               if (_tab == 'pricing') ..._editorPricing(d),
               if (_tab == 'variants') ..._editorVariants(d),
               if (_editorError != null)
@@ -963,47 +1346,326 @@ class _CatalogPageState extends State<CatalogPage> {
         ),
         _field('SKU (optional)', d.sku, (v) => setState(() => d.sku = v),
             placeholder: 'Your own code for it'),
-        _field('Tag (optional)', d.tag, (v) => setState(() => d.tag = v),
-            placeholder: 'How you group it — "fabric", "ready-made"'),
+        // "Category", not "Tag". The column was renamed in migration
+        // 031 because that is what an owner calls it, and the CSV
+        // importer uses the same word in its header.
+        _field('Category (optional)', d.category,
+            (v) => setState(() => d.category = v),
+            placeholder: 'e.g. Dresses, Fabric, Accessories'),
       ];
 
-  /// Photos are designed and not built.
+  /// The Photos & video tab.
   ///
-  /// migration 029 created product_media so this needs no schema change
-  /// later, but nothing uploads yet — that needs Supabase Storage, a
-  /// signed-upload path and an image pipeline. A file picker that
-  /// accepted a photo and dropped it would be worse than saying so.
-  Component _editorMedia() => div(
+  /// Two ways in, both the design's: choose files, or take one with the
+  /// camera. On a phone `capture="environment"` opens the rear camera
+  /// directly instead of the gallery — which is the whole point for
+  /// someone photographing stock on a market stall.
+  ///
+  /// Progress is REAL, not a spinner. See media_upload.dart: XHR's
+  /// upload.onprogress is the only browser API that reports bytes sent,
+  /// which is why the upload does not go through kola_server.
+  List<Component> _editorMedia(_Draft d) {
+    final saved = d.media;
+    final pending = d.pendingMedia;
+    final total = saved.length + pending.length;
+
+    return [
+      div(
         attributes: {
-          'style': 'border:1px dashed ${KolaVar.border};'
-              'border-radius:${KolaRadius.md};padding:20px;'
-              'background:${KolaVar.bg};text-align:center',
+          'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+              'line-height:1.55;margin-bottom:14px;max-width:60ch',
+        },
+        [
+          Component.text(
+            total == 0
+                ? 'A photo is what a customer asks for first. The one you '
+                    'put first is the one kola sends.'
+                : 'The first photo is the one kola sends when a customer '
+                    'asks to see this.',
+          ),
+        ],
+      ),
+
+      // Pickers
+      div(
+        attributes: {'style': 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px'},
+        [
+          _pickerButton(
+            text: 'Choose photos',
+            inputId: 'kola-photo-pick',
+            capture: false,
+          ),
+          _pickerButton(
+            text: 'Take a photo',
+            inputId: 'kola-photo-camera',
+            capture: true,
+          ),
+        ],
+      ),
+
+      // In-flight uploads
+      if (_uploads.isNotEmpty)
+        div(
+          attributes: {'style': 'margin-bottom:14px'},
+          [for (final e in _uploads.entries) _uploadRow(e.key, e.value)],
+        ),
+
+      if (total == 0)
+        div(
+          attributes: {
+            'style': 'border:1px dashed ${KolaVar.border};'
+                'border-radius:${KolaRadius.md};padding:24px;'
+                'text-align:center;font-size:${KolaType.small};'
+                'color:${KolaVar.muted};background:${KolaVar.bg}',
+          },
+          [Component.text('No photos yet.')],
+        )
+      else
+        div(
+          attributes: {
+            'style': 'display:grid;gap:10px;'
+                'grid-template-columns:repeat(auto-fill,minmax(96px,1fr))',
+          },
+          [
+            for (var i = 0; i < saved.length; i++)
+              _photoTile(
+                url: saved[i].thumbnailUrl ?? saved[i].url,
+                isMain: i == 0,
+                onRemove: () => _removePhoto(saved[i]),
+              ),
+            for (var i = 0; i < pending.length; i++)
+              _photoTile(
+                url: pending[i].thumbnailUrl ?? pending[i].url,
+                isMain: saved.isEmpty && i == 0,
+                // Not yet a row on the server, so there is nothing to
+                // delete server-side — it is dropped from the draft and
+                // simply never attached.
+                onRemove: () => setState(() {
+                  d.pendingMedia = [
+                    for (var j = 0; j < d.pendingMedia.length; j++)
+                      if (j != i) d.pendingMedia[j],
+                  ];
+                }),
+              ),
+          ],
+        ),
+
+      if (d.id == null && pending.isNotEmpty)
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                'line-height:1.5;margin-top:12px',
+          },
+          [
+            Component.text(
+              'These attach to the product when you save it.',
+            ),
+          ],
+        ),
+    ];
+  }
+
+  /// A label styled as a button, wrapping a hidden file input.
+  ///
+  /// A <label for="..."> is what makes the button open the picker
+  /// without any JavaScript — clicking the label activates the input.
+  /// The alternative is calling input.click() through interop, which is
+  /// more code and one more browser API to be wrong about.
+  ///
+  /// The parameter is `text`, NOT `label`. Naming it `label` shadowed
+  /// jaspr's own `label()` element helper inside this method, so the
+  /// call below resolved to the String and failed with "the expression
+  /// doesn't evaluate to a function". A local name quietly winning over
+  /// a top-level function is a Dart scoping rule, not a jaspr problem.
+  Component _pickerButton({
+    required String text,
+    required String inputId,
+    required bool capture,
+  }) =>
+      label(
+        // htmlFor rather than attributes['for'] — jaspr's label() takes
+        // it as a named parameter and writes the attribute itself.
+        htmlFor: inputId,
+        attributes: {
+          'class': 'kola-pressable',
+          'style': 'display:inline-flex;align-items:center;gap:8px;'
+              'padding:10px 16px;border-radius:${KolaRadius.pill};'
+              'border:1px solid ${KolaVar.border};cursor:pointer;'
+              'font-size:${KolaType.tiny};font-weight:600;'
+              'color:${KolaVar.text};background:transparent',
+        },
+        [
+          kolaIcon(capture ? Icons.catalog : Icons.plus, size: 15),
+          Component.text(text),
+          input(
+            type: InputType.file,
+            attributes: {
+              // id lives in attributes rather than a named param: every
+              // other input in this codebase is built that way, and the
+              // <label for> pairing needs it on the element either way.
+              'id': inputId,
+              'accept': 'image/*',
+              if (!capture) 'multiple': 'multiple',
+              // Opens the rear camera on a phone rather than the photo
+              // library. Ignored on desktop, which is correct — there is
+              // no camera roll to bypass there.
+              if (capture) 'capture': 'environment',
+              'style': 'display:none',
+            },
+            events: {
+              'change': (e) {
+                final target = e.target;
+                if (target == null) return;
+                // filesFrom uses DECLARED interop types. The
+                // `(e.target as dynamic).files` form that the rest of
+                // this app uses analyses clean and throws at runtime —
+                // see dom_files.dart.
+                final files = filesFrom(target as JSObject);
+                if (files.isNotEmpty) _onPhotosPicked(files);
+                // Lets the same file be re-picked after a failure.
+                resetFileInput(target);
+              },
+            },
+          ),
+        ],
+      );
+
+  Component _uploadRow(
+    int id,
+    ({String name, double progress, String? error}) upload,
+  ) =>
+      div(
+        attributes: {
+          'style': 'padding:10px 12px;border-radius:${KolaRadius.md};'
+              'background:${KolaVar.bg};border:1px solid '
+              '${upload.error != null ? KolaVar.danger : KolaVar.border};'
+              'margin-bottom:8px',
         },
         [
           div(
-            attributes: {'style': 'color:${KolaVar.muted};margin-bottom:8px'},
-            [kolaIcon(Icons.catalog, size: 22)],
-          ),
-          div(
             attributes: {
-              'style': 'font-size:${KolaType.body};font-weight:600;'
-                  'color:${KolaVar.text};margin-bottom:6px',
-            },
-            [Component.text('Photos are coming next')],
-          ),
-          div(
-            attributes: {
-              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                  'line-height:1.55;max-width:44ch;margin:0 auto',
+              'style': 'display:flex;gap:10px;align-items:center;'
+                  'font-size:${KolaType.tiny};margin-bottom:6px',
             },
             [
-              Component.text(
-                'Everything else about this product saves now. A good '
-                'description does most of the work in the meantime — kola '
-                'quotes from that, and customers ask for photos far less '
-                'than you would expect.',
+              div(
+                attributes: {
+                  'style': 'flex:1;min-width:0;color:${KolaVar.text};'
+                      'overflow:hidden;text-overflow:ellipsis;'
+                      'white-space:nowrap',
+                },
+                [Component.text(upload.name)],
               ),
+              div(
+                attributes: {
+                  'style': 'flex:none;color:${KolaVar.muted}',
+                },
+                [
+                  Component.text(
+                    upload.error != null
+                        ? 'Failed'
+                        : '${(upload.progress * 100).round()}%',
+                  ),
+                ],
+              ),
+              if (upload.error != null)
+                button(
+                  attributes: {
+                    'type': 'button',
+                    'style': 'flex:none;border:none;background:transparent;'
+                        'color:${KolaVar.muted};cursor:pointer;'
+                        'font-family:inherit;font-size:${KolaType.tiny}',
+                  },
+                  events: {
+                    'click': (_) =>
+                        setState(() => _uploads = {..._uploads}..remove(id)),
+                  },
+                  [Component.text('Dismiss')],
+                ),
             ],
+          ),
+          if (upload.error == null)
+            div(
+              attributes: {
+                'style': 'height:4px;border-radius:2px;'
+                    'background:${KolaVar.border};overflow:hidden',
+              },
+              [
+                div(
+                  attributes: {
+                    'style': 'height:100%;'
+                        'width:${(upload.progress * 100).clamp(0, 100)}%;'
+                        'background:${KolaVar.accent};'
+                        'transition:width 120ms linear',
+                  },
+                  [],
+                ),
+              ],
+            )
+          else
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.danger};'
+                    'line-height:1.45',
+              },
+              [Component.text(upload.error!)],
+            ),
+        ],
+      );
+
+  Component _photoTile({
+    required String url,
+    required bool isMain,
+    required void Function() onRemove,
+  }) =>
+      div(
+        attributes: {
+          'style': 'position:relative;aspect-ratio:1;border-radius:'
+              '${KolaRadius.md};overflow:hidden;'
+              'border:1px solid ${isMain ? KolaVar.accent : KolaVar.border};'
+              'background:${KolaVar.bg}',
+        },
+        [
+          // Signature confirmed against jaspr's docs:
+          //   img({required String src, String? alt, MediaLoading? loading,
+          //        ..., Map<String,String>? attributes})
+          //
+          // `loading` is typed as a MediaLoading enum, so it goes through
+          // `attributes` instead — one fewer import to be wrong about,
+          // and it produces the identical attribute.
+          img(
+            src: url,
+            // Empty alt, deliberately. The tile is decorative here: the
+            // product's name is already read out beside it, and a
+            // screen reader announcing "Product photo" four times adds
+            // noise rather than information.
+            alt: '',
+            attributes: {
+              'loading': 'lazy',
+              'style': 'width:100%;height:100%;object-fit:cover;display:block',
+            },
+          ),
+          if (isMain)
+            div(
+              attributes: {
+                'style': 'position:absolute;left:6px;bottom:6px;'
+                    'padding:3px 8px;border-radius:${KolaRadius.pill};'
+                    'background:${KolaVar.accent};color:${KolaVar.accentText};'
+                    'font-size:9.5px;font-weight:700',
+              },
+              [Component.text('MAIN')],
+            ),
+          button(
+            attributes: {
+              'type': 'button',
+              'aria-label': 'Remove photo',
+              'style': 'position:absolute;top:6px;right:6px;width:22px;'
+                  'height:22px;border-radius:50%;border:none;cursor:pointer;'
+                  'background:rgba(0,0,0,0.6);color:#FFF6EE;'
+                  'font-size:13px;line-height:1;padding:0',
+            },
+            events: {'click': (_) => onRemove()},
+            [Component.text('×')],
           ),
         ],
       );
@@ -1190,4 +1852,137 @@ class _CatalogPageState extends State<CatalogPage> {
           },
         ),
       ]);
+
+  /// Progress and outcome for a bulk import.
+  ///
+  /// Stays on screen when it finishes rather than vanishing, because the
+  /// problems list is the point: "47 of 50 added" with the three
+  /// failures named is the answer an owner needs, and a toast that
+  /// disappears is not.
+  Component _importSheet(
+    ({int done, int total, String label, List<String> problems}) st,
+  ) {
+    final finished = st.label == 'Done' || st.total == 0;
+    final pct = st.total == 0 ? 0.0 : st.done / st.total;
+
+    return div(
+      attributes: {
+        'role': 'dialog',
+        'aria-modal': 'true',
+        'aria-label': 'Importing products',
+        'style': 'position:fixed;inset:0;z-index:320;'
+            'background:rgba(0,0,0,0.55);display:flex;'
+            'align-items:center;justify-content:center;padding:20px',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'width:100%;max-width:520px;max-height:80vh;'
+                'overflow-y:auto;background:${KolaVar.card};'
+                'border:1px solid ${KolaVar.border};'
+                'border-radius:${KolaRadius.xl};padding:${KolaSpace.md}',
+          },
+          [
+            div(
+              attributes: {
+                'style': 'font-family:${KolaFonts.display};'
+                    'font-size:${KolaType.title};font-weight:700;'
+                    'color:${KolaVar.text};margin-bottom:6px',
+              },
+              [
+                Component.text(
+                  finished
+                      ? (st.total == 0
+                          ? st.label
+                          : 'Added ${st.done} of ${st.total}')
+                      : st.label,
+                ),
+              ],
+            ),
+            if (!finished)
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.small};'
+                      'color:${KolaVar.muted};margin-bottom:12px',
+                },
+                [Component.text('${st.done} of ${st.total}')],
+              ),
+            if (st.total > 0)
+              div(
+                attributes: {
+                  'style': 'height:6px;border-radius:3px;margin-bottom:14px;'
+                      'background:${KolaVar.border};overflow:hidden',
+                },
+                [
+                  div(
+                    attributes: {
+                      'style': 'height:100%;width:${(pct * 100).round()}%;'
+                          'background:${KolaVar.accent};'
+                          'transition:width 160ms linear',
+                    },
+                    [],
+                  ),
+                ],
+              ),
+            if (!finished)
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};'
+                      'color:${KolaVar.muted};line-height:1.5',
+                },
+                [
+                  Component.text(
+                    'Leave this open until it finishes. Photos are fetched '
+                    'as each product is added, so a long list takes a '
+                    'minute.',
+                  ),
+                ],
+              ),
+            if (st.problems.isNotEmpty) ...[
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};font-weight:700;'
+                      'color:${KolaVar.mutedStrong};margin:14px 0 6px',
+                },
+                [Component.text('Worth a look')],
+              ),
+              div(
+                attributes: {
+                  'style': 'border:1px solid ${KolaVar.border};'
+                      'border-radius:${KolaRadius.md};padding:10px 12px;'
+                      'max-height:220px;overflow-y:auto;'
+                      'background:${KolaVar.bg}',
+                },
+                [
+                  for (final p in st.problems)
+                    div(
+                      attributes: {
+                        'style': 'font-size:${KolaType.tiny};'
+                            'color:${KolaVar.muted};line-height:1.55;'
+                            'padding:3px 0',
+                      },
+                      [Component.text(p)],
+                    ),
+                ],
+              ),
+            ],
+            if (finished)
+              button(
+                attributes: {
+                  'type': 'button',
+                  'style': 'margin-top:16px;padding:11px 20px;'
+                      'border-radius:${KolaRadius.md};border:none;'
+                      'background:${KolaVar.accentFill};'
+                      'color:${KolaVar.accentText};font-family:inherit;'
+                      'font-size:${KolaType.small};font-weight:600;'
+                      'cursor:pointer',
+                },
+                events: {'click': (_) => setState(() => _import = null)},
+                [Component.text('Done')],
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }

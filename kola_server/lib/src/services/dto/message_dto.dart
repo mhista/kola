@@ -22,6 +22,15 @@ class MessageDto extends BaseDto<Message> {
       direction: row['direction'] as String,
       senderType: row['sender_type'] as String,
       body: row['body'] as String,
+      // Migration 032. All nullable: a plain text message has none of
+      // them, and a media message whose upload failed has mediaKind set
+      // with mediaUrl null — see message.spy.yaml on why that pairing is
+      // deliberate rather than an inconsistency to normalise away.
+      mediaKind: row['media_kind'] as String?,
+      mediaUrl: row['media_url'] as String?,
+      mediaThumbnailUrl: row['media_thumbnail_url'] as String?,
+      mediaImagekitFileId: row['media_imagekit_file_id'] as String?,
+      mediaMimeType: row['media_mime_type'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
     );
   }
@@ -34,6 +43,11 @@ class MessageDto extends BaseDto<Message> {
       'direction': model.direction,
       'sender_type': model.senderType,
       'body': model.body,
+      'media_kind': model.mediaKind,
+      'media_url': model.mediaUrl,
+      'media_thumbnail_url': model.mediaThumbnailUrl,
+      'media_imagekit_file_id': model.mediaImagekitFileId,
+      'media_mime_type': model.mediaMimeType,
     };
   }
 }

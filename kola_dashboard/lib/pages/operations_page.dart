@@ -42,6 +42,7 @@
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:web/web.dart' as web;
 import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
@@ -661,7 +662,10 @@ class _OperationsPageState extends State<OperationsPage> {
           onInput: (v) => _reply = v,
           events: {
             'keydown': (e) {
-              if ((e as dynamic).key == 'Enter') _send();
+              // Was `(e as dynamic).key`, which throws — so pressing
+              // Enter to send a reply did nothing at all. See
+              // command_palette.dart and dom_files.dart.
+              if ((e as web.KeyboardEvent).key == 'Enter') _send();
             },
           },
         ),

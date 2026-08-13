@@ -27,7 +27,7 @@ class ProductDto extends BaseDto<Product> {
       description: row['description'] as String?,
       archetype: row['archetype'] as String,
       sku: row['sku'] as String?,
-      tag: row['tag'] as String?,
+      category: row['category'] as String?,
       // Postgres bigint arrives as int through postgrest-dart; the
       // explicit `as int?` keeps a surprise double from being silently
       // truncated somewhere further downstream instead of failing here.
@@ -52,7 +52,7 @@ class ProductDto extends BaseDto<Product> {
       'description': model.description,
       'archetype': model.archetype,
       'sku': model.sku,
-      'tag': model.tag,
+      'category': model.category,
       'price_minor': model.priceMinor,
       'price_currency': model.priceCurrency,
       'price_unit': model.priceUnit,

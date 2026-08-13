@@ -1,0 +1,51 @@
+name,category,archetype,sku,price,cost,stock,low_stock,unit,description,image_url
+Red Ankara fabric,Fabric,packaged,KOLA-001,4500,2400,42,5,/yd,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/red-ankara-fabric/900/900
+Blue lace fabric,Fabric,packaged,KOLA-002,6200,3600,18,5,/yd,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/blue-lace-fabric/900/900
+Green Ankara fabric,Fabric,packaged,KOLA-003,4500,2400,27,5,/yd,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/green-ankara-fabric/900/900
+Gold sequin lace,Fabric,packaged,KOLA-004,12500,7800,9,5,/yd,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/gold-sequin-lace/900/900
+White Swiss voile,Fabric,packaged,KOLA-005,9800,6100,14,5,/yd,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/white-swiss-voile/900/900
+Aso-oke bundle (5yd),Fabric,packaged,KOLA-006,38000,24000,6,5,,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/aso-oke-bundle-5yd/900/900
+Aso-ebi bundle (10yd),Fabric,packaged,KOLA-007,42000,27500,3,5,,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/aso-ebi-bundle-10yd/900/900
+Adire indigo fabric,Fabric,packaged,KOLA-008,5200,2900,31,5,/yd,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/adire-indigo-fabric/900/900
+Kampala print fabric,Fabric,packaged,KOLA-009,3800,2100,48,5,/yd,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/kampala-print-fabric/900/900
+Chiffon lining,Fabric,packaged,KOLA-010,2200,1200,60,5,/yd,Sold by the yard. Colour holds after repeated washing; ask for a cutting sample before a bulk order.,https://picsum.photos/seed/chiffon-lining/900/900
+Ready-made gown,Ready-made,variants,KOLA-011,18500,11000,6,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/ready-made-gown/900/900
+Ankara midi dress,Ready-made,variants,KOLA-012,15500,9200,11,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/ankara-midi-dress/900/900
+Two-piece Ankara set,Ready-made,variants,KOLA-013,22000,13500,8,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/two-piece-ankara-set/900/900
+Lace boubou,Ready-made,variants,KOLA-014,34000,21000,4,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/lace-boubou/900/900
+Kaftan (men's),Ready-made,variants,KOLA-015,26500,16000,7,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/kaftan-mens/900/900
+Agbada set (3-piece),Ready-made,variants,KOLA-016,78000,49000,2,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/agbada-set-3-piece/900/900
+Senator wear set,Ready-made,variants,KOLA-017,32000,19500,9,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/senator-wear-set/900/900
+Ankara jumpsuit,Ready-made,variants,KOLA-018,19800,12000,5,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/ankara-jumpsuit/900/900
+Peplum blouse,Ready-made,variants,KOLA-019,12500,7200,14,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/peplum-blouse/900/900
+Wrap skirt,Ready-made,variants,KOLA-020,9500,5400,16,5,,"Tailored and lined, ready to wear. Sizes run true to Nigerian standard sizing.",https://picsum.photos/seed/wrap-skirt/900/900
+Beaded headwrap,Accessories,variants,KOLA-021,2500,1100,0,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/beaded-headwrap/900/900
+Aso-oke gele,Accessories,packaged,KOLA-022,8500,4800,12,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/aso-oke-gele/900/900
+Sego headtie,Accessories,packaged,KOLA-023,6500,3600,19,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/sego-headtie/900/900
+Coral bead necklace,Accessories,packaged,KOLA-024,14000,8000,7,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/coral-bead-necklace/900/900
+Coral bead set (full),Accessories,packaged,KOLA-025,45000,28000,3,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/coral-bead-set-full/900/900
+Beaded clutch bag,Accessories,packaged,KOLA-026,11500,6500,10,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/beaded-clutch-bag/900/900
+Raffia tote bag,Accessories,packaged,KOLA-027,7800,4200,15,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/raffia-tote-bag/900/900
+Leather sandals,Footwear,variants,KOLA-028,16500,9800,8,5,,"Leather upper, cushioned sole. Half sizes available on request.",https://picsum.photos/seed/leather-sandals/900/900
+Beaded slippers,Footwear,variants,KOLA-029,9800,5500,13,5,,"Leather upper, cushioned sole. Half sizes available on request.",https://picsum.photos/seed/beaded-slippers/900/900
+Men's leather loafers,Footwear,variants,KOLA-030,28000,17500,6,5,,"Leather upper, cushioned sole. Half sizes available on request.",https://picsum.photos/seed/mens-leather-loafers/900/900
+Ankara sneakers,Footwear,variants,KOLA-031,21000,13000,4,5,,"Leather upper, cushioned sole. Half sizes available on request.",https://picsum.photos/seed/ankara-sneakers/900/900
+Bridal veil,Bridal,packaged,KOLA-032,18000,10500,5,5,,Made for the day and photographed well under both daylight and flash.,https://picsum.photos/seed/bridal-veil/900/900
+Bridal gele set,Bridal,packaged,KOLA-033,32000,19000,3,5,,Made for the day and photographed well under both daylight and flash.,https://picsum.photos/seed/bridal-gele-set/900/900
+Groom's cap (fila),Bridal,variants,KOLA-034,7500,4000,11,5,,Made for the day and photographed well under both daylight and flash.,https://picsum.photos/seed/grooms-cap-fila/900/900
+Ankara throw pillow,Home,packaged,KOLA-035,5500,2800,22,5,,Machine washable at 30 degrees. Iron on reverse.,https://picsum.photos/seed/ankara-throw-pillow/900/900
+Adire table runner,Home,packaged,KOLA-036,8200,4500,9,5,,Machine washable at 30 degrees. Iron on reverse.,https://picsum.photos/seed/adire-table-runner/900/900
+Ankara apron,Home,packaged,KOLA-037,4800,2400,17,5,,Machine washable at 30 degrees. Iron on reverse.,https://picsum.photos/seed/ankara-apron/900/900
+Kids' Ankara dress,Children,variants,KOLA-038,8500,4600,12,5,,"Soft-finished cotton, no rough seams. Sized by age.",https://picsum.photos/seed/kids-ankara-dress/900/900
+Kids' senator set,Children,variants,KOLA-039,11000,6200,8,5,,"Soft-finished cotton, no rough seams. Sized by age.",https://picsum.photos/seed/kids-senator-set/900/900
+Baby Ankara wrap,Children,packaged,KOLA-040,3500,1700,25,5,,"Soft-finished cotton, no rough seams. Sized by age.",https://picsum.photos/seed/baby-ankara-wrap/900/900
+Ankara face mask,Accessories,packaged,KOLA-041,1200,500,80,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/ankara-face-mask/900/900
+Hair bonnet (satin),Accessories,packaged,KOLA-042,2800,1300,34,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/hair-bonnet-satin/900/900
+Waist beads,Accessories,packaged,KOLA-043,3200,1400,28,5,,Handmade finish. Small variations between pieces are normal and not a defect.,https://picsum.photos/seed/waist-beads/900/900
+Ankara laptop sleeve,Home,packaged,KOLA-044,6800,3600,11,5,,Machine washable at 30 degrees. Iron on reverse.,https://picsum.photos/seed/ankara-laptop-sleeve/900/900
+Custom tailoring,Services,services,KOLA-045,,,,5,,"Booked, not stocked. Turnaround depends on the week — ask before you plan around it.",https://picsum.photos/seed/custom-tailoring/900/900
+Gele tying (per event),Services,services,KOLA-046,15000,,,5,,"Booked, not stocked. Turnaround depends on the week — ask before you plan around it.",https://picsum.photos/seed/gele-tying-per-event/900/900
+Bridal styling package,Services,services,KOLA-047,,,,5,,"Booked, not stocked. Turnaround depends on the week — ask before you plan around it.",https://picsum.photos/seed/bridal-styling-package/900/900
+Alterations & fitting,Services,services,KOLA-048,5000,,,5,,"Booked, not stocked. Turnaround depends on the week — ask before you plan around it.",https://picsum.photos/seed/alterations-and-fitting/900/900
+Fabric sourcing (per trip),Services,services,KOLA-049,,,,5,,"Booked, not stocked. Turnaround depends on the week — ask before you plan around it.",https://picsum.photos/seed/fabric-sourcing-per-trip/900/900
+Express tailoring (48hr),Services,services,KOLA-050,25000,,,5,,"Booked, not stocked. Turnaround depends on the week — ask before you plan around it.",https://picsum.photos/seed/express-tailoring-48hr/900/900

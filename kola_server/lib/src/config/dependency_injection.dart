@@ -74,6 +74,8 @@ import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/repository/feature_flag_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_feature_override_repository.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
+import 'package:kola_server/src/services/media/imagekit_service.dart';
+import 'package:kola_server/src/services/media/inbound_media_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -106,6 +108,17 @@ void setupDependencyInjection() {
   // access control, and ProductEndpoint does the flag check on every
   // method. A registration that appeared and disappeared with a feature
   // flag would make startup depend on database state.
+  // Signs one-shot browser upload credentials; holds the ImageKit
+  // private key. Stateless, so a lazy singleton is exactly right.
+  getIt.registerLazySingleton<ImageKitService>(() => ImageKitService());
+
+  // Turns a WhatsApp/Telegram media reference into an ImageKit URL.
+  // Depends on ImageKitService above; get_it resolves lazily on first
+  // USE, so registration order between the two does not matter.
+  getIt.registerLazySingleton<InboundMediaService>(
+    () => InboundMediaService(getIt<ImageKitService>()),
+  );
+
   getIt.registerLazySingleton<ProductRepository>(
     () => const ProductRepository(),
   );

@@ -52,6 +52,8 @@
 // title, so it is DERIVED from the first line rather than asked for —
 // following the design without dropping data the server needs.
 
+import 'dart:js_interop';
+
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:web/web.dart' as web;
@@ -60,6 +62,7 @@ import 'package:kola_client/kola_client.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/feature_gate.dart';
+import '../services/dom_files.dart';
 import '../services/file_intake.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
@@ -940,18 +943,32 @@ class _KnowledgePageState extends State<KnowledgePage> {
                 'style': 'display:none',
               },
               events: {
-                // Same access pattern the previous version used and that
-                // compiled: `(e.target as dynamic).files`, then
-                // `.item(i)`. Reaching for web.HTMLInputElement here was
-                // an unverified guess; this one is known to work.
+                // THIS IS WHY UPLOAD DID NOTHING.
+                //
+                // It used to be `(e.target as dynamic).files`, with a
+                // comment claiming the pattern was "known to work"
+                // because it compiled. It compiled and it threw:
+                // dart:js_interop extension types are erased, so a
+                // dynamic member access looks for a Dart member named
+                // `files` on a plain JS object and raises
+                // NoSuchMethodError.
+                //
+                // Inside a `change` handler that exception is swallowed
+                // by the event loop, so the picker opened, a file was
+                // chosen, and absolutely nothing happened — no error,
+                // no queue row, no progress. The whole staged progress
+                // UI below has been correct this entire time and simply
+                // never ran.
+                //
+                // Same root cause as main.dart's `(root as dynamic)
+                // .style`, which blanked the app. See dom_files.dart.
                 'change': (e) {
-                  final list = (e.target as dynamic).files;
-                  if (list == null || list.length == 0) return;
-                  final files = <web.File>[
-                    for (var i = 0; i < (list.length as int); i++)
-                      list.item(i) as web.File,
-                  ];
+                  final target = e.target;
+                  if (target == null) return;
+                  final files = filesFrom(target as JSObject);
                   if (files.isNotEmpty) _onFiles(files);
+                  // Lets the same file be re-picked after a failure.
+                  resetFileInput(target);
                 },
               },
             ),

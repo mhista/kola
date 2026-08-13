@@ -18,12 +18,14 @@ import 'package:logging/logging.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/dto/product_dto.dart';
 import 'package:kola_server/src/services/dto/product_variant_dto.dart';
+import 'package:kola_server/src/services/dto/product_media_dto.dart';
 import 'supabase_client.dart';
 
 final _log = Logger('ProductRepository');
 
 const _dto = ProductDto();
 const _variantDto = ProductVariantDto();
+const _mediaDto = ProductMediaDto();
 
 class ProductRepository {
   const ProductRepository();
@@ -275,5 +277,97 @@ class ProductRepository {
     return (response as List)
         .map((row) => _variantDto.fromRow(row as Map<String, dynamic>))
         .toList();
+  }
+
+  // ── Media ──────────────────────────────────────────────────────────
+
+  /// A product's photos and video, main image first.
+  Future<List<ProductMedia>> listMedia(int productId) async {
+    final response = await supabase
+        .from('product_media')
+        .select()
+        .eq('product_id', productId)
+        .order('position', ascending: true);
+
+    return (response as List)
+        .map((row) => _mediaDto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Media for several products in ONE query.
+  ///
+  /// The catalog grid shows a thumbnail per row. Per-product fetches
+  /// would be the same N+1 that listVariantsForProducts exists to avoid
+  /// — forty products, forty round trips, on a connection where each one
+  /// costs 400ms.
+  Future<Map<int, List<ProductMedia>>> listMediaForProducts(
+    List<int> productIds,
+  ) async {
+    if (productIds.isEmpty) return const {};
+
+    final response = await supabase
+        .from('product_media')
+        .select()
+        .inFilter('product_id', productIds)
+        .order('position', ascending: true);
+
+    final grouped = <int, List<ProductMedia>>{};
+    for (final row in response as List) {
+      final media = _mediaDto.fromRow(row as Map<String, dynamic>);
+      grouped.putIfAbsent(media.productId, () => []).add(media);
+    }
+    return grouped;
+  }
+
+  /// Records a file the BROWSER already uploaded to ImageKit.
+  ///
+  /// Position defaults to the end of the list rather than 0, so a second
+  /// photo never silently displaces the main image the owner chose.
+  Future<ProductMedia> addMedia(ProductMedia media) async {
+    final row = _mediaDto.toRow(media, includeId: false);
+
+    final response =
+        await supabase.from('product_media').insert(row).select().single();
+    return _mediaDto.fromRow(response);
+  }
+
+  /// How many media rows a product already has. Used to append.
+  Future<int> countMedia(int productId) async {
+    final response = await supabase
+        .from('product_media')
+        .select('id')
+        .eq('product_id', productId);
+    return (response as List).length;
+  }
+
+  /// One media row, resolved through its product so the caller's
+  /// workspace can be checked before anything is deleted.
+  Future<ProductMedia?> findMediaById(int mediaId) async {
+    final response = await supabase
+        .from('product_media')
+        .select()
+        .eq('id', mediaId)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return _mediaDto.fromRow(response);
+  }
+
+  Future<void> deleteMedia(int mediaId) async {
+    await supabase.from('product_media').delete().eq('id', mediaId);
+  }
+
+  /// Reorders a product's media. The list is the new order; index 0
+  /// becomes the main image.
+  Future<void> reorderMedia(int productId, List<int> mediaIdsInOrder) async {
+    for (var i = 0; i < mediaIdsInOrder.length; i++) {
+      await supabase
+          .from('product_media')
+          .update({'position': i})
+          .eq('id', mediaIdsInOrder[i])
+          // Scoped to the product so a crafted id list cannot reorder
+          // another product's photos.
+          .eq('product_id', productId);
+    }
   }
 }

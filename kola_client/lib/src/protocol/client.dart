@@ -30,13 +30,14 @@ import 'package:kola_client/src/protocol/created_api_key.dart' as _i15;
 import 'package:kola_client/src/protocol/webhook_endpoint.dart' as _i16;
 import 'package:kola_client/src/protocol/product.dart' as _i17;
 import 'package:kola_client/src/protocol/product_variant.dart' as _i18;
-import 'package:kola_client/src/protocol/support_ticket.dart' as _i19;
-import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i20;
+import 'package:kola_client/src/protocol/product_media.dart' as _i19;
+import 'package:kola_client/src/protocol/support_ticket.dart' as _i20;
+import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i21;
 import 'package:kola_client/src/protocol/whatsapp_message_template.dart'
-    as _i21;
-import 'package:kola_client/src/protocol/workspace.dart' as _i22;
-import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i23;
-import 'protocol.dart' as _i24;
+    as _i22;
+import 'package:kola_client/src/protocol/workspace.dart' as _i23;
+import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i24;
+import 'protocol.dart' as _i25;
 
 /// {@category Endpoint}
 class EndpointBot extends _i1.EndpointRef {
@@ -1206,7 +1207,7 @@ class EndpointProduct extends _i1.EndpointRef {
     String? description,
     required String archetype,
     String? sku,
-    String? tag,
+    String? category,
     int? priceMinor,
     String? priceCurrency,
     String? priceUnit,
@@ -1223,7 +1224,7 @@ class EndpointProduct extends _i1.EndpointRef {
       'description': description,
       'archetype': archetype,
       'sku': sku,
-      'tag': tag,
+      'category': category,
       'priceMinor': priceMinor,
       'priceCurrency': priceCurrency,
       'priceUnit': priceUnit,
@@ -1248,7 +1249,7 @@ class EndpointProduct extends _i1.EndpointRef {
     String? description,
     String? archetype,
     String? sku,
-    String? tag,
+    String? category,
     int? priceMinor,
     required bool clearPrice,
     String? priceCurrency,
@@ -1268,7 +1269,7 @@ class EndpointProduct extends _i1.EndpointRef {
       'description': description,
       'archetype': archetype,
       'sku': sku,
-      'tag': tag,
+      'category': category,
       'priceMinor': priceMinor,
       'clearPrice': clearPrice,
       'priceCurrency': priceCurrency,
@@ -1321,6 +1322,159 @@ class EndpointProduct extends _i1.EndpointRef {
       'priceMinors': priceMinors,
     },
   );
+
+  /// One-shot credentials so the BROWSER can upload straight to
+  /// ImageKit.
+  ///
+  /// The file never passes through kola. See imagekit_service.dart for
+  /// why: a Serverpod parameter is JSON, so proxying a 5MB photo would
+  /// mean ~6.7MB of base64 crossing the wire twice with no way to report
+  /// progress. The private key stays here and signs; the bytes go
+  /// direct.
+  ///
+  /// Returned as a JSON string rather than a new model, the same shape
+  /// getBillingSummary already uses — four short-lived strings do not
+  /// earn a .spy.yaml and a codegen round.
+  ///
+  /// The folder is decided HERE, not by the client. A browser that could
+  /// name its own folder could write into another workspace's.
+  _i2.Future<String> getMediaUploadAuth(
+    String accessToken,
+    int workspaceId,
+  ) => caller.callServerEndpoint<String>(
+    'product',
+    'getMediaUploadAuth',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+    },
+  );
+
+  _i2.Future<List<_i19.ProductMedia>> listMedia(
+    String accessToken,
+    int workspaceId,
+    int productId,
+  ) => caller.callServerEndpoint<List<_i19.ProductMedia>>(
+    'product',
+    'listMedia',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+    },
+  );
+
+  /// Records a file the browser has already put on ImageKit.
+  ///
+  /// Validated even though the values came from ImageKit rather than
+  /// being typed by a person: this endpoint is reachable by anyone with
+  /// a session, so a crafted call could otherwise point a product's
+  /// "photo" at any URL on the internet — including one that changes
+  /// after review. The url must sit under the configured ImageKit
+  /// endpoint, and nothing else is accepted.
+  _i2.Future<_i19.ProductMedia> addProductMedia(
+    String accessToken,
+    int workspaceId,
+    int productId,
+    String imagekitFileId,
+    String url, {
+    required String kind,
+    String? thumbnailUrl,
+    int? width,
+    int? height,
+  }) => caller.callServerEndpoint<_i19.ProductMedia>(
+    'product',
+    'addProductMedia',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+      'imagekitFileId': imagekitFileId,
+      'url': url,
+      'kind': kind,
+      'thumbnailUrl': thumbnailUrl,
+      'width': width,
+      'height': height,
+    },
+  );
+
+  /// Removes a photo from the product AND from ImageKit.
+  ///
+  /// The CDN delete is attempted first but is NOT allowed to block the
+  /// row delete — see ImageKitService.deleteFile. An unreachable CDN
+  /// must not stop an owner taking a photo off their own product; an
+  /// orphaned file is a cost to reconcile, not a reason to refuse.
+  _i2.Future<void> deleteProductMedia(
+    String accessToken,
+    int workspaceId,
+    int productId,
+    int mediaId,
+  ) => caller.callServerEndpoint<void>(
+    'product',
+    'deleteProductMedia',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+      'mediaId': mediaId,
+    },
+  );
+
+  /// Sets the display order. Index 0 becomes the main image.
+  _i2.Future<void> reorderProductMedia(
+    String accessToken,
+    int workspaceId,
+    int productId,
+    List<int> mediaIdsInOrder,
+  ) => caller.callServerEndpoint<void>(
+    'product',
+    'reorderProductMedia',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+      'mediaIdsInOrder': mediaIdsInOrder,
+    },
+  );
+
+  /// Imports a photo from a PUBLIC url and stores it on ImageKit.
+  ///
+  /// ── WHY THIS IS SEPARATE FROM addProductMedia ────────────────────
+  ///
+  /// addProductMedia records a file the BROWSER already uploaded, and
+  /// refuses any url outside our own ImageKit endpoint — otherwise a
+  /// crafted call could point a product's photo at any address on the
+  /// internet, including one that changes after review.
+  ///
+  /// A CSV import has the opposite shape: the owner supplies a url they
+  /// control (their old store, a shared drive, a stock library) and asks
+  /// kola to take a copy. So the url is deliberately NOT ours, and the
+  /// server fetches it — which also means the image stops depending on
+  /// the source staying online.
+  ///
+  /// ── WHAT IT WILL NOT FETCH ───────────────────────────────────────
+  ///
+  /// http and https only, and nothing that resolves to a private
+  /// address. Without that check this endpoint is a server-side request
+  /// forgery tool: a caller could aim it at http://169.254.169.254 (the
+  /// cloud metadata service) or at localhost and read whatever came
+  /// back through the resulting image. The scheme and host checks below
+  /// are the whole defence and are not optional.
+  _i2.Future<_i19.ProductMedia?> importMediaFromUrl(
+    String accessToken,
+    int workspaceId,
+    int productId,
+    String sourceUrl,
+  ) => caller.callServerEndpoint<_i19.ProductMedia?>(
+    'product',
+    'importMediaFromUrl',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'productId': productId,
+      'sourceUrl': sourceUrl,
+    },
+  );
 }
 
 /// {@category Endpoint}
@@ -1332,11 +1486,11 @@ class EndpointSupportTicket extends _i1.EndpointRef {
 
   /// Every ticket for a workspace, newest first. [status] optionally
   /// narrows to one status (e.g. just the open queue).
-  _i2.Future<List<_i19.SupportTicket>> list(
+  _i2.Future<List<_i20.SupportTicket>> list(
     String accessToken,
     int workspaceId, {
     String? status,
-  }) => caller.callServerEndpoint<List<_i19.SupportTicket>>(
+  }) => caller.callServerEndpoint<List<_i20.SupportTicket>>(
     'supportTicket',
     'list',
     {
@@ -1350,12 +1504,12 @@ class EndpointSupportTicket extends _i1.EndpointRef {
   /// 'closed'. Setting to 'resolved'/'closed' stamps resolvedAt
   /// automatically (see SupportTicketRepository.setStatus); reopening
   /// back to 'open'/'inProgress' clears it.
-  _i2.Future<_i19.SupportTicket> setStatus(
+  _i2.Future<_i20.SupportTicket> setStatus(
     String accessToken,
     int workspaceId,
     int ticketId,
     String status,
-  ) => caller.callServerEndpoint<_i19.SupportTicket>(
+  ) => caller.callServerEndpoint<_i20.SupportTicket>(
     'supportTicket',
     'setStatus',
     {
@@ -1381,13 +1535,13 @@ class EndpointWaitlist extends _i1.EndpointRef {
   /// A basic shape check on [email] happens here rather than trusting the
   /// browser's <input type="email"> alone, since this endpoint is public
   /// and reachable by anything, not just our own landing page.
-  _i2.Future<_i20.WaitlistSignup> joinWaitlist(
+  _i2.Future<_i21.WaitlistSignup> joinWaitlist(
     String email,
     String source, {
     String? name,
     String? phone,
     String? businessType,
-  }) => caller.callServerEndpoint<_i20.WaitlistSignup>(
+  }) => caller.callServerEndpoint<_i21.WaitlistSignup>(
     'waitlist',
     'joinWaitlist',
     {
@@ -1414,7 +1568,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// wrapper for the one shape the owner specifically asked for.
   /// Auth-checked here, then delegated to WhatsAppTemplateCreationService
   /// — see this file's header.
-  _i2.Future<_i21.WhatsAppMessageTemplate> createTemplate(
+  _i2.Future<_i22.WhatsAppMessageTemplate> createTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
@@ -1423,7 +1577,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
     String language,
     String bodyText,
     List<String> bodyExampleValues,
-  ) => caller.callServerEndpoint<_i21.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i22.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createTemplate',
     {
@@ -1450,14 +1604,14 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// values Meta's review requires for the two placeholders — not sent
   /// to any real customer, only shown to Meta's reviewer alongside the
   /// template.
-  _i2.Future<_i21.WhatsAppMessageTemplate> createProductListTemplate(
+  _i2.Future<_i22.WhatsAppMessageTemplate> createProductListTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
     String businessLabel,
     String customerNameExample,
     String productListExample,
-  ) => caller.callServerEndpoint<_i21.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i22.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createProductListTemplate',
     {
@@ -1472,10 +1626,10 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
 
   /// Every template submitted for this workspace, newest first — the
   /// dashboard's template status list.
-  _i2.Future<List<_i21.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
+  _i2.Future<List<_i22.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i21.WhatsAppMessageTemplate>>(
+  ) => caller.callServerEndpoint<List<_i22.WhatsAppMessageTemplate>>(
     'whatsAppTemplate',
     'listTemplatesForWorkspace',
     {
@@ -1487,11 +1641,11 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// Polls Meta for [templateId]'s current review outcome and persists
   /// any change — see whatsapp_template_service.dart's header on why
   /// this is polling, not a webhook, for now.
-  _i2.Future<_i21.WhatsAppMessageTemplate> refreshTemplateStatus(
+  _i2.Future<_i22.WhatsAppMessageTemplate> refreshTemplateStatus(
     String accessToken,
     int workspaceId,
     int templateId,
-  ) => caller.callServerEndpoint<_i21.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i22.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'refreshTemplateStatus',
     {
@@ -1534,13 +1688,13 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// A frozen package is frozen: it does not get edited to accommodate a
   /// signature change that had no reason to be breaking. Adding the new
   /// fields as NAMED and optional keeps every existing call valid.
-  _i2.Future<_i22.Workspace> createWorkspace(
+  _i2.Future<_i23.Workspace> createWorkspace(
     String accessToken,
     String name,
     String? industryTag, {
     String? ownerName,
     String? ownerPhone,
-  }) => caller.callServerEndpoint<_i22.Workspace>(
+  }) => caller.callServerEndpoint<_i23.Workspace>(
     'workspace',
     'createWorkspace',
     {
@@ -1555,8 +1709,8 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// Every workspace the caller belongs to, for the dashboard's workspace
   /// switcher (relevant now for a user with zero or one workspace, and
   /// unchanged when the agency/multi-workspace tier adds more).
-  _i2.Future<List<_i22.Workspace>> listMyWorkspaces(String accessToken) =>
-      caller.callServerEndpoint<List<_i22.Workspace>>(
+  _i2.Future<List<_i23.Workspace>> listMyWorkspaces(String accessToken) =>
+      caller.callServerEndpoint<List<_i23.Workspace>>(
         'workspace',
         'listMyWorkspaces',
         {'accessToken': accessToken},
@@ -1564,10 +1718,10 @@ class EndpointWorkspace extends _i1.EndpointRef {
 
   /// Fetch one workspace by id — access-checked, so a user can never read
   /// a workspace they're not a member of by guessing an id.
-  _i2.Future<_i22.Workspace> getWorkspace(
+  _i2.Future<_i23.Workspace> getWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<_i22.Workspace>(
+  ) => caller.callServerEndpoint<_i23.Workspace>(
     'workspace',
     'getWorkspace',
     {
@@ -1604,13 +1758,13 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// dashboard can save one field without having to send the others
   /// back correctly. To CLEAR industryTag, send an empty string — that
   /// is distinguishable from null and is normalised to null below.
-  _i2.Future<_i22.Workspace> updateWorkspace(
+  _i2.Future<_i23.Workspace> updateWorkspace(
     String accessToken,
     int workspaceId, {
     String? name,
     String? industryTag,
     String? ownerName,
-  }) => caller.callServerEndpoint<_i22.Workspace>(
+  }) => caller.callServerEndpoint<_i23.Workspace>(
     'workspace',
     'updateWorkspace',
     {
@@ -1666,12 +1820,12 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// workspace collecting from ITS OWN customers). [customerEmail] is
   /// the signed-in dashboard user's email — the gateway needs an email
   /// on file for the checkout page/receipt regardless of who's paying.
-  _i2.Future<_i23.KolaBillingCheckout> initiateUpgrade(
+  _i2.Future<_i24.KolaBillingCheckout> initiateUpgrade(
     String accessToken,
     int workspaceId,
     String gateway,
     String customerEmail,
-  ) => caller.callServerEndpoint<_i23.KolaBillingCheckout>(
+  ) => caller.callServerEndpoint<_i24.KolaBillingCheckout>(
     'workspace',
     'initiateUpgrade',
     {
@@ -1703,7 +1857,7 @@ class Client extends _i1.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i24.Protocol(),
+         _i25.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,

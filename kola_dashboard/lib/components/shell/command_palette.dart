@@ -20,6 +20,7 @@
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:web/web.dart' as web;
 import 'package:jaspr_router/jaspr_router.dart';
 
 import '../../nav/nav_model.dart';
@@ -101,7 +102,14 @@ class _CommandPaletteState extends State<CommandPalette> {
             onInput: (v) => setState(() => _query = v),
             events: {
               'keydown': (e) {
-                if ((e as dynamic).key == 'Escape') component.onClose();
+                // `as web.KeyboardEvent`, NOT `as dynamic`. The dynamic form
+                // analyses clean and throws at runtime on an erased
+                // extension type — which meant Escape silently did
+                // nothing. app_shell.dart already casts this way for the
+                // ⌘K shortcut, and that one demonstrably works.
+                if ((e as web.KeyboardEvent).key == 'Escape') {
+                  component.onClose();
+                }
               },
             },
           ),

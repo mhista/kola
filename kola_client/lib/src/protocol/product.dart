@@ -20,7 +20,7 @@ abstract class Product implements _i1.SerializableModel {
     this.description,
     required this.archetype,
     this.sku,
-    this.tag,
+    this.category,
     this.priceMinor,
     required this.priceCurrency,
     this.priceUnit,
@@ -39,7 +39,7 @@ abstract class Product implements _i1.SerializableModel {
     String? description,
     required String archetype,
     String? sku,
-    String? tag,
+    String? category,
     int? priceMinor,
     required String priceCurrency,
     String? priceUnit,
@@ -59,7 +59,7 @@ abstract class Product implements _i1.SerializableModel {
       description: jsonSerialization['description'] as String?,
       archetype: jsonSerialization['archetype'] as String,
       sku: jsonSerialization['sku'] as String?,
-      tag: jsonSerialization['tag'] as String?,
+      category: jsonSerialization['category'] as String?,
       priceMinor: jsonSerialization['priceMinor'] as int?,
       priceCurrency: jsonSerialization['priceCurrency'] as String,
       priceUnit: jsonSerialization['priceUnit'] as String?,
@@ -88,7 +88,7 @@ abstract class Product implements _i1.SerializableModel {
 
   String? sku;
 
-  String? tag;
+  String? category;
 
   int? priceMinor;
 
@@ -118,7 +118,7 @@ abstract class Product implements _i1.SerializableModel {
     String? description,
     String? archetype,
     String? sku,
-    String? tag,
+    String? category,
     int? priceMinor,
     String? priceCurrency,
     String? priceUnit,
@@ -139,7 +139,7 @@ abstract class Product implements _i1.SerializableModel {
       if (description != null) 'description': description,
       'archetype': archetype,
       if (sku != null) 'sku': sku,
-      if (tag != null) 'tag': tag,
+      if (category != null) 'category': category,
       if (priceMinor != null) 'priceMinor': priceMinor,
       'priceCurrency': priceCurrency,
       if (priceUnit != null) 'priceUnit': priceUnit,
@@ -168,7 +168,7 @@ class _ProductImpl extends Product {
     String? description,
     required String archetype,
     String? sku,
-    String? tag,
+    String? category,
     int? priceMinor,
     required String priceCurrency,
     String? priceUnit,
@@ -185,7 +185,7 @@ class _ProductImpl extends Product {
          description: description,
          archetype: archetype,
          sku: sku,
-         tag: tag,
+         category: category,
          priceMinor: priceMinor,
          priceCurrency: priceCurrency,
          priceUnit: priceUnit,
@@ -208,7 +208,7 @@ class _ProductImpl extends Product {
     Object? description = _Undefined,
     String? archetype,
     Object? sku = _Undefined,
-    Object? tag = _Undefined,
+    Object? category = _Undefined,
     Object? priceMinor = _Undefined,
     String? priceCurrency,
     Object? priceUnit = _Undefined,
@@ -226,7 +226,7 @@ class _ProductImpl extends Product {
       description: description is String? ? description : this.description,
       archetype: archetype ?? this.archetype,
       sku: sku is String? ? sku : this.sku,
-      tag: tag is String? ? tag : this.tag,
+      category: category is String? ? category : this.category,
       priceMinor: priceMinor is int? ? priceMinor : this.priceMinor,
       priceCurrency: priceCurrency ?? this.priceCurrency,
       priceUnit: priceUnit is String? ? priceUnit : this.priceUnit,

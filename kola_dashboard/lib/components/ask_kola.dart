@@ -30,10 +30,14 @@
 // When the reasoning layer exists this component gets an answer above
 // the citations. The citations do not get removed; they are the point.
 
+import 'dart:js_interop';
+
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:web/web.dart' as web;
 import 'package:kola_client/kola_client.dart';
 
+import '../services/dom_files.dart';
 import '../theme.dart';
 import 'shell/icons.dart';
 import 'shell/kola_icon.dart';
@@ -148,18 +152,26 @@ class _AskKolaState extends State<AskKola> {
                   'max-height:132px;overflow-y:auto',
             },
             events: {
+              // BOTH HANDLERS USED `as dynamic` AND BOTH THREW.
+              //
+              // Erased extension types have no Dart member called
+              // `value`, `style` or `key`, so every keystroke raised
+              // NoSuchMethodError inside the handler — swallowed by the
+              // event loop. The composer never captured what was typed
+              // and never grew, and Enter never sent. Same root cause as
+              // main.dart's `(root as dynamic).style`, which was fatal
+              // only because it ran before runApp. See dom_files.dart.
               'input': (e) {
-                final el = e.target as dynamic;
-                _query = el.value as String? ?? '';
-                // Grow to fit, up to the max-height above. Reset to auto
-                // first or the box can only ever get taller, never
-                // shorter when text is deleted.
-                el.style.height = 'auto';
-                el.style.height = '${el.scrollHeight}px';
+                final target = e.target;
+                if (target == null) return;
+                _query = valueOf(target as JSObject);
+                autoGrow(target);
               },
               'keydown': (e) {
-                final ev = e as dynamic;
-                if (ev.key == 'Enter' && ev.shiftKey != true) {
+                // web.KeyboardEvent, the cast app_shell.dart already
+                // uses for ⌘K and which demonstrably works.
+                final ev = e as web.KeyboardEvent;
+                if (ev.key == 'Enter' && !ev.shiftKey) {
                   ev.preventDefault();
                   _ask();
                 }

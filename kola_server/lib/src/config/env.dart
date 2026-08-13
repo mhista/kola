@@ -120,6 +120,41 @@ abstract class Env {
       ? _Env.channelCredentialMasterKey
       : Platform.environment['CHANNEL_CREDENTIAL_MASTER_KEY'] ?? '';
 
+  // ── ImageKit (product media) ────────────────────────────────────────────────
+  // Product photos and video. Three values, and only ONE of them is a secret.
+  //
+  // The public key identifies the ImageKit account and is sent to the browser
+  // deliberately — it authorises nothing on its own. The URL endpoint is in
+  // every image's src attribute, so it is public by construction.
+  //
+  // The PRIVATE key never leaves this process. It signs one-shot upload
+  // credentials (see ImageKitService.createUploadAuth) and authenticates
+  // deletes, and those are the only two things it is used for. It is a
+  // different secret class from CHANNEL_CREDENTIAL_MASTER_KEY — that one
+  // protects data at rest in our own database, this one is a third-party
+  // account credential — so they rotate independently and neither is ever
+  // reused for the other.
+  @EnviedField(varName: 'IMAGEKIT_PUBLIC_KEY', defaultValue: '')
+  static final String imagekitPublicKey = _Env.imagekitPublicKey.isNotEmpty
+      ? _Env.imagekitPublicKey
+      : Platform.environment['IMAGEKIT_PUBLIC_KEY'] ?? '';
+
+  @EnviedField(
+    varName: 'IMAGEKIT_PRIVATE_KEY',
+    obfuscate: true,
+    defaultValue: '',
+  )
+  static final String imagekitPrivateKey = _Env.imagekitPrivateKey.isNotEmpty
+      ? _Env.imagekitPrivateKey
+      : Platform.environment['IMAGEKIT_PRIVATE_KEY'] ?? '';
+
+  /// e.g. https://ik.imagekit.io/somtech — the CDN base every stored media
+  /// URL sits under. Not a secret; it is visible in every rendered image.
+  @EnviedField(varName: 'IMAGEKIT_URL_ENDPOINT', defaultValue: '')
+  static final String imagekitUrlEndpoint = _Env.imagekitUrlEndpoint.isNotEmpty
+      ? _Env.imagekitUrlEndpoint
+      : Platform.environment['IMAGEKIT_URL_ENDPOINT'] ?? '';
+
   // ── WhatsApp webhook (Phase 2b — messaging channels) ────────────────────────
   // Whatever string you set as the "Verify Token" in Meta's App Dashboard →
   // WhatsApp → Configuration must match this exactly — it's how

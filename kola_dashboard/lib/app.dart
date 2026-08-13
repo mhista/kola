@@ -61,6 +61,7 @@ import 'pages/create_workspace_page.dart';
 import 'pages/logout_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/catalog_page.dart';
+import 'pages/product_detail_page.dart';
 import 'pages/errand_builder_page.dart';
 import 'pages/knowledge_page.dart';
 import 'pages/conversations_page.dart';
@@ -522,6 +523,26 @@ class _DashboardAppState extends State<DashboardApp> {
               client: _client,
               accessToken: _session!.accessToken,
               workspaceId: _selectedWorkspace!.id!,
+            ),
+          ),
+        ),
+        // The destination CatalogPage's product rows already linked to.
+        // Same gating as /catalog — the server checks both commerce flags
+        // on every read, so a locked workspace gets the honest refusal
+        // rather than an empty page.
+        Route(
+          path: '/catalog/:id',
+          // Parsed at the boundary, as /bots/:id does: a non-numeric id
+          // is a malformed URL, and tryParse falling back to 0 turns it
+          // into a clean "that product isn't here" instead of an
+          // exception during build.
+          builder: (context, state) => shellFor(
+            state,
+            ProductDetailPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              productId: int.tryParse(state.params['id'] ?? '') ?? 0,
             ),
           ),
         ),

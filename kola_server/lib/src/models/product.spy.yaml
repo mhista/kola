@@ -52,10 +52,14 @@ fields:
 
   sku: String?
 
-  ## Free-text label the owner groups by. Not a foreign key — small
-  ## shops categorise by whatever they actually say out loud, and a
-  ## managed category table would force them to file things.
-  tag: String?
+  ## How the owner groups this product — "Dresses", "Fabric",
+  ## "Accessories". Renamed from `tag` in migration 031: it was always
+  ## the category, and two names for one idea is how a schema drifts.
+  ##
+  ## Free text, and not a foreign key. Small shops categorise by
+  ## whatever they actually say out loud, and a managed category table
+  ## would force them to file things our way rather than theirs.
+  category: String?
 
   ## See the money note. Null means "on request", never free.
   priceMinor: int?

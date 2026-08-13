@@ -19,6 +19,11 @@ abstract class Message implements _i1.SerializableModel {
     required this.direction,
     required this.senderType,
     required this.body,
+    this.mediaKind,
+    this.mediaUrl,
+    this.mediaThumbnailUrl,
+    this.mediaImagekitFileId,
+    this.mediaMimeType,
     required this.createdAt,
   });
 
@@ -28,6 +33,11 @@ abstract class Message implements _i1.SerializableModel {
     required String direction,
     required String senderType,
     required String body,
+    String? mediaKind,
+    String? mediaUrl,
+    String? mediaThumbnailUrl,
+    String? mediaImagekitFileId,
+    String? mediaMimeType,
     required DateTime createdAt,
   }) = _MessageImpl;
 
@@ -38,6 +48,11 @@ abstract class Message implements _i1.SerializableModel {
       direction: jsonSerialization['direction'] as String,
       senderType: jsonSerialization['senderType'] as String,
       body: jsonSerialization['body'] as String,
+      mediaKind: jsonSerialization['mediaKind'] as String?,
+      mediaUrl: jsonSerialization['mediaUrl'] as String?,
+      mediaThumbnailUrl: jsonSerialization['mediaThumbnailUrl'] as String?,
+      mediaImagekitFileId: jsonSerialization['mediaImagekitFileId'] as String?,
+      mediaMimeType: jsonSerialization['mediaMimeType'] as String?,
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
@@ -54,6 +69,16 @@ abstract class Message implements _i1.SerializableModel {
 
   String body;
 
+  String? mediaKind;
+
+  String? mediaUrl;
+
+  String? mediaThumbnailUrl;
+
+  String? mediaImagekitFileId;
+
+  String? mediaMimeType;
+
   DateTime createdAt;
 
   /// Returns a shallow copy of this [Message]
@@ -65,6 +90,11 @@ abstract class Message implements _i1.SerializableModel {
     String? direction,
     String? senderType,
     String? body,
+    String? mediaKind,
+    String? mediaUrl,
+    String? mediaThumbnailUrl,
+    String? mediaImagekitFileId,
+    String? mediaMimeType,
     DateTime? createdAt,
   });
   @override
@@ -76,6 +106,12 @@ abstract class Message implements _i1.SerializableModel {
       'direction': direction,
       'senderType': senderType,
       'body': body,
+      if (mediaKind != null) 'mediaKind': mediaKind,
+      if (mediaUrl != null) 'mediaUrl': mediaUrl,
+      if (mediaThumbnailUrl != null) 'mediaThumbnailUrl': mediaThumbnailUrl,
+      if (mediaImagekitFileId != null)
+        'mediaImagekitFileId': mediaImagekitFileId,
+      if (mediaMimeType != null) 'mediaMimeType': mediaMimeType,
       'createdAt': createdAt.toJson(),
     };
   }
@@ -95,6 +131,11 @@ class _MessageImpl extends Message {
     required String direction,
     required String senderType,
     required String body,
+    String? mediaKind,
+    String? mediaUrl,
+    String? mediaThumbnailUrl,
+    String? mediaImagekitFileId,
+    String? mediaMimeType,
     required DateTime createdAt,
   }) : super._(
          id: id,
@@ -102,6 +143,11 @@ class _MessageImpl extends Message {
          direction: direction,
          senderType: senderType,
          body: body,
+         mediaKind: mediaKind,
+         mediaUrl: mediaUrl,
+         mediaThumbnailUrl: mediaThumbnailUrl,
+         mediaImagekitFileId: mediaImagekitFileId,
+         mediaMimeType: mediaMimeType,
          createdAt: createdAt,
        );
 
@@ -115,6 +161,11 @@ class _MessageImpl extends Message {
     String? direction,
     String? senderType,
     String? body,
+    Object? mediaKind = _Undefined,
+    Object? mediaUrl = _Undefined,
+    Object? mediaThumbnailUrl = _Undefined,
+    Object? mediaImagekitFileId = _Undefined,
+    Object? mediaMimeType = _Undefined,
     DateTime? createdAt,
   }) {
     return Message(
@@ -123,6 +174,17 @@ class _MessageImpl extends Message {
       direction: direction ?? this.direction,
       senderType: senderType ?? this.senderType,
       body: body ?? this.body,
+      mediaKind: mediaKind is String? ? mediaKind : this.mediaKind,
+      mediaUrl: mediaUrl is String? ? mediaUrl : this.mediaUrl,
+      mediaThumbnailUrl: mediaThumbnailUrl is String?
+          ? mediaThumbnailUrl
+          : this.mediaThumbnailUrl,
+      mediaImagekitFileId: mediaImagekitFileId is String?
+          ? mediaImagekitFileId
+          : this.mediaImagekitFileId,
+      mediaMimeType: mediaMimeType is String?
+          ? mediaMimeType
+          : this.mediaMimeType,
       createdAt: createdAt ?? this.createdAt,
     );
   }

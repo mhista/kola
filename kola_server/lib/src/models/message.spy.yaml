@@ -31,6 +31,43 @@ fields:
 
   body: String
 
+  ## ── INBOUND MEDIA (migration 032) ──────────────────────────────────
+  ##
+  ## Until this existed, a customer who sent a photo produced a Message
+  ## with an empty body and nothing else — the image was dropped on the
+  ## floor. For a shop where "do you have this?" is answered by sending a
+  ## picture, that is the most important message type there is.
+  ##
+  ## The bytes do NOT arrive here the way dashboard uploads do. WhatsApp
+  ## and Telegram hand the webhook a media REFERENCE, not a file, and
+  ## fetching it needs that channel's own credentials — so the server
+  ## downloads and re-uploads to ImageKit. See
+  ## ImageKitService.uploadBytes for why ImageKit cannot fetch the
+  ## provider URL itself.
+  ##
+  ## 'image' | 'video' | 'audio' | 'document'. Null for plain text.
+  mediaKind: String?
+
+  ## The permanent ImageKit URL.
+  ##
+  ## NULLABLE EVEN WHEN mediaKind IS SET, and that combination is
+  ## meaningful: the customer sent a file and kola could not store it.
+  ## The message is still real, still routed, still shown — the owner
+  ## sees that something was sent rather than seeing nothing. Losing a
+  ## customer's message because a CDN was briefly unreachable would be
+  ## far worse than losing the picture.
+  mediaUrl: String?
+
+  mediaThumbnailUrl: String?
+
+  ## Needed to delete the asset if a conversation is ever purged.
+  mediaImagekitFileId: String?
+
+  ## What the provider said it was. Kept because 'image' does not
+  ## distinguish a photo from a screenshot of a receipt, and the
+  ## difference matters to what kola should do next.
+  mediaMimeType: String?
+
   createdAt: DateTime
 
 indexes:

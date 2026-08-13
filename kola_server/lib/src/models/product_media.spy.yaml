@@ -1,0 +1,62 @@
+##
+## product_media.spy.yaml — a photo or video of a Product (migration 031).
+##
+## ── THE FILE LIVES ON IMAGEKIT, THE FACT LIVES HERE ──────────────────
+##
+## kola stores no bytes. The browser uploads straight to ImageKit using
+## one-shot signed credentials (ImageKitService.createUploadAuth), and
+## what comes back is recorded as a row here. So every field below is
+## something ImageKit told us, not something kola computed.
+##
+## ── imagekitFileId IS NOT OPTIONAL, EVEN THOUGH url IS ENOUGH TO SHOW ─
+##
+## A URL renders the image. Only the fileId can DELETE it. Storing just
+## the URL would mean every photo an owner removed stayed live on the CDN
+## forever — a bill that grows and, for a business's own product shots,
+## a privacy problem: the link keeps working for anyone who ever saw it.
+##
+## ── POSITION 0 IS THE MAIN IMAGE ─────────────────────────────────────
+##
+## Explicit rather than "the oldest one wins". The best photo is rarely
+## the first one taken, and this is the image the catalog row shows and
+## the one a bot sends a customer first.
+##
+
+class: ProductMedia
+# table: product_media
+fields:
+  id: int? # Supabase assigns this automatically
+
+  ## Parent product. Deleting the product deletes its media rows
+  ## (on delete cascade). The CDN files are removed separately — see
+  ## ProductEndpoint.deleteProductMedia.
+  productId: int
+
+  ## 'image' | 'video'. One table for both: ImageKit uploads them
+  ## through the same endpoint and gives them the same kind of id, so
+  ## separate tables would duplicate every column and every query for
+  ## one differing field.
+  kind: String
+
+  ## ImageKit's own file id. See the header — this is the delete key.
+  imagekitFileId: String
+
+  ## Permanent CDN URL. What a bot sends a customer.
+  url: String
+
+  ## ImageKit's thumbnail. Stored rather than derived at render time so
+  ## the transformation string is decided in one place.
+  thumbnailUrl: String?
+
+  ## Known at upload. Lets the grid reserve the right space instead of
+  ## reflowing as each image lands.
+  width: int?
+  height: int?
+
+  position: int
+
+  createdAt: DateTime
+
+indexes:
+  product_media_product_idx:
+    fields: productId

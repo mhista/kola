@@ -2074,8 +2074,8 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
-            'tag': _i1.ParameterDescription(
-              name: 'tag',
+            'category': _i1.ParameterDescription(
+              name: 'category',
               type: _i1.getType<String?>(),
               nullable: true,
             ),
@@ -2123,7 +2123,7 @@ class Endpoints extends _i1.EndpointDispatch {
                     description: params['description'],
                     archetype: params['archetype'],
                     sku: params['sku'],
-                    tag: params['tag'],
+                    category: params['category'],
                     priceMinor: params['priceMinor'],
                     priceCurrency: params['priceCurrency'],
                     priceUnit: params['priceUnit'],
@@ -2170,8 +2170,8 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
-            'tag': _i1.ParameterDescription(
-              name: 'tag',
+            'category': _i1.ParameterDescription(
+              name: 'category',
               type: _i1.getType<String?>(),
               nullable: true,
             ),
@@ -2230,7 +2230,7 @@ class Endpoints extends _i1.EndpointDispatch {
                     description: params['description'],
                     archetype: params['archetype'],
                     sku: params['sku'],
-                    tag: params['tag'],
+                    category: params['category'],
                     priceMinor: params['priceMinor'],
                     clearPrice: params['clearPrice'],
                     priceCurrency: params['priceCurrency'],
@@ -2319,6 +2319,240 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['labels'],
                     params['stocks'],
                     params['priceMinors'],
+                  ),
+        ),
+        'getMediaUploadAuth': _i1.MethodConnector(
+          name: 'getMediaUploadAuth',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['product'] as _i12.ProductEndpoint)
+                  .getMediaUploadAuth(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                  ),
+        ),
+        'listMedia': _i1.MethodConnector(
+          name: 'listMedia',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['product'] as _i12.ProductEndpoint).listMedia(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                  ),
+        ),
+        'addProductMedia': _i1.MethodConnector(
+          name: 'addProductMedia',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'imagekitFileId': _i1.ParameterDescription(
+              name: 'imagekitFileId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'url': _i1.ParameterDescription(
+              name: 'url',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'kind': _i1.ParameterDescription(
+              name: 'kind',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'thumbnailUrl': _i1.ParameterDescription(
+              name: 'thumbnailUrl',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'width': _i1.ParameterDescription(
+              name: 'width',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+            'height': _i1.ParameterDescription(
+              name: 'height',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['product'] as _i12.ProductEndpoint)
+                  .addProductMedia(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                    params['imagekitFileId'],
+                    params['url'],
+                    kind: params['kind'],
+                    thumbnailUrl: params['thumbnailUrl'],
+                    width: params['width'],
+                    height: params['height'],
+                  ),
+        ),
+        'deleteProductMedia': _i1.MethodConnector(
+          name: 'deleteProductMedia',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'mediaId': _i1.ParameterDescription(
+              name: 'mediaId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['product'] as _i12.ProductEndpoint)
+                  .deleteProductMedia(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                    params['mediaId'],
+                  ),
+        ),
+        'reorderProductMedia': _i1.MethodConnector(
+          name: 'reorderProductMedia',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'mediaIdsInOrder': _i1.ParameterDescription(
+              name: 'mediaIdsInOrder',
+              type: _i1.getType<List<int>>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['product'] as _i12.ProductEndpoint)
+                  .reorderProductMedia(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                    params['mediaIdsInOrder'],
+                  ),
+        ),
+        'importMediaFromUrl': _i1.MethodConnector(
+          name: 'importMediaFromUrl',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'productId': _i1.ParameterDescription(
+              name: 'productId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'sourceUrl': _i1.ParameterDescription(
+              name: 'sourceUrl',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['product'] as _i12.ProductEndpoint)
+                  .importMediaFromUrl(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['productId'],
+                    params['sourceUrl'],
                   ),
         ),
       },

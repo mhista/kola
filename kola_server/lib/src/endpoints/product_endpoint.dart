@@ -25,20 +25,25 @@
 // a server that guesses at decimals is how a zero-decimal currency ends
 // up priced 100x wrong.
 
+import 'dart:convert';
+
 import 'package:serverpod/serverpod.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
+import 'package:kola_server/src/config/env.dart';
 import 'package:kola_server/src/services/auth/workspace_access.dart';
 import 'package:kola_server/src/services/features/feature_keys.dart';
 import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
+import 'package:kola_server/src/services/media/imagekit_service.dart';
 import 'package:kola_server/kola_logger.dart';
 
 class ProductEndpoint extends Endpoint {
   ProductRepository get _products => getIt<ProductRepository>();
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
   FeatureFlagService get _features => getIt<FeatureFlagService>();
+  ImageKitService get _imagekit => getIt<ImageKitService>();
 
   /// The export's ARCHETYPES, in storage form.
   static const archetypes = <String>['packaged', 'variants', 'services'];
@@ -102,7 +107,7 @@ class ProductEndpoint extends Endpoint {
     String? description,
     String archetype = 'packaged',
     String? sku,
-    String? tag,
+    String? category,
     int? priceMinor,
     String? priceCurrency,
     String? priceUnit,
@@ -144,7 +149,7 @@ class ProductEndpoint extends Endpoint {
         description: _clean(description),
         archetype: archetype,
         sku: cleanSku,
-        tag: _clean(tag),
+        category: _clean(category),
         priceMinor: priceMinor,
         // Falls back to the workspace's region-appropriate currency
         // rather than hardcoding NGN — see _currencyFor.
@@ -184,7 +189,7 @@ class ProductEndpoint extends Endpoint {
     String? description,
     String? archetype,
     String? sku,
-    String? tag,
+    String? category,
     int? priceMinor,
     bool clearPrice = false,
     String? priceCurrency,
@@ -230,7 +235,7 @@ class ProductEndpoint extends Endpoint {
       }
       product.sku = cleanSku;
     }
-    if (tag != null) product.tag = _clean(tag);
+    if (category != null) product.category = _clean(category);
 
     if (clearPrice) {
       product.priceMinor = null;
@@ -391,5 +396,288 @@ class ProductEndpoint extends Endpoint {
       'NG' => 'NGN',
       _ => 'USD',
     };
+  }
+
+  // ── Media ──────────────────────────────────────────────────────────
+
+  /// One-shot credentials so the BROWSER can upload straight to
+  /// ImageKit.
+  ///
+  /// The file never passes through kola. See imagekit_service.dart for
+  /// why: a Serverpod parameter is JSON, so proxying a 5MB photo would
+  /// mean ~6.7MB of base64 crossing the wire twice with no way to report
+  /// progress. The private key stays here and signs; the bytes go
+  /// direct.
+  ///
+  /// Returned as a JSON string rather than a new model, the same shape
+  /// getBillingSummary already uses — four short-lived strings do not
+  /// earn a .spy.yaml and a codegen round.
+  ///
+  /// The folder is decided HERE, not by the client. A browser that could
+  /// name its own folder could write into another workspace's.
+  Future<String> getMediaUploadAuth(
+    Session session,
+    String accessToken,
+    int workspaceId,
+  ) async {
+    await _require(accessToken, workspaceId);
+
+    if (!_imagekit.isConfigured) {
+      throw KolaException(
+        message: 'Photo uploads are not switched on yet. Everything else '
+            'about a product saves normally.',
+      );
+    }
+
+    final auth = _imagekit.createUploadAuth();
+    return jsonEncode({
+      ...auth.toJson(),
+      'folder': ImageKitService.folderFor(workspaceId),
+      'uploadUrl': 'https://upload.imagekit.io/api/v1/files/upload',
+    });
+  }
+
+  Future<List<ProductMedia>> listMedia(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int productId,
+  ) async {
+    await _require(accessToken, workspaceId);
+
+    final product = await _products.findById(workspaceId, productId);
+    if (product == null) {
+      throw KolaException(message: 'That product no longer exists.');
+    }
+    return _products.listMedia(productId);
+  }
+
+  /// Records a file the browser has already put on ImageKit.
+  ///
+  /// Validated even though the values came from ImageKit rather than
+  /// being typed by a person: this endpoint is reachable by anyone with
+  /// a session, so a crafted call could otherwise point a product's
+  /// "photo" at any URL on the internet — including one that changes
+  /// after review. The url must sit under the configured ImageKit
+  /// endpoint, and nothing else is accepted.
+  Future<ProductMedia> addProductMedia(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int productId,
+    String imagekitFileId,
+    String url, {
+    String kind = 'image',
+    String? thumbnailUrl,
+    int? width,
+    int? height,
+  }) async {
+    await _require(accessToken, workspaceId);
+
+    final product = await _products.findById(workspaceId, productId);
+    if (product == null) {
+      throw KolaException(message: 'That product no longer exists.');
+    }
+    if (kind != 'image' && kind != 'video') {
+      throw KolaException(message: 'Unknown media type: $kind');
+    }
+
+    final endpoint = Env.imagekitUrlEndpoint.trim();
+    if (endpoint.isEmpty || !url.startsWith(endpoint)) {
+      // Deliberately not echoed back to the caller in detail — a
+      // mismatch here means the request did not come from our own
+      // uploader, and the useful audience for the specifics is the log.
+      Log.warning(
+        'Rejected product media URL outside the ImageKit endpoint',
+        data: {'workspaceId': workspaceId, 'productId': productId},
+      );
+      throw KolaException(message: "That file didn't come from kola's uploader.");
+    }
+
+    // Appended, not inserted at the front. Position 0 is the main image
+    // and a second upload must never silently replace the one the owner
+    // chose — reordering is its own explicit action.
+    final position = await _products.countMedia(productId);
+
+    final media = await _products.addMedia(
+      ProductMedia(
+        productId: productId,
+        kind: kind,
+        imagekitFileId: imagekitFileId,
+        url: url,
+        thumbnailUrl: thumbnailUrl,
+        width: width,
+        height: height,
+        position: position,
+        createdAt: DateTime.now().toUtc(),
+      ),
+    );
+
+    Log.info(
+      'Product media added',
+      data: {'workspaceId': workspaceId, 'productId': productId},
+      session: session,
+    );
+    return media;
+  }
+
+  /// Removes a photo from the product AND from ImageKit.
+  ///
+  /// The CDN delete is attempted first but is NOT allowed to block the
+  /// row delete — see ImageKitService.deleteFile. An unreachable CDN
+  /// must not stop an owner taking a photo off their own product; an
+  /// orphaned file is a cost to reconcile, not a reason to refuse.
+  Future<void> deleteProductMedia(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int productId,
+    int mediaId,
+  ) async {
+    await _require(accessToken, workspaceId);
+
+    final product = await _products.findById(workspaceId, productId);
+    if (product == null) {
+      throw KolaException(message: 'That product no longer exists.');
+    }
+
+    final media = await _products.findMediaById(mediaId);
+    // Belongs-to check. Without it, a valid mediaId from ANOTHER
+    // workspace's product would be deleted by a caller who legitimately
+    // owns this one.
+    if (media == null || media.productId != productId) {
+      throw KolaException(message: 'That photo is already gone.');
+    }
+
+    await _imagekit.deleteFile(media.imagekitFileId);
+    await _products.deleteMedia(mediaId);
+  }
+
+  /// Sets the display order. Index 0 becomes the main image.
+  Future<void> reorderProductMedia(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int productId,
+    List<int> mediaIdsInOrder,
+  ) async {
+    await _require(accessToken, workspaceId);
+
+    final product = await _products.findById(workspaceId, productId);
+    if (product == null) {
+      throw KolaException(message: 'That product no longer exists.');
+    }
+    await _products.reorderMedia(productId, mediaIdsInOrder);
+  }
+
+  /// Imports a photo from a PUBLIC url and stores it on ImageKit.
+  ///
+  /// ── WHY THIS IS SEPARATE FROM addProductMedia ────────────────────
+  ///
+  /// addProductMedia records a file the BROWSER already uploaded, and
+  /// refuses any url outside our own ImageKit endpoint — otherwise a
+  /// crafted call could point a product's photo at any address on the
+  /// internet, including one that changes after review.
+  ///
+  /// A CSV import has the opposite shape: the owner supplies a url they
+  /// control (their old store, a shared drive, a stock library) and asks
+  /// kola to take a copy. So the url is deliberately NOT ours, and the
+  /// server fetches it — which also means the image stops depending on
+  /// the source staying online.
+  ///
+  /// ── WHAT IT WILL NOT FETCH ───────────────────────────────────────
+  ///
+  /// http and https only, and nothing that resolves to a private
+  /// address. Without that check this endpoint is a server-side request
+  /// forgery tool: a caller could aim it at http://169.254.169.254 (the
+  /// cloud metadata service) or at localhost and read whatever came
+  /// back through the resulting image. The scheme and host checks below
+  /// are the whole defence and are not optional.
+  Future<ProductMedia?> importMediaFromUrl(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int productId,
+    String sourceUrl,
+  ) async {
+    await _require(accessToken, workspaceId);
+
+    final product = await _products.findById(workspaceId, productId);
+    if (product == null) {
+      throw KolaException(message: 'That product no longer exists.');
+    }
+
+    final uri = Uri.tryParse(sourceUrl.trim());
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      throw KolaException(
+        message: 'That image link needs to start with http:// or https://',
+      );
+    }
+    if (_isPrivateHost(uri.host)) {
+      Log.warning(
+        'Blocked media import from a private address',
+        data: {'workspaceId': workspaceId, 'host': uri.host},
+      );
+      throw KolaException(message: "kola can't reach that address.");
+    }
+
+    final uploaded = await _imagekit.uploadFromUrl(
+      sourceUrl: uri,
+      fileName: _fileNameFrom(uri, productId),
+      folder: ImageKitService.folderFor(workspaceId),
+    );
+    // Null rather than an exception: one unreachable image in a
+    // fifty-row import must not fail the row. The product still saves;
+    // the owner sees which ones came through.
+    if (uploaded == null) return null;
+
+    final position = await _products.countMedia(productId);
+    return _products.addMedia(
+      ProductMedia(
+        productId: productId,
+        kind: 'image',
+        imagekitFileId: uploaded.fileId,
+        url: uploaded.url,
+        thumbnailUrl: uploaded.thumbnailUrl,
+        width: uploaded.width,
+        height: uploaded.height,
+        position: position,
+        createdAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  /// Blocks loopback, link-local and RFC1918 space.
+  ///
+  /// A hostname that is not a literal IP still resolves somewhere, so
+  /// this is a first line rather than a complete one — a hostile DNS
+  /// record can point a public name at 127.0.0.1. Closing that properly
+  /// needs resolution-then-check-then-connect against the resolved
+  /// address, which Dart's http client does not expose. Recorded plainly
+  /// rather than left to look complete.
+  bool _isPrivateHost(String host) {
+    final h = host.toLowerCase();
+    if (h == 'localhost' || h.endsWith('.localhost') || h.endsWith('.internal')) {
+      return true;
+    }
+    final parts = h.split('.');
+    if (parts.length == 4 && parts.every((p) => int.tryParse(p) != null)) {
+      final o = parts.map(int.parse).toList();
+      if (o[0] == 127 || o[0] == 10) return true;
+      if (o[0] == 169 && o[1] == 254) return true; // cloud metadata
+      if (o[0] == 172 && o[1] >= 16 && o[1] <= 31) return true;
+      if (o[0] == 192 && o[1] == 168) return true;
+      if (o[0] == 0) return true;
+    }
+    return false;
+  }
+
+  String _fileNameFrom(Uri uri, int productId) {
+    final last = uri.pathSegments.isEmpty ? '' : uri.pathSegments.last;
+    if (last.isNotEmpty && last.contains('.')) return last;
+    // picsum and many CDNs serve extensionless paths. ImageKit guesses
+    // from content when the name has no extension, and guessing wrong
+    // breaks rendering — so give it one.
+    return 'product-$productId-${DateTime.now().millisecondsSinceEpoch}.jpg';
   }
 }

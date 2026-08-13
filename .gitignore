@@ -44,6 +44,13 @@ build/
 # A setup walkthrough written FOR customers. Same content as the docs
 # site; nothing internal in it.
 !/docs/WHATSAPP_MANUAL_SETUP.md
+# Sample import files. Fictional products with public stock-image links —
+# no customer data, and the catalog importer is hard to work on or test
+# without a file that exercises the awkward cases (null price, null
+# stock, all three archetypes). Two rules: the directory has to be
+# allowed back before anything inside it can be.
+!/docs/samples/
+!/docs/samples/*
 
 # WHAT STAYS PRIVATE, AND WHY — for whoever reads this later:
 #   DEVELOPMENT_PLAN, RELEASE_PHASES  — the unreleased roadmap, in full
