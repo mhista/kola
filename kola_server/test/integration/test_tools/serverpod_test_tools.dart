@@ -2499,8 +2499,10 @@ class _WorkspaceEndpoint {
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     String name,
-    String? industryTag,
-  ) async {
+    String? industryTag, {
+    String? ownerName,
+    String? ownerPhone,
+  }) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
           (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
@@ -2516,6 +2518,8 @@ class _WorkspaceEndpoint {
             'accessToken': accessToken,
             'name': name,
             'industryTag': industryTag,
+            'ownerName': ownerName,
+            'ownerPhone': ownerPhone,
           }),
           serializationManager: _serializationManager,
         );

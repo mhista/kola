@@ -89,8 +89,8 @@ class ErrandEndpoint extends Endpoint {
 
     final activeCount = (await _errands.listActiveByWorkspace(workspaceId)).length;
     if (activeCount >= PlanLimits.cappedFreeErrandCap) {
-      throw Exception(
-        'This workspace is on the free plan, which allows up to '
+      throw KolaException(
+        message:         'This workspace is on the free plan, which allows up to '
         '${PlanLimits.cappedFreeErrandCap} active Errands. Disable an existing '
         'Errand or upgrade to add more.',
       );
@@ -120,26 +120,26 @@ class ErrandEndpoint extends Endpoint {
 
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
-      throw Exception('Errand name cannot be empty.');
+      throw KolaException(message: 'Errand name cannot be empty.');
     }
     if (descriptionForAi.trim().isEmpty) {
-      throw Exception(
-        'descriptionForAi cannot be empty — this is what the AI orchestrator '
+      throw KolaException(
+        message:         'descriptionForAi cannot be empty — this is what the AI orchestrator '
         'reads to decide when to invoke this Errand.',
       );
     }
     if (!BuiltinErrandExecutor.handlerKeys.contains(builtinHandlerKey)) {
-      throw Exception(
-        'Unknown builtinHandlerKey "$builtinHandlerKey" — must be one of: '
+      throw KolaException(
+        message:         'Unknown builtinHandlerKey "$builtinHandlerKey" — must be one of: '
         '${BuiltinErrandExecutor.handlerKeys.join(", ")}',
       );
     }
     if (!_validCreatedVia.contains(createdVia)) {
-      throw Exception('Invalid createdVia "$createdVia" — must be one of: naturalLanguage, api');
+      throw KolaException(message: 'Invalid createdVia "$createdVia" — must be one of: naturalLanguage, api');
     }
     if (!_validPermissionScopes.contains(permissionScope)) {
-      throw Exception(
-        'Invalid permissionScope "$permissionScope" — must be one of: readOnly, readWrite',
+      throw KolaException(
+        message:         'Invalid permissionScope "$permissionScope" — must be one of: readOnly, readWrite',
       );
     }
     _assertValidJson(inputSchemaJson, 'inputSchemaJson');
@@ -187,7 +187,7 @@ class ErrandEndpoint extends Endpoint {
     await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
     final errand = await _errands.findByIdScoped(errandId, workspaceId);
     if (errand == null) {
-      throw Exception('Errand $errandId not found in workspace $workspaceId');
+      throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
     }
     return errand;
   }
@@ -203,12 +203,12 @@ class ErrandEndpoint extends Endpoint {
     await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
 
     if (!_validStatuses.contains(status)) {
-      throw Exception('Invalid status "$status" — must be one of: active, disabled');
+      throw KolaException(message: 'Invalid status "$status" — must be one of: active, disabled');
     }
 
     final existing = await _errands.findByIdScoped(errandId, workspaceId);
     if (existing == null) {
-      throw Exception('Errand $errandId not found in workspace $workspaceId');
+      throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
     }
 
     final updated = await _errands.setStatus(errandId, status);
@@ -243,11 +243,11 @@ class ErrandEndpoint extends Endpoint {
 
     final existing = await _errands.findByIdScoped(errandId, workspaceId);
     if (existing == null) {
-      throw Exception('Errand $errandId not found in workspace $workspaceId');
+      throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
     }
     if (existing.status != 'disabled') {
-      throw Exception(
-        'Errand $errandId is still active — disable it first (setErrandStatus) before deleting it.',
+      throw KolaException(
+        message:         'Errand $errandId is still active — disable it first (setErrandStatus) before deleting it.',
       );
     }
 
@@ -280,25 +280,25 @@ class ErrandEndpoint extends Endpoint {
 
     final errand = await _errands.findByIdScoped(errandId, workspaceId);
     if (errand == null) {
-      throw Exception('Errand $errandId not found in workspace $workspaceId');
+      throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
     }
     if (errand.status != 'active') {
-      throw Exception('Errand $errandId is disabled — cannot execute.');
+      throw KolaException(message: 'Errand $errandId is disabled — cannot execute.');
     }
 
     Map<String, dynamic> input;
     try {
       input = jsonDecode(inputJson) as Map<String, dynamic>;
     } catch (e) {
-      throw Exception('inputJson is not valid JSON: $e');
+      throw KolaException(message: 'inputJson is not valid JSON: $e');
     }
 
     // Phase 3d (SRS.md §10): security filter runs before ANY Errand
     // call — see security_filter.dart's header.
     final securityCheck = _security.checkErrandInput(input);
     if (!securityCheck.allowed) {
-      throw Exception(
-        'Errand input rejected by security filter (${securityCheck.violationType}): '
+      throw KolaException(
+        message:         'Errand input rejected by security filter (${securityCheck.violationType}): '
         '${securityCheck.warningMessage}',
       );
     }
@@ -341,24 +341,24 @@ class ErrandEndpoint extends Endpoint {
 
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
-      throw Exception('Errand name cannot be empty.');
+      throw KolaException(message: 'Errand name cannot be empty.');
     }
     if (descriptionForAi.trim().isEmpty) {
-      throw Exception(
-        'descriptionForAi cannot be empty — this is what the AI orchestrator '
+      throw KolaException(
+        message:         'descriptionForAi cannot be empty — this is what the AI orchestrator '
         'reads to decide when to invoke this Errand.',
       );
     }
     final parsedUrl = Uri.tryParse(webhookUrl);
     if (parsedUrl == null || !parsedUrl.isAbsolute) {
-      throw Exception('webhookUrl "$webhookUrl" is not a valid absolute URL.');
+      throw KolaException(message: 'webhookUrl "$webhookUrl" is not a valid absolute URL.');
     }
     if (!_validCreatedVia.contains(createdVia)) {
-      throw Exception('Invalid createdVia "$createdVia" — must be one of: naturalLanguage, api');
+      throw KolaException(message: 'Invalid createdVia "$createdVia" — must be one of: naturalLanguage, api');
     }
     if (!_validPermissionScopes.contains(permissionScope)) {
-      throw Exception(
-        'Invalid permissionScope "$permissionScope" — must be one of: readOnly, readWrite',
+      throw KolaException(
+        message:         'Invalid permissionScope "$permissionScope" — must be one of: readOnly, readWrite',
       );
     }
     _assertValidJson(inputSchemaJson, 'inputSchemaJson');
@@ -419,31 +419,31 @@ class ErrandEndpoint extends Endpoint {
 
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
-      throw Exception('Errand name cannot be empty.');
+      throw KolaException(message: 'Errand name cannot be empty.');
     }
     if (descriptionForAi.trim().isEmpty) {
-      throw Exception(
-        'descriptionForAi cannot be empty — this is what the AI orchestrator '
+      throw KolaException(
+        message:         'descriptionForAi cannot be empty — this is what the AI orchestrator '
         'reads to decide when to invoke this Errand.',
       );
     }
     if (queryTemplateSql.trim().isEmpty) {
-      throw Exception('queryTemplateSql cannot be empty.');
+      throw KolaException(message: 'queryTemplateSql cannot be empty.');
     }
     if (connectionString.trim().isEmpty) {
-      throw Exception('connectionString cannot be empty.');
+      throw KolaException(message: 'connectionString cannot be empty.');
     }
     if (!_validCreatedVia.contains(createdVia)) {
-      throw Exception('Invalid createdVia "$createdVia" — must be one of: naturalLanguage, api');
+      throw KolaException(message: 'Invalid createdVia "$createdVia" — must be one of: naturalLanguage, api');
     }
     if (!_validPermissionScopes.contains(permissionScope)) {
-      throw Exception(
-        'Invalid permissionScope "$permissionScope" — must be one of: readOnly, readWrite',
+      throw KolaException(
+        message:         'Invalid permissionScope "$permissionScope" — must be one of: readOnly, readWrite',
       );
     }
     if (permissionScope == 'readOnly' && !queryTemplateSql.trim().toLowerCase().startsWith('select')) {
-      throw Exception(
-        'queryTemplateSql must start with SELECT when permissionScope is readOnly. '
+      throw KolaException(
+        message:         'queryTemplateSql must start with SELECT when permissionScope is readOnly. '
         'Set permissionScope to readWrite if this query is intentional.',
       );
     }
@@ -490,17 +490,17 @@ class ErrandEndpoint extends Endpoint {
 
     final errand = await _errands.findByIdScoped(errandId, workspaceId);
     if (errand == null) {
-      throw Exception('Errand $errandId not found in workspace $workspaceId');
+      throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
     }
     if (errand.status != 'active') {
-      throw Exception('Errand $errandId is disabled — cannot execute.');
+      throw KolaException(message: 'Errand $errandId is disabled — cannot execute.');
     }
 
     Map<String, dynamic> input;
     try {
       input = jsonDecode(inputJson) as Map<String, dynamic>;
     } catch (e) {
-      throw Exception('inputJson is not valid JSON: $e');
+      throw KolaException(message: 'inputJson is not valid JSON: $e');
     }
 
     // Phase 3d (SRS.md §10): security filter runs before ANY Errand
@@ -508,8 +508,8 @@ class ErrandEndpoint extends Endpoint {
     // header.
     final securityCheck = _security.checkErrandInput(input);
     if (!securityCheck.allowed) {
-      throw Exception(
-        'Errand input rejected by security filter (${securityCheck.violationType}): '
+      throw KolaException(
+        message:         'Errand input rejected by security filter (${securityCheck.violationType}): '
         '${securityCheck.warningMessage}',
       );
     }
@@ -534,7 +534,7 @@ class ErrandEndpoint extends Endpoint {
     try {
       jsonDecode(value);
     } catch (e) {
-      throw Exception('$fieldName is not valid JSON: $e');
+      throw KolaException(message: '$fieldName is not valid JSON: $e');
     }
   }
 }

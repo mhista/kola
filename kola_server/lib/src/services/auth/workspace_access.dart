@@ -36,16 +36,14 @@ import 'package:kola_server/src/services/repository/workspace_member_repository.
 
 /// Thrown when a verified, genuine user still doesn't have access to the
 /// specific workspace (or lacks a required role) they're asking about.
-/// Deliberately a different exception type from [InvalidSessionException]
-/// — one means "who even are you", the other means "I know who you are,
-/// but no."
-class WorkspaceAccessDeniedException implements Exception {
-  final String message;
-  const WorkspaceAccessDeniedException(this.message);
-
-  @override
-  String toString() => 'WorkspaceAccessDeniedException: $message';
-}
+// NOTE: this used to be a hand-written `implements Exception` class.
+// Serverpod cannot transmit those — they surface to the dashboard as
+// "Internal server error", which for an expired session is actively
+// misleading: nothing is broken, the owner just needs to sign in again.
+//
+// The semantic distinction the two types carried ("who even are you" vs
+// "I know you, but no") now lives in KolaException.code, which crosses
+// the wire. Nothing branched on the types, so nothing was lost.
 
 const _sessionVerifier = SessionVerifier();
 
@@ -57,8 +55,8 @@ const _sessionVerifier = SessionVerifier();
 /// need to know the caller's role can read it off the return value instead
 /// of querying again.
 ///
-/// Throws [InvalidSessionException] if the token itself doesn't check out,
-/// or [WorkspaceAccessDeniedException] if the token is valid but this user
+/// Throws [KolaException] with code 'session_invalid' if the token itself
+/// doesn't check out, or 'access_denied' if the token is valid but this user
 /// has no access to this workspace (or the wrong role).
 Future<WorkspaceMember> requireWorkspaceAccess({
   required String accessToken,
@@ -74,13 +72,13 @@ Future<WorkspaceMember> requireWorkspaceAccess({
   );
 
   if (membership == null) {
-    throw WorkspaceAccessDeniedException(
+    throw KolaException(code: 'access_denied', message: 
       'User ${session.userId} is not a member of workspace $workspaceId',
     );
   }
 
   if (allowedRoles != null && !allowedRoles.contains(membership.role)) {
-    throw WorkspaceAccessDeniedException(
+    throw KolaException(code: 'access_denied', message: 
       'Role ${membership.role} is not permitted (requires one of: '
       '${allowedRoles.join(", ")})',
     );

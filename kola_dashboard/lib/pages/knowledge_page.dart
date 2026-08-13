@@ -61,6 +61,7 @@ import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/feature_gate.dart';
 import '../services/file_intake.dart';
+import '../services/error_text.dart';
 import '../theme.dart';
 
 /// One file the owner dropped, and what became of it.
@@ -162,7 +163,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _loadError = _human('$e');
+        _loadError = ErrorText.of(e);
         _loading = false;
       });
     }
@@ -234,7 +235,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      final msg = _human('$e');
+      final msg = ErrorText.of(e);
       setState(() {
         _saving = false;
         _addMessage = msg;
@@ -313,7 +314,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
         if (!mounted) return;
         setState(() {
           q.state = 'failed';
-          q.message = _human('$e');
+          q.message = ErrorText.of(e);
         });
       }
     }
@@ -346,18 +347,11 @@ class _KnowledgePageState extends State<KnowledgePage> {
         _hits = const [];
         _probing = false;
         _probed = true;
-        _loadError = _human('$e');
+        _loadError = ErrorText.of(e);
       });
     }
   }
 
-  String _human(String raw) {
-    var s = raw;
-    for (final p in const ['Exception: ', 'ServerpodClientException: ']) {
-      if (s.startsWith(p)) s = s.substring(p.length);
-    }
-    return s;
-  }
 
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',

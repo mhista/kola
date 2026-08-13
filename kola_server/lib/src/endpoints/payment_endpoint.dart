@@ -179,17 +179,17 @@ class PaymentEndpoint extends Endpoint {
 
     final transaction = await _transactions.findByIdScoped(transactionId, workspaceId);
     if (transaction == null) {
-      throw Exception('Payment transaction $transactionId not found in workspace $workspaceId');
+      throw KolaException(message: 'Payment transaction $transactionId not found in workspace $workspaceId');
     }
     if (transaction.status != 'completed') {
-      throw Exception(
-        'Cannot release a hold on a transaction that is not completed '
+      throw KolaException(
+        message:         'Cannot release a hold on a transaction that is not completed '
         '(current status: ${transaction.status}).',
       );
     }
     if (transaction.holdStatus != 'held') {
-      throw Exception(
-        'Transaction ${transaction.id} has no active hold to release '
+      throw KolaException(
+        message:         'Transaction ${transaction.id} has no active hold to release '
         '(current holdStatus: ${transaction.holdStatus}).',
       );
     }
@@ -209,7 +209,7 @@ extension _PaystackProbe on PaystackService {
       headers: {'Authorization': 'Bearer $secretKey'},
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Paystack probe failed (${response.statusCode}): ${response.body}');
+      throw KolaException(message: 'Paystack probe failed (${response.statusCode}): ${response.body}');
     }
   }
 }
@@ -221,7 +221,7 @@ extension _FlutterwaveProbe on FlutterwaveService {
       headers: {'Authorization': 'Bearer $secretKey'},
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Flutterwave probe failed (${response.statusCode}): ${response.body}');
+      throw KolaException(message: 'Flutterwave probe failed (${response.statusCode}): ${response.body}');
     }
   }
 }

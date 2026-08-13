@@ -79,7 +79,7 @@ class ConversationEndpoint extends Endpoint {
 
     final trimmed = body.trim();
     if (trimmed.isEmpty) {
-      throw Exception('Reply body cannot be empty.');
+      throw KolaException(message: 'Reply body cannot be empty.');
     }
 
     final adapter = conversation.platformType == 'telegram'
@@ -87,15 +87,15 @@ class ConversationEndpoint extends Endpoint {
         : WhatsAppBotRegistry.instance.messagingFor(conversation.channelId);
 
     if (adapter == null) {
-      throw Exception(
-        'Channel ${conversation.channelId} (${conversation.platformType}) is not '
+      throw KolaException(
+        message:         'Channel ${conversation.channelId} (${conversation.platformType}) is not '
         'currently connected — cannot send this reply.',
       );
     }
 
     final result = await adapter.sendText(recipient: conversation.externalUserId, text: trimmed);
     if (!result.success) {
-      throw Exception('Failed to send reply: ${result.errorMessage ?? "unknown error"}');
+      throw KolaException(message: 'Failed to send reply: ${result.errorMessage ?? "unknown error"}');
     }
 
     final message = await _messages.create(
@@ -141,7 +141,7 @@ class ConversationEndpoint extends Endpoint {
   Future<Conversation> _requireConversationInWorkspace(int conversationId, int workspaceId) async {
     final conversation = await _conversations.findByIdScoped(conversationId, workspaceId);
     if (conversation == null) {
-      throw Exception('Conversation $conversationId not found in workspace $workspaceId');
+      throw KolaException(message: 'Conversation $conversationId not found in workspace $workspaceId');
     }
     return conversation;
   }

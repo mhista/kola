@@ -1,0 +1,58 @@
+##
+## kola_exception.spy.yaml — the ONLY error the dashboard can actually
+## read.
+##
+## ── THE PROBLEM THIS EXISTS TO FIX ──────────────────────────────────
+##
+## Serverpod transmits an exception to the client ONLY if it is declared
+## here with `exception:`. Anything else — `throw Exception('...')`, or a
+## hand-written class implementing Exception like FeatureDisabledException
+## — is caught by the framework, logged server-side, and returned to the
+## caller as a generic "Internal server error".
+##
+## The codebase had 128 throw sites and zero serializable exceptions. So
+## every carefully-worded owner-facing message was written, logged, and
+## then thrown away at the boundary:
+##
+##   server log : "This workspace is on the free plan, which allows up to
+##                 1 bot. Upgrade to create another."
+##   owner sees : "Internal server error"
+##
+## That is worse than an unhelpful message. It tells the owner something
+## is BROKEN when in fact the product is working correctly and refusing
+## on purpose — a plan limit, an unconfigured key, a connector routed
+## through a different flow. They retry, it fails identically, and they
+## conclude the software is unreliable.
+##
+## ── WHEN TO USE THIS, AND WHEN NOT TO ───────────────────────────────
+##
+## Throw KolaException when the OWNER can do something about it, and
+## write [message] in their language:
+##
+##   - plan and quota limits
+##   - missing or rejected credentials
+##   - "this is set up somewhere else"
+##   - validation of something they typed
+##
+## Keep a bare `throw Exception(...)` for invariant violations the owner
+## can do nothing with — a null id that should never be null, a row that
+## must exist. Those SHOULD surface as a 500, because they are bugs, and
+## dressing them up as owner-facing text hides them.
+##
+## The test: would a shop owner reading this sentence know what to do
+## next? If no, it is not a KolaException.
+##
+
+exception: KolaException
+fields:
+  ## Owner-facing, plain language, no jargon and no stack detail. This
+  ## string is rendered directly in the UI.
+  message: String
+
+  ## Optional machine-readable tag for cases the UI must branch on
+  ## rather than merely display — e.g. 'plan_limit' to show an upgrade
+  ## link, 'duplicate' to offer "save it anyway".
+  ##
+  ## Deliberately optional: most errors only need to be read, and
+  ## requiring a code would invite inventing one per throw site.
+  code: String?

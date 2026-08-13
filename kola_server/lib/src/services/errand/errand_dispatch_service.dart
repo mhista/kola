@@ -53,7 +53,8 @@ class ErrandDispatchService {
       'builtin' => await _builtin.execute(errand: errand, input: input),
       'webhook' => await _webhook.execute(errand: errand, input: input),
       'dbCredential' => await _dbCredential.execute(errand: errand, input: input),
-      _ => throw Exception('Errand source "${errand.source}" is not yet supported for execution.'),
+      _ => throw KolaException(
+            message: 'This errand is set up in a way kola cannot run yet.'),
     };
   }
 }

@@ -71,14 +71,14 @@ class WhatsAppTemplateEndpoint extends Endpoint {
   ) async {
     final channel = await _channels.findById(channelId);
     if (channel == null || channel.platformType != 'whatsapp') {
-      throw Exception('Channel $channelId is not a WhatsApp channel.');
+      throw KolaException(message: 'Channel $channelId is not a WhatsApp channel.');
     }
     final bot = await _bots.findByIdScoped(channel.botId, workspaceId);
     if (bot == null) {
-      throw Exception('Channel $channelId does not belong to workspace $workspaceId.');
+      throw KolaException(message: 'Channel $channelId does not belong to workspace $workspaceId.');
     }
     if (channel.status != 'connected' || channel.encryptedCredential == null) {
-      throw Exception('This WhatsApp channel is not connected yet.');
+      throw KolaException(message: 'This WhatsApp channel is not connected yet.');
     }
     return WhatsAppCredential.decode(
       ChannelCredentialEncryptionService.decrypt(channel.encryptedCredential!),
@@ -127,7 +127,7 @@ class WhatsAppTemplateEndpoint extends Endpoint {
       );
       return saved;
     } on InvalidWhatsAppChannelException catch (e) {
-      throw Exception(e.message);
+      throw KolaException(message: e.message);
     }
   }
 
@@ -163,7 +163,7 @@ class WhatsAppTemplateEndpoint extends Endpoint {
         productListExample: productListExample,
       );
     } on InvalidWhatsAppChannelException catch (e) {
-      throw Exception(e.message);
+      throw KolaException(message: e.message);
     }
   }
 
@@ -191,10 +191,10 @@ class WhatsAppTemplateEndpoint extends Endpoint {
 
     final existing = await _templates.findByIdScoped(templateId, workspaceId);
     if (existing == null) {
-      throw Exception('Template $templateId not found in workspace $workspaceId');
+      throw KolaException(message: 'Template $templateId not found in workspace $workspaceId');
     }
     if (existing.metaTemplateId == null) {
-      throw Exception('This template was never successfully submitted to Meta.');
+      throw KolaException(message: 'This template was never successfully submitted to Meta.');
     }
 
     final credential = await _requireConnectedWhatsAppChannel(

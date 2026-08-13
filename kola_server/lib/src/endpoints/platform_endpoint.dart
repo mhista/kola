@@ -132,14 +132,14 @@ class PlatformEndpoint extends Endpoint {
     // posting it over plaintext http would leak it to every hop in
     // between — worth refusing rather than warning about.
     if (!trimmed.startsWith('https://')) {
-      throw Exception('Webhook URLs must start with https://');
+      throw KolaException(message: 'Webhook URLs must start with https://');
     }
     final unknown = events.where((e) => !eventTypes.contains(e)).toList();
     if (unknown.isNotEmpty) {
-      throw Exception('Unknown event: ${unknown.first}');
+      throw KolaException(message: 'Unknown event: ${unknown.first}');
     }
     if (events.isEmpty) {
-      throw Exception('Choose at least one event to send.');
+      throw KolaException(message: 'Choose at least one event to send.');
     }
 
     final secret = ApiKeyService.hashOf(
@@ -178,11 +178,11 @@ class PlatformEndpoint extends Endpoint {
 
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace == null) {
-      throw Exception('Workspace $workspaceId not found.');
+      throw KolaException(message: 'Workspace $workspaceId not found.');
     }
     if (!await _features.isEnabled(FeatureKeys.publicApi, workspace)) {
-      throw Exception(
-        'The kola API is not available on this workspace yet.',
+      throw KolaException(
+        message:         'The kola API is not available on this workspace yet.',
       );
     }
   }

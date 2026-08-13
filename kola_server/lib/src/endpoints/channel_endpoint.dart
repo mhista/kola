@@ -61,7 +61,7 @@ class ChannelEndpoint extends Endpoint {
 
     final bot = await _bots.findByIdScoped(botId, workspaceId);
     if (bot == null) {
-      throw Exception('Bot $botId not found in workspace $workspaceId');
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
     }
 
     final trimmedToken = botToken.trim();
@@ -141,7 +141,7 @@ class ChannelEndpoint extends Endpoint {
 
     final bot = await _bots.findByIdScoped(botId, workspaceId);
     if (bot == null) {
-      throw Exception('Bot $botId not found in workspace $workspaceId');
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
     }
 
     return _channels.listByBot(botId);
@@ -200,7 +200,7 @@ class ChannelEndpoint extends Endpoint {
 
     final bot = await _bots.findByIdScoped(botId, workspaceId);
     if (bot == null) {
-      throw Exception('Bot $botId not found in workspace $workspaceId');
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
     }
 
     final trimmedToken = whatsappAccessToken.trim();

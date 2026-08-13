@@ -214,7 +214,8 @@ class ManualPaymentService {
 
     final existing = await _transactions.findByIdScoped(transactionId, workspaceId);
     if (existing == null) {
-      throw Exception('Transaction $transactionId not found in this workspace.');
+      throw KolaException(
+        message: 'That payment could not be found in this workspace.');
     }
     if (existing.gateway != 'bank_transfer') {
       // A gateway transaction must never be human-marked — that would

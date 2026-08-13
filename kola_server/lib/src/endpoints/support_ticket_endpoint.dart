@@ -52,7 +52,7 @@ class SupportTicketEndpoint extends Endpoint {
 
     const validStatuses = {'open', 'inProgress', 'resolved', 'closed'};
     if (!validStatuses.contains(status)) {
-      throw Exception('Unknown status "$status" — must be one of: ${validStatuses.join(", ")}');
+      throw KolaException(message: 'Unknown status "$status" — must be one of: ${validStatuses.join(", ")}');
     }
 
     final updated = await _tickets.setStatus(ticketId, status);
@@ -69,7 +69,7 @@ class SupportTicketEndpoint extends Endpoint {
   Future<SupportTicket> _requireTicketInWorkspace(int ticketId, int workspaceId) async {
     final ticket = await _tickets.findByIdScoped(ticketId, workspaceId);
     if (ticket == null) {
-      throw Exception('SupportTicket $ticketId not found in workspace $workspaceId');
+      throw KolaException(message: 'SupportTicket $ticketId not found in workspace $workspaceId');
     }
     return ticket;
   }

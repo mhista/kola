@@ -79,7 +79,10 @@ class KolaBillingService {
 
     if (gateway == 'paystack') {
       if (Env.paystackSecretKey.isEmpty) {
-        throw Exception('Paystack is not configured on this server yet.');
+        throw KolaException(
+          code: 'gateway_unconfigured',
+          message: 'Paystack is not set up on kola yet, so this cannot be '
+              'charged. Nothing was taken from your account.');
       }
       final result = await PaystackService(secretKey: Env.paystackSecretKey).initializeTransaction(
         email: customerEmail,
@@ -90,7 +93,10 @@ class KolaBillingService {
       checkoutUrl = (result['data'] as Map<String, dynamic>?)?['authorization_url'] as String?;
     } else if (gateway == 'stripe') {
       if (Env.stripeSecretKey.isEmpty) {
-        throw Exception('Stripe is not configured on this server yet.');
+        throw KolaException(
+          code: 'gateway_unconfigured',
+          message: 'Stripe is not set up on kola yet, so this cannot be '
+              'charged. Nothing was taken from your account.');
       }
       final result = await StripeService(secretKey: Env.stripeSecretKey).createCheckoutSession(
         currency: price.currency,
@@ -107,7 +113,10 @@ class KolaBillingService {
       checkoutUrl = result['url'] as String?;
     } else {
       if (Env.flutterwaveSecretKey.isEmpty) {
-        throw Exception('Flutterwave is not configured on this server yet.');
+        throw KolaException(
+          code: 'gateway_unconfigured',
+          message: 'Flutterwave is not set up on kola yet, so this cannot be '
+              'charged. Nothing was taken from your account.');
       }
       // Major-unit decimal string — see payment_checkout_service.dart on
       // why this path refuses zero-decimal currencies rather than

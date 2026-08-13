@@ -70,6 +70,7 @@ class WorkspaceRepository {
   Future<Workspace> create({
     required String name,
     String? industryTag,
+    String? ownerName,
     DateTime? now,
   }) async {
     final createdAt = now ?? DateTime.now().toUtc();
@@ -78,6 +79,7 @@ class WorkspaceRepository {
     final workspace = Workspace(
       name: name,
       industryTag: industryTag,
+      ownerName: ownerName,
       plan: 'free',
       status: 'trialing',
       trialStartedAt: createdAt,

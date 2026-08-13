@@ -65,6 +65,7 @@
 //   checks WorkspaceMemberRepository.
 
 import 'dart:convert';
+import 'package:kola_server/src/generated/protocol.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
 import 'package:kola_server/src/config/env.dart';
@@ -74,13 +75,14 @@ import 'jwk_to_pem.dart';
 /// Thrown when an access token fails verification (bad signature, expired,
 /// malformed, or missing the claims we need). Endpoints should catch this
 /// and translate it into whatever "unauthorized" response shape they use.
-class InvalidSessionException implements Exception {
-  final String message;
-  const InvalidSessionException(this.message);
-
-  @override
-  String toString() => 'InvalidSessionException: $message';
-}
+// NOTE: this used to be a hand-written `implements Exception` class.
+// Serverpod cannot transmit those — they surface to the dashboard as
+// "Internal server error", which for an expired session is actively
+// misleading: nothing is broken, the owner just needs to sign in again.
+//
+// The semantic distinction the two types carried ("who even are you" vs
+// "I know you, but no") now lives in KolaException.code, which crosses
+// the wire. Nothing branched on the types, so nothing was lost.
 
 /// The identity claims we trust once a token has been verified.
 class VerifiedSession {
@@ -171,11 +173,12 @@ class SessionVerifier {
 
   /// Verifies [accessToken] and returns the caller's identity.
   ///
-  /// Throws [InvalidSessionException] if the token is missing, malformed,
+  /// Throws [KolaException] with code 'session_invalid' if the token is
+  /// missing, malformed,
   /// expired, or signed with a key/secret this server doesn't trust.
   Future<VerifiedSession> verify(String accessToken) async {
     if (accessToken.isEmpty) {
-      throw const InvalidSessionException('No access token provided');
+      throw KolaException(code: 'session_invalid', message: 'No access token provided');
     }
 
     final header = _decodeHeaderUnverified(accessToken);
@@ -197,7 +200,7 @@ class SessionVerifier {
     key ??= Env.supabaseJwtSecret.isNotEmpty ? SecretKey(Env.supabaseJwtSecret) : null;
 
     if (key == null) {
-      throw const InvalidSessionException(
+      throw KolaException(code: 'session_invalid', message: 
         'No verification key available — SUPABASE_JWT_SECRET is not configured '
         'and no matching JWKS key was found for this token',
       );
@@ -209,7 +212,7 @@ class SessionVerifier {
 
       final userId = payload['sub'] as String?;
       if (userId == null || userId.isEmpty) {
-        throw const InvalidSessionException('Token missing sub claim');
+        throw KolaException(code: 'session_invalid', message: 'Token missing sub claim');
       }
 
       return VerifiedSession(
@@ -217,10 +220,10 @@ class SessionVerifier {
         email: payload['email'] as String?,
       );
     } on JWTExpiredException {
-      throw const InvalidSessionException('Session expired');
+      throw KolaException(code: 'session_invalid', message: 'Session expired');
     } on JWTException catch (e) {
       Log.warning('Session verification failed: ${e.message}');
-      throw InvalidSessionException('Invalid session: ${e.message}');
+      throw KolaException(code: 'session_invalid', message: 'Invalid session: ${e.message}');
     }
   }
 

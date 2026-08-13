@@ -22,6 +22,10 @@
 // customer inspecting network traffic should not be able to read it.
 
 import 'package:serverpod/serverpod.dart';
+// Re-added: KolaException is a generated model, so this import is
+// load-bearing again. It was removed as unused when every throw here
+// was a bare Exception.
+import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/auth/workspace_access.dart';
 import 'package:kola_server/src/services/features/feature_flag_service.dart';
@@ -49,7 +53,7 @@ class FeatureEndpoint extends Endpoint {
 
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace == null) {
-      throw Exception('Workspace $workspaceId not found.');
+      throw KolaException(message: 'Workspace $workspaceId not found.');
     }
 
     final enabled = await _features.enabledFeatures(workspace);

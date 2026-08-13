@@ -51,8 +51,8 @@ class BotEndpoint extends Endpoint {
 
     final existingCount = (await _bots.listByWorkspace(workspaceId)).length;
     if (existingCount >= PlanLimits.cappedFreeBotCap) {
-      throw Exception(
-        'This workspace is on the free plan, which allows up to '
+      throw KolaException(
+        message:         'This workspace is on the free plan, which allows up to '
         '${PlanLimits.cappedFreeBotCap} bot${PlanLimits.cappedFreeBotCap == 1 ? "" : "s"}. '
         'Upgrade to create another.',
       );
@@ -81,11 +81,11 @@ class BotEndpoint extends Endpoint {
 
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
-      throw Exception('Bot name cannot be empty.');
+      throw KolaException(message: 'Bot name cannot be empty.');
     }
     if (!_validArchetypes.contains(archetype)) {
-      throw Exception(
-        'Invalid archetype "$archetype" — must be one of: '
+      throw KolaException(
+        message:         'Invalid archetype "$archetype" — must be one of: '
         '${_validArchetypes.join(", ")}',
       );
     }
@@ -143,18 +143,18 @@ class BotEndpoint extends Endpoint {
 
     final trimmedDescription = description.trim();
     if (trimmedDescription.isEmpty) {
-      throw Exception('Describe what you want this bot to do.');
+      throw KolaException(message: 'Describe what you want this bot to do.');
     }
 
     final draft = await _botMother.draftFromDescription(trimmedDescription);
 
     final trimmedName = draft.name.trim();
     if (trimmedName.isEmpty) {
-      throw Exception('Bot name cannot be empty.');
+      throw KolaException(message: 'Bot name cannot be empty.');
     }
     if (!_validArchetypes.contains(draft.archetype)) {
-      throw Exception(
-        'Invalid archetype "${draft.archetype}" — must be one of: '
+      throw KolaException(
+        message:         'Invalid archetype "${draft.archetype}" — must be one of: '
         '${_validArchetypes.join(", ")}',
       );
     }
@@ -228,7 +228,7 @@ class BotEndpoint extends Endpoint {
 
     final bot = await _bots.findByIdScoped(botId, workspaceId);
     if (bot == null) {
-      throw Exception('Bot $botId not found in workspace $workspaceId');
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
     }
     return bot;
   }
@@ -254,16 +254,16 @@ class BotEndpoint extends Endpoint {
 
     final existing = await _bots.findByIdScoped(botId, workspaceId);
     if (existing == null) {
-      throw Exception('Bot $botId not found in workspace $workspaceId');
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
     }
 
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
-      throw Exception('Bot name cannot be empty.');
+      throw KolaException(message: 'Bot name cannot be empty.');
     }
     if (!_validArchetypes.contains(archetype)) {
-      throw Exception(
-        'Invalid archetype "$archetype" — must be one of: '
+      throw KolaException(
+        message:         'Invalid archetype "$archetype" — must be one of: '
         '${_validArchetypes.join(", ")}',
       );
     }
@@ -318,7 +318,7 @@ class BotEndpoint extends Endpoint {
 
     final existing = await _bots.findByIdScoped(botId, workspaceId);
     if (existing == null) {
-      throw Exception('Bot $botId not found in workspace $workspaceId');
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
     }
 
     final trimmed = knowledgeSeed.trim();
@@ -328,8 +328,8 @@ class BotEndpoint extends Endpoint {
       final tier = _trialStateMachine.effectiveTier(workspace);
       if ((tier == EffectiveTier.cappedFree || tier == EffectiveTier.paused) &&
           trimmed.length > PlanLimits.cappedFreeKnowledgeSeedCharCap) {
-        throw Exception(
-          'This workspace is on the free plan, which allows up to '
+        throw KolaException(
+        message:           'This workspace is on the free plan, which allows up to '
           '${PlanLimits.cappedFreeKnowledgeSeedCharCap} characters of knowledge per bot. '
           'Shorten this or upgrade to add more.',
         );
@@ -381,7 +381,7 @@ class BotEndpoint extends Endpoint {
 
     final existing = await _bots.findByIdScoped(botId, workspaceId);
     if (existing == null) {
-      throw Exception('Bot $botId not found in workspace $workspaceId');
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
     }
 
     final trimmedTelegram = telegramLink.trim();

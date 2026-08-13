@@ -35,6 +35,14 @@ fields:
   # Nullable because a business can skip this during signup.
   industryTag: String?
 
+  ## The name kola greets the owner with and signs messages as, captured
+  ## in the create-workspace wizard (migration 027).
+  ##
+  ## NOT a login identity — that is Supabase auth — and not a per-member
+  ## display name. If team members ever get their own names those belong
+  ## on workspace_members; this stays as the business's owner-of-record.
+  ownerName: String?
+
   # Billing plan. Values: 'free' | 'pro' | 'business' (PRD.md §10).
   plan: String
 

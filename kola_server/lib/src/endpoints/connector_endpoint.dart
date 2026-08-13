@@ -85,7 +85,7 @@ class ConnectorEndpoint extends Endpoint {
     final workspace = await _requireWorkspace(workspaceId);
     final def = ConnectorCatalog.byKey(connectorKey);
     if (def == null) {
-      throw Exception('Unknown connector "$connectorKey".');
+      throw KolaException(message: 'Unknown connector "$connectorKey".');
     }
 
     // GATE ON THE FLAG. Without this, a caller who knows a connector key
@@ -99,22 +99,22 @@ class ConnectorEndpoint extends Endpoint {
     // being locked does not actually stop a gateway being connected.
     // Recorded in DESIGN_DELTA.md — fix it there too.
     if (!await _features.isEnabled(def.featureKey, workspace)) {
-      throw Exception(
-        '${def.name} is not available on this workspace yet.',
+      throw KolaException(
+        message:         '${def.name} is not available on this workspace yet.',
       );
     }
 
     if (def.store != ConnectorStore.generic) {
-      throw Exception(
-        '${def.name} is connected through its own flow, not here. '
+      throw KolaException(
+        message:         '${def.name} is connected through its own flow, not here. '
         'See connector_endpoint.dart\'s header on why this does not '
         'duplicate ChannelEndpoint or PaymentEndpoint.',
       );
     }
 
     if (def.auth != ConnectorAuth.fields) {
-      throw Exception(
-        '${def.name} uses ${_authLabel(def.auth)} and cannot be connected '
+      throw KolaException(
+        message:         '${def.name} uses ${_authLabel(def.auth)} and cannot be connected '
         'by submitting fields.',
       );
     }
@@ -124,7 +124,7 @@ class ConnectorEndpoint extends Endpoint {
     for (final field in def.fields) {
       final value = values[field.key]?.trim();
       if (value == null || value.isEmpty) {
-        throw Exception('${field.label} is required.');
+        throw KolaException(message: '${field.label} is required.');
       }
       accepted[field.key] = value;
     }
@@ -183,11 +183,11 @@ class ConnectorEndpoint extends Endpoint {
     final workspace = await _requireWorkspace(workspaceId);
     final def = ConnectorCatalog.byKey(connectorKey);
     if (def == null) {
-      throw Exception('Unknown connector "$connectorKey".');
+      throw KolaException(message: 'Unknown connector "$connectorKey".');
     }
     if (def.store != ConnectorStore.generic) {
-      throw Exception(
-        '${def.name} is disconnected through its own flow, not here.',
+      throw KolaException(
+        message:         '${def.name} is disconnected through its own flow, not here.',
       );
     }
 
@@ -201,7 +201,7 @@ class ConnectorEndpoint extends Endpoint {
   Future<Workspace> _requireWorkspace(int workspaceId) async {
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace == null) {
-      throw Exception('Workspace $workspaceId not found.');
+      throw KolaException(message: 'Workspace $workspaceId not found.');
     }
     return workspace;
   }

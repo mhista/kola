@@ -82,14 +82,14 @@ class KnowledgeEndpoint extends Endpoint {
     );
 
     if (text.trim().isEmpty) {
-      throw Exception('There\'s no text to save.');
+      throw KolaException(message: 'There\'s no text to save.');
     }
 
     // Sanity bound before anything expensive happens — see
     // PlanLimits.maxDocumentCharacters on why this isn't a plan limit.
     if (text.length > PlanLimits.maxDocumentCharacters) {
-      throw Exception(
-        'That document is too large (${text.length} characters). The limit '
+      throw KolaException(
+        message:         'That document is too large (${text.length} characters). The limit '
         'is ${PlanLimits.maxDocumentCharacters}. Split it into a few '
         'smaller documents — that also makes the bot\'s answers more '
         'accurate, since it can point at the right one.',
@@ -104,8 +104,8 @@ class KnowledgeEndpoint extends Endpoint {
       if (tier == EffectiveTier.cappedFree || tier == EffectiveTier.paused) {
         final existing = await _documents.countByWorkspace(workspaceId);
         if (existing >= PlanLimits.cappedFreeKnowledgeDocumentCap) {
-          throw Exception(
-            'This workspace is on the free plan, which stores up to '
+          throw KolaException(
+        message:             'This workspace is on the free plan, which stores up to '
             '${PlanLimits.cappedFreeKnowledgeDocumentCap} knowledge documents. '
             'Delete one, or upgrade to add more.',
           );
@@ -130,7 +130,7 @@ class KnowledgeEndpoint extends Endpoint {
       return result.document!;
     }
 
-    throw Exception(result.message ?? 'Could not save that document.');
+    throw KolaException(message: result.message ?? 'Could not save that document.');
   }
 
   /// Removes a document from memory. Its chunks go with it via ON DELETE
@@ -149,7 +149,7 @@ class KnowledgeEndpoint extends Endpoint {
 
     final existing = await _documents.findByIdScoped(documentId, workspaceId);
     if (existing == null) {
-      throw Exception('That document doesn\'t exist in this workspace.');
+      throw KolaException(message: 'That document doesn\'t exist in this workspace.');
     }
 
     await _documents.deleteScoped(documentId, workspaceId);
@@ -175,8 +175,8 @@ class KnowledgeEndpoint extends Endpoint {
     );
 
     if (text.length > PlanLimits.maxDocumentCharacters) {
-      throw Exception(
-        'That document is too large. The limit is '
+      throw KolaException(
+        message:         'That document is too large. The limit is '
         '${PlanLimits.maxDocumentCharacters} characters.',
       );
     }
@@ -189,7 +189,7 @@ class KnowledgeEndpoint extends Endpoint {
     );
 
     if (result.isSuccess) return result.document!;
-    throw Exception(result.message ?? 'Could not update that document.');
+    throw KolaException(message: result.message ?? 'Could not update that document.');
   }
 
   /// Runs a real memory search and returns what the bot WOULD retrieve

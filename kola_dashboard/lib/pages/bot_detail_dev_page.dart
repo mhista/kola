@@ -47,6 +47,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../services/error_text.dart';
 import '../theme.dart';
 
 class BotDetailDevPage extends StatefulComponent {
@@ -122,19 +123,12 @@ class _BotDetailDevPageState extends State<BotDetailDevPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _loadError = _human('$e');
+        _loadError = ErrorText.of(e);
         _loading = false;
       });
     }
   }
 
-  String _human(String raw) {
-    var s = raw;
-    for (final p in const ['Exception: ', 'ServerpodClientException: ']) {
-      if (s.startsWith(p)) s = s.substring(p.length);
-    }
-    return s;
-  }
 
   /// Conversations for this bot whose last message landed inside 7 days.
   int get _convosThisWeek {

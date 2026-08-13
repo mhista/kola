@@ -20,6 +20,7 @@ import 'package:kola_server/src/services/auth/session_verifier.dart';
 import 'package:kola_server/src/services/auth/workspace_access.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_member_repository.dart';
+import 'package:kola_server/src/services/repository/owner_notification_settings_repository.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/usage_record_repository.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
@@ -35,6 +36,12 @@ class WorkspaceEndpoint extends Endpoint {
 
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
   WorkspaceMemberRepository get _members => getIt<WorkspaceMemberRepository>();
+
+  /// Seeded at creation from the wizard's phone field — see
+  /// createWorkspace on why the number lives here and not on the
+  /// workspace row.
+  OwnerNotificationSettingsRepository get _notificationSettings =>
+      getIt<OwnerNotificationSettingsRepository>();
   ErrandRepository get _errands => getIt<ErrandRepository>();
   UsageRecordRepository get _usageRecords => getIt<UsageRecordRepository>();
   KolaBillingService get _billing => getIt<KolaBillingService>();
@@ -46,17 +53,43 @@ class WorkspaceEndpoint extends Endpoint {
   /// Deliberately does NOT go through requireWorkspaceAccess — there's no
   /// workspace to check membership against yet. Only session verification
   /// (proving accessToken is a genuine, current Supabase session) applies.
+  ///
+  /// [ownerName] and [ownerPhone] come from step 2 of
+  /// Kola Create Workspace.dc.html. They were previously not accepted at
+  /// all — the wizard asked for both and the server discarded them, which
+  /// is worse than not asking.
+  ///
+  /// Both are optional so the endpoint stays callable from anywhere that
+  /// only has a business name, and so an owner who skips step 2 still
+  /// gets a workspace.
+  /// [industryTag] STAYS POSITIONAL. It was tempting to move it into the
+  /// named group with the two new fields, and doing so broke
+  /// kymaa_dashboard — the frozen competition entry, which is a pub
+  /// workspace member resolving this same generated client and calls
+  /// this with three positional arguments.
+  ///
+  /// A frozen package is frozen: it does not get edited to accommodate a
+  /// signature change that had no reason to be breaking. Adding the new
+  /// fields as NAMED and optional keeps every existing call valid.
   Future<Workspace> createWorkspace(
     Session session,
     String accessToken,
     String name,
-    String? industryTag,
-  ) async {
+    String? industryTag, {
+    String? ownerName,
+    String? ownerPhone,
+  }) async {
     final verified = await _sessionVerifier.verify(accessToken);
 
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw KolaException(message: 'Give your business a name to continue.');
+    }
+
     final workspace = await _workspaces.create(
-      name: name,
+      name: trimmedName,
       industryTag: industryTag,
+      ownerName: ownerName?.trim().isEmpty ?? true ? null : ownerName!.trim(),
     );
 
     await _members.addMember(
@@ -64,6 +97,44 @@ class WorkspaceEndpoint extends Endpoint {
       userId: verified.userId,
       role: 'owner',
     );
+
+    // THE PHONE NUMBER DOES SOMETHING, IMMEDIATELY.
+    //
+    // Seeded straight into owner_notification_settings rather than stored
+    // on the workspace, so escalation alerts reach the owner from the
+    // moment the workspace exists — instead of after a settings visit
+    // they do not know to make.
+    //
+    // It is also why there is no workspaces.owner_phone column: a second
+    // copy of this fact would drift the first time the owner changed
+    // their number here, leaving kola messaging a stale one.
+    //
+    // whatsappEnabled follows the number: a phone captured in the wizard
+    // is consent to be messaged on it — that is what the field is asking
+    // for — but an EMPTY number must not enable a channel with nowhere to
+    // send.
+    final phone = ownerPhone?.trim();
+    if (phone != null && phone.isNotEmpty) {
+      // Never fails the creation. A workspace that exists without
+      // notification settings is recoverable; a wizard that dies on the
+      // last step and leaves the owner unsure whether their business was
+      // created is not.
+      try {
+        await _notificationSettings.upsert(
+          workspaceId: workspace.id!,
+          ownerWhatsappNumber: phone,
+          whatsappEnabled: true,
+          ownerEmail: verified.email,
+          emailEnabled: verified.email != null,
+        );
+      } catch (e) {
+        Log.warning(
+          'Workspace created but notification settings could not be seeded',
+          data: {'workspaceId': workspace.id, 'error': '$e'},
+          session: session,
+        );
+      }
+    }
 
     Log.success(
       'Workspace created',
@@ -110,7 +181,7 @@ class WorkspaceEndpoint extends Endpoint {
 
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace == null) {
-      throw Exception('Workspace $workspaceId not found');
+      throw KolaException(message: 'Workspace $workspaceId not found');
     }
     return workspace;
   }
@@ -149,7 +220,7 @@ class WorkspaceEndpoint extends Endpoint {
 
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace == null) {
-      throw Exception('Workspace $workspaceId not found');
+      throw KolaException(message: 'Workspace $workspaceId not found');
     }
 
     final tier = _trialStateMachine.effectiveTier(workspace);
@@ -235,7 +306,7 @@ class WorkspaceEndpoint extends Endpoint {
 
     final trimmedEmail = customerEmail.trim();
     if (trimmedEmail.isEmpty) {
-      throw Exception('An email address is required to start checkout.');
+      throw KolaException(message: 'An email address is required to start checkout.');
     }
 
     // The workspace's own region decides the price, currency and
@@ -244,7 +315,7 @@ class WorkspaceEndpoint extends Endpoint {
     // See plan_pricing.dart.
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace == null) {
-      throw Exception('Workspace $workspaceId not found.');
+      throw KolaException(message: 'Workspace $workspaceId not found.');
     }
 
     final checkout = await _billing.initiateUpgrade(

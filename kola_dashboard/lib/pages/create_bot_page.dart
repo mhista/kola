@@ -36,6 +36,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../services/error_text.dart';
 import '../theme.dart';
 
 class CreateBotPage extends StatefulComponent {
@@ -82,12 +83,8 @@ class _CreateBotPageState extends State<CreateBotPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      var msg = '$e';
-      for (final p in const ['Exception: ', 'ServerpodClientException: ']) {
-        if (msg.startsWith(p)) msg = msg.substring(p.length);
-      }
       setState(() {
-        _error = msg;
+        _error = ErrorText.of(e);
         _creating = false;
       });
     }

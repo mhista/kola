@@ -32,7 +32,7 @@ class WaitlistEndpoint extends Endpoint {
     final trimmedEmail = email.trim();
     final emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!emailPattern.hasMatch(trimmedEmail)) {
-      throw Exception('Invalid email address');
+      throw KolaException(message: 'Invalid email address');
     }
 
     final signup = await _waitlist.upsertByEmail(

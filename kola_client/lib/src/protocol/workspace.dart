@@ -17,6 +17,7 @@ abstract class Workspace implements _i1.SerializableModel {
     this.id,
     required this.name,
     this.industryTag,
+    this.ownerName,
     required this.plan,
     required this.status,
     required this.trialStartedAt,
@@ -32,6 +33,7 @@ abstract class Workspace implements _i1.SerializableModel {
     int? id,
     required String name,
     String? industryTag,
+    String? ownerName,
     required String plan,
     required String status,
     required DateTime trialStartedAt,
@@ -48,6 +50,7 @@ abstract class Workspace implements _i1.SerializableModel {
       id: jsonSerialization['id'] as int?,
       name: jsonSerialization['name'] as String,
       industryTag: jsonSerialization['industryTag'] as String?,
+      ownerName: jsonSerialization['ownerName'] as String?,
       plan: jsonSerialization['plan'] as String,
       status: jsonSerialization['status'] as String,
       trialStartedAt: _i1.DateTimeJsonExtension.fromJson(
@@ -78,6 +81,8 @@ abstract class Workspace implements _i1.SerializableModel {
 
   String? industryTag;
 
+  String? ownerName;
+
   String plan;
 
   String status;
@@ -103,6 +108,7 @@ abstract class Workspace implements _i1.SerializableModel {
     int? id,
     String? name,
     String? industryTag,
+    String? ownerName,
     String? plan,
     String? status,
     DateTime? trialStartedAt,
@@ -120,6 +126,7 @@ abstract class Workspace implements _i1.SerializableModel {
       if (id != null) 'id': id,
       'name': name,
       if (industryTag != null) 'industryTag': industryTag,
+      if (ownerName != null) 'ownerName': ownerName,
       'plan': plan,
       'status': status,
       'trialStartedAt': trialStartedAt.toJson(),
@@ -145,6 +152,7 @@ class _WorkspaceImpl extends Workspace {
     int? id,
     required String name,
     String? industryTag,
+    String? ownerName,
     required String plan,
     required String status,
     required DateTime trialStartedAt,
@@ -158,6 +166,7 @@ class _WorkspaceImpl extends Workspace {
          id: id,
          name: name,
          industryTag: industryTag,
+         ownerName: ownerName,
          plan: plan,
          status: status,
          trialStartedAt: trialStartedAt,
@@ -177,6 +186,7 @@ class _WorkspaceImpl extends Workspace {
     Object? id = _Undefined,
     String? name,
     Object? industryTag = _Undefined,
+    Object? ownerName = _Undefined,
     String? plan,
     String? status,
     DateTime? trialStartedAt,
@@ -191,6 +201,7 @@ class _WorkspaceImpl extends Workspace {
       id: id is int? ? id : this.id,
       name: name ?? this.name,
       industryTag: industryTag is String? ? industryTag : this.industryTag,
+      ownerName: ownerName is String? ? ownerName : this.ownerName,
       plan: plan ?? this.plan,
       status: status ?? this.status,
       trialStartedAt: trialStartedAt ?? this.trialStartedAt,

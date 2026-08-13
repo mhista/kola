@@ -1332,17 +1332,39 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// Deliberately does NOT go through requireWorkspaceAccess — there's no
   /// workspace to check membership against yet. Only session verification
   /// (proving accessToken is a genuine, current Supabase session) applies.
+  ///
+  /// [ownerName] and [ownerPhone] come from step 2 of
+  /// Kola Create Workspace.dc.html. They were previously not accepted at
+  /// all — the wizard asked for both and the server discarded them, which
+  /// is worse than not asking.
+  ///
+  /// Both are optional so the endpoint stays callable from anywhere that
+  /// only has a business name, and so an owner who skips step 2 still
+  /// gets a workspace.
+  /// [industryTag] STAYS POSITIONAL. It was tempting to move it into the
+  /// named group with the two new fields, and doing so broke
+  /// kymaa_dashboard — the frozen competition entry, which is a pub
+  /// workspace member resolving this same generated client and calls
+  /// this with three positional arguments.
+  ///
+  /// A frozen package is frozen: it does not get edited to accommodate a
+  /// signature change that had no reason to be breaking. Adding the new
+  /// fields as NAMED and optional keeps every existing call valid.
   _i2.Future<_i20.Workspace> createWorkspace(
     String accessToken,
     String name,
-    String? industryTag,
-  ) => caller.callServerEndpoint<_i20.Workspace>(
+    String? industryTag, {
+    String? ownerName,
+    String? ownerPhone,
+  }) => caller.callServerEndpoint<_i20.Workspace>(
     'workspace',
     'createWorkspace',
     {
       'accessToken': accessToken,
       'name': name,
       'industryTag': industryTag,
+      'ownerName': ownerName,
+      'ownerPhone': ownerPhone,
     },
   );
 

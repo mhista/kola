@@ -2264,6 +2264,16 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
+            'ownerName': _i1.ParameterDescription(
+              name: 'ownerName',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'ownerPhone': _i1.ParameterDescription(
+              name: 'ownerPhone',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
           },
           call:
               (
@@ -2275,6 +2285,8 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['accessToken'],
                     params['name'],
                     params['industryTag'],
+                    ownerName: params['ownerName'],
+                    ownerPhone: params['ownerPhone'],
                   ),
         ),
         'listMyWorkspaces': _i1.MethodConnector(

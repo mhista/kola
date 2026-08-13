@@ -56,6 +56,7 @@ import 'package:kola_client/kola_client.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/feature_gate.dart';
+import '../services/error_text.dart';
 import '../theme.dart';
 
 class IntegrationsPage extends StatefulComponent {
@@ -118,7 +119,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       // has no answer — the mistake app.dart's workspace loader made and
       // had to be corrected for.
       setState(() {
-        _loadError = _human('$e');
+        _loadError = ErrorText.of(e);
         _loading = false;
       });
     }
@@ -205,7 +206,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _submitError = _human('$e');
+        _submitError = ErrorText.of(e);
       });
     }
   }
@@ -231,21 +232,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _submitError = _human('$e');
+        _submitError = ErrorText.of(e);
       });
     }
   }
 
-  /// Serverpod prefixes thrown exceptions with a class name. An owner
-  /// does not need to read "Exception: " to learn their token was
-  /// rejected.
-  String _human(String raw) {
-    var s = raw;
-    for (final p in const ['Exception: ', 'ServerpodClientException: ']) {
-      if (s.startsWith(p)) s = s.substring(p.length);
-    }
-    return s;
-  }
 
   // ── Build ──────────────────────────────────────────────────────────
 
