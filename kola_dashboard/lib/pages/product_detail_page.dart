@@ -53,6 +53,7 @@ import '../components/product_editor.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/error_text.dart';
+import '../services/imagekit_url.dart';
 import '../services/money.dart';
 import '../theme.dart';
 
@@ -247,36 +248,88 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       );
 
   Component _body(Product p) => div([
-        // Side switch
+        // ── THE TOGGLE AND ITS EXPLANATION SHARE ONE ROW ───────────────
+        //
+        // These used to be stacked: a pill row, then a two-line
+        // paragraph, then a 340px photo — roughly 480px of page before
+        // the product's own NAME appeared. On a laptop that put the
+        // title, price, margin and stock all below the fold, so opening
+        // a product and then scrolling up was the only way to read it.
+        //
+        // The design has none of that above the title. Sharing the row
+        // reclaims the paragraph's vertical space without deleting a
+        // sentence that earns its place — it is the one line that tells
+        // an owner cost and margin never leak.
         div(
           attributes: {
-            'style': 'display:flex;gap:6px;padding:4px;width:fit-content;'
-                'border-radius:${KolaRadius.pill};background:${KolaVar.pill};'
-                'margin-bottom:16px',
+            'style': 'display:flex;align-items:center;gap:14px;'
+                'flex-wrap:wrap;margin-bottom:16px',
           },
           [
-            _sideChip('seller', 'Your view'),
-            _sideChip('customer', 'What a customer sees'),
-          ],
-        ),
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                'line-height:1.5;margin-bottom:16px;max-width:60ch',
-          },
-          [
-            Component.text(
-              _side == 'seller'
-                  ? 'Everything you have recorded. Cost and margin are '
-                      'yours alone — kola never repeats them to a customer.'
-                  : 'This is what kola will tell someone who asks about '
-                      'this product. Nothing about what it cost you appears '
-                      'here.',
+            div(
+              attributes: {
+                'style': 'display:flex;gap:6px;padding:4px;width:fit-content;'
+                    'flex:none;border-radius:${KolaRadius.pill};'
+                    'background:${KolaVar.pill}',
+              },
+              [
+                _sideChip('seller', 'Your view'),
+                _sideChip('customer', 'What a customer sees'),
+              ],
+            ),
+            div(
+              attributes: {
+                'style': 'flex:1;min-width:220px;font-size:${KolaType.tiny};'
+                    'color:${KolaVar.muted};line-height:1.5;max-width:52ch',
+              },
+              [
+                Component.text(
+                  _side == 'seller'
+                      ? 'Everything you have recorded. Cost and margin are '
+                          'yours alone — kola never repeats them to a customer.'
+                      : 'This is what kola will tell someone who asks about '
+                          'this product. Nothing about what it cost you '
+                          'appears here.',
+                ),
+              ],
             ),
           ],
         ),
         if (_side == 'seller') ..._seller(p) else ..._customer(p),
       ]);
+
+  /// The design's two-column split: photos on the left, everything
+  /// readable on the right, both starting at the same top edge.
+  ///
+  /// `minmax(0,1fr)` and not `1fr` on the text column — a bare `1fr` has
+  /// a min-content floor, so one long unbroken word (a SKU, a URL in a
+  /// description) widens the column and pushes the grid past the
+  /// viewport instead of wrapping.
+  ///
+  /// The breakpoint is a container query rather than a media query
+  /// because this page sits inside the dashboard shell next to a fixed
+  /// sidebar: the viewport is wide long before this column is, and a
+  /// media query would keep two columns in a space that fits one.
+  /// Two elements, not one: `.kola-detail-split` DECLARES the container
+  /// and `.kola-detail-grid` responds to it. A container query cannot
+  /// match the element that declares the container, so collapsing these
+  /// into one div silently leaves the grid single-column forever.
+  Component _twoColumn({
+    required Component left,
+    required List<Component> right,
+  }) =>
+      div(
+        classes: 'kola-detail-split',
+        [
+          div(
+            classes: 'kola-detail-grid',
+            [
+              div(attributes: {'style': 'min-width:0'}, [left]),
+              div(attributes: {'style': 'min-width:0'}, right),
+            ],
+          ),
+        ],
+      );
 
   Component _sideChip(String id, String label) {
     final active = _side == id;
@@ -304,54 +357,62 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     final showMargin = price != null && cost != null && price > 0;
 
     return [
-      if (_media.isNotEmpty) _gallery(),
-      _titleBlock(p, status),
-      div(
-        attributes: {
-          'style': 'display:grid;gap:12px;margin-bottom:18px;'
-              'grid-template-columns:repeat(auto-fit,minmax(150px,1fr))',
-        },
-        [
-          _stat('Price', _priceLabel(p)),
-          _stat('You make',
-              showMargin ? Money.format(price - cost, p.priceCurrency) : '—',
-              note: showMargin
-                  ? '${((price - cost) * 100) ~/ price}% of the price'
-                  : 'Add what it costs you and this fills in'),
-          _stat('Stock', p.stock == null ? '—' : '${p.stock} units',
-              note: p.stock == null ? 'Not something you stock' : null),
-        ],
-      ),
-      if (p.description != null && p.description!.trim().isNotEmpty)
-        _section('Description', p.description!),
-      if (p.sku != null) _section('SKU', p.sku!),
-      if (p.category != null) _section('Category', p.category!),
-      if (_variants.isNotEmpty) _variantTable(p),
-      _history(p),
-      div(
-        attributes: {'style': 'margin-top:18px'},
-        [
-          // Edits HERE, not "edit in catalog". Sending someone back to a
-          // list to change the thing they are already looking at is the
-          // complaint that moved the editor into its own component —
-          // this page and the catalog now mount the same one.
-          button(
+      _twoColumn(
+        left: _gallery(),
+        right: [
+          _titleBlock(p, status),
+          div(
             attributes: {
-              'type': 'button',
-              'class': 'kola-pressable',
-              'style': 'padding:11px 20px;border-radius:${KolaRadius.pill};'
-                  'border:none;background:${KolaVar.accentFill};'
-                  'color:${KolaVar.accentText};font-family:inherit;'
-                  'font-size:${KolaType.small};font-weight:600;'
-                  'cursor:pointer',
+              'style': 'display:grid;gap:12px;margin-bottom:18px;'
+                  // 130px, down from 150px. Three stats have to sit in a
+                  // column roughly 380px narrower than the old full-width
+                  // body; at 150px the third wrapped onto its own line and
+                  // Stock ended up detached from Price and Margin, which the
+                  // design keeps as one row.
+                  'grid-template-columns:repeat(auto-fit,minmax(130px,1fr))',
             },
-            events: {'click': (_) => setState(() => _editorOpen = true)},
-            [Component.text('Edit')],
+            [
+              _stat('Price', _priceLabel(p)),
+              _stat('You make',
+                  showMargin ? Money.format(price - cost, p.priceCurrency) : '—',
+                  note: showMargin
+                      ? '${((price - cost) * 100) ~/ price}% of the price'
+                      : 'Add what it costs you and this fills in'),
+              _stat('Stock', p.stock == null ? '—' : '${p.stock} units',
+                  note: p.stock == null ? 'Not something you stock' : null),
+            ],
           ),
+          if (p.description != null && p.description!.trim().isNotEmpty)
+            _section('Description', p.description!),
+          if (p.sku != null) _section('SKU', p.sku!),
+          if (p.category != null) _section('Category', p.category!),
+          if (_variants.isNotEmpty) _variantTable(p),
+          _history(p),
         ],
       ),
     ];
   }
+
+  /// The Edit button, which the design places on the title's line rather
+  /// than at the bottom of the page.
+  ///
+  /// It used to sit after the history block. On a product with a
+  /// description, variants and two history rows that is a scroll away
+  /// from the thing being edited — and it is the primary action on the
+  /// screen.
+  Component _editButton() => button(
+        attributes: {
+          'type': 'button',
+          'class': 'kola-pressable',
+          'style': 'flex:none;padding:9px 18px;'
+              'border-radius:${KolaRadius.pill};'
+              'border:1px solid ${KolaVar.border};background:transparent;'
+              'color:${KolaVar.text};font-family:inherit;'
+              'font-size:${KolaType.small};font-weight:600;cursor:pointer',
+        },
+        events: {'click': (_) => setState(() => _editorOpen = true)},
+        [Component.text('Edit')],
+      );
 
   // ── Customer side ───────────────────────────────────────────────────
 
@@ -365,7 +426,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               'padding:${KolaSpace.md}',
         },
         [
-          if (_media.isNotEmpty) _gallery(),
+          if (_media.isNotEmpty)
+            // Capped here rather than inside _gallery, which now fills
+            // whatever column it is given — on the seller side that is a
+            // 340px track, but this card is the full body width and an
+            // uncapped square photo would push the price off the screen.
+            div(
+              attributes: {
+                'style': 'max-width:320px;margin-bottom:18px',
+              },
+              [_gallery()],
+            ),
           div(
             attributes: {
               'style': 'font-family:${KolaFonts.display};'
@@ -470,11 +541,23 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         [
           div(
             attributes: {
-              'style': 'font-family:${KolaFonts.display};'
-                  'font-size:${KolaType.h2};font-weight:700;'
-                  'color:${KolaVar.text};margin-bottom:6px',
+              'style': 'display:flex;align-items:flex-start;gap:12px;'
+                  'margin-bottom:6px',
             },
-            [Component.text(p.name)],
+            [
+              div(
+                attributes: {
+                  'style': 'flex:1;min-width:0;font-family:${KolaFonts.display};'
+                      'font-size:${KolaType.h2};font-weight:700;'
+                      'color:${KolaVar.text};line-height:1.2;'
+                      // Long product names wrap rather than widen the
+                      // grid column past its track.
+                      'overflow-wrap:anywhere',
+                },
+                [Component.text(p.name)],
+              ),
+              _editButton(),
+            ],
           ),
           div(
             attributes: {
@@ -574,60 +657,85 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   /// Main image large, the rest as a row beneath. Uploading and
   /// reordering stay in the editor — this page shows what is there.
   Component _gallery() {
+    const frame = 'width:100%;aspect-ratio:1;'
+        'border-radius:var(--kola-radius-lg,16px);overflow:hidden';
+
+    // No photo is a STATE, not an absence to collapse. The design draws
+    // a dashed placeholder here, and leaving the column empty instead
+    // would silently misalign the two columns — the text would start at
+    // the top and the photo slot simply would not exist, which is what a
+    // reader interprets as "this page is broken" rather than "add a
+    // photo".
+    if (_media.isEmpty) {
+      return div(
+        attributes: {
+          'style': '$frame;border:1px dashed ${KolaVar.border};'
+              'display:flex;flex-direction:column;align-items:center;'
+              'justify-content:center;gap:8px;color:${KolaVar.muted};'
+              'font-size:${KolaType.tiny}',
+        },
+        [
+          kolaIcon(Icons.catalog, size: 22),
+          Component.text('No photo yet'),
+        ],
+      );
+    }
+
     final main = _media.first;
     final rest = _media.skip(1).toList();
 
-    return div(
-      attributes: {'style': 'margin-bottom:18px'},
-      [
+    return div([
+      div(
+        attributes: {
+          'style': '$frame;border:1px solid ${KolaVar.border};'
+              'background:${KolaVar.pill}',
+        },
+        [
+          img(
+            // Width-capped rather than full size: the original off a
+            // phone camera can be several megabytes, and this box is
+            // never wider than ~380px on a laptop.
+            src: ImageKitUrl.wide(main.url, width: 760),
+            alt: '',
+            attributes: {
+              'style': 'width:100%;height:100%;object-fit:cover;'
+                  'display:block',
+            },
+          ),
+        ],
+      ),
+      if (rest.isNotEmpty)
         div(
           attributes: {
-            'style': 'width:100%;max-width:340px;aspect-ratio:1;'
-                'border-radius:${KolaRadius.lg};overflow:hidden;'
-                'border:1px solid ${KolaVar.border};'
-                'background:${KolaVar.pill}',
+            'style': 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap',
           },
           [
-            img(
-              src: main.url,
-              alt: '',
-              attributes: {
-                'style': 'width:100%;height:100%;object-fit:cover;'
-                    'display:block',
-              },
-            ),
+            for (final m in rest)
+              div(
+                attributes: {
+                  'style': 'width:64px;height:64px;border-radius:'
+                      '${KolaRadius.md};overflow:hidden;'
+                      'border:1px solid ${KolaVar.border};'
+                      'background:${KolaVar.pill}',
+                },
+                [
+                  img(
+                    // Derived, NOT media.thumbnailUrl — that column
+                    // holds ImageKit's ML-preset URL, which does not
+                    // resolve on this account. See imagekit_url.dart.
+                    src: ImageKitUrl.thumb(m.url, size: 128),
+                    alt: '',
+                    attributes: {
+                      'loading': 'lazy',
+                      'style': 'width:100%;height:100%;'
+                          'object-fit:cover;display:block',
+                    },
+                  ),
+                ],
+              ),
           ],
         ),
-        if (rest.isNotEmpty)
-          div(
-            attributes: {
-              'style': 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap',
-            },
-            [
-              for (final m in rest)
-                div(
-                  attributes: {
-                    'style': 'width:64px;height:64px;border-radius:'
-                        '${KolaRadius.md};overflow:hidden;'
-                        'border:1px solid ${KolaVar.border};'
-                        'background:${KolaVar.pill}',
-                  },
-                  [
-                    img(
-                      src: m.thumbnailUrl ?? m.url,
-                      alt: '',
-                      attributes: {
-                        'loading': 'lazy',
-                        'style': 'width:100%;height:100%;'
-                            'object-fit:cover;display:block',
-                      },
-                    ),
-                  ],
-                ),
-            ],
-          ),
-      ],
-    );
+    ]);
   }
 
   Component _variantTable(Product p) => div(

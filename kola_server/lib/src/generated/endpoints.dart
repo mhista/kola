@@ -1421,6 +1421,49 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['query'],
                   ),
         ),
+        'addDocumentFromFile': _i1.MethodConnector(
+          name: 'addDocumentFromFile',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'fileName': _i1.ParameterDescription(
+              name: 'fileName',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'base64Bytes': _i1.ParameterDescription(
+              name: 'base64Bytes',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'allowDuplicate': _i1.ParameterDescription(
+              name: 'allowDuplicate',
+              type: _i1.getType<bool>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['knowledge'] as _i8.KnowledgeEndpoint)
+                  .addDocumentFromFile(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['fileName'],
+                    params['base64Bytes'],
+                    allowDuplicate: params['allowDuplicate'],
+                  ),
+        ),
       },
     );
     connectors['ownerNotification'] = _i1.EndpointConnector(

@@ -347,12 +347,20 @@ class _KnowledgePageState extends State<KnowledgePage> {
       });
       _tickStages();
       try {
-        final text = await FileIntake.readText(f);
-        await component.client.knowledge.addDocument(
+        // EVERY file goes through addDocumentFromFile now, text
+        // included. A branch here would mean two upload paths that can
+        // drift; the server decodes plain text with allowMalformed and
+        // unzips a spreadsheet, and either way the result lands in the
+        // same addDocument.
+        //
+        // readBase64 rather than readText: a .xlsx is a binary zip, and
+        // reading it as text corrupts it before it is ever sent.
+        final base64 = await FileIntake.readBase64(f);
+        await component.client.knowledge.addDocumentFromFile(
           component.accessToken,
           component.workspaceId,
           assessment.name,
-          text,
+          base64,
           allowDuplicate: false,
         );
         if (!mounted) return;
@@ -1161,16 +1169,61 @@ class _KnowledgePageState extends State<KnowledgePage> {
         buffer.writeln();
       }
 
-      await component.client.knowledge.addDocument(
-        component.accessToken,
-        component.workspaceId,
-        isInventory ? 'Stock levels' : 'Product catalog',
-        buffer.toString(),
-        // Re-generating after adding products SHOULD replace, and the
-        // duplicate check would otherwise refuse the second run — which
-        // is the run that matters.
-        allowDuplicate: true,
-      );
+      final title = isInventory ? 'Stock levels' : 'Product catalog';
+
+      // ── REPLACE THE PREVIOUS BUILD, DO NOT STACK ANOTHER COPY ───────
+      //
+      // This used to pass `allowDuplicate: true` with a comment saying
+      // re-generating "SHOULD replace". It did not replace. allowDuplicate
+      // only switches OFF the identical-content refusal; the write is
+      // still an insert, so every press of this button left another
+      // "Product catalog" behind. Three presses, three live documents
+      // with the same content hash, all of them searchable.
+      //
+      // That is worse than clutter on the Documents tab. Retrieval pulls
+      // the top six passages by relevance, and identical copies score
+      // identically — so the duplicates crowd out the OTHER documents
+      // that would have made the answer better, and kola keeps answering
+      // from the same text no matter what else has been uploaded.
+      //
+      // updateDocument reindexes in place: same row id, old chunks
+      // deleted, new ones embedded. Which is what "re-generate" meant.
+      final previous = [
+        for (final d in _docs)
+          if (d.title == title && d.id != null) d,
+      ];
+
+      if (previous.isEmpty) {
+        await component.client.knowledge.addDocument(
+          component.accessToken,
+          component.workspaceId,
+          title,
+          buffer.toString(),
+          allowDuplicate: false,
+        );
+      } else {
+        await component.client.knowledge.updateDocument(
+          component.accessToken,
+          component.workspaceId,
+          previous.first.id!,
+          title,
+          buffer.toString(),
+        );
+        // Copies left behind by the old behaviour. Cleared on the next
+        // re-generate rather than requiring the owner to find and delete
+        // them by hand — they never chose to create these.
+        for (final stale in previous.skip(1)) {
+          try {
+            await component.client.knowledge.deleteDocument(
+              component.accessToken,
+              component.workspaceId,
+              stale.id!,
+            );
+          } catch (_) {
+            // A leftover duplicate is untidy, not broken.
+          }
+        }
+      }
 
       if (!mounted) return;
       setState(() {

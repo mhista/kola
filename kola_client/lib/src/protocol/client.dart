@@ -871,6 +871,41 @@ class EndpointKnowledge extends _i1.EndpointRef {
       'query': query,
     },
   );
+
+  /// Adds a document from an uploaded FILE rather than pasted text.
+  ///
+  /// ── WHY THE BYTES COME THROUGH THE SERVER, UNLIKE PHOTOS ───────────
+  ///
+  /// Product photos deliberately bypass this server: they are megabytes,
+  /// they need a progress bar, and base64 through a Serverpod parameter
+  /// would send them twice (see imagekit_service.dart).
+  ///
+  /// A spreadsheet is the opposite case on every count. A price list is
+  /// tens of kilobytes, it needs no progress bar, and the extraction it
+  /// requires — unzipping and parsing OOXML — belongs on a server rather
+  /// than in every browser's bundle. So this one proxies, and that is
+  /// the right call for this shape of file specifically.
+  ///
+  /// [base64Bytes] is the raw file. Serverpod parameters are JSON, so
+  /// binary has to be encoded; at this size the ~33% overhead is not
+  /// worth engineering around.
+  _i2.Future<_i9.KnowledgeDocument> addDocumentFromFile(
+    String accessToken,
+    int workspaceId,
+    String fileName,
+    String base64Bytes, {
+    required bool allowDuplicate,
+  }) => caller.callServerEndpoint<_i9.KnowledgeDocument>(
+    'knowledge',
+    'addDocumentFromFile',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'fileName': fileName,
+      'base64Bytes': base64Bytes,
+      'allowDuplicate': allowDuplicate,
+    },
+  );
 }
 
 /// {@category Endpoint}

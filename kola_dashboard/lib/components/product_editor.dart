@@ -31,6 +31,7 @@ import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/dom_files.dart';
 import '../services/error_text.dart';
+import '../services/imagekit_url.dart';
 import '../services/media_upload.dart';
 import '../services/money.dart';
 import '../theme.dart';
@@ -714,13 +715,17 @@ class _ProductEditorState extends State<ProductEditor> {
           [
             for (var i = 0; i < saved.length; i++)
               _photoTile(
-                url: saved[i].thumbnailUrl ?? saved[i].url,
+                // Derived from `url`, NOT the stored thumbnailUrl. That
+                // column holds ImageKit's ML-preset URL, which does not
+                // resolve on this account — the reason every photo tile
+                // here rendered blank. See services/imagekit_url.dart.
+                url: ImageKitUrl.thumb(saved[i].url, size: 192),
                 isMain: i == 0,
                 onRemove: () => _removePhoto(saved[i]),
               ),
             for (var i = 0; i < pending.length; i++)
               _photoTile(
-                url: pending[i].thumbnailUrl ?? pending[i].url,
+                url: ImageKitUrl.thumb(pending[i].url, size: 192),
                 isMain: saved.isEmpty && i == 0,
                 // Not yet a row on the server, so there is nothing to
                 // delete server-side — it is dropped from the draft and

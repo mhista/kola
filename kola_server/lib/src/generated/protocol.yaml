@@ -39,6 +39,7 @@ knowledge:
   - deleteDocument:
   - updateDocument:
   - searchMemory:
+  - addDocumentFromFile:
 ownerNotification:
   - getSettings:
   - updateSettings:

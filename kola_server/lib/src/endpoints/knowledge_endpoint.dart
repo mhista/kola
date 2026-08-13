@@ -22,6 +22,9 @@
 // is validated against their token before it reaches any repository —
 // it is never trusted as an identifier on its own.
 
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:kola_server/src/services/documents/xlsx_extractor.dart';
 import 'package:serverpod/serverpod.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
@@ -227,5 +230,121 @@ class KnowledgeEndpoint extends Endpoint {
           similarity: match.similarity,
         ),
     ];
+  }
+
+  /// Adds a document from an uploaded FILE rather than pasted text.
+  ///
+  /// ── WHY THE BYTES COME THROUGH THE SERVER, UNLIKE PHOTOS ───────────
+  ///
+  /// Product photos deliberately bypass this server: they are megabytes,
+  /// they need a progress bar, and base64 through a Serverpod parameter
+  /// would send them twice (see imagekit_service.dart).
+  ///
+  /// A spreadsheet is the opposite case on every count. A price list is
+  /// tens of kilobytes, it needs no progress bar, and the extraction it
+  /// requires — unzipping and parsing OOXML — belongs on a server rather
+  /// than in every browser's bundle. So this one proxies, and that is
+  /// the right call for this shape of file specifically.
+  ///
+  /// [base64Bytes] is the raw file. Serverpod parameters are JSON, so
+  /// binary has to be encoded; at this size the ~33% overhead is not
+  /// worth engineering around.
+  Future<KnowledgeDocument> addDocumentFromFile(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String fileName,
+    String base64Bytes, {
+    bool allowDuplicate = false,
+  }) async {
+    await requireWorkspaceAccess(
+      accessToken: accessToken,
+      workspaceId: workspaceId,
+    );
+
+    final Uint8List bytes;
+    try {
+      bytes = base64Decode(base64Bytes);
+    } catch (_) {
+      throw KolaException(
+        message: 'That file did not arrive intact. Please try again.',
+      );
+    }
+
+    // A hard ceiling here as well as in the browser. The browser check
+    // is a courtesy; this one is the actual limit, because an endpoint
+    // is reachable without going through the browser at all.
+    if (bytes.length > 20 * 1024 * 1024) {
+      throw KolaException(
+        message: 'That file is too large. Split it into a few smaller ones — '
+            'that also makes kola\'s answers more accurate, since it can '
+            'point at the right part.',
+      );
+    }
+
+    final lower = fileName.toLowerCase();
+    final String text;
+
+    if (lower.endsWith('.xlsx') || lower.endsWith('.xlsm')) {
+      final extracted = XlsxExtractor.extract(bytes);
+      if (extracted == null || extracted.trim().isEmpty) {
+        throw KolaException(
+          message: 'kola could not read anything out of that spreadsheet. If '
+              'it opens correctly in Excel, save it again as .xlsx and try '
+              'once more.',
+        );
+      }
+      text = extracted;
+    } else if (lower.endsWith('.xls')) {
+      // The OLD binary format, which is a completely different thing
+      // from .xlsx and needs a different reader entirely. Named
+      // explicitly so the owner knows the fix is one Save As away.
+      throw KolaException(
+        message: 'That is the older Excel format. Open it and use Save As → '
+            'Excel Workbook (.xlsx), then upload it again.',
+      );
+    } else if (lower.endsWith('.pdf')) {
+      throw KolaException(
+        message: 'kola cannot read PDFs yet. If the same information is in a '
+            'spreadsheet or a document you can copy from, that works today.',
+      );
+    } else if (lower.endsWith('.docx') || lower.endsWith('.doc')) {
+      throw KolaException(
+        message: 'kola cannot read Word files yet. Copy the text and paste it '
+            'in — it will be learned the same way.',
+      );
+    } else {
+      // Plain text of some kind. Decoded permissively: a price list
+      // saved from a Windows machine is often not valid UTF-8, and
+      // refusing it over one bad byte would be absurd.
+      text = utf8.decode(bytes, allowMalformed: true);
+    }
+
+    // Straight into the normal path, so a spreadsheet is chunked,
+    // embedded, cited and editable exactly like pasted text. No second
+    // kind of document, and nothing special-cased at answer time.
+    return addDocument(
+      session,
+      accessToken,
+      workspaceId,
+      _titleFrom(fileName),
+      text,
+      allowDuplicate: allowDuplicate,
+    );
+  }
+
+  /// A readable title from a filename: "price-list-2026.xlsx" becomes
+  /// "price list 2026". The extension and separators are noise to the
+  /// person reading a citation later.
+  String _titleFrom(String fileName) {
+    // '\\' and NOT r'\' — a raw string cannot END in a backslash, so
+    // r'\' is a compile error rather than a one-character string. The
+    // split handles Windows paths, which is where an uploaded file name
+    // usually comes from.
+    var name = fileName.split('/').last.split('\\').last;
+    final dot = name.lastIndexOf('.');
+    if (dot > 0) name = name.substring(0, dot);
+    name = name.replaceAll(RegExp(r'[_\-]+'), ' ').trim();
+    return name.isEmpty ? 'Uploaded document' : name;
   }
 }

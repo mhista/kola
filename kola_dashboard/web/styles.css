@@ -518,3 +518,43 @@ input:focus-visible {
     display: flex;
   }
 }
+
+/* ── Product detail: photos beside the facts ──────────────────────────
+ *
+ * The seller view used to stack the photo above the title, which put the
+ * name, price, margin and stock below the fold on a laptop — you opened
+ * a product and then had to scroll UP to read it. The design has two
+ * columns starting at the same top edge.
+ *
+ * A CONTAINER query, not a media query. This page renders inside the
+ * dashboard shell beside a fixed sidebar, so the viewport is wide long
+ * before this column is; a `min-width: 860px` media query would hold two
+ * columns in a space that only fits one. Container queries ask the
+ * question that actually matters — how much room does THIS have.
+ *
+ * TWO elements, deliberately. A container query cannot style its own
+ * container: `container-type` on the grid itself would make the grid a
+ * container for its CHILDREN and the @container rule below would never
+ * match it. So the outer div declares the container and the inner div is
+ * the grid that responds to it.
+ *
+ * 340px for the photo rather than a fraction: a product photo has a job
+ * to do at a known size, and letting it grow with the window only steals
+ * width from the text, which is the column that benefits from it. */
+
+.kola-detail-split {
+  container-type: inline-size;
+}
+
+.kola-detail-split > .kola-detail-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 700px) {
+  .kola-detail-split > .kola-detail-grid {
+    grid-template-columns: 340px minmax(0, 1fr);
+    align-items: start;
+  }
+}

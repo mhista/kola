@@ -1634,6 +1634,47 @@ class _KnowledgeEndpoint {
       }
     });
   }
+
+  _i3.Future<_i10.KnowledgeDocument> addDocumentFromFile(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    String fileName,
+    String base64Bytes, {
+    required bool allowDuplicate,
+  }) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'knowledge',
+            method: 'addDocumentFromFile',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'knowledge',
+          methodName: 'addDocumentFromFile',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'fileName': fileName,
+            'base64Bytes': base64Bytes,
+            'allowDuplicate': allowDuplicate,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i10.KnowledgeDocument>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
 }
 
 class _OwnerNotificationEndpoint {

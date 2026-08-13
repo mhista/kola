@@ -566,6 +566,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/component
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/mobile_home_content.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/mobile_top_bar.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/next_step_hint.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/product_editor.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/quick_actions_grid.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/quick_actions_list.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/components/shell/app_shell.dart
@@ -587,6 +588,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/bil
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/bot_detail_chat_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/bot_detail_dev_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/bots_page.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/catalog_import_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/catalog_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/conversations_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_dashboard/lib/pages/create_bot_page.dart

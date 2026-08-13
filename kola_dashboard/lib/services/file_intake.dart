@@ -252,6 +252,49 @@ abstract class FileIntake {
   /// Only call when [FileAssessment.canIngestNow] is true — on anything
   /// else this returns bytes reinterpreted as characters, which is how
   /// binary garbage ends up stored as business knowledge.
+  /// The file as base64, for anything that is not plain text.
+  ///
+  /// ── readAsDataURL, NOT readAsArrayBuffer ───────────────────────────
+  ///
+  /// An ArrayBuffer would mean converting a JS typed array into Dart
+  /// bytes and then re-encoding — two interop hops, and interop is
+  /// exactly where this codebase has been bitten. readAsDataURL returns
+  /// a STRING the browser has already base64-encoded:
+  ///
+  ///   data:application/vnd...sheet;base64,UEsDBBQAB...
+  ///
+  /// Stripping everything up to the comma leaves precisely what the
+  /// server wants, using the same FileReader shape readText already
+  /// uses and no new API at all.
+  static Future<String> readBase64(web.File file) {
+    final completer = Completer<String>();
+    final reader = web.FileReader();
+
+    reader.onload = (web.Event _) {
+      final result = reader.result;
+      if (result == null) {
+        completer.complete('');
+        return;
+      }
+      final url = (result as JSString).toDart;
+      final comma = url.indexOf(',');
+      // No comma means it is not a data URL, which should be impossible
+      // after readAsDataURL — treated as empty rather than sending the
+      // header along as if it were file content.
+      completer.complete(comma < 0 ? '' : url.substring(comma + 1));
+    }.toJS;
+
+    reader.onerror = (web.Event _) {
+      completer.completeError(
+        StateError('That file could not be read. It may be in use by '
+            'another program, or the browser was denied access.'),
+      );
+    }.toJS;
+
+    reader.readAsDataURL(file);
+    return completer.future;
+  }
+
   static Future<String> readText(web.File file) {
     final completer = Completer<String>();
     final reader = web.FileReader();
@@ -325,13 +368,35 @@ abstract class FileIntake {
             'above — that works today and gives exactly the same result.',
       );
 
-  static FileAssessment _sheet(String name, int size) => FileAssessment(
+  /// .xlsx now reads; the older .xls does not.
+  ///
+  /// The refusal this replaces was right at the time — a spreadsheet
+  /// flattened into a wall of words is worse than useless, because the
+  /// columns ARE the meaning. XlsxExtractor keeps them: each row becomes
+  /// "Selling Price: 4500" lines, which survive chunking as facts.
+  ///
+  /// .xls is a genuinely different format — the old OLE binary, not a
+  /// zip of XML — so it needs a different reader and is still refused,
+  /// with the one-step fix named.
+  static FileAssessment _sheet(String name, int size) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.xlsx') || lower.endsWith('.xlsm')) {
+      return FileAssessment(
         name: name, sizeBytes: size, kind: FileKind.spreadsheet,
-        label: 'Spreadsheet', canIngestNow: false,
-        explanation: 'Spreadsheets need to keep their rows and columns to '
-            'be useful, and that is not built yet. Saving it as CSV and '
-            'adding that works today.',
+        label: 'Spreadsheet', canIngestNow: true,
+        explanation: '',
       );
+    }
+    return FileAssessment(
+      name: name, sizeBytes: size, kind: FileKind.spreadsheet,
+      label: 'Spreadsheet', canIngestNow: false,
+      explanation: lower.endsWith('.xls')
+          ? 'That is the older Excel format. Open it and use Save As → '
+              'Excel Workbook (.xlsx), then add it again.'
+          : 'kola cannot read that kind of spreadsheet yet. Saving it as '
+              '.xlsx or CSV works today.',
+    );
+  }
 
   static FileAssessment _image(String name, int size) => FileAssessment(
         name: name, sizeBytes: size, kind: FileKind.image,
