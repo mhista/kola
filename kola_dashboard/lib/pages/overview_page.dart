@@ -85,6 +85,12 @@ class _OverviewPageState extends State<OverviewPage> {
   List<SupportTicket> _tickets = const [];
   List<KnowledgeDocument> _documents = const [];
   List<Product> _products = const [];
+
+  /// What the server's sweep noticed. See WorkspaceSweepService.
+  List<WorkspaceFinding> _findings = const [];
+
+  /// Findings currently being dismissed, so the row can say so.
+  Set<int> _dismissing = {};
   List<Bot> _bots = const [];
   List<Errand> _errands = const [];
   List<ConnectorStatus> _connectors = const [];
@@ -191,6 +197,14 @@ class _OverviewPageState extends State<OverviewPage> {
                 includeArchived: false,
               )
             : Future.value(const <Product>[]),
+
+        // Ninth read: what needs the owner's attention.
+        //
+        // This endpoint SWEEPS and then returns — see FindingEndpoint on
+        // why, and on what changes when a scheduler exists. It is in the
+        // same Future.wait as everything else because it does not depend
+        // on any of them.
+        component.client.finding.listFindings(token, id),
       ]);
 
       if (!mounted) return;
@@ -203,6 +217,7 @@ class _OverviewPageState extends State<OverviewPage> {
         _errands = results[5].cast<Errand>();
         _connectors = results[6].cast<ConnectorStatus>();
         _products = results[7].cast<Product>();
+        _findings = results[8].cast<WorkspaceFinding>();
         _phase = _Phase.ready;
       });
     } catch (e) {
@@ -631,7 +646,11 @@ class _OverviewPageState extends State<OverviewPage> {
       _conversations.isEmpty && _escalated.isEmpty && _tickets.isEmpty;
 
   List<Component> _briefing() {
-    final attention = _attentionItems();
+    // Findings come from the SERVER now, ranked by severity and carrying
+    // how long each has been true. _attentionItems() used to compute a
+    // list here from whatever the page happened to have loaded — see the
+    // note where it used to live.
+    final attention = _findings;
 
     final hint = NextSteps.choose(
       hasBot: _bots.isNotEmpty,
@@ -649,11 +668,28 @@ class _OverviewPageState extends State<OverviewPage> {
     return [
       if (hint != null) NextStepHint(step: hint, onDismiss: _dismissHint),
       _stats(),
-      if (_noActivityYet)
+      // ── TOP RECOMMENDATION ────────────────────────────────────────
+      //
+      // The design's own card. It is the WORST open finding, promoted
+      // out of the list — not a separate computation, because two
+      // sources ranking the same facts differently is how a dashboard
+      // starts contradicting itself.
+      //
+      // Rendered with its real confidence. Today that is always 1.0
+      // because every detector is deterministic, and the card says so
+      // rather than implying a judgement was made.
+      if (attention.isNotEmpty) _topRecommendation(attention.first),
+
+      if (_noActivityYet && attention.isEmpty)
         _waitingCard()
-      else if (attention.isNotEmpty)
-        _section('Needs your attention', _attentionList(attention))
-      else
+      else if (attention.length > 1)
+        _section(
+          'Needs your attention',
+          // .skip(1) — the first one is the card above. Repeating it
+          // immediately underneath would read as two different problems.
+          _findingsList(attention.skip(1).toList()),
+        )
+      else if (attention.isEmpty)
         _allClear(),
       _section('What kola knows', _knowledgeSummary()),
       if (_errands.isNotEmpty) _section('Automations running', _automations()),
@@ -920,101 +956,291 @@ class _OverviewPageState extends State<OverviewPage> {
   }
 
   /// Escalations and SLA-risk tickets, most urgent first.
-  List<({String label, String meta, String tone, String route})> _attentionItems() {
-    final items = <({String label, String meta, String tone, String route})>[];
-    final now = DateTime.now();
+  // _attentionItems() AND _attentionList() USED TO LIVE HERE.
+  //
+  // They computed the attention list inline from whatever this page had
+  // already fetched, which meant it could only ever mention escalated
+  // conversations and SLA tickets. A product out of stock, a document
+  // that failed to index, a workspace with no channel connected — none
+  // of it was noticed, because nothing was looking.
+  //
+  // It also could not say HOW LONG anything had been true, and a
+  // dismissal could not stick, because there was no row to write it on.
+  //
+  // WorkspaceSweepService does the detecting now. Its ticket detector is
+  // a direct port of the SLA logic that lived here — including the
+  // overdue / due-soon split, which was right and would have been the
+  // easiest thing to lose in a rewrite.
 
-    if (_escalated.isNotEmpty) {
-      items.add((
-        label: _escalated.length == 1
-            ? '1 conversation is waiting for a human'
-            : '${_escalated.length} conversations are waiting for a human',
-        meta: 'Escalated',
-        tone: KolaVar.danger,
-        route: '/conversations',
-      ));
-    }
-
-    final breaching = _tickets
-        .where((t) => t.status != 'resolved' && t.status != 'closed')
-        .where((t) => t.slaDeadline.isAfter(now))
-        .where((t) => t.slaDeadline.difference(now) < const Duration(hours: 2))
-        .length;
-
-    if (breaching > 0) {
-      items.add((
-        label: breaching == 1
-            ? '1 support ticket is close to its deadline'
-            : '$breaching support tickets are close to their deadline',
-        meta: 'Within 2 hours',
-        tone: KolaVar.warning,
-        route: '/operations',
-      ));
-    }
-
-    // Already past deadline is a separate, worse case — collapsing it
-    // into "close to deadline" would let the most urgent thing on the
-    // page read as the least.
-    final overdue = _tickets
-        .where((t) => t.status != 'resolved' && t.status != 'closed')
-        .where((t) => t.slaDeadline.isBefore(now))
-        .length;
-
-    if (overdue > 0) {
-      items.insert(0, (
-        label: overdue == 1
-            ? '1 support ticket is past its deadline'
-            : '$overdue support tickets are past their deadline',
-        meta: 'Overdue',
-        tone: KolaVar.danger,
-        route: '/operations',
-      ));
-    }
-
-    return items;
-  }
-
-  Component _attentionList(
-    List<({String label, String meta, String tone, String route})> items,
-  ) =>
-      div(
+  /// The single worst thing, as the design's own card.
+  Component _topRecommendation(WorkspaceFinding f) => div(
         attributes: {
-          'style': 'display:flex;flex-direction:column;'
-              'border:1px solid ${KolaVar.border};border-radius:${KolaRadius.lg};'
-              'overflow:hidden;background:${KolaVar.card}',
+          'style': 'border:1px solid ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};background:${KolaVar.card};'
+              'padding:16px;margin-bottom:18px',
         },
         [
-          for (var i = 0; i < items.length; i++)
-            Link(
-              to: items[i].route,
+          div(
+            attributes: {
+              'style': 'display:flex;align-items:center;gap:8px;'
+                  'margin-bottom:8px',
+            },
+            [
+              _severityDot(f.severity),
+              span(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};font-weight:600;'
+                      'color:${KolaVar.muted}',
+                },
+                [
+                  // The design shows "Medium confidence · 0.62". Every
+                  // finding here is counted rather than judged, so it
+                  // says so plainly instead of dressing certainty up as
+                  // a score.
+                  Component.text(
+                    f.confidence >= 1.0
+                        ? 'Counted, not guessed'
+                        : '${(f.confidence * 100).round()}% confident',
+                  ),
+                ],
+              ),
+              span(
+                attributes: {
+                  'style': 'flex:1;text-align:right;'
+                      'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+                },
+                [Component.text(_age(f))],
+              ),
+            ],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.bodyLg};font-weight:600;'
+                  'color:${KolaVar.text};line-height:1.4;margin-bottom:4px',
+            },
+            [Component.text(f.title)],
+          ),
+          if (f.detail != null)
+            div(
               attributes: {
-                'class': 'kola-nav-row',
-                'style': 'display:flex;align-items:center;gap:12px;'
-                    'padding:13px 16px;text-decoration:none;'
-                    'color:${KolaVar.text};font-size:${KolaType.bodyLg};'
-                    '${i > 0 ? 'border-top:1px solid ${KolaVar.border}' : ''}',
+                'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                    'line-height:1.55;max-width:64ch',
               },
-              children: [
-                span(
-                  attributes: {
-                    'style': 'width:7px;height:7px;flex:none;'
-                        'border-radius:${KolaRadius.circle};'
-                        'background:${items[i].tone}',
-                  },
-                  [],
-                ),
-                span(attributes: {'style': 'flex:1'}, [Component.text(items[i].label)]),
-                span(
-                  attributes: {
-                    'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                        'white-space:nowrap',
-                  },
-                  [Component.text(items[i].meta)],
-                ),
-              ],
+              [Component.text(f.detail!)],
             ),
+          div(
+            attributes: {
+              'style': 'display:flex;gap:8px;flex-wrap:wrap;margin-top:14px',
+            },
+            [
+              if (_routeFor(f) case final route?)
+                Link(
+                  to: route,
+                  attributes: {
+                    'class': 'kola-pressable',
+                    'style': 'padding:9px 16px;'
+                        'border-radius:${KolaRadius.pill};border:none;'
+                        'background:${KolaVar.accentFill};'
+                        'color:${KolaVar.accentText};text-decoration:none;'
+                        'font-size:${KolaType.tiny};font-weight:600',
+                  },
+                  children: [Component.text(_actionLabelFor(f))],
+                ),
+              _dismissButton(f),
+            ],
+          ),
         ],
       );
+
+  /// Everything else, as rows.
+  Component _findingsList(List<WorkspaceFinding> items) => div(
+        attributes: {
+          'style': 'display:flex;flex-direction:column;'
+              'border:1px solid ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};overflow:hidden;'
+              'background:${KolaVar.card}',
+        },
+        [
+          for (var i = 0; i < items.length; i++) _findingRow(items[i], i),
+        ],
+      );
+
+  Component _findingRow(WorkspaceFinding f, int index) {
+    final route = _routeFor(f);
+    final busy = f.id != null && _dismissing.contains(f.id);
+
+    final body = <Component>[
+      _severityDot(f.severity),
+      div(
+        attributes: {'style': 'flex:1;min-width:0'},
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.text};'
+                  'line-height:1.4',
+            },
+            [Component.text(f.title)],
+          ),
+          if (f.detail != null)
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                    'line-height:1.45;margin-top:2px;overflow:hidden;'
+                    'text-overflow:ellipsis;white-space:nowrap',
+              },
+              [Component.text(f.detail!)],
+            ),
+        ],
+      ),
+      span(
+        attributes: {
+          'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+              'white-space:nowrap',
+        },
+        [Component.text(_age(f))],
+      ),
+    ];
+
+    return div(
+      attributes: {
+        'style': 'display:flex;align-items:center;gap:10px;padding:12px 14px;'
+            'opacity:${busy ? '0.5' : '1'};'
+            '${index > 0 ? 'border-top:1px solid ${KolaVar.border}' : ''}',
+      },
+      [
+        // A Link ONLY when there is somewhere real to go. A row that
+        // looks clickable and does nothing is the dead-link problem in
+        // miniature, and half these findings are about the workspace
+        // rather than one row.
+        if (route != null)
+          Link(
+            to: route,
+            attributes: {
+              'class': 'kola-nav-row',
+              'style': 'display:flex;align-items:center;gap:10px;flex:1;'
+                  'min-width:0;text-decoration:none;color:inherit',
+            },
+            children: body,
+          )
+        else
+          div(
+            attributes: {
+              'style': 'display:flex;align-items:center;gap:10px;flex:1;'
+                  'min-width:0',
+            },
+            body,
+          ),
+        _dismissButton(f),
+      ],
+    );
+  }
+
+  Component _dismissButton(WorkspaceFinding f) {
+    final busy = f.id != null && _dismissing.contains(f.id);
+    return button(
+      attributes: {
+        'type': 'button',
+        'aria-label': 'Dismiss: ${f.title}',
+        if (busy) 'disabled': '',
+        'style': 'flex:none;padding:7px 12px;'
+            'border-radius:${KolaRadius.pill};border:1px solid transparent;'
+            'background:transparent;color:${KolaVar.muted};'
+            'font-family:inherit;font-size:${KolaType.tiny};font-weight:600;'
+            'cursor:${busy ? 'default' : 'pointer'}',
+      },
+      events: {
+        'click': (_) {
+          if (!busy) _dismissFinding(f);
+        },
+      },
+      // "I know" rather than "Dismiss": it is what the owner is actually
+      // saying, and it makes clear this is an acknowledgement rather than
+      // a claim to have fixed anything.
+      [Component.text(busy ? 'Hiding…' : 'I know')],
+    );
+  }
+
+  Component _severityDot(int severity) => span(
+        attributes: {
+          'style': 'width:7px;height:7px;flex:none;'
+              'border-radius:${KolaRadius.circle};'
+              'background:${severity <= 1 ? KolaVar.danger : severity == 2 ? KolaVar.warning : KolaVar.muted}',
+          'aria-hidden': 'true',
+        },
+        [],
+      );
+
+  /// "6 days" — the whole reason these are stored rather than computed.
+  String _age(WorkspaceFinding f) {
+    final d = DateTime.now().toUtc().difference(f.firstSeenAt);
+    if (d.inMinutes < 60) return 'just now';
+    if (d.inHours < 24) {
+      return d.inHours == 1 ? 'for an hour' : 'for ${d.inHours} hours';
+    }
+    final days = d.inDays;
+    if (days == 1) return 'for a day';
+    if (days < 14) return 'for $days days';
+    final weeks = days ~/ 7;
+    return weeks == 1 ? 'for a week' : 'for $weeks weeks';
+  }
+
+  /// Where a finding leads, or null when there is nowhere honest.
+  ///
+  /// Driven by subjectType rather than kind, so a new detector on an
+  /// existing subject gets its link for free — and a detector about the
+  /// workspace itself correctly gets none.
+  String? _routeFor(WorkspaceFinding f) => switch (f.subjectType) {
+        'product' when f.subjectId != null => '/catalog/${f.subjectId}',
+        'conversation' => '/conversations',
+        'ticket' => '/operations',
+        'document' => '/knowledge',
+        _ => switch (f.kind) {
+            'product_out_of_stock' || 'product_low_stock' ||
+            'product_missing_price' =>
+              '/catalog',
+            'knowledge_empty' => '/knowledge',
+            'no_channel_connected' => '/integrations',
+            'ticket_due_soon' => '/operations',
+            _ => null,
+          },
+      };
+
+  String _actionLabelFor(WorkspaceFinding f) => switch (f.subjectType) {
+        'product' => 'Open this product',
+        'conversation' => 'Reply now',
+        'ticket' => 'Open the ticket',
+        'document' => 'Open Knowledge',
+        _ => switch (f.kind) {
+            'no_channel_connected' => 'Connect a channel',
+            'knowledge_empty' => 'Teach kola something',
+            'ticket_due_soon' => 'Open Operations',
+            _ => 'Take a look',
+          },
+      };
+
+  Future<void> _dismissFinding(WorkspaceFinding f) async {
+    final id = f.id;
+    if (id == null) return;
+    setState(() => _dismissing = {..._dismissing, id});
+    try {
+      await component.client.finding.dismissFinding(
+        component.accessToken,
+        component.workspaceId,
+        id,
+      );
+      if (!mounted) return;
+      // Removed locally rather than by reloading. A full reload would
+      // re-run the sweep, which is several queries, to learn one thing
+      // this already knows.
+      setState(() {
+        _findings = [for (final x in _findings) if (x.id != id) x];
+        _dismissing = {..._dismissing}..remove(id);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _dismissing = {..._dismissing}..remove(id));
+    }
+  }
 
   /// Shown when nothing needs attention.
   ///

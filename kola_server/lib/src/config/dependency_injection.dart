@@ -33,6 +33,8 @@ import 'package:kola_server/src/services/errand/db_credential_errand_executor.da
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
 import 'package:kola_server/src/services/assistant/workspace_answer_service.dart';
+import 'package:kola_server/src/services/observation/workspace_sweep_service.dart';
+import 'package:kola_server/src/services/repository/workspace_finding_repository.dart';
 import 'package:kola_server/src/services/knowledge/bot_knowledge_service.dart';
 import 'package:kola_server/src/services/knowledge/bot_mother_service.dart';
 import 'package:kola_server/src/services/repository/conversation_repository.dart';
@@ -287,6 +289,25 @@ void setupDependencyInjection() {
       embeddings: getIt<EmbeddingOrchestrator>(),
       documents: getIt<KnowledgeDocumentRepository>(),
       chunks: getIt<KnowledgeChunkRepository>(),
+    ),
+  );
+
+  // Notices things without being asked — "Needs your attention".
+  //
+  // Deterministic detectors only; no AI. See finding_kinds.dart on why
+  // the Overview is the worst screen in the product for a
+  // plausible-sounding mistake.
+  getIt.registerLazySingleton<WorkspaceFindingRepository>(
+    () => const WorkspaceFindingRepository(),
+  );
+  getIt.registerLazySingleton<WorkspaceSweepService>(
+    () => WorkspaceSweepService(
+      findings: getIt<WorkspaceFindingRepository>(),
+      products: getIt<ProductRepository>(),
+      conversations: getIt<ConversationRepository>(),
+      documents: getIt<KnowledgeDocumentRepository>(),
+      connectors: getIt<WorkspaceConnectorRepository>(),
+      tickets: getIt<SupportTicketRepository>(),
     ),
   );
 

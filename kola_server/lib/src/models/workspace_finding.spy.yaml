@@ -1,0 +1,87 @@
+##
+## workspace_finding.spy.yaml — one thing kola noticed.
+##
+## Backed by migration 034. See that file for why this is stored rather
+## than recomputed on every page load — the short version is that "out of
+## stock" is a fact and "out of stock for six days" is the one an owner
+## acts on, and the second needs a row that survives the page.
+##
+
+## ── NO `table:` LINE, AND THAT IS THE PATTERN HERE ──────────────────
+##
+## I wrote `table: workspace_findings` and serverpod generate refused it:
+##
+##   The "table" property cannot be used when the database feature is
+##   disabled.
+##
+## This project runs Serverpod MINI. Serverpod owns model shape and
+## codegen; SUPABASE owns the schema and persistence; the DTO +
+## repository layer bridges the two (see base_dto.dart's header). There
+## is no Serverpod-managed database for a `table:` to refer to.
+##
+## Worth stating plainly: this was the ONLY model in the project with a
+## `table:` line. Every other one — thirty-odd of them — is table-less.
+## The convention was unanimous and I broke it by reasoning from "this
+## row is stored, so it needs a table" instead of reading what was
+## already there.
+##
+## Being stored changes nothing about this file. The table is created by
+## migration 034 and reached through WorkspaceFindingRepository, exactly
+## like products, conversations and knowledge_documents.
+##
+## The commented-out `table:` below follows knowledge_document.spy.yaml's
+## convention: kept as documentation of which Supabase table this maps
+## to, without asking Serverpod to manage it.
+
+class: WorkspaceFinding
+# table: workspace_findings
+fields:
+  id: int? # Supabase assigns this automatically
+
+  workspaceId: int
+
+  ## A code from FindingKinds. Text rather than an enum so adding a
+  ## detector is a deploy, not a migration.
+  kind: String
+
+  ## Stable identity across sweeps: 'product_out_of_stock:41'. Derived
+  ## from kind + subject, NEVER from the wording (which changes as
+  ## templates improve) or a count (which changes daily). Getting this
+  ## wrong turns the table into an append-only log of near-duplicates.
+  fingerprint: String
+
+  ## 1 = highest. An int, so a new detector can slot between two existing
+  ## levels without renaming anything.
+  severity: int
+
+  ## Rendered at sweep time and STORED, not re-rendered on read.
+  ##
+  ## A sentence describing Tuesday must keep describing Tuesday. Re-render
+  ## it against today's numbers and the Timeline shows an entry that never
+  ## happened.
+  title: String
+  detail: String?
+
+  subjectType: String?
+  subjectId: int?
+
+  ## 1.0 for every deterministic detector, which is all of them today.
+  ##
+  ## Carried anyway so that when a recommendation IS model-written it can
+  ## be visibly less certain, rather than sitting beside "this product has
+  ## 0 stock" looking equally solid.
+  confidence: double
+
+  firstSeenAt: DateTime
+  lastSeenAt: DateTime
+
+  ## Set when the condition goes away. Resolved rather than deleted, so
+  ## "how long was that out of stock" stays answerable.
+  resolvedAt: DateTime?
+
+  ## Set when the owner says "I know". Survives every later sweep — a
+  ## dismissal that forgets teaches owners to ignore the whole section.
+  dismissedAt: DateTime?
+
+  createdAt: DateTime
+  updatedAt: DateTime
