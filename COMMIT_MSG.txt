@@ -1,181 +1,172 @@
-Product media on ImageKit, CSV import, and four silent runtime bugs
+Give kola an answer layer; the Overview never had one
 
-Photos and video end to end, bulk import from a spreadsheet, and the
-root cause behind Knowledge upload doing nothing — which turned out to
-be four separate broken features sharing one mistake.
+The "Ask kola" box on the Overview called KnowledgeEndpoint.searchMemory
+and printed the retrieved passages verbatim. There was no model in that
+path at all. What an owner saw was raw document text — literal ** and
+- markers, sentences cut at a chunk boundary, the same passage twice
+where a document had been saved twice.
 
-── TWO INGESTION PATHS, ONE DESTINATION ─────────────────────────────
+It was honestly labelled in its own source ("deliberately NOT dressed up
+as conversational AI... when the reasoning layer exists this component
+gets an answer above the citations") and it still read, on screen, as a
+broken AI. Reported as "the AI parsing needs work", which was the right
+observation about the wrong layer: nothing was parsing because nothing
+was generating.
 
-  owner, in the dashboard    browser ──signed token──▶ ImageKit
-  customer, on WhatsApp      Meta ──▶ kola ──▶ ImageKit
-  customer, on Telegram      Telegram ──▶ kola ──▶ ImageKit
+── WHAT THE ANSWER LAYER ACTUALLY IS ────────────────────────────────
 
-Both end as an ImageKit URL, so the dashboard renders either with the
-same <img src> and never needs to know how a picture arrived.
+  question
+    ├─ memory retrieval        the owner's own documents
+    ├─ catalog digest          what they actually sell
+    └─ model ──▶ tool call ──▶ { answer, product ids, intents }
+                                        │
+                                        └─ server resolves routes
 
-The dashboard path does NOT proxy through kola_server. A Serverpod
-parameter is JSON, so a 5MB photo would become ~6.7MB of base64, cross
-the wire twice, and arrive as one opaque request with no way to report
-progress. The server signs one-shot credentials (HMAC-SHA1, 10 minute
-expiry against ImageKit's 1 hour ceiling) and the bytes go direct.
+Two constraints make this safe to put in front of an owner, and both are
+about what the model is NOT allowed to do.
 
-The inbound path CANNOT work that way — there is no browser in that
-story — and ImageKit cannot fetch the provider URL itself either:
+THE MODEL MAY POINT AT PRODUCTS, NEVER DESCRIBE THEM. It returns ids.
+AnswerProducts loads those rows and renders the price, stock badge and
+photo read from the database at the moment of display. A hallucinated or
+stale price cannot reach the screen, because prose is never the source
+of a number. The old version had the opposite property: every figure in
 
-  Telegram   the download URL embeds the bot token. Handing it to
-             ImageKit hands a third party the credential that can read
-             and send every message for that business.
-  WhatsApp   the media URL needs an Authorization header and expires in
-             minutes. ImageKit cannot supply the header.
+    - Baby Ankara wrap (Children)
+      Price: ₦3,500
 
-So inbound media is downloaded with the workspace's own credentials and
-re-uploaded. asami_server's server-side shape is right for that case and
-wrong for the dashboard; both now exist for the case each fits.
+was a claim from an embedding made days ago, and nothing on screen
+distinguished a correct one from a wrong one.
 
-── messages WAS DROPPING PHOTOS ENTIRELY ────────────────────────────
+THE MODEL MAY CHOOSE AN INTENT, NEVER A URL. It picks from a closed
+vocabulary; WorkspaceAnswerService maps intent → route. A model asked
+for a URL will produce /inventory or /products/restock — plausible,
+well-formed, not routes this app has. This codebase has already shipped
+two dead links BY HAND (/settings, /catalog/:id); handing that job to
+something that cannot read the router would industrialise it. All ten
+intents were checked against app.dart's registered paths.
 
-Message had only `body: String`. A customer sending a picture produced
-an empty message and nothing else — for a shop where "do you have this?"
-IS a photo, the most important message type there is.
+Structured output comes from a single always-called tool rather than
+"return JSON", because AiOrchestrator.completeWithTools already exists
+for Errands and every provider translates AiTool into its own format.
+Asking for JSON means parsing whatever comes back — ```json fences
+included — with no recourse when it is malformed. The fallback still
+matters: a model that answers in prose instead of calling the tool
+yields the prose with no products and no actions, which is degraded and
+correct.
 
-Migration 032 adds media_kind / media_url / media_thumbnail_url /
-media_imagekit_file_id / media_mime_type. media_kind set with media_url
-NULL is a deliberate, meaningful state: the file arrived and could not be
-stored. Every media method returns null instead of throwing, so a CDN
-blip costs the picture and never the message.
+── THREE HELPERS DELETED, BECAUSE THEY WERE THE BUG ─────────────────
 
-Not yet wired into the webhook parsers — they still only extract text.
+  _leadFor      "I found 4 places in what you have taught me..." — a
+                sentence ABOUT the search, written because there was no
+                answer to show.
+  _noAnswerFor  the two "I don't know" variants.
+  _actionsFor   keyword matching on the QUESTION. Asking "what do we
+                have in the catalog" offered "Open your catalog" because
+                the word "catalog" appeared — not because of anything in
+                the reply.
 
-── FOUR FEATURES BROKEN BY ONE MISTAKE ──────────────────────────────
+That last one is exactly the reported complaint: actions should follow
+from what was answered. It could not. There was no answer to read.
 
-`(x as dynamic).member` on a DOM object throws NoSuchMethodError.
-dart:js_interop extension types are ERASED at compile time, so the
-lookup is for a Dart member named `files`/`value`/`style`/`key` on a
-plain JS object. It analyses clean. It never runs.
+All three are removed rather than kept as a fallback. A second source of
+answer text is a second thing to keep in step, and it would only ever
+run when the first had already failed — which is when consistency
+matters most.
 
-main.dart's `(root as dynamic).style` was only VISIBLY fatal because it
-ran before runApp. Inside an event handler the same throw is swallowed
-by the event loop, and the feature simply does nothing:
+── MARKDOWN: A FIXED SUBSET, CLAMPED AT BOTH ENDS ───────────────────
 
-  knowledge_page   file picker — upload did nothing. No error, no
-                   progress. The entire staged progress UI (uploadStages
-                   / _tickStages / queue rows) has been correct all along
-                   and never once ran, because _onFiles was unreachable.
-  ask_kola         composer never captured typed text, never grew, and
-                   Enter never sent
-  command_palette  Escape did nothing
-  operations_page  Enter to send a reply did nothing
+Paragraphs, "- " bullets, **bold**. The prompt asks for only those;
+MiniMarkdown renders only those. A full CommonMark parser would render
+every construct a model might emit — tables, headings, nested lists,
+images, raw HTML — and each is a new way for the card to look wrong.
 
-I introduced this pattern and then defended it in a comment claiming it
-was "known to work" because it compiled. Compiling is not running.
+Tested against the cases that actually break renderers, including the
+exact chunk text from the report: an unclosed ** stays literal, "2 * 3"
+is not emphasis, "*roughly* 40" is not a bullet, and stray --- and
+"## Sizing" are absorbed instead of printed. Bold is matched by scanning
+for PAIRS, not by a regex — \*\*(.+?)\*\* mishandles all three of those.
 
-New lib/services/dom_files.dart declares the DOM surface explicitly:
-filesFrom (returns web.File, so FileIntake is untouched — only the
-EXTRACTION was broken), resetFileInput, valueOf, autoGrow. Keyboard
-events use `as web.KeyboardEvent`, the cast app_shell.dart already uses
-for Cmd-K and which demonstrably works. Verified: no `as dynamic` member
-access remains anywhere in lib/.
+Every leaf is Component.text, which jaspr escapes. There is no innerHTML
+path. That is structural, not stylistic: this text derives from
+documents the owner uploaded, and a document can contain text a customer
+sent — so an HTML rendering path would make "upload this file" an XSS
+vector against the owner's own dashboard.
 
-resetFileInput matters on its own — without clearing the input's value,
-re-picking the SAME file after a failure fires no change event at all,
-so a retry looks broken twice over.
+Cards and actions wait for the stream to finish. Appearing beside a
+half-written sentence makes an answer feel assembled rather than spoken.
 
-── PHOTOS & VIDEO TAB ───────────────────────────────────────────────
+Citations are now COLLAPSED. When the passages were the answer they had
+to be open; now they are its evidence, and an owner who trusts the reply
+should not scroll past its footnotes to reach the composer.
 
-Choose files, or take one with the camera — `capture="environment"`
-opens the rear camera on a phone rather than the gallery, which is the
-point for someone photographing stock on a market stall.
+`generated: false` is on the wire deliberately. During a provider outage
+the owner is told the sentence is a fallback rather than left with "kola
+got worse" as the only available explanation.
 
-Progress is real bytes-sent, not a spinner: XHR's upload.onprogress is
-the only browser API that reports it, which is the other reason the
-upload does not go through kola_server. Uploads run sequentially — four
-at once on a shared mobile connection makes all four slow and the bars
-jump; one at a time finishes the first quickly, which is what makes the
-wait feel bounded. A failed upload STAYS on screen with its reason.
+── A BUG THE CSV TEMPLATE FOUND IN THE IMPORTER ─────────────────────
 
-Photos added before a new product is saved are held and attached the
-moment createProduct returns an id. The alternative was refusing photos
-until the form is saved, which is the complaint that started this work.
-The tradeoff is orphans on abandonment; they are tagged for sweeping.
+Running the importer's OWN canonical labels back through its matcher,
+"Low-stock alert" resolved to **stock**. _fuzzy tested contains('stock')
+before any low-stock rule, so a reorder threshold would have overwritten
+real inventory — silently, and confidently enough to look right.
 
-── CSV IMPORT ───────────────────────────────────────────────────────
+Every low-stock spelling contains "stock", so this could only be fixed
+by ORDERING, never by adding more substrings. Now verified across 19
+headers including variants from other systems (Reorder Level, Qty on
+hand, Selling Price (NGN), low_stock_threshold).
 
-CSV and not PDF, deliberately: a CSV has structure, a PDF has LAYOUT.
-Reading a PDF price list correctly needs a model that can tell a column
-from a coincidence, and a wrong guess writes wrong prices into a live
-catalog silently.
+The template itself is generated FROM csvTargetFields rather than typed
+out — I typed it out first and got one label wrong, which is how the
+collision surfaced. Two example rows, one stocked product and one
+service with blank price and blank stock: that blank is the one thing an
+owner cannot guess from a header, and typing 0 there is a false fact,
+not an empty one.
 
-Every column except `name` is optional, and headers are matched through
-an alias table (qty/quantity/stock, price/amount/selling price, and so
-on) so an export from another platform usually just works. A file with
-one name column imports fifty named products the owner can then fill in
-— refusing on a missing column is how an import tool becomes something
-people give up on.
+── SMALLER ──────────────────────────────────────────────────────────
 
-Images arrive as URLs, so ProductEndpoint.importMediaFromUrl fetches
-them SERVER-SIDE and takes a copy. That check is not decoration: without
-the scheme and private-address guards this endpoint is a server-side
-request forgery tool aimed at 169.254.169.254. The guard is honest about
-being a first line — a hostile DNS record can still point a public name
-at loopback, and closing that needs resolve-then-check-then-connect,
-which Dart's http client does not expose.
+  Overview     The 4th card is back with a REAL product count. Only the
+               locked branch had ever been written, so releasing the
+               catalog deleted the card instead of filling it in — a
+               placeholder that vanishes the moment the thing it was
+               waiting for arrives. Also unblocks NextSteps.hasProducts,
+               hardcoded false since the day it was wired, with a note
+               saying it would start working when the catalog shipped.
+               The catalog shipped. The note did not read itself.
 
-Row failures never abort the run. "Added 47 of 50" with the three
-failures named is the answer an owner needs; an import that stops at row
-12 and leaves them guessing is not.
+  Detail page  The CUSTOMER tab now shares the seller tab's two-column
+               layout. The previous pass reflowed one side and left the
+               other stacked — the worse of the two to leave, since a
+               customer-facing card whose photo pushes the PRICE off
+               screen buries the one fact they came for.
 
-The parser is hand-rolled (no CSV dependency in the browser bundle) and
-handles the RFC 4180 parts real spreadsheets emit: quoted fields, commas
-inside quotes, doubled quotes, CRLF. Verified field-for-field against
-Python's csv module across all 50 rows of the sample file.
+  dom_files    downloadText(), declared explicitly like everything else
+               in that file rather than casting through
+               createElement('a') as HTMLAnchorElement.
 
-── SCHEMA ───────────────────────────────────────────────────────────
+── MISTAKES IN THIS CHANGE, CAUGHT BEFORE IT RAN ────────────────────
 
-  031  product_media reshaped for ImageKit — imagekit_file_id, url,
-       thumbnail_url, width, height. The fileId is not optional even
-       though the URL renders: only the fileId can DELETE, and without
-       it every removed photo stays live on the CDN forever, which is a
-       growing bill and a link that keeps working for anyone who saw it.
+  _dedupe was an INSTANCE FIELD on a service registered as a lazy
+  singleton. Product ids from one request would have silently suppressed
+  the next person's — an answer missing a card for no visible reason,
+  and only for the second person to ask. Now a local.
 
-       products.tag renamed to products.category. It was always the
-       category; two names for one idea is how a schema drifts.
+  Imported util/log.dart, which does not exist. Services use
+  package:logging; `Log` is the endpoint-layer helper that takes a
+  Session, and a service has none.
 
-  032  message media columns, above.
+── STILL NOT DONE ───────────────────────────────────────────────────
 
-── SAMPLE DATA ──────────────────────────────────────────────────────
+Storing these interactions. A question, the passages retrieved for it,
+the model that answered and whether the owner then had to correct it is
+the only training corpus that would ever be trustworthy — and today
+messages.body keeps the answer with none of its inputs. Deliberately not
+smuggled in here: it is a retention and per-workspace-consent decision
+over customer PII, and it deserves its own change. Recorded in
+workspace_answer.spy.yaml's header rather than left implied.
 
-docs/samples/kola-sample-products.csv — 50 Nigerian fashion products
-across 8 categories, covering every case that matters: all three
-archetypes, 3 by-quote products (null price, NOT free), 6 not-stocked
-services (null stock, NOT out of stock), and 1 genuinely out of stock.
-Image URLs are picsum.photos seeded per product — real, deterministic,
-no API key, and permanently reachable.
+The catalog digest is capped at 60 products. Above that the model sees a
+partial list, and that fact is put IN the prompt so it qualifies its own
+answer instead of describing a slice as the whole. Beyond this cap the
+honest fix is retrieving the relevant subset, not sending more.
 
-docs/samples/kola-sample-knowledge.md — the same fictional shop's
-policies, written the way an owner would actually write them. Deliberately
-full of the facts customers ask about and kola currently cannot answer:
-delivery prices per area, what can and cannot be returned, sizing, aso-ebi
-bulk tiers, fabric care. It exists to give the Knowledge probe something
-real to retrieve against, and to make a wrong answer obvious.
-
-── NOTE ON SERVERPOD, AGAIN ─────────────────────────────────────────
-
-A default on an endpoint's named parameter does not survive codegen:
-`bool includeArchived = false` becomes `required bool includeArchived`
-in the client. I flagged this last commit and then walked straight into
-it. Every call site now passes them explicitly, checked programmatically
-against the generated client rather than one analyzer error at a time.
-
-── TWO THINGS CAUGHT WHILE PREPARING THIS COMMIT ────────────────────
-
-Migration 032 had been applied to the database with no .sql file — the
-same failure BUILD_AUDIT_5 §2.7 records for migration 025, which existed
-only in the database for weeks. The file is written now, so the schema
-can be rebuilt from docs/migrations alone.
-
-And /docs/* is gitignored (deny-by-default, with named files allowed
-back), so the sample CSV would not have been committed at all despite
-being the file the importer is meant to be tested with. .gitignore now
-allows /docs/samples/ back explicitly, with a note on why that content
-is safe to publish: fictional products and public stock-image links, no
-customer data.
+Requires: serverpod generate (two models, one endpoint).

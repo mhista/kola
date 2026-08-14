@@ -147,6 +147,23 @@ class _OverviewPageState extends State<OverviewPage> {
       // Each gated call is replaced by an immediately-completed empty
       // list when its feature is off, so the shape of this list never
       // changes and the indices below stay honest.
+      //
+      // ── WHICH FAILURES ARE ALLOWED TO KILL THE PAGE ─────────────────
+      //
+      // Future.wait fails FAST: the first future to throw rejects the
+      // whole thing, and this page turns into "Couldn't load your
+      // briefing". That is right for the reads this screen cannot exist
+      // without, and wrong for the ones that only ADD a section.
+      //
+      // I got this wrong by dropping listFindings straight into the list
+      // with everything else. A brand-new workspace — no products, no
+      // channel, nothing taught — hit one failing call on an endpoint
+      // that had just been added, and the entire Overview went red. The
+      // owner's first ever screen, blanked by an optional section.
+      //
+      // So the additive reads catch their own errors and degrade to an
+      // empty list. A missing findings section is invisible; a missing
+      // briefing is alarming.
       final results = await Future.wait<List<dynamic>>([
         component.client.conversation.listAll(token, id),
         gate.isEnabled(Features.escalation)
@@ -188,14 +205,16 @@ class _OverviewPageState extends State<OverviewPage> {
         // This also feeds NextSteps.hasProducts, which has been hardcoded
         // false since the day it was wired.
         gate.isEnabled(Features.commerceCatalog)
-            ? component.client.product.listProducts(
-                token,
-                id,
-                // Explicit: Serverpod drops defaults when generating the
-                // client, so this is `required` there even though the
-                // endpoint declares it optional.
-                includeArchived: false,
-              )
+            ? component.client.product
+                .listProducts(
+                  token,
+                  id,
+                  // Explicit: Serverpod drops defaults when generating the
+                  // client, so this is `required` there even though the
+                  // endpoint declares it optional.
+                  includeArchived: false,
+                )
+                .catchError((_) => const <Product>[])
             : Future.value(const <Product>[]),
 
         // Ninth read: what needs the owner's attention.
@@ -204,7 +223,9 @@ class _OverviewPageState extends State<OverviewPage> {
         // why, and on what changes when a scheduler exists. It is in the
         // same Future.wait as everything else because it does not depend
         // on any of them.
-        component.client.finding.listFindings(token, id),
+        component.client.finding
+            .listFindings(token, id)
+            .catchError((_) => const <WorkspaceFinding>[]),
       ]);
 
       if (!mounted) return;
