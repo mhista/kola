@@ -456,7 +456,7 @@ class _BotDetailChatPageState extends State<BotDetailChatPage> {
           _statCard(
             'Handled without escalation',
             _handledPct == null ? null : '$_handledPct%',
-            'Shows how much kola handles on its own',
+            'Shows how much kolaa handles on its own',
           ),
           _statCard(
             'Escalated to you',
@@ -507,7 +507,7 @@ class _BotDetailChatPageState extends State<BotDetailChatPage> {
   Component _whatItCanDo() => _card([
         _cardHead('What it can do', '${_errands.length} errands'),
         if (_errands.isEmpty)
-          _emptyLine('No errands yet. Errands are the actions kola can take '
+          _emptyLine('No errands yet. Errands are the actions kolaa can take '
               'mid-conversation — checking stock, holding an item, escalating '
               'to you.')
         else
@@ -561,7 +561,7 @@ class _BotDetailChatPageState extends State<BotDetailChatPage> {
   Component _whatItKnows() => _card([
         _cardHead('What it knows', null),
         if (_docs.isEmpty)
-          _emptyLine('Nothing yet. Until kola is taught something it can only '
+          _emptyLine('Nothing yet. Until kolaa is taught something it can only '
               'fall back on general answers.')
         else
           for (final d in _docs.take(6))
@@ -747,7 +747,7 @@ class _BotDetailChatPageState extends State<BotDetailChatPage> {
                 'line-height:1.55;margin-bottom:14px',
           },
           [
-            Component.text('Describe the business in plain language — kola '
+            Component.text('Describe the business in plain language — kolaa '
                 'drafts the plan as you go.'),
           ],
         ),
@@ -864,7 +864,7 @@ class _BotDetailChatPageState extends State<BotDetailChatPage> {
   /// Saves the description as the agent's knowledge seed.
   ///
   /// setKnowledgeSeed is the real, existing path. The export also shows
-  /// kola drafting errands from the same description — that is
+  /// kolaa drafting errands from the same description — that is
   /// createBotFromDescription, which only exists for NEW agents, so
   /// drafting errands into an EXISTING one has no endpoint yet. Recorded
   /// rather than faked with a hardcoded errand list.
@@ -955,7 +955,7 @@ class _BotDetailChatPageState extends State<BotDetailChatPage> {
           [Component.text('ERRANDS DRAFTED · ${_errands.length}')],
         ),
         if (_errands.isEmpty)
-          _emptyLine('None yet. Describe the business and kola will suggest '
+          _emptyLine('None yet. Describe the business and kolaa will suggest '
               'the actions it should be able to take.')
         else
           for (final e in _errands) _errandRow(e),

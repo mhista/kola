@@ -29,7 +29,7 @@
 //
 // That second row is the one that earns its place. Blank-means-unknown is
 // impossible to guess and the alternative — typing 0 — is a false fact:
-// the catalog would show the service as out of stock and kola would tell
+// the catalog would show the service as out of stock and kolaa would tell
 // customers it cannot be bought.
 //
 // ── A NOTE ROW WOULD BREAK THE FILE ──────────────────────────────────
@@ -88,7 +88,7 @@ abstract class CsvTemplate {
       // Blank price means "by quote" and blank stock means "not
       // something I keep in stock". Typing 0 in either is a false fact:
       // the catalog would show this service as free and out of stock,
-      // and kola would tell customers it cannot be bought. This row
+      // and kolaa would tell customers it cannot be bought. This row
       // exists to demonstrate exactly that, because it is the one thing
       // an owner cannot guess from a header.
       'sku': 'TAI-001',

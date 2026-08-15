@@ -138,7 +138,7 @@ abstract class MediaUpload {
           } catch (_) {
             if (!completer.isCompleted) {
               completer.completeError(const UploadException(
-                'That upload finished but came back in a form kola did '
+                'That upload finished but came back in a form kolaa did '
                 'not recognise. Please try again.',
               ));
             }

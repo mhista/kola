@@ -404,7 +404,7 @@ class _CatalogPageState extends State<CatalogPage> {
                 },
                 [
                   Component.text(
-                    'What you sell. kola quotes prices and checks stock from '
+                    'What you sell. kolaa quotes prices and checks stock from '
                     'this, instead of passing every question to you.',
                   ),
                 ],
@@ -413,7 +413,7 @@ class _CatalogPageState extends State<CatalogPage> {
           ),
           // Goes to the import SCREEN rather than importing inline.
           // The old inline version skipped straight from "file chosen"
-          // to "creating products", with no chance to check that kola
+          // to "creating products", with no chance to check that kolaa
           // read the columns correctly — see catalog_import_page.dart.
           Link(
             to: '/catalog/import',
@@ -897,7 +897,7 @@ class _CatalogPageState extends State<CatalogPage> {
             [
               Component.text(
                 'Add one thing you sell — its name, price and how many you '
-                'have. From then on kola can answer "how much?" and "is it '
+                'have. From then on kolaa can answer "how much?" and "is it '
                 'in stock?" without waking you up.',
               ),
             ],

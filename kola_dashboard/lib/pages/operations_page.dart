@@ -647,7 +647,7 @@ class _OperationsPageState extends State<OperationsPage> {
               )
             else if (m.mediaKind != null)
               // NOT silently dropped. The owner needs to know a picture
-              // was sent even when kola could not keep it, because the
+              // was sent even when kolaa could not keep it, because the
               // customer is about to refer to it.
               div(
                 attributes: {
@@ -679,7 +679,7 @@ class _OperationsPageState extends State<OperationsPage> {
             // are deciding whether to step in.
             Component.text(inbound
                 ? _time(m.createdAt)
-                : '${human ? 'You' : 'kola'} · ${_time(m.createdAt)}'),
+                : '${human ? 'You' : 'kolaa'} · ${_time(m.createdAt)}'),
           ],
         ),
       ],

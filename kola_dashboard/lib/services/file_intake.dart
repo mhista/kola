@@ -6,7 +6,7 @@
 // A business will upload anything: a price list as .xlsx, a policy as
 // .docx, a supplier invoice as a photo, a catalogue as a 40-page PDF.
 // Accepting all of them and failing silently on most is worse than
-// accepting none, because the owner believes kola has been taught
+// accepting none, because the owner believes kolaa has been taught
 // something it cannot read.
 //
 // So every file gets CLASSIFIED first, and the classification decides
@@ -43,7 +43,7 @@ import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
 
-/// What a file is, in terms of what kola can do with it.
+/// What a file is, in terms of what kolaa can do with it.
 enum FileKind {
   /// Readable as text right now, in the browser.
   text,
@@ -147,7 +147,7 @@ abstract class FileIntake {
         canIngestNow: false,
         explanation:
             'That file is ${_mb(size)} — the limit is ${_mb(maxBytes)}. '
-            'Split it into sections and add them separately; kola answers '
+            'Split it into sections and add them separately; kolaa answers '
             'more accurately from several focused documents than one huge '
             'one anyway.',
       );
@@ -164,7 +164,7 @@ abstract class FileIntake {
         name: name, sizeBytes: size, kind: FileKind.rejected,
         label: 'Program file', canIngestNow: false,
         explanation: 'That is a program, not a document. Nothing in it is '
-            'business knowledge, so kola will not store it.',
+            'business knowledge, so kolaa will not store it.',
       );
     }
     if (sig == 'png' || sig == 'jpg' || sig == 'gif') {
@@ -181,7 +181,7 @@ abstract class FileIntake {
         name: name, sizeBytes: size, kind: FileKind.archive,
         label: 'Archive', canIngestNow: false,
         explanation: 'That is a compressed folder. Unzip it and add the '
-            'documents inside individually — kola needs to know what each '
+            'documents inside individually — kolaa needs to know what each '
             'one is to cite it properly.',
       );
     }
@@ -205,7 +205,7 @@ abstract class FileIntake {
       return FileAssessment(
         name: name, sizeBytes: size, kind: FileKind.media,
         label: 'Audio or video', canIngestNow: false,
-        explanation: 'kola cannot listen to files yet. If there is a '
+        explanation: 'kolaa cannot listen to files yet. If there is a '
             'transcript, paste that instead.',
       );
     }
@@ -241,7 +241,7 @@ abstract class FileIntake {
     return FileAssessment(
       name: name, sizeBytes: size, kind: FileKind.unknown,
       label: 'Unrecognised', canIngestNow: false,
-      explanation: 'kola could not tell what kind of file that is, so it '
+      explanation: 'kolaa could not tell what kind of file that is, so it '
           'will not guess. If you can open it and copy the text, paste it '
           'instead.',
     );
@@ -363,7 +363,7 @@ abstract class FileIntake {
       FileAssessment(
         name: name, sizeBytes: size, kind: FileKind.document,
         label: label, canIngestNow: false,
-        explanation: 'kola can see it is a $label, but reading text out of '
+        explanation: 'kolaa can see it is a $label, but reading text out of '
             'one is not built yet. Open it, copy the text, and paste it in '
             'above — that works today and gives exactly the same result.',
       );
@@ -393,7 +393,7 @@ abstract class FileIntake {
       explanation: lower.endsWith('.xls')
           ? 'That is the older Excel format. Open it and use Save As → '
               'Excel Workbook (.xlsx), then add it again.'
-          : 'kola cannot read that kind of spreadsheet yet. Saving it as '
+          : 'kolaa cannot read that kind of spreadsheet yet. Saving it as '
               '.xlsx or CSV works today.',
     );
   }
@@ -401,7 +401,7 @@ abstract class FileIntake {
   static FileAssessment _image(String name, int size) => FileAssessment(
         name: name, sizeBytes: size, kind: FileKind.image,
         label: 'Image', canIngestNow: false,
-        explanation: 'kola cannot read text out of pictures yet. If it is a '
+        explanation: 'kolaa cannot read text out of pictures yet. If it is a '
             'photo of a price list, typing the prices in is more accurate '
             'than any scan would be.',
       );

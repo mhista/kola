@@ -89,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
                     'font-family:${KolaDashboardFonts.display};font-size:22px;font-weight:700;'
                     'margin-bottom:6px',
               },
-              [Component.text('kola')],
+              [Component.text('kolaa')],
             ),
             div(
               attributes: {'style': 'font-size:14px;color:${KolaDashboardColors.muted};margin-bottom:24px'},

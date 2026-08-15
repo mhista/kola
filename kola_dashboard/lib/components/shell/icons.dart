@@ -11,7 +11,7 @@
 // that, so no caller has to remember it — and so an icon cannot end up
 // filled-black because someone forgot `fill="none"`.
 //
-// Paths carrying their own fill (the kola droplet) are NOT here; they
+// Paths carrying their own fill (the kolaa droplet) are NOT here; they
 // are drawn where they are used, since they do not follow this contract.
 
 abstract class Icons {

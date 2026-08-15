@@ -318,7 +318,7 @@ class _SettingsPageState extends State<SettingsPage> {
               'style': 'font-size:${KolaType.body};color:${KolaVar.muted};'
                   'margin-bottom:${KolaSpace.lg}',
             },
-            [Component.text('Your workspace, how kola reaches you, and how '
+            [Component.text('Your workspace, how kolaa reaches you, and how '
                 'this dashboard looks.')],
           ),
           div(
@@ -387,7 +387,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _field('What you sell', _industry, (v) => setState(() => _industry = v),
             placeholder: 'e.g. Ankara fabric and ready-made outfits'),
         _field('Your name', _ownerName, (v) => setState(() => _ownerName = v),
-            placeholder: 'The name kola greets you with'),
+            placeholder: 'The name kolaa greets you with'),
         if (_workspaceError != null) _msg(_workspaceError!, KolaVar.danger),
         if (_workspaceSaved != null) _msg(_workspaceSaved!, KolaVar.successBright),
         _primary(_savingWorkspace ? 'Saving…' : 'Save changes',
@@ -475,8 +475,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_notifyLoading) return _card([_msg('Loading…', KolaVar.muted)]);
 
     return _card([
-      _sectionTitle('How kola reaches you'),
-      _hint('When kola cannot answer something confidently it hands the '
+      _sectionTitle('How kolaa reaches you'),
+      _hint('When kolaa cannot answer something confidently it hands the '
           'conversation to you. This is where that alert lands.'),
       _toggleRow('WhatsApp', _whatsappOn, (v) => setState(() => _whatsappOn = v)),
       if (_whatsappOn)
@@ -486,7 +486,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _toggleRow('Telegram', _telegramOn, (v) => setState(() => _telegramOn = v)),
       if (_telegramOn)
         _field('Telegram chat ID', _telegram, (v) => setState(() => _telegram = v),
-            placeholder: 'Message the kola notifier bot to get this'),
+            placeholder: 'Message the kolaa notifier bot to get this'),
       _toggleRow('Email', _emailOn, (v) => setState(() => _emailOn = v)),
       if (_emailOn)
         _field('Email address', _email, (v) => setState(() => _email = v),
@@ -622,7 +622,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _sectionTitle('Data'),
         _notYet(
           'Downloading a copy of your data is not available yet.',
-          'Everything kola has learned — your documents, conversations and '
+          'Everything kolaa has learned — your documents, conversations and '
               'settings — is stored and is not going anywhere. Ask us and '
               'we will export it for you by hand in the meantime.',
         ),

@@ -50,7 +50,7 @@ class MobileTopBar extends StatelessComponent {
           attributes: {
             'style': 'font-family:${KolaDashboardFonts.display};font-size:19px;font-weight:700',
           },
-          [Component.text('kola')],
+          [Component.text('kolaa')],
         ),
         div(
           attributes: {'style': 'display:flex;align-items:center;gap:10px'},

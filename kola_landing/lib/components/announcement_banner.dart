@@ -36,7 +36,7 @@ class AnnouncementBanner extends StatelessComponent {
             'text-align:center;padding:10px 44px 10px 16px;position:relative',
       },
       [
-        Component.text("Try kola's WhatsApp customer-care bot free "),
+        Component.text("Try kolaa's WhatsApp customer-care bot free "),
         a(
           attributes: {'style': 'color:${KolaColors.peach};font-weight:600'},
           [Component.text(' →')],

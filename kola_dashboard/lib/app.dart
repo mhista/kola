@@ -205,9 +205,9 @@ class _DashboardAppState extends State<DashboardApp> {
       // `loadFailed` flag, and for exactly this reason. This is the same
       // lesson applied one layer up.
       // ignore: avoid_print
-      print('kola: workspace load FAILED — $e');
+      print('kolaa: workspace load FAILED — $e');
       // ignore: avoid_print
-      print('kola: $stack');
+      print('kolaa: $stack');
       _workspaceLoadFailed = true;
 
       _workspaces = const [];

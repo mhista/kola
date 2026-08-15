@@ -2,7 +2,7 @@
 //
 // "Let the product testify" — the section that replaces testimonials.
 //
-// WHY THERE IS NO TESTIMONIAL SECTION ANYWHERE ON THIS PAGE: kola hasn't
+// WHY THERE IS NO TESTIMONIAL SECTION ANYWHERE ON THIS PAGE: kolaa hasn't
 // launched. There are no customers to quote, and inventing quotes with
 // invented names is trivially checkable, is the fastest way to lose an
 // evaluator, and would be a serious problem in anything attached to a
@@ -87,7 +87,7 @@ class _ProofDemoSectionState extends State<ProofDemoSection> {
           },
           [
             Component.text(
-              "kola isn't live yet, so instead of a testimonial, here's the thing "
+              "kolaa isn't live yet, so instead of a testimonial, here's the thing "
               'itself. Paste something you would teach it, then ask a question a '
               'customer might send.',
             ),
@@ -113,7 +113,7 @@ class _ProofDemoSectionState extends State<ProofDemoSection> {
           [
             Component.text(
               'Nothing leaves your browser — this demo runs entirely on your device. '
-              'It matches on words; the real kola matches on meaning, so it finds '
+              'It matches on words; the real kolaa matches on meaning, so it finds '
               'answers this demo will miss.',
             ),
           ],
@@ -129,7 +129,7 @@ class _ProofDemoSectionState extends State<ProofDemoSection> {
         id: 'demoPolicy',
         rows: 5,
         attributes: {
-          'aria-label': 'Text to teach kola',
+          'aria-label': 'Text to teach kolaa',
           'style': 'width:100%;border:1px solid ${KolaColors.border};border-radius:12px;'
               'padding:12px 14px;font-family:inherit;font-size:13.5px;'
               'color:${KolaColors.text};box-sizing:border-box;resize:vertical;'
@@ -168,7 +168,7 @@ class _ProofDemoSectionState extends State<ProofDemoSection> {
               'font-family:inherit;cursor:pointer;white-space:nowrap',
         },
         events: {'click': (_) => _ask()},
-        [Component.text('Ask kola')],
+        [Component.text('Ask kolaa')],
       ),
     ]);
   }
@@ -189,7 +189,7 @@ class _ProofDemoSectionState extends State<ProofDemoSection> {
           )
         else if (match == null)
           // THE HONEST OUTCOME, and arguably the most persuasive one on
-          // the page: kola says it doesn't know rather than inventing an
+          // the page: kolaa says it doesn't know rather than inventing an
           // answer. The real product behaves identically.
           _noMatch()
         else
@@ -237,7 +237,7 @@ class _ProofDemoSectionState extends State<ProofDemoSection> {
         attributes: {
           'style': 'font-size:12px;color:${KolaColors.badgeBrown};font-weight:600',
         },
-        [Component.text('No matching section — kola never invents an answer')],
+        [Component.text('No matching section — kolaa never invents an answer')],
       ),
     ]);
   }

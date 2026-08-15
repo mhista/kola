@@ -20,12 +20,12 @@
 // one yen. A shared "divide by 100" would price a zero-decimal currency
 // a hundred times wrong, which is the specific mistake
 // WorkspaceEndpoint.getBillingSummary already returns `priceDecimals` to
-// prevent. Only the currencies kola actually quotes in are listed;
+// prevent. Only the currencies kolaa actually quotes in are listed;
 // anything unknown gets two, which is the common case and is stated
 // here rather than assumed silently.
 
 abstract class Money {
-  /// Symbols for the currencies kola quotes in. An unlisted currency
+  /// Symbols for the currencies kolaa quotes in. An unlisted currency
   /// falls back to its own code — "KES 4,500" is honest and readable,
   /// whereas guessing a symbol produces the wrong country's money.
   static const _symbols = <String, String>{

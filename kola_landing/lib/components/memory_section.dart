@@ -1,6 +1,6 @@
 // memory_section.dart
 //
-// The strongest differentiator, because it is built and working: kola
+// The strongest differentiator, because it is built and working: kolaa
 // cites the exact document and section behind every answer.
 //
 // The right-hand card is a real artefact from the product, not a
@@ -52,7 +52,7 @@ class MemorySection extends StatelessComponent {
                 },
                 [
                   Component.text(
-                    'Price lists, policies, FAQs — kola reads them once and answers '
+                    'Price lists, policies, FAQs — kolaa reads them once and answers '
                     'from them forever. Every answer names the exact document and '
                     'section it came from, so "the AI got that wrong" becomes '
                     'something you can check, not argue about.',

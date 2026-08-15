@@ -39,13 +39,13 @@ class WhatItReplacesSection extends StatelessComponent {
       'Someone answering messages',
       'A part-time assistant, paid monthly, who sleeps, takes holidays, and '
           'leaves eventually — taking what they knew with them.',
-      'kola answers every hour of every day, and what it learns stays.',
+      'kolaa answers every hour of every day, and what it learns stays.',
     ),
     (
       'A separate till or POS subscription',
       'Another monthly fee, another system, and it stops working when the '
           'network does.',
-      'Included. Works offline. Feeds everything else kola knows.',
+      'Included. Works offline. Feeds everything else kolaa knows.',
     ),
     (
       'Nothing at all',

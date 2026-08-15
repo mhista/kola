@@ -45,7 +45,7 @@ Component kolaIcon(
   );
 }
 
-/// The kola droplet.
+/// The kolaa droplet.
 ///
 /// NOT in [Icons] and not drawn by [kolaIcon], because it breaks that
 /// contract in every respect: it is a filled shape on a 26x26 viewBox

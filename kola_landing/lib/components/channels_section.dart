@@ -43,7 +43,7 @@ class ChannelsSection extends StatelessComponent {
       label: 'Conversational',
       body:
           "A customer messages your bot with a question — a price, a delivery date, "
-          "whether something is in stock. kola answers instantly, in the customer's "
+          "whether something is in stock. kolaa answers instantly, in the customer's "
           'own words, pulling from what you\'ve taught it.',
       phoneTitle: "Aisha's Fashion House",
       initial: 'A',
@@ -55,7 +55,7 @@ class ChannelsSection extends StatelessComponent {
     'proactive': _TabContent(
       label: 'Proactive',
       body:
-          "kola doesn't just wait for questions — it can open the conversation. "
+          "kolaa doesn't just wait for questions — it can open the conversation. "
           'Negotiate a price, follow up on an abandoned cart, or nudge a customer '
           'who went quiet.',
       phoneTitle: 'Lekki Foods',

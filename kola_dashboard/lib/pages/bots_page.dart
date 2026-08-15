@@ -306,7 +306,7 @@ class _BotsPageState extends State<BotsPage> {
             [
               Component.text(
                 'Describe what you sell and how you want customers spoken to. '
-                'kola builds the agent from that.',
+                'kolaa builds the agent from that.',
               ),
             ],
           ),

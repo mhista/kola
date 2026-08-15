@@ -27,11 +27,11 @@ class FaqSection extends StatelessComponent {
         'A 48-hour full trial, then a 14-day step-down, then a capped free tier. '
         'Nothing is disconnected and nothing is deleted — you can upgrade any time '
         'and everything is exactly where you left it.'),
-    ('Does kola hold my money?',
-        'No. Payments go directly to your own payment provider account. kola '
+    ('Does kolaa hold my money?',
+        'No. Payments go directly to your own payment provider account. kolaa '
         'never touches the funds \u2014 you connect the provider you already use.'),
     ('Will messaging cost me extra?',
-        'Messaging providers set their own rates, and those change over time. kola '
+        'Messaging providers set their own rates, and those change over time. kolaa '
         'never adds a markup, shows you what a send costs before it happens, and '
         'takes the cheaper route where one exists — including channels with no '
         'per-message fee at all. You can see exactly what you are spending in the '

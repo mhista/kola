@@ -4,7 +4,7 @@
 // checked against the codebase before writing, because a security
 // section is the worst possible place to overstate.
 //
-// The payments line is the strongest and least obvious: kola never holds
+// The payments line is the strongest and least obvious: kolaa never holds
 // customer money. Funds go directly to the business's own gateway
 // account. Most competitors cannot say that, and it is worth stating
 // plainly rather than burying in a bullet.
@@ -19,7 +19,7 @@ class SecuritySection extends StatelessComponent {
   static const _points = [
     'Every stored credential encrypted at rest with AES-256-GCM',
     'Per-workspace data isolation — nothing crosses between businesses',
-    'kola never holds your money — payments go straight to your own '
+    'kolaa never holds your money — payments go straight to your own '
         'payment account',
     'No vendor lock-in on the AI provider behind the scenes',
   ];

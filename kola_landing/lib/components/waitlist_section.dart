@@ -57,7 +57,7 @@ class WaitlistSection extends StatelessComponent {
           },
           [
             Component.text(
-              "kola isn't live yet — join the waitlist for early access and "
+              "kolaa isn't live yet — join the waitlist for early access and "
               'founding-member pricing when we open the doors.',
             ),
           ],

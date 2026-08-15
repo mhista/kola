@@ -101,7 +101,7 @@ class Sidebar extends StatelessComponent {
               'style': 'font-family:${KolaFonts.display};font-size:${KolaType.title};'
                   'font-weight:700;color:${KolaVar.text};letter-spacing:-0.01em',
             },
-            [Component.text('kola')],
+            [Component.text('kolaa')],
           ),
         ],
       );

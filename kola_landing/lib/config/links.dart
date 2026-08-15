@@ -22,12 +22,24 @@ abstract class Links {
   static const changelog = '#changelog';
   static const faq = '#faq';
 
+  /// The dashboard — where "Start free" actually goes once launched.
+  ///
+  /// ── WHY THIS IS NOT AN ANCHOR ──────────────────────────────────────
+  ///
+  /// Before launch, "Start free" scrolled to #pricing, because there was
+  /// nothing to start. In LAUNCHED mode that is wrong twice over: it
+  /// promises an action and delivers a scroll, and it sends someone
+  /// ready to sign up to a price list instead of a signup form.
+  ///
+  /// Header and hero both read this, so the destination is decided once.
+  static const app = 'https://dash.kolaa.co';
+
   // ── Awaiting real URLs ──────────────────────────────────────────────
   // Set these and they appear automatically.
 
   /// The developer documentation site (kola_docs). Deployed, but the
   /// public hostname isn't confirmed — left null rather than guessing at
-  /// docs.kola.ng and shipping a broken nav item.
+  /// docs.kolaa.ng and shipping a broken nav item.
   static const String? docs = null;
 
   /// Company pages that do not exist yet.

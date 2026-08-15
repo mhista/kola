@@ -29,7 +29,7 @@
 //
 // The export labels the MCP endpoint "coming soon". platform.public_api
 // and platform.webhooks_outbound are R6 and unbuilt, so a working curl
-// against api.kola.dev would be a promise the product cannot keep. The
+// against api.kolaa.dev would be a promise the product cannot keep. The
 // honest state here IS the designed state — no deviation.
 //
 // ── CONFIGURATION: `model` IS OMITTED ────────────────────────────────
@@ -568,7 +568,7 @@ class _BotDetailDevPageState extends State<BotDetailDevPage> {
   Component _apiTab() => _card([
         _sectionLabel('API'),
         _muted('Calling this agent directly is not available yet. The public '
-            'API and outbound webhooks are built but not released, so kola '
+            'API and outbound webhooks are built but not released, so kolaa '
             'will not hand out a key that cannot authenticate against '
             'anything.'),
         div(

@@ -6,7 +6,7 @@
 // answers questions like "how were sales last week?" in prose, with
 // stat chips and follow-up suggestions. In the export that is powered
 // by AGENT_KB — a hardcoded array of four canned answers. There is no
-// endpoint behind it, and there is no "ask kola about your business"
+// endpoint behind it, and there is no "ask kolaa about your business"
 // service on the server.
 //
 // I left it out of the first pass and did not say so. That was wrong:
@@ -92,7 +92,7 @@ class AskKola extends StatefulComponent {
   final String accessToken;
   final int workspaceId;
 
-  /// Whether the workspace has taught kola anything yet. Changes the
+  /// Whether the workspace has taught kolaa anything yet. Changes the
   /// placeholder, because inviting someone to ask a question of an
   /// empty memory produces one confusing empty answer and no second
   /// attempt.
@@ -123,7 +123,7 @@ class _AskKolaState extends State<AskKola> {
   /// should not have to scroll past its footnotes to reach the composer.
   bool _showSources = false;
 
-  /// Which "what is kola doing" caption is showing.
+  /// Which "what is kolaa doing" caption is showing.
   ///
   /// The export runs a fixed 700ms think before streaming, because a
   /// static file has nothing to wait for. Here the wait is a REAL round
@@ -323,11 +323,11 @@ class _AskKolaState extends State<AskKola> {
           // convention everywhere this pattern appears.
           textarea(
             attributes: {
-              'aria-label': 'Ask what kola knows',
+              'aria-label': 'Ask what kolaa knows',
               'rows': '1',
               'placeholder': component.hasDocuments
-                  ? 'Ask what kola knows — "what is our returns policy?"'
-                  : 'Teach kola something first, then ask it anything',
+                  ? 'Ask what kolaa knows — "what is our returns policy?"'
+                  : 'Teach kolaa something first, then ask it anything',
               'style': 'flex:1;min-width:0;border:none;outline:none;'
                   'background:transparent;color:${KolaVar.text};'
                   'font-family:inherit;font-size:${KolaType.ui};'
@@ -433,7 +433,7 @@ class _AskKolaState extends State<AskKola> {
           div(
             attributes: {'style': 'display:flex;flex-direction:column;gap:10px'},
             [
-              // Says what kola is doing, not merely that it is busy. Two
+              // Says what kolaa is doing, not merely that it is busy. Two
               // grey rectangles tell an owner nothing; "Checking your
               // catalog" tells them the wait is earning something.
               div(
@@ -526,12 +526,12 @@ class _AskKolaState extends State<AskKola> {
                 for (final a in answer.actions)
                   // ── AN EMPTY ROUTE MEANS "DO IT HERE" ─────────────
                   //
-                  // kola answered a delivery question with "refer to our
+                  // kolaa answered a delivery question with "refer to our
                   // knowledge base on delivery" and offered "See delivery
                   // details". There is no delivery page — the detail is a
                   // PASSAGE in a document. Navigating to /knowledge would
                   // resolve and still be wrong: the owner lands on a
-                  // document list and has to hunt for the paragraph kola
+                  // document list and has to hunt for the paragraph kolaa
                   // had just read.
                   //
                   // So the server emits show_details with route: '', and
@@ -612,7 +612,7 @@ class _AskKolaState extends State<AskKola> {
 
           // Said plainly rather than hidden. During a provider outage an
           // owner deserves to know this sentence is a fallback, not
-          // kola's considered view — otherwise "kola got worse" is the
+          // kolaa's considered view — otherwise "kolaa got worse" is the
           // only available explanation.
           if (!_streaming && !answer.generated)
             div(
@@ -622,7 +622,7 @@ class _AskKolaState extends State<AskKola> {
               },
               [
                 Component.text(
-                  'This one was not written by kola\'s reasoning — it could '
+                  'This one was not written by kolaa\'s reasoning — it could '
                   'not be reached just now.',
                 ),
               ],
@@ -667,7 +667,7 @@ class _AskKolaState extends State<AskKola> {
                     'font-size:${KolaType.micro};color:${KolaVar.muted}',
               },
               // The raw score, not just the band. Someone tuning what
-              // they teach kola needs to see 0.61 move to 0.78, which a
+              // they teach kolaa needs to see 0.61 move to 0.78, which a
               // three-step label cannot show.
               [Component.text(hit.similarity.toStringAsFixed(2))],
             ),

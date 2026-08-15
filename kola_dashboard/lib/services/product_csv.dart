@@ -20,14 +20,14 @@
 //
 // ── EVERY COLUMN EXCEPT `name` IS OPTIONAL ───────────────────────────
 //
-// Someone exporting from another platform will not have kola's headers.
+// Someone exporting from another platform will not have kolaa's headers.
 // A file with one `name` column imports fifty named products with no
 // prices, which is a better outcome than refusing the file — the owner
 // can fill the rest in afterwards, and they can SEE their products
 // exist. Refusing on a missing column is how an import tool becomes
 // something people give up on.
 
-/// How sure kola is that a column means what it thinks.
+/// How sure kolaa is that a column means what it thinks.
 ///
 /// The design colours the mapping list by exactly this: green for a
 /// confident match, amber for "check this", grey for not imported. It
@@ -35,7 +35,7 @@
 /// caught before it writes wrong prices into a live catalog.
 enum MappingConfidence { confident, unsure, ignored }
 
-/// One column of the uploaded file, and what kola will do with it.
+/// One column of the uploaded file, and what kolaa will do with it.
 class ColumnMapping {
   const ColumnMapping({
     required this.index,
@@ -52,7 +52,7 @@ class ColumnMapping {
   /// The header exactly as the owner's file wrote it.
   final String source;
 
-  /// kola's field id, or null for "not imported".
+  /// kolaa's field id, or null for "not imported".
   final String? field;
 
   final MappingConfidence confidence;
@@ -140,7 +140,7 @@ class CsvParseResult {
   /// must say which three and why.
   final List<({int row, String reason})> skipped;
 
-  /// Every column in the file and what kola will do with it. Shown to
+  /// Every column in the file and what kolaa will do with it. Shown to
   /// the owner BEFORE anything imports — see MappingConfidence.
   final List<ColumnMapping> mappings;
 
@@ -268,7 +268,7 @@ abstract class ProductCsv {
 
   /// [overrides] maps a column INDEX to a field id, or to null meaning
   /// "do not import this column". Supplied after the owner corrects
-  /// kola's proposal on the mapping screen; an entry always wins.
+  /// kolaa's proposal on the mapping screen; an entry always wins.
   static CsvParseResult parse(
     String content, {
     Map<int, String?> overrides = const {},
@@ -362,7 +362,7 @@ abstract class ProductCsv {
     return CsvParseResult(rows: rows, skipped: skipped, mappings: mappings);
   }
 
-  /// Maps whatever the file said to one of kola's three archetypes.
+  /// Maps whatever the file said to one of kolaa's three archetypes.
   ///
   /// Falls back to 'packaged', which is the safe default: it is the one
   /// that tracks stock and shows a price, so a mis-mapped row looks

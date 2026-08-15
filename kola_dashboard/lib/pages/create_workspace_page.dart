@@ -80,7 +80,7 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
   ///
   /// These are shop-owner words, not taxonomy: "Sizes & variants" is how
   /// someone who sells clothing describes their problem, and it maps to
-  /// a catalog shape kola has to handle differently. Kept as the label
+  /// a catalog shape kolaa has to handle differently. Kept as the label
   /// the owner picked so the server stores what they actually said.
   static const _archetypes = <String>[
     'Packaged goods',
@@ -102,7 +102,7 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
   /// stores what the owner TYPED, because the label itself is worthless
   /// as a tag — it records only that none of the four fitted. The live
   /// database already has a workspace tagged literally "Something else",
-  /// which tells kola nothing about what that business sells and is
+  /// which tells kolaa nothing about what that business sells and is
   /// exactly the outcome this replaces.
   String? get _effectiveArchetype {
     if (_archetype == null) return null;
@@ -227,7 +227,7 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
           // Deliberately not "What do you sell?" again — that label is
           // already above the chips, and repeating it reads as the form
           // not having registered the answer.
-          _label('Tell kola in your own words'),
+          _label('Tell kolaa in your own words'),
           input<String>(
             type: InputType.text,
             value: _otherArchetype,
@@ -300,7 +300,7 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
                 'line-height:1.55;margin-bottom:${KolaSpace.md}',
           },
           [
-            Component.text('kola messages you here when a customer needs a '
+            Component.text('kolaa messages you here when a customer needs a '
                 'person — not for marketing.'),
           ],
         ),
@@ -341,7 +341,7 @@ class _CreateWorkspacePageState extends State<CreateWorkspacePage> {
             // one.
             _nextStep(3, 'Add knowledge',
                 'Your prices, stock, delivery areas and refund rules — '
-                    'kola answers from these instead of guessing.'),
+                    'kolaa answers from these instead of guessing.'),
           ],
         ),
         div(

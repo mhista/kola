@@ -85,7 +85,7 @@ class TeamSplitSection extends StatelessComponent {
                       'line-height:1.7;overflow-x:auto',
                 },
                 [
-                  Component.text('curl https://api.kola.dev/errands \\'),
+                  Component.text('curl https://api.kolaa.dev/errands \\'),
                   Component.element(tag: 'br', children: const []),
                   Component.text('  -H "Authorization: Bearer sk_live_..." \\'),
                   Component.element(tag: 'br', children: const []),

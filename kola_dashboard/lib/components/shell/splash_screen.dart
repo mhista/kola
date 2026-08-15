@@ -128,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen> {
             'background:${KolaVar.bg};display:flex;align-items:center;'
             'justify-content:center;cursor:pointer',
         'role': 'status',
-        'aria-label': 'Loading kola',
+        'aria-label': 'Loading kolaa',
       },
       // Empty string rather than null: `classes` is only ever passed a
       // non-null String elsewhere in this project, so whether it accepts
@@ -254,7 +254,7 @@ class _SplashScreenState extends State<SplashScreen> {
         ],
       );
 
-  static const _word = 'kola';
+  static const _word = 'kolaa';
 
   static const _leafPath =
       'M13 2C13 2 6 8.5 6 15.5C6 20 9 24 13 24C17 24 20 20 20 15.5C20 8.5 13 2 13 2Z';

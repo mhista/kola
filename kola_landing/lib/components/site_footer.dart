@@ -75,7 +75,7 @@ class SiteFooter extends StatelessComponent {
               },
               [
                 Component.text(
-                  'kola connects your tools, remembers everything, runs your counter, '
+                  'kolaa connects your tools, remembers everything, runs your counter, '
                   'and gets the next step done — on WhatsApp and Telegram, no '
                   'developer required.',
                 ),
@@ -108,7 +108,7 @@ class SiteFooter extends StatelessComponent {
             'style': 'border-top:1px solid ${KolaColors.darkBorder};padding:20px 32px;'
                 'text-align:center;font-size:13px;color:${KolaColors.darkTextFaint}',
           },
-          [Component.text('© 2026 kola. Made for businesses that never open a laptop.')],
+          [Component.text('© 2026 kolaa. Made for businesses that never open a laptop.')],
         ),
       ],
     );

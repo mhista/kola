@@ -15,7 +15,13 @@ import '../config/links.dart';
 import '../i18n/strings.dart';
 
 class SiteHeader extends StatelessComponent {
-  const SiteHeader({required this.s});
+  const SiteHeader({required this.s, required this.mode});
+
+  /// 'waitlist' | 'launched' — Env.launchMode, a BUILD FLAG. Passed in
+  /// rather than read here, same rule as [s]: a component does not
+  /// resolve its own environment, and app.dart is the one place that
+  /// decides which mode the whole page is in.
+  final String mode;
 
   /// Localised copy. Passed in from app.dart — a component never
   /// resolves its own locale. See i18n/strings.dart.
@@ -72,7 +78,7 @@ class SiteHeader extends StatelessComponent {
                     'style': 'font-family:${KolaFonts.serif};font-size:22px;'
                         'font-weight:600;letter-spacing:-0.01em',
                   },
-                  [Component.text('kola')],
+                  [Component.text('kolaa')],
                 ),
               ],
             ),
@@ -97,8 +103,17 @@ class SiteHeader extends StatelessComponent {
               ],
             ),
 
+            // ── WHERE "Start free" GOES ──────────────────────────────
+            //
+            // Launched: the dashboard, because someone clicking this is
+            // ready to sign up and a scroll to the price list is a
+            // promise the button did not keep.
+            //
+            // Waitlist: #pricing, unchanged — there is genuinely nothing
+            // to start yet, and sending them to a signup form for a
+            // product that is not live would be the false-fact case.
             a(
-              href: '#pricing',
+              href: mode == 'launched' ? Links.app : '#pricing',
               classes: 'kola-btn-lift',
               attributes: {
                 'style': 'background:${KolaColors.dark};color:${KolaColors.darkText};'

@@ -110,7 +110,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     QuickAction(
       icon: '⚡',
       label: 'Create a new Errand',
-      sub: 'Teach kola a new task',
+      sub: 'Teach kolaa a new task',
       href: '/errands',
       colorIndex: 0,
     ),

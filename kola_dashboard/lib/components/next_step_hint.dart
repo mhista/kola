@@ -19,7 +19,7 @@
 // Rules are evaluated in order and the FIRST unmet one wins. A list of
 // five things to do is a list nobody starts; one clear next action is
 // one somebody finishes. The order below is dependency order — teaching
-// kola nothing is worse than having no channel connected, because
+// kolaa nothing is worse than having no channel connected, because
 // without knowledge even a connected bot answers badly.
 
 import 'package:jaspr/jaspr.dart';
@@ -80,8 +80,8 @@ abstract class NextSteps {
         ),
       if (!hasDocuments)
         const NextStep(
-          id: 'teach-kola',
-          title: 'Teach kola about the business',
+          id: 'teach-kolaa',
+          title: 'Teach kolaa about the business',
           body: 'Right now it has nothing of yours to cite, so it can only '
               'give general answers. One price list or returns policy '
               'changes that immediately.',
@@ -93,7 +93,7 @@ abstract class NextSteps {
         const NextStep(
           id: 'add-products',
           title: 'Add what you sell',
-          body: 'With a catalog, kola can quote prices and check stock in a '
+          body: 'With a catalog, kolaa can quote prices and check stock in a '
               'conversation instead of passing every question to you.',
           cta: 'Open catalog',
           route: '/catalog',
@@ -102,7 +102,7 @@ abstract class NextSteps {
       if (hasBot && hasDocuments && !hasConversations)
         const NextStep(
           id: 'test-memory',
-          title: 'Check what kola would say',
+          title: 'Check what kolaa would say',
           body: 'Before a customer asks, ask it yourself. The memory '
               'inspector shows the exact passage it would answer from.',
           cta: 'Open the inspector',

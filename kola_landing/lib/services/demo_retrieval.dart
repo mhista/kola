@@ -7,7 +7,7 @@
 //   The v2 export's demo returned a hardcoded template — it echoed the
 //   first sentence of whatever was pasted, regardless of the question
 //   asked, and always cited "section 1". On a page whose entire proof
-//   section is headed "Every answer cites its source" and reads "kola
+//   section is headed "Every answer cites its source" and reads "kolaa
 //   isn't live yet, so instead of a testimonial, here's the thing
 //   itself", shipping a fake would be the same integrity problem as a
 //   fabricated testimonial — just harder to spot.
@@ -18,7 +18,7 @@
 //   question, and the best-matching one is returned with its real
 //   section number and a real match score. If nothing clears the floor,
 //   it says so — which is exactly what the real product does, and is
-//   arguably the more persuasive outcome, because it proves kola
+//   arguably the more persuasive outcome, because it proves kolaa
 //   doesn't bluff.
 //
 // WHY NOT CALL THE REAL API:

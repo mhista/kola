@@ -14,7 +14,7 @@
 // silently writes wrong prices into a live catalog, and the owner finds
 // out when a customer is quoted ₦42 for something that costs ₦42,000.
 //
-// So kola proposes, colour-coded by how sure it is, and the owner
+// So kolaa proposes, colour-coded by how sure it is, and the owner
 // confirms. ProductCsv already knew all of this — confident alias
 // matches, fuzzy guesses, unrecognised columns — and simply never
 // showed it.
@@ -27,7 +27,7 @@
 //                   R2. Shown and honest rather than hidden, because it
 //                   is a promise the design makes.
 //   From another app NOT POSSIBLE HERE, and this is worth stating
-//                   plainly. The export shows kola detecting Square POS
+//                   plainly. The export shows kolaa detecting Square POS
 //                   and Loyverse "on this device". A browser cannot
 //                   enumerate installed applications — that is a
 //                   deliberate platform restriction, not a gap in our
@@ -84,7 +84,7 @@ class _CatalogImportPageState extends State<CatalogImportPage> {
   CsvParseResult? _parsed;
 
   /// Column index → field id, or null for "do not import". Set when the
-  /// owner corrects kola's proposal.
+  /// owner corrects kolaa's proposal.
   final Map<int, String?> _overrides = {};
 
   int _done = 0;
@@ -286,19 +286,19 @@ class _CatalogImportPageState extends State<CatalogImportPage> {
   Component _uploadStep() => switch (_method) {
         'photo' => _notBuilt(
             'Reading a photo of a price list is not built yet',
-            'It needs kola to read handwriting and printed columns from an '
+            'It needs kolaa to read handwriting and printed columns from an '
                 'image, and get it right often enough that you are not '
                 'checking every row. Until that is true, a spreadsheet is '
                 'the honest path — and if your list is on paper, typing ten '
                 'products takes less time than correcting fifty wrong ones.',
           ),
         'device' => _notBuilt(
-            'kola cannot see other apps from your browser',
+            'kolaa cannot see other apps from your browser',
             'The web dashboard has no way to look at what is installed on '
                 'your device — browsers block that deliberately, and that is '
                 'a good thing. Export your products from Square, Loyverse or '
                 'whatever you use — nearly all of them offer a CSV export — '
-                'and bring the file here. kola will read the columns whatever '
+                'and bring the file here. kolaa will read the columns whatever '
                 'they are called.',
           ),
         _ => _filePicker(),
@@ -312,7 +312,7 @@ class _CatalogImportPageState extends State<CatalogImportPage> {
           },
           [
             Component.text(
-              'Upload whatever shape your file is in — kola reads the '
+              'Upload whatever shape your file is in — kolaa reads the '
               'columns and shows you what it understood before anything is '
               'added. Nothing is saved until you confirm.',
             ),
@@ -438,7 +438,7 @@ class _CatalogImportPageState extends State<CatalogImportPage> {
           'style': 'font-size:${KolaType.bodyLg};font-weight:700;'
               'color:${KolaVar.text};margin-bottom:6px',
         },
-        [Component.text('Check what kola understood')],
+        [Component.text('Check what kolaa understood')],
       ),
       div(
         attributes: {
@@ -452,7 +452,7 @@ class _CatalogImportPageState extends State<CatalogImportPage> {
                     'products. Change anything that looks wrong before you '
                     'import.'
                 : '${_fileName ?? 'Your file'} — ${parsed.rows.length} '
-                    'products. $unsure column${unsure == 1 ? '' : 's'} kola '
+                    'products. $unsure column${unsure == 1 ? '' : 's'} kolaa '
                     'is unsure about, marked below. Worth a look: a wrong '
                     'column here becomes a wrong price on every product.',
           ),
@@ -473,7 +473,7 @@ class _CatalogImportPageState extends State<CatalogImportPage> {
 
       if (!parsed.hasName)
         _msg(
-          "kola could not find a column with product names, and that is the "
+          "kolaa could not find a column with product names, and that is the "
           'one thing it cannot do without. Point one of the columns above at '
           '"Product name" to continue.',
           KolaVar.danger,
@@ -668,7 +668,7 @@ class _CatalogImportPageState extends State<CatalogImportPage> {
           [
             Component.text(
               _problems.isEmpty
-                  ? 'Everything came through. kola can quote prices and check '
+                  ? 'Everything came through. kolaa can quote prices and check '
                       'stock from these now.'
                   : 'Everything else came through. The rest are listed below '
                       'so you can fix them by hand — they are the only ones '

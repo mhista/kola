@@ -665,8 +665,8 @@ class _ProductEditorState extends State<ProductEditor> {
           Component.text(
             total == 0
                 ? 'A photo is what a customer asks for first. The one you '
-                    'put first is the one kola sends.'
-                : 'The first photo is the one kola sends when a customer '
+                    'put first is the one kolaa sends.'
+                : 'The first photo is the one kolaa sends when a customer '
                     'asks to see this.',
           ),
         ],
@@ -977,7 +977,7 @@ class _ProductEditorState extends State<ProductEditor> {
         },
         [
           Component.text(
-            'An empty price means "ask us" — kola will not invent one, and '
+            'An empty price means "ask us" — kolaa will not invent one, and '
             'it will never quote zero.',
           ),
         ],
@@ -1020,7 +1020,7 @@ class _ProductEditorState extends State<ProductEditor> {
           },
           [
             Component.text(
-              'Sizes, colours or options. Each keeps its own stock, so kola '
+              'Sizes, colours or options. Each keeps its own stock, so kolaa '
               'can say the XL is gone without saying the whole thing is.',
             ),
           ],

@@ -30,7 +30,7 @@
 //   conversation.listAll        → conversations handled
 //   conversation.listEscalated  → what needs a human, with rows
 //   supportTicket.list          → open tickets, SLA deadlines
-//   knowledge.listDocuments     → what kola has been taught
+//   knowledge.listDocuments     → what kolaa has been taught
 //   bot.listBotsForWorkspace    → whether setup is actually finished
 
 import 'package:jaspr/jaspr.dart';
@@ -427,7 +427,7 @@ class _OverviewPageState extends State<OverviewPage> {
   ///
   ///   1. Create your workspace  — done: TRUE
   ///   2. Connect a channel      — done: false
-  ///   3. Teach kola about the business — done: false
+  ///   3. Teach kolaa about the business — done: false
   ///
   /// The previous build's step 1 was "Create a bot", which appears in no
   /// export. It also asked a first-time owner to do something they had
@@ -487,19 +487,19 @@ class _OverviewPageState extends State<OverviewPage> {
         done: _channelConnected,
       ),
       (
-        title: 'Teach kola about the business',
+        title: 'Teach kolaa about the business',
         // Rewritten. The export's line — "Paste a price list, FAQ or
         // policy — its first answers cite this, not a guess" — names
         // three document types and leaves the owner to infer why it
         // matters. Most shop owners do not have a "policy" document,
-        // and the ones who do will not think of it as the thing kola
+        // and the ones who do will not think of it as the thing kolaa
         // needs. So this names the FACTS a customer actually asks
         // about, then states the consequence of skipping it plainly.
         body: 'Your prices, what you have in stock, where you deliver, '
-            'your refund rules, your opening hours. kola answers from '
+            'your refund rules, your opening hours. kolaa answers from '
             'whatever you give it — and cites it. Give it nothing and it '
             'has to guess.',
-        // "Teach kola something" described the intent but not the
+        // "Teach kolaa something" described the intent but not the
         // action, so it was unclear what pressing it would do.
         cta: 'Add knowledge',
         route: '/knowledge',
@@ -510,7 +510,7 @@ class _OverviewPageState extends State<OverviewPage> {
 
     final remaining = steps.where((s) => !s.done).length;
     final tail = remaining == 0
-        ? " That's all three done — kola is working with real answers now."
+        ? " That's all three done — kolaa is working with real answers now."
         : remaining == 1
             ? " One left."
             : " Step one's done — $remaining to go.";
@@ -533,7 +533,7 @@ class _OverviewPageState extends State<OverviewPage> {
               'style': 'font-size:${KolaType.lead};font-weight:600;'
                   'color:${KolaVar.text};margin-bottom:6px',
             },
-            [Component.text('kola is still learning your business')],
+            [Component.text('kolaa is still learning your business')],
           ),
           div(
             attributes: {
@@ -662,7 +662,7 @@ class _OverviewPageState extends State<OverviewPage> {
   /// are not "empty" — but they have no conversations either, so the
   /// briefing has nothing to brief. Showing them "Nothing needs you
   /// right now" would be technically true and completely useless: they
-  /// cannot tell whether kola is working or silently broken.
+  /// cannot tell whether kolaa is working or silently broken.
   bool get _noActivityYet =>
       _conversations.isEmpty && _escalated.isEmpty && _tickets.isEmpty;
 
@@ -712,7 +712,7 @@ class _OverviewPageState extends State<OverviewPage> {
         )
       else if (attention.isEmpty)
         _allClear(),
-      _section('What kola knows', _knowledgeSummary()),
+      _section('What kolaa knows', _knowledgeSummary()),
       if (_errands.isNotEmpty) _section('Automations running', _automations()),
 
       // The composer. Sticky, so it stays reachable however far the
@@ -726,7 +726,7 @@ class _OverviewPageState extends State<OverviewPage> {
     ];
   }
 
-  /// Errands kola can call mid-conversation.
+  /// Errands kolaa can call mid-conversation.
   ///
   /// `active` is what the design means by "running" — an errand exists
   /// but disabled is not running, and showing it as such would tell an
@@ -778,7 +778,7 @@ class _OverviewPageState extends State<OverviewPage> {
   ///
   /// The job of this card is to answer the question the person is
   /// actually asking — "is this thing working?" — rather than to fill
-  /// space. So it states plainly that kola is watching, and gives the
+  /// space. So it states plainly that kolaa is watching, and gives the
   /// one action that proves it: message the bot yourself.
   Component _waitingCard() => div(
         attributes: {
@@ -800,7 +800,7 @@ class _OverviewPageState extends State<OverviewPage> {
                   'style': 'font-size:${KolaType.lead};font-weight:600;'
                       'color:${KolaVar.text}',
                 },
-                [Component.text('kola is set up and listening')],
+                [Component.text('kolaa is set up and listening')],
               ),
             ],
           ),
@@ -812,7 +812,7 @@ class _OverviewPageState extends State<OverviewPage> {
             [
               Component.text(
                 'No customer messages yet. When one arrives it appears here, '
-                'and anything kola cannot answer confidently is passed to you '
+                'and anything kolaa cannot answer confidently is passed to you '
                 'rather than guessed at.',
               ),
             ],
@@ -837,7 +837,7 @@ class _OverviewPageState extends State<OverviewPage> {
   ///
   /// Two different situations look similar and must not read the same:
   ///
-  ///   MEASURED, AND THE ANSWER IS ZERO — 0 conversations means kola
+  ///   MEASURED, AND THE ANSWER IS ZERO — 0 conversations means kolaa
   ///   watched and nothing came in. That is a fact about the business,
   ///   and 0 is the correct way to say it.
   ///
@@ -1233,7 +1233,7 @@ class _OverviewPageState extends State<OverviewPage> {
         'document' => 'Open Knowledge',
         _ => switch (f.kind) {
             'no_channel_connected' => 'Connect a channel',
-            'knowledge_empty' => 'Teach kola something',
+            'knowledge_empty' => 'Teach kolaa something',
             'ticket_due_soon' => 'Open Operations',
             _ => 'Take a look',
           },
@@ -1303,11 +1303,11 @@ class _OverviewPageState extends State<OverviewPage> {
       [
         Component.text(
           indexed == 0
-              ? 'kola has nothing to cite yet. Anything you add becomes '
+              ? 'kolaa has nothing to cite yet. Anything you add becomes '
                   'searchable within a few seconds.'
               : indexed == 1
-                  ? 'kola is answering from 1 document.'
-                  : 'kola is answering from $indexed documents.',
+                  ? 'kolaa is answering from 1 document.'
+                  : 'kolaa is answering from $indexed documents.',
         ),
         if (pending > 0)
           div(

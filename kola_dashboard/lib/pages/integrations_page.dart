@@ -277,7 +277,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
             },
             [
               Component.text(
-                'Connect the tools you already use. kola reads from them so '
+                'Connect the tools you already use. kolaa reads from them so '
                 'you do not have to enter the same thing twice.',
               ),
             ],
@@ -530,9 +530,9 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
             'sign-in flow is not built yet.',
           ),
         'keydisplay' => _notYet(
-            'This works by giving you a kola API key to paste into '
+            'This works by giving you a kolaa API key to paste into '
             '${c.name}. The public API that key would open does not exist '
-            'yet, so kola will not hand out one that cannot work.',
+            'yet, so kolaa will not hand out one that cannot work.',
           ),
         _ => _notYet('This connector cannot be set up here yet.'),
       };
@@ -598,7 +598,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       ];
 
   List<Component> _manageBody(ConnectorStatus c) => [
-        _note('${c.name} is set up in your billing settings, so kola keeps '
+        _note('${c.name} is set up in your billing settings, so kolaa keeps '
             'one copy of those details rather than two that can disagree.'),
         if (c.displayDetail != null)
           div(

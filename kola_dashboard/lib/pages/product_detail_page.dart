@@ -9,7 +9,7 @@
 //
 // The export's state is `{ side, productKey }`, and `side` flips the
 // whole page between what the owner sees and what a customer is told.
-// That is not a preview gimmick. kola answers customers FROM this
+// That is not a preview gimmick. kolaa answers customers FROM this
 // record, so the honest question an owner has is "what will it actually
 // say about this?" — and the answer differs from their own view in ways
 // worth seeing:
@@ -286,8 +286,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Component.text(
                   _side == 'seller'
                       ? 'Everything you have recorded. Cost and margin are '
-                          'yours alone — kola never repeats them to a customer.'
-                      : 'This is what kola will tell someone who asks about '
+                          'yours alone — kolaa never repeats them to a customer.'
+                      : 'This is what kolaa will tell someone who asks about '
                           'this product. Nothing about what it cost you '
                           'appears here.',
                 ),
@@ -487,7 +487,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               // moment they will understand why a description matters.
               [
                 Component.text(
-                  'You have not described this yet, so kola has only the '
+                  'You have not described this yet, so kolaa has only the '
                   'name and price to work with. A sentence or two here is '
                   'what lets it answer "what is it like?" instead of '
                   'passing the question to you.',

@@ -18,7 +18,7 @@ class CapabilitiesSection extends StatelessComponent {
     ('Agents', 'Specialists, one shared memory',
         'Different jobs, same business context — nothing has to be re-explained.'),
     ('Automations', 'Multi-step, with your sign-off',
-        'kola drafts the workflow; you approve before anything goes out.'),
+        'kolaa drafts the workflow; you approve before anything goes out.'),
   ];
 
   @override

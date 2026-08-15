@@ -23,7 +23,7 @@
 // and confirmed with the project owner — see commerce_section.dart's
 // header for why, and why it sits exactly there.
 //
-// TESTIMONIALS ARE ABSENT ON PURPOSE. kola hasn't launched; there is
+// TESTIMONIALS ARE ABSENT ON PURPOSE. kolaa hasn't launched; there is
 // nobody to quote, and inventing quotes would be a real integrity
 // problem in anything attached to a grant application.
 // proof_demo_section.dart is the honest substitute — a live demo beats
@@ -182,7 +182,7 @@ class _LandingAppState extends State<LandingApp> {
             'color:#1C1815;width:100%;overflow-x:hidden;position:relative',
       },
       [
-        SiteHeader(s: _s),
+        SiteHeader(s: _s, mode: _mode),
 
         // Above the fold on load, so a one-shot fade-up rather than a
         // scroll-triggered reveal.

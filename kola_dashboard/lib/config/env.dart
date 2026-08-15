@@ -13,7 +13,7 @@
 // docs/DEVELOPMENT_PLAN.md Phase 4a.
 //
 // KOLA_SERVER_URL is the public base URL of the deployed kola_server
-// Serverpod instance (e.g. https://api.kola.dev, or http://localhost:8080
+// Serverpod instance (e.g. https://api.kolaa.dev, or http://localhost:8080
 // for local dev against a server started with `dart run bin/main.dart`).
 abstract class Env {
   static const supabaseUrl = String.fromEnvironment(
@@ -40,6 +40,6 @@ abstract class Env {
   // script's own echo'd instructions.
   static const kolaDocsUrl = String.fromEnvironment(
     'KOLA_DOCS_URL',
-    defaultValue: 'https://docs.kola.app',
+    defaultValue: 'https://docs.kolaa.co',
   );
 }

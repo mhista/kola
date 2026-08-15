@@ -5,7 +5,7 @@
 // four verbs.
 //
 // Step 2 mentions the sales counter deliberately: it's the fastest way a
-// business teaches kola anything, and it's what makes the intelligence
+// business teaches kolaa anything, and it's what makes the intelligence
 // layers work later.
 
 import 'package:jaspr/jaspr.dart';
@@ -21,7 +21,7 @@ class HowItWorksSection extends StatelessComponent {
         'every sale teaches it something.'),
     ('03', 'It works', 'Answers customers, rings up sales, tracks orders, drafts the '
         'next action.'),
-    ('04', 'You approve', 'kola tells you what it did and what it recommends — you '
+    ('04', 'You approve', 'kolaa tells you what it did and what it recommends — you '
         'stay in control.'),
   ];
 

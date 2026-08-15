@@ -277,7 +277,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
       setState(() {
         _pasteText = '';
         _saving = false;
-        _addMessage = 'Saved. kola can answer from this now.';
+        _addMessage = 'Saved. kolaa can answer from this now.';
         _tab = 'documents';
       });
       await _refresh();
@@ -292,7 +292,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
     }
   }
 
-  /// What kola is doing to a file, in the owner's language.
+  /// What kolaa is doing to a file, in the owner's language.
   ///
   /// Ingestion is one server call with no progress events, so a
   /// percentage bar would be a lie. These are the real phases that call
@@ -471,7 +471,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
                   'line-height:1.55;max-width:70ch',
             },
             [
-              Component.text("What kola knows, and exactly which passage it "
+              Component.text("What kolaa knows, and exactly which passage it "
                   "would answer a customer's question from."),
             ],
           ),
@@ -726,7 +726,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
               'style': 'font-size:${KolaType.bodyLg};font-weight:700;'
                   'color:${KolaVar.text};margin-bottom:4px',
             },
-            [Component.text('Ask kola a question a customer might send')],
+            [Component.text('Ask kolaa a question a customer might send')],
           ),
           div(
             attributes: {
@@ -823,7 +823,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
                 'line-height:1.55',
           },
           [
-            Component.text('kola would not invent an answer here — it would '
+            Component.text('kolaa would not invent an answer here — it would '
                 'say it does not know, or hand the conversation to you. Add a '
                 'document covering this and test again.'),
           ],
@@ -912,7 +912,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
   Component _pasteCard() => _card([
         _cardTitle('Paste it in'),
         _cardSub('Price lists, FAQs, policies, anything a customer might ask '
-            'about. Plain text works best — kola can use it right away.'),
+            'about. Plain text works best — kolaa can use it right away.'),
         textarea(
           attributes: {
             'aria-label': 'Text to save',
@@ -976,7 +976,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
 
   Component _uploadCard() => _card([
         _cardTitle('Upload a file'),
-        _cardSub("PDF, Word, Excel or plain text. kola extracts the text and "
+        _cardSub("PDF, Word, Excel or plain text. kolaa extracts the text and "
             "flags anything it couldn't read cleanly."),
         label(
           attributes: {
@@ -1062,7 +1062,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
                 Component.text(
                   '${_queue.where((q) => q.state == 'done').length} '
                   'file${_queue.where((q) => q.state == 'done').length == 1 ? '' : 's'} '
-                  'added — kola can answer from them now. '
+                  'added — kolaa can answer from them now. '
                   'See them under Documents.',
                 ),
               ],
@@ -1114,7 +1114,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
     );
   }
 
-  /// Turns the catalog into a document kola can answer from.
+  /// Turns the catalog into a document kolaa can answer from.
   ///
   /// ── WHY THIS IS COMPOSED HERE AND NOT ON THE SERVER ────────────────
   ///
@@ -1197,7 +1197,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
       // That is worse than clutter on the Documents tab. Retrieval pulls
       // the top six passages by relevance, and identical copies score
       // identically — so the duplicates crowd out the OTHER documents
-      // that would have made the answer better, and kola keeps answering
+      // that would have made the answer better, and kolaa keeps answering
       // from the same text no matter what else has been uploaded.
       //
       // updateDocument reindexes in place: same row id, old chunks
@@ -1243,7 +1243,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
       setState(() {
         _generating = null;
         _addMessage =
-            'Built from ${products.length} products. kola can answer from '
+            'Built from ${products.length} products. kolaa can answer from '
             'this now.';
         _tab = 'documents';
       });
@@ -1260,7 +1260,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
   Component _buildFromCard() => _card([
         _cardTitle("Build from what's already here"),
         _cardSub('Turn your catalog, inventory and sales history into '
-            'knowledge kola can answer from — no re-typing.'),
+            'knowledge kolaa can answer from — no re-typing.'),
         for (final (key, label, detail, icon) in _dataSources)
           _dataSourceRow(key, label, detail, icon),
       ]);

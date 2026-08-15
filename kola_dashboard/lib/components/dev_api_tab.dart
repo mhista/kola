@@ -31,7 +31,7 @@ class DevApiTab extends StatelessComponent {
                 'font-size:12.5px;color:#9BE6C7;line-height:1.7',
           },
           [
-            Component.text('curl https://api.kola.dev/bots/$botId/message \\'),
+            Component.text('curl https://api.kolaa.dev/bots/$botId/message \\'),
             Component.element(tag: 'br', children: const []),
             Component.text('  -H "Authorization: Bearer sk_live_..." \\'),
             Component.element(tag: 'br', children: const []),

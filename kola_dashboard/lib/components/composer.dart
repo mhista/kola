@@ -1,4 +1,4 @@
-// composer.dart — the "what do you want kola to help with" textarea
+// composer.dart — the "what do you want kolaa to help with" textarea
 // card, shared between desktop and mobile home content (sizing only
 // differs via [compact], per Kola Dashboard Shell.dc.html).
 //
@@ -14,7 +14,7 @@
 // 📎/⚡ pill icons next to the textarea (Upload knowledge / New Errand)
 // stay exactly as inert as they were — this composer sits directly
 // above a "Create a new bot" quick action and its own placeholder asks
-// "what do you want kola to help with," which together read as "describe
+// "what do you want kolaa to help with," which together read as "describe
 // the bot you want," not "do anything." Wiring the other two icons to
 // their own real actions is separate, additional scope, not something
 // this pass silently expanded into.
@@ -111,7 +111,7 @@ class _ComposerState extends State<Composer> {
     final fontSize = compact ? 15 : 16;
     final placeholder = compact
         ? 'Describe the bot you want…'
-        : 'Describe the bot you want kola to create…';
+        : 'Describe the bot you want kolaa to create…';
 
     return div([
       if (_error != null)

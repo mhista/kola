@@ -7,7 +7,7 @@
 // ── WHAT THE DESIGN ACTUALLY DOES ────────────────────────────────────
 //
 // There is no separate "create agent" screen in any export. An agent is
-// created by DESCRIBING THE BUSINESS, and kola drafts the rest — that is
+// created by DESCRIBING THE BUSINESS, and kolaa drafts the rest — that is
 // step 1 of the Setup tab on Kola Bot Detail Chat.dc.html:
 //
 //   "Let's set up your agent. What does your business sell?"
@@ -63,7 +63,7 @@ class _CreateBotPageState extends State<CreateBotPage> {
   Future<void> _submit() async {
     final text = _description.trim();
     if (text.isEmpty) {
-      setState(() => _error = 'Tell kola what your business sells first.');
+      setState(() => _error = 'Tell kolaa what your business sells first.');
       return;
     }
     setState(() {
@@ -131,7 +131,7 @@ class _CreateBotPageState extends State<CreateBotPage> {
                 'line-height:1.55;margin-bottom:18px;max-width:60ch',
           },
           [
-            Component.text('Describe the business in plain language — kola '
+            Component.text('Describe the business in plain language — kolaa '
                 'drafts the plan as you go. You can change everything '
                 'afterwards.'),
           ],

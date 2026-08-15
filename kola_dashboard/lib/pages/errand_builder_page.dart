@@ -87,7 +87,7 @@ const _templates = [
     icon: '🧑‍💼',
     name: 'Escalate to human',
     desc: 'Hand the conversation to a real person on your team',
-    defaultTrigger: "When a customer is frustrated, asks for a human, or kola can't resolve the issue.",
+    defaultTrigger: "When a customer is frustrated, asks for a human, or kolaa can't resolve the issue.",
   ),
   _Template(
     id: 'collectPayment',
@@ -134,7 +134,7 @@ const _templates = [
     builtinHandlerKey: 'createProductListTemplate',
     icon: '🛍️',
     name: 'Send a product list on WhatsApp',
-    desc: 'Submit a Meta-approved template so kola can send your product list to a customer who asked, as cheaply as WhatsApp allows',
+    desc: 'Submit a Meta-approved template so kolaa can send your product list to a customer who asked, as cheaply as WhatsApp allows',
     defaultTrigger: 'When a customer on WhatsApp asks for your product list, catalog, or price list.',
   ),
   _Template(
@@ -479,7 +479,7 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
                   },
                   [
                     Component.text(
-                      'Errands are tools kola can call mid-conversation — the AI decides when to use one and figures out what values to pass.',
+                      'Errands are tools kolaa can call mid-conversation — the AI decides when to use one and figures out what values to pass.',
                     ),
                   ],
                 ),
@@ -656,7 +656,7 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
           ],
         ),
         _field(
-          labelText: 'When should kola use this?',
+          labelText: 'When should kolaa use this?',
           hint: 'plain language — the AI reads this',
           child: textarea(
             [Component.text(_builtinTrigger)],
@@ -673,7 +673,7 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
           },
           [
             Component.text(
-              'kola will figure out what details to pass from the conversation — no fields to fill in for this Errand type.',
+              'kolaa will figure out what details to pass from the conversation — no fields to fill in for this Errand type.',
             ),
           ],
         ),
@@ -724,7 +724,7 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
           ),
         ),
         _field(
-          labelText: 'What does this Errand do, and when should kola use it?',
+          labelText: 'What does this Errand do, and when should kolaa use it?',
           child: textarea(
             [Component.text(_chatDesc)],
             rows: 3,
@@ -738,7 +738,7 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
         div([
           div(
             attributes: {'style': 'font-size:12.5px;color:${KolaDashboardColors.mutedSecondary};margin-bottom:8px'},
-            [Component.text('What information will kola need to figure out? — just describe each, not exact values')],
+            [Component.text('What information will kolaa need to figure out? — just describe each, not exact values')],
           ),
           if (_neededInfo.isNotEmpty)
             div(
@@ -858,7 +858,7 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
         div([
           div(
             attributes: {'style': 'font-size:12.5px;color:${KolaDashboardColors.mutedSecondary};margin-bottom:8px'},
-            [Component.text('What information does this need? — kola infers the actual value at call time')],
+            [Component.text('What information does this need? — kolaa infers the actual value at call time')],
           ),
           if (_devFields.isNotEmpty)
             div(

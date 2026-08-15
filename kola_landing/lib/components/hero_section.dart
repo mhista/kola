@@ -1,22 +1,45 @@
 // hero_section.dart
 //
 // The repositioning lands or fails here. Headline confirmed from the v2
-// design export: "Your business already has the data. / kola turns it
+// design export: "Your business already has the data. / kolaa turns it
 // into decisions." — the design lab's improvement on the supplied
-// "Now It Has A Brain", and the better line: it says what kola DOES
+// "Now It Has A Brain", and the better line: it says what kolaa DOES
 // rather than anthropomorphising it, which also keeps it inside the
 // product's own voice rules.
 //
-// Form behaviour branches on `mode` (Env.launchMode, a BUILD FLAG — see
-// config/env.dart). Waitlist copy pre-launch, "Start free" after.
-// Fields are uncontrolled and read via interop at submit time, same
-// technique as the previous build — see web/script.js's header.
+// ── THE HERO IS A DIFFERENT CONTROL IN EACH MODE, NOT THE SAME ONE
+//    WITH DIFFERENT WORDS ──────────────────────────────────────────────
+//
+// `mode` is Env.launchMode, a BUILD FLAG — see config/env.dart.
+//
+//   waitlist    an email field. The product does not exist yet for this
+//               visitor, so the only thing they can do is ask to be told
+//               when it does. Collecting the address IS the conversion.
+//   launched    a link to the app. There is nothing to collect: signup
+//               happens in the dashboard, which already owns the email,
+//               the password rules and the confirmation mail.
+//
+// An earlier pass changed only the BUTTON LABEL between the two, which
+// left "Start free" sitting beside an email box that posted to
+// waitlist_signups. That is worse than either mode alone: the visitor
+// hands over an address expecting an account and gets a waitlist row,
+// and the row is indistinguishable from a genuine pre-launch signup.
+// So the field is removed in launched mode rather than relabelled.
+//
+// It is an <a>, not a <button> with a click handler, so it middle-clicks,
+// right-click-copies and shows its destination on hover like every other
+// link on the page. Styled to match the waitlist button exactly — the
+// two modes should look identical to anyone who never sees both.
+//
+// Fields (waitlist mode only) are uncontrolled and read via interop at
+// submit time — see web/script.js's header.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import '../theme.dart';
+import '../config/links.dart';
 import '../interop.dart' as interop;
-import '../i18n/strings.dart';  
+import '../i18n/strings.dart';
 
 class HeroSection extends StatelessComponent {
   const HeroSection({
@@ -94,7 +117,12 @@ class HeroSection extends StatelessComponent {
                 Component.text(s.heroSubtitle),
               ],
             ),
-            if (submitted) _successCard() else _form(),
+            if (!_isWaitlist)
+              _launchedCta()
+            else if (submitted)
+              _successCard()
+            else
+              _form(),
             div(
               attributes: {
                 'style': 'display:flex;gap:12px;justify-content:center;flex-wrap:wrap;'
@@ -108,6 +136,41 @@ class HeroSection extends StatelessComponent {
               ],
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  /// Launched mode: a link to the dashboard, and no email field.
+  ///
+  /// The destination is [Links.app] rather than a literal, so the header
+  /// CTA and this one cannot drift apart — they are the same promise made
+  /// twice on one screen, and a visitor who tries both should not land in
+  /// two places.
+  Component _launchedCta() {
+    return div(
+      attributes: {
+        'style': 'background:${KolaColors.cardBg};border:1px solid ${KolaColors.border};'
+            'border-radius:26px;box-shadow:0 20px 50px rgba(28,24,21,0.07);'
+            'padding:26px 22px;text-align:center;max-width:600px;margin:0 auto',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'font-size:14.5px;color:${KolaColors.textMuted};margin-bottom:16px',
+          },
+          [Component.text(s.heroLaunchedPrompt)],
+        ),
+        a(
+          href: Links.app,
+          classes: 'kola-btn-lift',
+          attributes: {
+            'style': 'display:inline-block;text-decoration:none;'
+                'background:${KolaColors.accent};color:${KolaColors.accentText};'
+                'border-radius:100px;padding:13px 28px;font-size:15px;'
+                'font-weight:600;font-family:inherit;white-space:nowrap',
+          },
+          [Component.text(s.ctaStartFree)],
         ),
       ],
     );

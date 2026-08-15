@@ -4,7 +4,7 @@
 // project owner before writing.
 //
 // WHY: the v2 landing design sells memory, intelligence, agents and
-// automations, and never once mentions that kola runs the business's
+// automations, and never once mentions that kolaa runs the business's
 // sales counter, keeps working with no internet, and prints receipts.
 // All of that ships in V1.
 //
@@ -14,7 +14,7 @@
 // it off undersells V1 badly.
 //
 // PLACED AFTER MEMORY, BEFORE INTELLIGENCE, deliberately. The argument
-// only lands in that order: memory establishes that kola knows the
+// only lands in that order: memory establishes that kolaa knows the
 // business, commerce shows the fastest way it learns, and the
 // intelligence section that follows is then obviously grounded in real
 // sales rather than assertion.
@@ -35,7 +35,7 @@ class CommerceSection extends StatelessComponent {
     // typing in my whole shop" — and it was missing from the page.
     (
       'It fills its own catalog',
-      'Scan a barcode and kola suggests the product. Photograph a shelf and '
+      'Scan a barcode and kolaa suggests the product. Photograph a shelf and '
           'it reads what is there. Three thousand items becomes an afternoon, '
           'not a fortnight of typing.',
     ),
@@ -49,7 +49,7 @@ class CommerceSection extends StatelessComponent {
       'Receipts that bring people back',
       'Printed or sent to WhatsApp — carrying the return window, the '
           'warranty, and a way to order again. Attached to the customer, so '
-          'next time kola knows what they bought.',
+          'next time kolaa knows what they bought.',
     ),
   ];
 
@@ -86,7 +86,7 @@ class CommerceSection extends StatelessComponent {
             Component.text(
               'Ring up a sale on the phone you already have — nothing new to buy. '
               'It keeps working when the network does not, and everything it sees '
-              'makes the rest of kola sharper.',
+              'makes the rest of kolaa sharper.',
             ),
           ],
         ),
@@ -137,7 +137,7 @@ class CommerceSection extends StatelessComponent {
               },
               [
                 Component.text(
-                  'Most tools stop the moment the network does. kola keeps selling, '
+                  'Most tools stop the moment the network does. kolaa keeps selling, '
                   'queues every sale, and syncs itself when you are back — nothing '
                   'is lost, and the count is always on screen.',
                 ),

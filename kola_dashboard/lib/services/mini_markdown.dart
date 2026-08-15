@@ -1,4 +1,4 @@
-// mini_markdown.dart — the small, fixed subset kola's answers are written in.
+// mini_markdown.dart — the small, fixed subset kolaa's answers are written in.
 //
 // ── WHY NOT A MARKDOWN PACKAGE ───────────────────────────────────────
 //

@@ -36,7 +36,7 @@ abstract class ErrorText {
   /// uri=https://p01--kola--hnnl8wyj78qp.code.run/bot), statusCode = -1".
   ///
   /// That leaks the internal hostname, names an exception class the
-  /// owner has no use for, and — worst — implies kola broke. The one
+  /// owner has no use for, and — worst — implies kolaa broke. The one
   /// fact that mattered, "you are offline", was the only thing missing.
   /// Someone in a Lagos market on mobile data hits this constantly; it
   /// has to read as a normal, temporary condition.
@@ -46,7 +46,7 @@ abstract class ErrorText {
       // navigator.onLine is DEFINITIVE for this branch, so the sentence
       // can be too — no hedging about "something went wrong".
       return web.window.navigator.onLine
-          ? "Can't reach kola right now. Your connection is working, so "
+          ? "Can't reach kolaa right now. Your connection is working, so "
               'this is on our side — it should clear shortly.'
           : "You're offline. This will load as soon as you have a "
               'connection again — nothing has been lost.';

@@ -24,7 +24,7 @@ class ChatComposer extends StatelessComponent {
         Component.element(
           tag: 'textarea',
           attributes: {
-            'placeholder': 'Tell kola what to change...',
+            'placeholder': 'Tell kolaa what to change...',
             'rows': '1',
             'style':
                 'flex:1;border:none;outline:none;resize:none;background:transparent;'

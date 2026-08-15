@@ -51,13 +51,13 @@ class Strings {
   // ── Hero ──────────────────────────────────────────────────────────
   String get heroEyebrow => 'The operating intelligence layer for businesses';
   String get heroTitleLine1 => 'Your business already has the data.';
-  String get heroTitleLine2 => 'kola turns it into decisions.';
+  String get heroTitleLine2 => 'kolaa turns it into decisions.';
   String get heroSubtitle =>
       'It connects the tools you already use, remembers every conversation '
       'and document, watches what is happening across your business, and '
       'gets the next step done — with your approval.';
   String get heroWaitlistPrompt =>
-      "kola isn't live yet — join the waitlist and we'll message you the "
+      "kolaa isn't live yet — join the waitlist and we'll message you the "
       "moment it's your turn.";
   String get heroLaunchedPrompt => 'Start free — no card required.';
   String get heroEmailPlaceholder => 'Email address';
@@ -70,21 +70,21 @@ class Strings {
   String get proofEyebrow => 'See it work — no login required';
   String get proofTitle => 'Every answer cites its source.';
   String get proofSubtitle =>
-      "kola isn't live yet, so instead of a testimonial, here's the thing "
+      "kolaa isn't live yet, so instead of a testimonial, here's the thing "
       'itself. Paste something you would teach it, then ask a question a '
       'customer might send.';
   String get demoStep1 => '1. Teach it something';
   String get demoStep2 => '2. Ask what a customer would ask';
   String get demoQuestionPlaceholder => 'e.g. Can I return this after a week?';
-  String get demoAsk => 'Ask kola';
+  String get demoAsk => 'Ask kolaa';
   String get demoIdle => 'The answer, with its source, appears here.';
   String get demoNoMatch =>
       "I don't have that in what you gave me — I'd pass this to a person "
       'rather than guess.';
-  String get demoNoMatchLabel => 'No matching section — kola never invents an answer';
+  String get demoNoMatchLabel => 'No matching section — kolaa never invents an answer';
   String get demoPrivacyNote =>
       'Nothing leaves your browser — this demo runs entirely on your device. '
-      'It matches on words; the real kola matches on meaning, so it finds '
+      'It matches on words; the real kolaa matches on meaning, so it finds '
       'answers this demo will miss.';
 
   /// Interpolated — a METHOD, not a template. See this file's header.
@@ -121,7 +121,7 @@ class Strings {
   String get pricingNoSurprisesBody =>
       'One monthly price. No setup fee, no charge for the sales counter, '
       'and nothing added on top of what your messaging provider charges. '
-      'Where a message does cost something, kola shows you before it '
+      'Where a message does cost something, kolaa shows you before it '
       'sends and takes the cheaper route when there is one.';
 
   String pricingRegionNote(String currencyCode) =>
@@ -131,15 +131,15 @@ class Strings {
   // ── What it replaces ──────────────────────────────────────────────
   String get replacesTitle => 'What it replaces.';
   String replacesSubtitle(String price) =>
-      'kola is $price a month. Worth comparing that against what it stands in for.';
+      'kolaa is $price a month. Worth comparing that against what it stands in for.';
 
   // ── Footer ────────────────────────────────────────────────────────
   String get footerBlurb =>
-      'kola connects your tools, remembers everything, runs your counter, '
+      'kolaa connects your tools, remembers everything, runs your counter, '
       'and gets the next step done — on WhatsApp and Telegram, no '
       'developer required.';
   String get footerRights =>
-      '© 2026 kola. Made for businesses that never open a laptop.';
+      '© 2026 kolaa. Made for businesses that never open a laptop.';
 
   /// How many strings this locale actually translates, for honest
   /// coverage reporting. English is by definition complete.
@@ -169,7 +169,7 @@ class StringsFr extends Strings {
   @override
   String get heroTitleLine1 => 'Votre entreprise a déjà les données.';
   @override
-  String get heroTitleLine2 => 'kola les transforme en décisions.';
+  String get heroTitleLine2 => 'kolaa les transforme en décisions.';
   @override
   String get heroEmailPlaceholder => 'Adresse e-mail';
   @override
@@ -200,7 +200,7 @@ class StringsPt extends Strings {
   @override
   String get heroTitleLine1 => 'A sua empresa já tem os dados.';
   @override
-  String get heroTitleLine2 => 'A kola transforma-os em decisões.';
+  String get heroTitleLine2 => 'A kolaa transforma-os em decisões.';
   @override
   String get heroEmailPlaceholder => 'Endereço de e-mail';
   @override
@@ -231,7 +231,7 @@ class StringsEs extends Strings {
   @override
   String get heroTitleLine1 => 'Su negocio ya tiene los datos.';
   @override
-  String get heroTitleLine2 => 'kola los convierte en decisiones.';
+  String get heroTitleLine2 => 'kolaa los convierte en decisiones.';
   @override
   String get heroEmailPlaceholder => 'Correo electrónico';
   @override
@@ -262,7 +262,7 @@ class StringsSw extends Strings {
   @override
   String get heroTitleLine1 => 'Biashara yako tayari ina data.';
   @override
-  String get heroTitleLine2 => 'kola inaibadilisha kuwa maamuzi.';
+  String get heroTitleLine2 => 'kolaa inaibadilisha kuwa maamuzi.';
   @override
   String get heroEmailPlaceholder => 'Anwani ya barua pepe';
   @override
