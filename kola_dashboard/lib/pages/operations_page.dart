@@ -49,6 +49,7 @@ import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
+import '../services/imagekit_url.dart';
 import '../theme.dart';
 
 enum _Tab { queue, tickets }
@@ -609,7 +610,63 @@ class _OperationsPageState extends State<OperationsPage> {
                 'white-space:pre-wrap;overflow-wrap:anywhere;'
                 '${inbound ? 'background:${KolaVar.card};color:${KolaVar.text}' : 'background:${KolaVar.successBg};color:${KolaVar.text}'}',
           },
-          [Component.text(m.body)],
+          [
+            // ── THE PHOTO, WHEN THERE IS ONE ──────────────────────────
+            //
+            // Above the text, because the picture IS the message when a
+            // customer sends one — the caption, if any, explains it.
+            //
+            // Three states, and the third is the one worth getting
+            // right:
+            //   url present   the photo, rendered
+            //   kind, no url  it arrived and could not be stored, said
+            //                 plainly rather than shown as nothing
+            //   neither       an ordinary text message
+            if (m.mediaUrl != null)
+              div(
+                attributes: {
+                  'style': 'margin:-2px 0 8px;border-radius:'
+                      '${KolaRadius.md};overflow:hidden;max-width:260px;'
+                      'border:1px solid ${KolaVar.border}',
+                },
+                [
+                  img(
+                    // Width-capped through the same helper the catalog
+                    // uses — a phone camera original is several MB and
+                    // this bubble is 260px wide.
+                    src: ImageKitUrl.wide(m.mediaUrl!, width: 520),
+                    alt: m.mediaKind == 'video'
+                        ? 'Video from the customer'
+                        : 'Photo from the customer',
+                    attributes: {
+                      'loading': 'lazy',
+                      'style': 'width:100%;display:block',
+                    },
+                  ),
+                ],
+              )
+            else if (m.mediaKind != null)
+              // NOT silently dropped. The owner needs to know a picture
+              // was sent even when kola could not keep it, because the
+              // customer is about to refer to it.
+              div(
+                attributes: {
+                  'style': 'margin-bottom:6px;padding:8px 10px;'
+                      'border-radius:${KolaRadius.sm};'
+                      'border:1px dashed ${KolaVar.border};'
+                      'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+                },
+                [
+                  Component.text(
+                    m.mediaKind == 'video'
+                        ? 'Sent a video — it could not be saved'
+                        : 'Sent a photo — it could not be saved',
+                  ),
+                ],
+              ),
+
+            Component.text(m.body),
+          ],
         ),
         div(
           attributes: {

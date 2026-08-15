@@ -50,6 +50,8 @@ import 'package:kola_server/src/services/notifications/notification_rate_limiter
 import 'package:kola_server/src/services/notifications/owner_notification_dispatcher.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
 import 'package:kola_server/src/services/knowledge/bot_knowledge_service.dart';
+import 'package:kola_server/src/services/media/imagekit_service.dart';
+import 'package:kola_server/src/services/media/inbound_media_service.dart';
 import 'package:kola_server/src/services/conversations/inbound_message_handler.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 
@@ -139,6 +141,12 @@ Future<void> main(List<String> args) async {
     usageRecords: const UsageRecordRepository(),
     errands: const ErrandRepository(),
     knowledgeService: BotKnowledgeService(aiOrchestrator: AiOrchestrator()),
+    // Required since inbound photos were wired in. This script only
+    // exercises the TEXT path, so the service is constructed and never
+    // called — but the dependency is deliberately required rather than
+    // nullable, so a production wiring mistake fails at startup instead
+    // of silently dropping every customer's photo.
+    inboundMedia: InboundMediaService(ImageKitService()),
     errandDispatch: errandDispatch,
     notificationDispatcher: OwnerNotificationDispatcher(
       settingsRepo: const OwnerNotificationSettingsRepository(),

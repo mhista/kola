@@ -81,6 +81,14 @@ class WhatsAppBotRegistry {
   // _replyToInboundMessages to reach InboundMessageHandler.
   final Map<int, int> _botIdForChannel = {};
 
+  /// The Channel row per channelId.
+  ///
+  /// Resolving an inbound image needs the channel's own access token —
+  /// Meta's media URL requires an Authorization header and expires in
+  /// minutes, so ImageKit cannot fetch it and we must. See
+  /// inbound_media_service.dart.
+  final Map<int, Channel> _channelById = {};
+
   void Function(Route route, String path)? _addRoute;
   String _webhookBaseUrl = '';
 
@@ -168,6 +176,7 @@ class WhatsAppBotRegistry {
     _services[channelId] = service;
     _adapters[channelId] = adapter;
     _botIdForChannel[channelId] = channel.botId;
+    _channelById[channelId] = channel;
     _phoneNumberIdToChannelId[credential.phoneNumberId] = channelId;
     if (credential.appSecret.isNotEmpty) {
       _appSecrets[channelId] = credential.appSecret;
@@ -330,8 +339,55 @@ class WhatsAppBotRegistry {
           if (reply != null) {
             await adapter.sendText(recipient: from, text: reply);
           }
+        } else if (type == 'image' || type == 'video') {
+          // ── PHOTOS AND VIDEO ──────────────────────────────────────
+          //
+          // These used to fall into the generic non-text branch below:
+          // the customer got "sorry, I can only read text" and NOTHING
+          // was stored. For a shop, "do you have this?" attached to a
+          // picture is one of the most common messages there is, and it
+          // left no trace in Operations at all.
+          //
+          // Meta sends only a media ID here. The bytes need an
+          // authenticated fetch against the Graph API, which is what
+          // InboundMediaService does — the handler is given the id and
+          // the channel, not a URL.
+          final media = map[type] as Map<String, dynamic>?;
+          final mediaId = media?['id'] as String?;
+          final channel = _channelById[channelId];
+
+          if (mediaId == null || botId == null || channel == null) {
+            await adapter.sendText(recipient: from, text: _nonTextReplyText);
+            continue;
+          }
+
+          // The caption is the customer's actual question. Absent when
+          // they just send the picture — and the message must still be
+          // recorded, so a placeholder stands in rather than skipping.
+          final caption = (media?['caption'] as String?)?.trim() ?? '';
+
+          final reply = await getIt<InboundMessageHandler>().handle(
+            botId: botId,
+            channelId: channelId,
+            platformType: 'whatsapp',
+            externalUserId: from,
+            displayName: _contactNameFor(contacts, from),
+            inboundText: caption.isEmpty
+                ? (type == 'video' ? '[sent a video]' : '[sent a photo]')
+                : caption,
+            mediaReference: mediaId,
+            mediaKind: type,
+            mediaMimeType: media?['mime_type'] as String?,
+            channel: channel,
+          );
+          if (reply != null) {
+            await adapter.sendText(recipient: from, text: reply);
+          }
         } else {
-          // Non-text inbound — Phase 2b's ack, unchanged scope.
+          // Everything else — audio, documents, location, contacts.
+          // Still the Phase 2b ack, because none of those have a
+          // handling story yet and pretending otherwise would be worse
+          // than saying so.
           await adapter.sendText(recipient: from, text: _nonTextReplyText);
         }
       } catch (e) {

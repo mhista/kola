@@ -1491,10 +1491,45 @@ class EndpointProduct extends _i1.EndpointRef {
   /// cannot return Map<int, List<Model>> across the wire, and inventing
   /// a wrapper model for a shape the client regroups in three lines
   /// would be a .spy.yaml and a codegen run for nothing.
+  /// ── WHY A COMMA-SEPARATED STRING AND NOT List<int> ────────────────
+  ///
+  /// This took `List<int> productIds` and every call 500'd before the
+  /// method body ran:
+  ///
+  ///   ERROR: No deserialization found for type List<int>
+  ///   #2 parseParameters (endpoint_parameter_helper.dart:21)
+  ///
+  /// The generated protocol registers a deserializer per generic type,
+  /// and whether `List<int>` is present has DRIFTED with unrelated
+  /// edits. Counting `t == List<int>` in the generated protocol, by
+  /// commit:
+  ///
+  ///   f7450bc  0   ← the commit that added this endpoint
+  ///   f833f05  1
+  ///   9b5c175  1
+  ///   HEAD     2
+  ///
+  /// `List<String>` has been 2 throughout, which is why the sibling
+  /// endpoints taking string lists always worked and this one silently
+  /// did not.
+  ///
+  /// So this shipped with no deserializer at all, and thumbnails have
+  /// NEVER loaded in the catalog list or in an answer's product cards —
+  /// while the detail page, which calls listMedia(int), always worked.
+  /// That split is what sent me chasing ImageKit transformations twice.
+  /// The URLs were fine. The request never reached the method.
+  ///
+  /// I am deliberately NOT relying on the count being 2 today. Whatever
+  /// pushed it from 0 to 1 was not this endpoint, and a type whose
+  /// availability moves when unrelated files change is not a dependency
+  /// worth having under a screen's main image.
+  ///
+  /// So the wire type is a String this endpoint parses itself. Uglier,
+  /// and it cannot regress on someone else's edit.
   _i2.Future<List<_i21.ProductMedia>> listMediaForProducts(
     String accessToken,
     int workspaceId,
-    List<int> productIds,
+    String productIds,
   ) => caller.callServerEndpoint<List<_i21.ProductMedia>>(
     'product',
     'listMediaForProducts',
@@ -1562,11 +1597,18 @@ class EndpointProduct extends _i1.EndpointRef {
   );
 
   /// Sets the display order. Index 0 becomes the main image.
+  ///
+  /// Comma-separated for the same reason as listMediaForProducts above:
+  /// a `List<int>` parameter is only deserializable if something else in
+  /// the project happens to register that type. This one has no caller
+  /// yet, so it has never failed in production — which is exactly why it
+  /// is worth fixing now rather than discovering it the first time an
+  /// owner drags a photo.
   _i2.Future<void> reorderProductMedia(
     String accessToken,
     int workspaceId,
     int productId,
-    List<int> mediaIdsInOrder,
+    String mediaIdsInOrder,
   ) => caller.callServerEndpoint<void>(
     'product',
     'reorderProductMedia',

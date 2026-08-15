@@ -2748,7 +2748,7 @@ class _ProductEndpoint {
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
-    List<int> productIds,
+    String productIds,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -2874,7 +2874,7 @@ class _ProductEndpoint {
     String accessToken,
     int workspaceId,
     int productId,
-    List<int> mediaIdsInOrder,
+    String mediaIdsInOrder,
   ) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =

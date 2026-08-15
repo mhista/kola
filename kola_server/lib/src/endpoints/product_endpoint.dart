@@ -464,14 +464,54 @@ class ProductEndpoint extends Endpoint {
   /// cannot return Map<int, List<Model>> across the wire, and inventing
   /// a wrapper model for a shape the client regroups in three lines
   /// would be a .spy.yaml and a codegen run for nothing.
+  /// ── WHY A COMMA-SEPARATED STRING AND NOT List<int> ────────────────
+  ///
+  /// This took `List<int> productIds` and every call 500'd before the
+  /// method body ran:
+  ///
+  ///   ERROR: No deserialization found for type List<int>
+  ///   #2 parseParameters (endpoint_parameter_helper.dart:21)
+  ///
+  /// The generated protocol registers a deserializer per generic type,
+  /// and whether `List<int>` is present has DRIFTED with unrelated
+  /// edits. Counting `t == List<int>` in the generated protocol, by
+  /// commit:
+  ///
+  ///   f7450bc  0   ← the commit that added this endpoint
+  ///   f833f05  1
+  ///   9b5c175  1
+  ///   HEAD     2
+  ///
+  /// `List<String>` has been 2 throughout, which is why the sibling
+  /// endpoints taking string lists always worked and this one silently
+  /// did not.
+  ///
+  /// So this shipped with no deserializer at all, and thumbnails have
+  /// NEVER loaded in the catalog list or in an answer's product cards —
+  /// while the detail page, which calls listMedia(int), always worked.
+  /// That split is what sent me chasing ImageKit transformations twice.
+  /// The URLs were fine. The request never reached the method.
+  ///
+  /// I am deliberately NOT relying on the count being 2 today. Whatever
+  /// pushed it from 0 to 1 was not this endpoint, and a type whose
+  /// availability moves when unrelated files change is not a dependency
+  /// worth having under a screen's main image.
+  ///
+  /// So the wire type is a String this endpoint parses itself. Uglier,
+  /// and it cannot regress on someone else's edit.
   Future<List<ProductMedia>> listMediaForProducts(
     Session session,
     String accessToken,
     int workspaceId,
-    List<int> productIds,
+    String productIds,
   ) async {
     await _require(accessToken, workspaceId);
-    if (productIds.isEmpty) return const [];
+
+    final parsed = <int>[
+      for (final part in productIds.split(','))
+        if (int.tryParse(part.trim()) case final id?) id,
+    ];
+    if (parsed.isEmpty) return const [];
 
     // Scoped by re-reading the caller's own products and intersecting.
     // Without this, a crafted id list would return another workspace's
@@ -479,7 +519,7 @@ class ProductEndpoint extends Endpoint {
     // no workspace_id of its own to filter on.
     final own = await _products.listByWorkspace(workspaceId, includeArchived: true);
     final ownIds = {for (final p in own) if (p.id != null) p.id!};
-    final safe = [for (final id in productIds) if (ownIds.contains(id)) id];
+    final safe = [for (final id in parsed) if (ownIds.contains(id)) id];
     if (safe.isEmpty) return const [];
 
     final grouped = await _products.listMediaForProducts(safe);
@@ -588,20 +628,33 @@ class ProductEndpoint extends Endpoint {
   }
 
   /// Sets the display order. Index 0 becomes the main image.
+  ///
+  /// Comma-separated for the same reason as listMediaForProducts above:
+  /// a `List<int>` parameter is only deserializable if something else in
+  /// the project happens to register that type. This one has no caller
+  /// yet, so it has never failed in production — which is exactly why it
+  /// is worth fixing now rather than discovering it the first time an
+  /// owner drags a photo.
   Future<void> reorderProductMedia(
     Session session,
     String accessToken,
     int workspaceId,
     int productId,
-    List<int> mediaIdsInOrder,
+    String mediaIdsInOrder,
   ) async {
     await _require(accessToken, workspaceId);
+
+    final order = <int>[
+      for (final part in mediaIdsInOrder.split(','))
+        if (int.tryParse(part.trim()) case final id?) id,
+    ];
+    if (order.isEmpty) return;
 
     final product = await _products.findById(workspaceId, productId);
     if (product == null) {
       throw KolaException(message: 'That product no longer exists.');
     }
-    await _products.reorderMedia(productId, mediaIdsInOrder);
+    await _products.reorderMedia(productId, order);
   }
 
   /// Imports a photo from a PUBLIC url and stores it on ImageKit.

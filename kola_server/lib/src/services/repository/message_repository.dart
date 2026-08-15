@@ -34,11 +34,21 @@ class MessageRepository {
         .toList();
   }
 
+  /// [mediaKind] set with [mediaUrl] null is a DELIBERATE, MEANINGFUL
+  /// state, not an error: the customer sent a photo and it could not be
+  /// stored. Migration 032's header says so, and the dashboard renders
+  /// it as "sent a photo (couldn't be saved)". Collapsing it to a plain
+  /// text message would lose the fact that a picture was ever sent.
   Future<Message> create({
     required int conversationId,
     required String direction,
     required String senderType,
     required String body,
+    String? mediaKind,
+    String? mediaUrl,
+    String? mediaThumbnailUrl,
+    String? mediaImagekitFileId,
+    String? mediaMimeType,
   }) async {
     _log.info('Creating message conversationId=$conversationId direction=$direction senderType=$senderType');
     final now = DateTime.now().toUtc();
@@ -51,6 +61,15 @@ class MessageRepository {
           'sender_type': senderType,
           'body': body,
           'created_at': now.toIso8601String(),
+          // Omitted entirely when there is no media, so a text message's
+          // row is byte-for-byte what it was before this change.
+          if (mediaKind != null) 'media_kind': mediaKind,
+          if (mediaUrl != null) 'media_url': mediaUrl,
+          if (mediaThumbnailUrl != null)
+            'media_thumbnail_url': mediaThumbnailUrl,
+          if (mediaImagekitFileId != null)
+            'media_imagekit_file_id': mediaImagekitFileId,
+          if (mediaMimeType != null) 'media_mime_type': mediaMimeType,
         })
         .select()
         .single();

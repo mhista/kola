@@ -375,6 +375,8 @@ void setupDependencyInjection() {
       // dart's header.
       errands: getIt<ErrandRepository>(),
       knowledgeService: getIt<BotKnowledgeService>(),
+      // Inbound photos. Registered above, alongside ImageKitService.
+      inboundMedia: getIt<InboundMediaService>(),
       errandDispatch: getIt<ErrandDispatchService>(),
       notificationDispatcher: getIt<OwnerNotificationDispatcher>(),
       securityFilter: getIt<SecurityFilter>(),

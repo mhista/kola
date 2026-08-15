@@ -212,7 +212,12 @@ class _CatalogPageState extends State<CatalogPage> {
         final media = await component.client.product.listMediaForProducts(
           component.accessToken,
           component.workspaceId,
-          wantMedia,
+          // Comma-separated, NOT a List<int>. Serverpod could not
+          // deserialize a List<int> parameter — the type is only
+          // registered when something else in the project uses it — so
+          // every call 500'd before the endpoint ran. That is why these
+          // thumbnails have never appeared. See the endpoint's header.
+          wantMedia.join(','),
         );
         final images = {..._mainImages};
         for (final m in media) {

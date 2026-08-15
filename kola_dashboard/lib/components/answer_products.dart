@@ -128,7 +128,9 @@ class _AnswerProductsState extends State<AnswerProducts> {
           final media = await component.client.product.listMediaForProducts(
             component.accessToken,
             component.workspaceId,
-            [for (final p in products) if (p.id != null) p.id!],
+            // Comma-separated — see the endpoint's header on why a
+            // List<int> parameter could not be deserialized.
+            [for (final p in products) if (p.id != null) p.id!].join(','),
           );
           for (final m in media) {
             final existing = images[m.productId];

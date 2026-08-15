@@ -2535,7 +2535,7 @@ class Endpoints extends _i1.EndpointDispatch {
             ),
             'productIds': _i1.ParameterDescription(
               name: 'productIds',
-              type: _i1.getType<List<int>>(),
+              type: _i1.getType<String>(),
               nullable: false,
             ),
           },
@@ -2675,7 +2675,7 @@ class Endpoints extends _i1.EndpointDispatch {
             ),
             'mediaIdsInOrder': _i1.ParameterDescription(
               name: 'mediaIdsInOrder',
-              type: _i1.getType<List<int>>(),
+              type: _i1.getType<String>(),
               nullable: false,
             ),
           },

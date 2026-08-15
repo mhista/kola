@@ -69,6 +69,8 @@
 // (only tool/test_grounded_qa.dart today) keeps working unchanged.                                                           
 
 import 'package:kola_server/kola_logger.dart';
+// Channel, for the media parameters on handle().
+import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/repository/conversation_repository.dart';
 import 'package:kola_server/src/services/repository/message_repository.dart';
@@ -79,6 +81,7 @@ import 'package:kola_server/src/services/knowledge/bot_knowledge_service.dart';
 import 'package:kola_server/src/services/errand/errand_tool_registry.dart';
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
 import 'package:kola_server/src/services/notifications/owner_notification_dispatcher.dart';
+import 'package:kola_server/src/services/media/inbound_media_service.dart';
 import 'package:kola_server/src/services/security/security_filter.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
 import 'package:kola_server/src/services/billing/plan_limits.dart';
@@ -94,6 +97,7 @@ class InboundMessageHandler {
     required BotKnowledgeService knowledgeService,
     required ErrandDispatchService errandDispatch,
     required OwnerNotificationDispatcher notificationDispatcher,
+    required InboundMediaService inboundMedia,
     SecurityFilter? securityFilter,
     TrialStateMachine? trialStateMachine,
   }) : _bots = bots,
@@ -105,6 +109,7 @@ class InboundMessageHandler {
        _knowledge = knowledgeService,
        _errandDispatch = errandDispatch,
        _notifications = notificationDispatcher,
+       _inboundMedia = inboundMedia,
        _security = securityFilter ?? SecurityFilter(),
        _trialStateMachine = trialStateMachine ?? const TrialStateMachine();
 
@@ -117,6 +122,10 @@ class InboundMessageHandler {
   final BotKnowledgeService _knowledge;
   final ErrandDispatchService _errandDispatch;
   final OwnerNotificationDispatcher _notifications;
+
+  /// Turns a Telegram file_id or WhatsApp media id into an ImageKit URL.
+  /// See inbound_media_service.dart on why the bytes go through us.
+  final InboundMediaService _inboundMedia;
   final SecurityFilter _security;
   final TrialStateMachine _trialStateMachine;
 
@@ -137,6 +146,23 @@ class InboundMessageHandler {
     required String externalUserId,
     String? displayName,
     required String inboundText,
+
+    // ── INBOUND MEDIA ───────────────────────────────────────────────
+    //
+    // Nullable, and the handler stays entirely text-driven when it is
+    // null — so every existing caller is unchanged.
+    //
+    // The REFERENCE is passed, not the bytes: a Telegram file_id or a
+    // WhatsApp media id. Resolving it means an authenticated download
+    // with the workspace's own credential followed by an upload to
+    // ImageKit, and that belongs behind InboundMediaService rather than
+    // in a webhook handler. See its header on why ImageKit cannot fetch
+    // either URL itself — the Telegram one embeds the bot token, and the
+    // WhatsApp one needs an Authorization header.
+    String? mediaReference,
+    String? mediaKind,
+    String? mediaMimeType,
+    Channel? channel,
   }) async {
     final bot = await _bots.findById(botId);
     if (bot == null) {
@@ -155,11 +181,46 @@ class InboundMessageHandler {
     );
     final conversationId = conversation.id!;
 
+    // Resolve the picture BEFORE writing the message, so the row is
+    // written once with whatever we ended up with.
+    //
+    // A failure here returns null and the message is still stored with
+    // media_kind set and media_url null — the "it arrived and could not
+    // be saved" state migration 032 exists to express. A CDN blip must
+    // cost the picture, never the message.
+    InboundMedia? media;
+    if (mediaReference != null && mediaKind != null && channel != null) {
+      try {
+        media = platformType == 'telegram'
+            ? await _inboundMedia.fromTelegram(
+                channel: channel,
+                workspaceId: workspaceId,
+                fileId: mediaReference,
+                kind: mediaKind,
+                mimeType: mediaMimeType,
+              )
+            : await _inboundMedia.fromWhatsApp(
+                channel: channel,
+                workspaceId: workspaceId,
+                mediaId: mediaReference,
+                kind: mediaKind,
+                mimeType: mediaMimeType,
+              );
+      } catch (e) {
+        Log.error('InboundMessageHandler: could not store inbound media', error: e);
+      }
+    }
+
     await _messages.create(
       conversationId: conversationId,
       direction: 'inbound',
       senderType: 'customer',
       body: inboundText,
+      mediaKind: mediaKind,
+      mediaUrl: media?.url,
+      mediaThumbnailUrl: media?.thumbnailUrl,
+      mediaImagekitFileId: media?.imagekitFileId,
+      mediaMimeType: media?.mimeType ?? mediaMimeType,
     );
     await _conversations.touchLastMessageAt(conversationId);
 

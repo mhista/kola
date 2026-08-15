@@ -533,9 +533,6 @@ class Protocol extends _i1.SerializationManager {
               .toList()
           as T;
     }
-    if (t == List<int>) {
-      return (data as List).map((e) => deserialize<int>(e)).toList() as T;
-    }
     if (t == List<_i57.SupportTicket>) {
       return (data as List)
               .map((e) => deserialize<_i57.SupportTicket>(e))

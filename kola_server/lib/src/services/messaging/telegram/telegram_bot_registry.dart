@@ -63,6 +63,14 @@ class TelegramBotRegistry {
   // Populated in _register(), same lifetime as _services/_adapters.
   final Map<int, int> _botIdForChannel = {};
 
+  /// The Channel row per channelId.
+  ///
+  /// Needed because resolving an inbound PHOTO requires the channel's own
+  /// bot token — Telegram's file download URL embeds it, and
+  /// InboundMediaService decrypts the credential off the Channel. The
+  /// botId alone is not enough.
+  final Map<int, Channel> _channelById = {};
+
   void Function(Route route, String path)? _addRoute;
   String _webhookBaseUrl = '';
 
@@ -169,6 +177,7 @@ void _register({required Channel channel, required String botToken}) {
   _services[channelId] = service;
   _adapters[channelId] = adapter;
   _botIdForChannel[channelId] = channel.botId;
+  _channelById[channelId] = channel;
 
   if (!alreadyRegistered) {
     _addRoute?.call(
@@ -224,6 +233,55 @@ void _register({required Channel channel, required String botToken}) {
         }
       } catch (e, stackTrace) {
         Log.error('InboundMessageHandler failed (Telegram channel $channelId)', error: e, stackTrace: stackTrace);
+        await ctx.reply(_fallbackErrorText);
+      }
+    });
+
+    // ── PHOTOS ────────────────────────────────────────────────────────
+    //
+    // onText does NOT fire for a photo message, so before this handler
+    // existed a customer sending a picture produced nothing at all: no
+    // message row, no reply, no trace. For a shop where "do you have
+    // this?" IS a photo, that is the most important message type there
+    // is, and it was silently dropped.
+    //
+    // The LARGEST PhotoSize is chosen. Telegram sends an ascending ladder
+    // of the same image; taking .first would store a thumbnail as the
+    // original and there is no way back from that.
+    service.bot.onPhoto((ctx) async {
+      final chatId = ctx.chat?.id;
+      final botId = _botIdForChannel[channelId];
+      final channel = _channelById[channelId];
+      if (chatId == null || botId == null || channel == null) return;
+
+      final sizes = ctx.message?.photo;
+      if (sizes == null || sizes.isEmpty) return;
+      final largest = sizes.last;
+
+      // A caption is the customer's actual question ("do you have this in
+      // blue?"). Empty when they just sent the picture, and the bot still
+      // has to see that a photo arrived — hence a placeholder rather than
+      // an early return.
+      final caption = ctx.caption?.trim() ?? '';
+
+      try {
+        final reply = await getIt<InboundMessageHandler>().handle(
+          botId: botId,
+          channelId: channelId,
+          platformType: 'telegram',
+          externalUserId: chatId.toString(),
+          displayName: ctx.from?.firstName,
+          inboundText: caption.isEmpty ? '[sent a photo]' : caption,
+          mediaReference: largest.fileId,
+          mediaKind: 'image',
+          channel: channel,
+        );
+        if (reply != null) {
+          await ctx.reply(reply);
+        }
+      } catch (e, stackTrace) {
+        Log.error('InboundMessageHandler failed on photo (Telegram channel $channelId)',
+            error: e, stackTrace: stackTrace);
         await ctx.reply(_fallbackErrorText);
       }
     });
