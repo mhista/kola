@@ -185,12 +185,45 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     }
   }
 
+  /// Who to greet, best source first.
+  ///
+  /// ── THE NAME WAS BEING COLLECTED AND THROWN AWAY ──────────────────
+  ///
+  /// This read the email and nothing else, so an owner was greeted
+  /// "Morning, Diwescollection" — the local part of their address,
+  /// capitalised. Nobody is called that.
+  ///
+  /// Meanwhile step 2 of the Create Workspace wizard ASKS FOR THEIR
+  /// NAME, WorkspaceEndpoint.createWorkspace stores it, and
+  /// workspaces.owner_name has held it since migration 027. Every layer
+  /// was in place except the one that reads it.
+  ///
+  /// ── WHY FIRST NAME ONLY ───────────────────────────────────────────
+  ///
+  /// "Morning, Aisha Bello" reads like a summons. The design's own
+  /// example is "Evening, Aisha", and a greeting is the one place in the
+  /// product that should sound like a person talking.
+  ///
+  /// The email fallback is kept because a workspace created before this
+  /// existed has no owner_name, and "there" for everyone would be a
+  /// worse regression than an awkward name for a few.
   String get _greetingName {
+    final owner = component.workspace.ownerName?.trim();
+    if (owner != null && owner.isNotEmpty) {
+      final first = owner.split(RegExp(r'\s+')).first;
+      return first.isEmpty ? owner : first;
+    }
+
     final email = component.userEmail;
     if (email == null || email.isEmpty) return 'there';
     final local = email.split('@').first;
     if (local.isEmpty) return 'there';
-    return local[0].toUpperCase() + local.substring(1);
+
+    // Strips the punctuation people put in addresses, so
+    // "aisha.bello" greets "Aisha" rather than "Aisha.bello".
+    final firstWord = local.split(RegExp(r'[._\-+0-9]+')).first;
+    final base = firstWord.isEmpty ? local : firstWord;
+    return base[0].toUpperCase() + base.substring(1);
   }
 
   String get _avatarInitial {
