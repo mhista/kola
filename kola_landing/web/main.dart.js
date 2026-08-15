@@ -8222,7 +8222,7 @@ e8(){var s=t.N
 return new A.dW(new A.jA(A.fQ("https://jwyrmptiehkkizwjbqtg.supabase.co/rest/v1/waitlist_signups"),A.f(["apikey","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3eXJtcHRpZWhra2l6d2picXRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE0NzEsImV4cCI6MjEwMDIwNzQ3MX0.jqjS8ZDrdSNj1hT01PTMoEFDFQITA9MoQyQJn4EagBY","Authorization","Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3eXJtcHRpZWhra2l6d2picXRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE0NzEsImV4cCI6MjEwMDIwNzQ3MX0.jqjS8ZDrdSNj1hT01PTMoEFDFQITA9MoQyQJn4EagBY","Content-Type","application/json","Prefer","return=minimal"],s,s)),A.mr([0],t.S),B.y,A.mq(s))}}
 A.dW.prototype={
 gfC(){var s=this.e
-return s===$?this.e="waitlist":s},
+return s===$?this.e="launched":s},
 fJ(a){var s=this
 if(s.c==null||s.Q.F(0,a))return
 s.ag(new A.k4(s,a))},
