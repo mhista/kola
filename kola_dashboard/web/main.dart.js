@@ -4520,7 +4520,7 @@ _.a=a
 _.b=b
 _.c=c
 _.d=d},
-b4(a,b){var s=A.a([],t.s),r=new A.kt(b,a,s,B.cR)
+b4(a,b){var s=A.a([],t.s),r=new A.kt(b,a,s,B.cQ)
 r.x=A.KM(b,s)
 return r},
 fh:function fh(){},
@@ -6690,7 +6690,7 @@ return r},
 GF(){var s,r,q,p,o,n,m,l=t.s,k=A.a([],l)
 for(s=0;s<10;++s)k.push(B.S[s].a)
 r=A.a([A.GG()],t.tZ)
-for(s=0;s<2;++s){q=B.cG[s]
+for(s=0;s<2;++s){q=B.cF[s]
 p=A.a([],l)
 for(o=k.length,n=0;n<k.length;k.length===o||(0,A.T)(k),++n){m=q.h(0,k[n])
 p.push(m==null?"":m)}r.push(p)}return new A.ar(r,t.sW.a(new A.nu()),t.wd).ae(0,"\r\n")},
@@ -6804,7 +6804,7 @@ s=6
 break
 case 4:p=3
 i=o.pop()
-q=B.cV
+q=B.cU
 s=1
 break
 s=6
@@ -12438,7 +12438,7 @@ if(o)s.push(A.h(p.value))}break A}s=null
 break A}this.a.$1(this.b.a(s))},
 $S:1}
 A.Ay.prototype={
-$0(){var s,r,q,p,o=this.a,n=A.oq(new A.aa(B.cD,t.ov.a(new A.Ax(A.h(o.type))),t.nM),t.bk)
+$0(){var s,r,q,p,o=this.a,n=A.oq(new A.aa(B.cC,t.ov.a(new A.Ax(A.h(o.type))),t.nM),t.bk)
 A:{if(B.ac===n||B.ai===n){o=A.c1(o.checked)
 break A}if(B.ah===n||B.aj===n){o=A.mA(o.valueAsNumber)
 break A}if(B.ae===n||B.al===n||B.an===n||B.ab===n){o=new A.aH(A.nx(B.e.aG(A.mA(o.valueAsNumber)),0,!0),0,!0)
@@ -15436,7 +15436,7 @@ A.j3.prototype={
 F(a){var s,r,q=t.N
 q=A.b(["style","display:flex;border-top:1px solid #2C2A28;padding:10px 0 22px"],q,q)
 s=A.a([],t.i)
-for(r=0;r<3;++r)s.push(this.ov(B.cW[r]))
+for(r=0;r<3;++r)s.push(this.ov(B.cV[r]))
 return A.c(s,q,null,null)},
 ov(a){var s,r,q=null,p=a.a,o="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:"+(p[0]?"#C1552E":"#9C9691"),n=t.N,m=A.b(["style","font-size:19px"],n,n),l=t.i
 m=A.Q(A.a([new A.d(p[2],q)],l),m,q,q)
@@ -16004,7 +16004,7 @@ d=A.d4(A.a([new A.d(a.c,h)],c),d,h,new A.yE(a),h)
 s=i.f7("Type")
 r=A.b(["style",u.aZ],e,e)
 q=A.a([],c)
-for(p=t.v,o=0;o<3;++o){n=B.cK[o]
+for(p=t.v,o=0;o<3;++o){n=B.cJ[o]
 m=a.d===n.a
 l=m?"true":"false"
 k=m?"var(--kola-accent)":"var(--kola-border)"
@@ -16669,7 +16669,7 @@ k=A.b(["style","color:var(--kola-muted);flex:none;display:flex"],k,k)
 h.push(A.C(A.a([q,g,A.c(A.a([A.ae("M6 9l6 6 6-6",l,15,1.8)],i),k,l,l)],i),s,l,!1,r,l,l))
 return A.c(h,j,l,l)},
 nw(){var s,r,q,p,o,n=null,m=t.N,l=A.b(["role","menu","style","position:absolute;bottom:calc(100% + 8px);left:0;right:0;background:var(--kola-card);border:1px solid var(--kola-border);border-radius:12px;padding:6px;box-shadow:0 16px 40px rgba(0,0,0,0.35);z-index:20"],m,m),k=t.i,j=A.a([],k)
-for(s=0;s<5;++s){r=B.cM[s].a
+for(s=0;s<5;++s){r=B.cL[s].a
 q=r[3]
 p=A.b(["class","kola-nav-row","role","menuitem","style","display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:12.5px;text-decoration:none;color:"+(r[0]?"var(--kola-danger)":"var(--kola-text)")],m,m)
 o=r[1]
@@ -17475,7 +17475,7 @@ q=n.ba(A.a([g,s,r,A.c(A.a([A.Q(A.a([new A.d("MCP \xb7 soon",m)],i),l,m,m)],i),q,
 l=q
 break A}B.b.D(j,A.a([h,l],i))}return A.c(j,k,m,m)},
 ou(){var s,r,q,p,o,n,m=null,l=t.N,k=A.b(["style","display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:100px;background:var(--kola-pill);margin-bottom:12px;width:fit-content"],l,l),j=t.i,i=A.a([],j)
-for(s=t.v,r=0;r<6;++r){q=B.cH[r]
+for(s=t.v,r=0;r<6;++r){q=B.cG[r]
 p=this.d===q
 o=p?"true":"false"
 n=p?"var(--kola-accent)":"transparent"
@@ -17507,7 +17507,7 @@ s=t.N
 s=A.b(["style","display:grid;grid-template-columns:2fr 1.4fr 1fr 1fr;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--kola-border);font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--kola-muted)"],s,s)
 r=t.i
 q=A.a([],r)
-for(p=0;p<4;++p)q.push(new A.r(m,m,m,A.a([new A.d(B.cI[p],m)],r),m))
+for(p=0;p<4;++p)q.push(new A.r(m,m,m,A.a([new A.d(B.cH[p],m)],r),m))
 s=A.a([A.c(q,s,m,m)],r)
 for(o=0;o<J.a6(n.r);++o)s.push(n.l8(o,J.bW(n.r,o)))
 return n.ba(s)},
@@ -18942,7 +18942,7 @@ s=n.eU("What do you sell?")
 r=A.b(["style","display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"],g,g)
 q=t.i
 p=A.a([],q)
-for(o=0;o<5;++o)p.push(n.kV(B.cB[o]))
+for(o=0;o<5;++o)p.push(n.kV(B.cA[o]))
 k=A.a([k,j,i,h,s,A.c(p,r,l,l)],q)
 if(n.f==="Something else"){j=n.eU("Tell kolaa in your own words")
 i=n.z
@@ -19161,7 +19161,7 @@ o=q.d
 q=q.e.a
 q.toString
 n=t.i
-i=A.c(A.a([new A.kE(B.ct,k,h.b,g,f,c,b.a,e,s,d,l),new A.jG(r,B.ap,p,o,q,l)],n),i,"kola-dash-desktop",l)
+i=A.c(A.a([new A.kE(B.cZ,k,h.b,g,f,c,b.a,e,s,d,l),new A.jG(r,B.ap,p,o,q,l)],n),i,"kola-dash-desktop",l)
 j=A.b(["style","flex-direction:column;height:100vh;overflow:hidden;box-sizing:border-box"],j,j)
 q=m.ghp()
 o=m.a
@@ -20491,7 +20491,7 @@ o=A.b(["type","button","aria-pressed",r,"style","padding:6px 13px;border-radius:
 n=A.b(["click",new A.x0(m,a)],n,t.v)
 return A.C(A.a([new A.d(b+" ("+m.i4(a)+")",l)],t.i),o,l,!1,n,l,l)},
 m3(){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b=this,a=null,a0="font-size:12.5px;color:var(--kola-muted)",a1=t.N,a2=A.b(["style",u.y],a1,a1),a3=A.b(["style","display:grid;grid-template-columns:minmax(200px,3fr) 1.2fr .7fr .8fr 1.4fr;gap:12px;padding:12px 16px;border-bottom:1px solid var(--kola-border);font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--kola-muted)"],a1,a1),a4=t.i,a5=A.a([],a4)
-for(s=0;s<5;++s)a5.push(new A.r(a,a,a,A.a([new A.d(B.cZ[s],a)],a4),a))
+for(s=0;s<5;++s)a5.push(new A.r(a,a,a,A.a([new A.d(B.cY[s],a)],a4),a))
 a3=A.a([A.c(a5,a3,a,a)],a4)
 if(b.gj3().length===0){a1=A.b(["style","padding:16px;text-align:center;font-size:12.5px;color:var(--kola-muted)"],a1,a1)
 a3.push(A.c(A.a([new A.d("Nothing matches that filter.",a)],a4),a1,a,a))}else for(a5=b.gj3(),r=a5.length,s=0;s<a5.length;a5.length===r||(0,A.T)(a5),++s){q=a5[s]
@@ -20538,7 +20538,7 @@ q=A.b(["style","display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-to
 p=A.b(["style","font-size:12.5px;color:var(--kola-muted);margin-right:2px"],h,h)
 p=A.a([A.c(A.a([new A.d("Try:",j)],f),p,j,j)],f)
 for(m=0;m<3;++m){n={}
-l=B.cQ[m]
+l=B.cP[m]
 n.a=null
 n.a=l.a
 p.push(new A.cC(!1,j,j,j,A.b(["type","button","style","padding:6px 13px;border-radius:100px;border:1px solid var(--kola-border);background:transparent;color:var(--kola-muted-strong);font-family:inherit;font-size:12.5px;cursor:pointer"],h,h),A.b(["click",new A.x6(n,k)],h,o),A.a([new A.d(n.a,j)],f),j))}h=A.a([k.bo(A.a([g,s,r,A.c(p,q,j,j)],f))],f)
@@ -22355,7 +22355,7 @@ s=A.c(A.a([new A.d("Your workspace, how kolaa reaches you, and how this dashboar
 q=A.b(["style","display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap"],q,q)
 return A.c(A.a([o,s,A.c(A.a([this.nA(),this.l6()],n),q,r,r)],n),p,r,r)},
 nA(){var s,r,q,p,o,n,m=null,l=t.N,k=A.b(["style","flex:none;width:200px;min-width:180px;display:flex;flex-direction:column;gap:2px"],l,l),j=t.i,i=A.a([],j)
-for(s=t.v,r=0;r<8;++r){q=B.cX[r]
+for(s=t.v,r=0;r<8;++r){q=B.cW[r]
 p=this.d===q
 o=p?"true":"false"
 n=p?"var(--kola-card)":"transparent"
@@ -22373,7 +22373,7 @@ r=o.dI("Match system follows your phone or computer, including its night setting
 q=o.hA(B.cs,o.fr,o.gkT())
 m=A.b(["style","height:12px"],m,m)
 p=t.i
-p=o.aV(A.a([s,r,q,A.c(A.a([],p),m,n,n),o.aO("Body text"),o.hA(B.cO,o.fx,o.gkR()),o.dI("Headings keep their own typeface.")],p))
+p=o.aV(A.a([s,r,q,A.c(A.a([],p),m,n,n),o.aO("Body text"),o.hA(B.cN,o.fx,o.gkR()),o.dI("Headings keep their own typeface.")],p))
 m=p
 break
 case 3:m=o.n7()
@@ -24326,10 +24326,10 @@ B.hh=new A.hZ("yellow")
 B.hj=new A.zw("rem",1)
 B.hg=new A.hZ("red")
 B.bV=new A.mg()
-B.cS=s([],t.gS)
-B.cT=s([],t.gA)
-B.cU=s([],t.r6)
-B.bW=new A.jd(B.cS,B.cT,B.cU)
+B.cR=s([],t.gS)
+B.cS=s([],t.gA)
+B.cT=s([],t.r6)
+B.bW=new A.jd(B.cR,B.cS,B.cT)
 B.bX=new A.eQ(null)
 B.bY=new A.bb(0)
 B.bZ=new A.bb(16e5)
@@ -24382,39 +24382,28 @@ B.eg=new A.dG("\ud83d\udcda","Upload knowledge","Price lists, FAQs, docs","/know
 B.ee=new A.dG("\ud83d\udd0c","Connect a channel","WhatsApp or Telegram","/integrations",2)
 B.ed=new A.dG("\ud83d\udcac","This week's conversations","See what customers are asking","/conversations",3)
 B.ap=s([B.ef,B.ec,B.eg,B.ee,B.ed],A.an("x<dG>"))
-B.dE=new A.bP("\ud83c\udfe0","Home","/",!0)
-B.dK=new A.bP("\ud83e\udd16","Bots","/bots",!1)
-B.dy=new A.bP("\u26a1","Errands","/errands",!1)
-B.dv=new A.bP("\ud83d\udcda","Knowledge","/knowledge",!1)
-B.dD=new A.bP("\ud83d\udcac","Conversations","/conversations",!1)
-B.dQ=new A.bP("\ud83d\udd0c","Integrations","/integrations",!1)
-B.dt=new A.bP("\ud83d\udd11","API & Webhooks","#",!1)
-B.dN=new A.bP("\ud83d\udc65","Team","#",!1)
-B.dz=new A.bP("\ud83d\udcb3","Billing","/billing",!1)
-B.dr=new A.bP("\ud83d\udcd6","Docs"," https://kola-docs.pages.dev",!1)
-B.ct=s([B.dE,B.dK,B.dy,B.dv,B.dD,B.dQ,B.dt,B.dN,B.dz,B.dr],A.an("x<bP>"))
 B.ar=s(["Reading what you have taught me","Checking your catalog","Putting it together"],t.s)
 B.at=s(["January","February","March","April","May","June","July","August","September","October","November","December"],t.s)
-B.cB=s(["Packaged goods","Sizes & variants","Services","Prepared food","Something else"],t.s)
+B.cA=s(["Packaged goods","Sizes & variants","Services","Prepared food","Something else"],t.s)
 B.au=s(["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],t.s)
 B.c6=new A.at("button",1,"button")
 B.c7=new A.at("hidden",8,"hidden")
 B.c8=new A.at("image",9,"image")
 B.c9=new A.at("reset",15,"reset")
 B.ca=new A.at("submit",17,"submit")
-B.cD=s([B.h,B.c6,B.ac,B.ad,B.ae,B.ab,B.af,B.B,B.c7,B.c8,B.ag,B.ah,B.C,B.ai,B.aj,B.c9,B.P,B.ca,B.ak,B.al,B.am,B.an],A.an("x<at>"))
+B.cC=s([B.h,B.c6,B.ac,B.ad,B.ae,B.ab,B.af,B.B,B.c7,B.c8,B.ag,B.ah,B.C,B.ai,B.aj,B.c9,B.P,B.ca,B.ak,B.al,B.am,B.an],A.an("x<at>"))
 B.av=s(["#241A14","#12261F","#1B2430","#241F14"],t.s)
 B.dY={name:0,category:1,description:2,price:3,cost:4,stock:5,lowStock:6,sku:7}
 B.d8=new A.aD(B.dY,["Ankara headwrap","Accessories","Cotton wax print, 2 yards. Holds colour after washing.","4500","2100","24","5","AHW-001"],t.w)
 B.e0={name:0,category:1,description:2,sku:3}
 B.de=new A.aD(B.e0,["Custom tailoring","Services","Measured and sewn to order. Turnaround depends on the week.","TAI-001"],t.w)
-B.cG=s([B.d8,B.de],A.an("x<a3<f,f>>"))
-B.cH=s(["Overview","Errands","Knowledge","Channels","Logs","API"],t.s)
-B.cI=s(["NAME","SOURCE","SCOPE","STATUS"],t.s)
+B.cF=s([B.d8,B.de],A.an("x<a3<f,f>>"))
+B.cG=s(["Overview","Errands","Knowledge","Channels","Logs","API"],t.s)
+B.cH=s(["NAME","SOURCE","SCOPE","STATUS"],t.s)
 B.el=new A.aB("packaged","Packaged goods")
 B.eh=new A.aB("variants","Sizes & variants")
 B.eP=new A.aB("services","Service")
-B.cK=s([B.el,B.eh,B.eP],t.kd)
+B.cJ=s([B.el,B.eh,B.eP],t.kd)
 B.hb=new A.cj("escalateToHuman","\ud83e\uddd1\u200d\ud83d\udcbc","Escalate to human","Hand the conversation to a real person on your team","When a customer is frustrated, asks for a human, or kolaa can't resolve the issue.","escalateToHuman")
 B.hd=new A.cj("collectPayment","\ud83d\udcb3","Collect a payment","Send a payment link and confirm once it's paid","When a customer is ready to pay for an order or service.","collectPayment")
 B.h7=new A.cj("createSupportTicket","\ud83c\udfab","Log a support ticket","File an issue so your team can follow up","When a customer reports a problem that needs follow-up from the team.","createSupportTicket")
@@ -24440,15 +24429,15 @@ B.eS=new A.d1([!1,"M10.3 3.2a1.6 1.6 0 0 1 3.4 0l.3 1.2a1.6 1.6 0 0 0 1.1 1.1l1.
 B.eV=new A.d1([!1,"M17 9V7a5 5 0 0 0-10 0v2 M5 9h14v11H5Z","Billing","/billing"])
 B.eZ=new A.d1([!1,u.f,"Switch workspace","/settings"])
 B.eX=new A.d1([!0,u.f,"Log out","/logout"])
-B.cM=s([B.eU,B.eS,B.eV,B.eZ,B.eX],A.an("x<+danger,icon,label,route(w,f,f,f)>"))
+B.cL=s([B.eU,B.eS,B.eV,B.eZ,B.eX],A.an("x<+danger,icon,label,route(w,f,f,f)>"))
 B.eu=new A.aW("Plus Jakarta Sans","Plus Jakarta Sans")
 B.eD=new A.aW("Inter","Inter")
 B.eC=new A.aW("System default","System default")
-B.cO=s([B.eu,B.eD,B.eC],t.lz)
+B.cN=s([B.eu,B.eD,B.eC],t.lz)
 B.et=new A.aB("Do you deliver to Abuja?","match")
 B.eO=new A.aB("Can I exchange an item after a week?","nearmiss")
 B.eR=new A.aB("Do you accept crypto payments?","none")
-B.cQ=s([B.et,B.eO,B.eR],t.kd)
+B.cP=s([B.et,B.eO,B.eR],t.kd)
 B.D=s([],A.an("x<b_>"))
 B.az=s([],A.an("x<bq>"))
 B.m=s([],t.i)
@@ -24462,17 +24451,17 @@ B.Y=s([],A.an("x<bN>"))
 B.y=s([],t.ff)
 B.W=s([],t.qe)
 B.V=s([],A.an("x<bQ>"))
-B.cR=s([],t.kJ)
+B.cQ=s([],t.kJ)
 B.X=s([],t.s)
 B.H=s([],A.an("x<bB>"))
 B.T=s([],t.tw)
 B.ax=s([],t.cV)
-B.cV=s([],t.t)
+B.cU=s([],t.t)
 B.F=s([],t.zz)
 B.f0=new A.ez([!0,"/","\ud83c\udfe0","Home"])
 B.eT=new A.ez([!1,"#","\ud83d\udcac","Chats"])
 B.eW=new A.ez([!1,"#","\u2699\ufe0f","Settings"])
-B.cW=s([B.f0,B.eT,B.eW],A.an("x<+active,href,icon,label(w,f,f,f)>"))
+B.cV=s([B.f0,B.eT,B.eW],A.an("x<+active,href,icon,label(w,f,f,f)>"))
 B.aA=s(["Received your file","Reading it through","Breaking it into passages","Learning what it says","Filing it away"],t.s)
 B.bz=new A.ch(0,"workspaces")
 B.fZ=new A.ch(1,"team")
@@ -24482,50 +24471,61 @@ B.h1=new A.ch(4,"security")
 B.h2=new A.ch(5,"data")
 B.h3=new A.ch(6,"billing")
 B.bA=new A.ch(7,"danger")
-B.cX=s([B.bz,B.fZ,B.h_,B.h0,B.h1,B.h2,B.h3,B.bA],A.an("x<ch>"))
-B.cZ=s(["TITLE","SOURCE","SECTIONS","UPDATED","STATUS"],t.s)
+B.cW=s([B.bz,B.fZ,B.h_,B.h0,B.h1,B.h2,B.h3,B.bA],A.an("x<ch>"))
+B.cY=s(["TITLE","SOURCE","SECTIONS","UPDATED","STATUS"],t.s)
+B.dD=new A.bP("\ud83c\udfe0","Home","/",!0)
+B.dJ=new A.bP("\ud83e\udd16","Bots","/bots",!1)
+B.dx=new A.bP("\u26a1","Errands","/errands",!1)
+B.du=new A.bP("\ud83d\udcda","Knowledge","/knowledge",!1)
+B.dC=new A.bP("\ud83d\udcac","Conversations","/conversations",!1)
+B.dQ=new A.bP("\ud83d\udd0c","Integrations","/integrations",!1)
+B.ds=new A.bP("\ud83d\udd11","API & Webhooks","#",!1)
+B.dN=new A.bP("\ud83d\udc65","Team","#",!1)
+B.dy=new A.bP("\ud83d\udcb3","Billing","/billing",!1)
+B.dK=new A.bP("\ud83d\udcd6","Docs","https://docs.kola.app",!1)
+B.cZ=s([B.dD,B.dJ,B.dx,B.du,B.dC,B.dQ,B.ds,B.dN,B.dy,B.dK],A.an("x<bP>"))
 B.dM=new A.aM("Home","M3 21h18 M5 21V7l7-4 7 4v14 M9 21v-6h6v6","/",B.X,null)
 B.aq=s(["commerce.core","commerce.pos"],t.s)
-B.dC=new A.aM("Sell",u.W,"/counter",B.aq,null)
+B.dB=new A.aM("Sell",u.W,"/counter",B.aq,null)
 B.as=s(["intelligence.recommendations"],t.s)
-B.dx=new A.aM("Attention",u.L,"/recommendations",B.as,null)
-B.d0=s([B.dM,B.dC,B.dx],t.p)
+B.dw=new A.aM("Attention",u.L,"/recommendations",B.as,null)
+B.d0=s([B.dM,B.dB,B.dw],t.p)
 B.dL=new A.aM("Sales counter",u.W,"/counter",B.aq,"SELL")
-B.cv=s(["commerce.core","commerce.catalog"],t.s)
-B.dq=new A.aM("Catalog",u.u,"/catalog",B.cv,"SELL")
-B.cJ=s([B.dL,B.dq],t.p)
-B.dl=new A.dA("Sell",B.cJ)
-B.dH=new A.aM("Recommendations",u.L,"/recommendations",B.as,null)
-B.cA=s(["intelligence.observations"],t.s)
-B.ds=new A.aM("Observations",u.p,"/observations",B.cA,null)
-B.cF=s(["operations.core"],t.s)
-B.du=new A.aM("Operations","M4 13v-1a8 8 0 1 1 16 0v1 M3 13h2v6H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z M21 13h-2v6h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1Z","/operations",B.cF,null)
+B.cu=s(["commerce.core","commerce.catalog"],t.s)
+B.dq=new A.aM("Catalog",u.u,"/catalog",B.cu,"SELL")
+B.cI=s([B.dL,B.dq],t.p)
+B.dl=new A.dA("Sell",B.cI)
+B.dG=new A.aM("Recommendations",u.L,"/recommendations",B.as,null)
+B.cz=s(["intelligence.observations"],t.s)
+B.dr=new A.aM("Observations",u.p,"/observations",B.cz,null)
+B.cE=s(["operations.core"],t.s)
+B.dt=new A.aM("Operations","M4 13v-1a8 8 0 1 1 16 0v1 M3 13h2v6H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z M21 13h-2v6h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1Z","/operations",B.cE,null)
 B.d_=s(["tasks.core"],t.s)
-B.dw=new A.aM("Tasks","M9 12l2 2 4-4 M4 4h16v16H4Z","/tasks",B.d_,null)
-B.cN=s([B.dH,B.ds,B.du,B.dw],t.p)
-B.dn=new A.dA("Attention",B.cN)
+B.dv=new A.aM("Tasks","M9 12l2 2 4-4 M4 4h16v16H4Z","/tasks",B.d_,null)
+B.cM=s([B.dG,B.dr,B.dt,B.dv],t.p)
+B.dn=new A.dA("Attention",B.cM)
 B.d6=s(["intelligence.dashboards"],t.s)
-B.dB=new A.aM("Intelligence","M4 20V10 M10 20V4 M16 20v-7 M2 20h20","/intelligence",B.d6,null)
+B.dA=new A.aM("Intelligence","M4 20V10 M10 20V4 M16 20v-7 M2 20h20","/intelligence",B.d6,null)
 B.d1=s(["intelligence.analytics"],t.s)
 B.dp=new A.aM("Analytics","M2 12h4l3-8 4 16 3-8h6","/analytics",B.d1,null)
 B.d5=s(["customers.core"],t.s)
-B.dA=new A.aM("Customers","M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M4 21c0-4 4-6 8-6s8 2 8 6","/customers",B.d5,null)
-B.cp=s([B.dB,B.dp,B.dA],t.p)
+B.dz=new A.aM("Customers","M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M4 21c0-4 4-6 8-6s8 2 8 6","/customers",B.d5,null)
+B.cp=s([B.dA,B.dp,B.dz],t.p)
 B.dk=new A.dA("Grow",B.cp)
-B.cE=s(["bots.core"],t.s)
-B.dG=new A.aM("Agents",u._,"/bots",B.cE,null)
-B.cL=s(["memory.documents"],t.s)
-B.dR=new A.aM("Knowledge",u.U,"/knowledge",B.cL,null)
+B.cD=s(["bots.core"],t.s)
+B.dF=new A.aM("Agents",u._,"/bots",B.cD,null)
+B.cK=s(["memory.documents"],t.s)
+B.dR=new A.aM("Knowledge",u.U,"/knowledge",B.cK,null)
 B.d4=s(["errands.builtin"],t.s)
-B.dJ=new A.aM("Automations",u.r,"/errands",B.d4,null)
+B.dI=new A.aM("Automations",u.r,"/errands",B.d4,null)
 B.d7=s(["channels.whatsapp"],t.s)
-B.dF=new A.aM("Integrations",u.b,"/integrations",B.d7,null)
-B.cY=s([B.dG,B.dR,B.dJ,B.dF],t.p)
-B.dj=new A.dA("Build",B.cY)
-B.cC=s(["platform.developer_portal"],t.s)
-B.dI=new A.aM("Developer portal","M4 5h16v14H4Z M8 9l3 3-3 3 M13 15h4","/developer",B.cC,null)
-B.cP=s([B.dI],t.p)
-B.dm=new A.dA("Developer",B.cP)
+B.dE=new A.aM("Integrations",u.b,"/integrations",B.d7,null)
+B.cX=s([B.dF,B.dR,B.dI,B.dE],t.p)
+B.dj=new A.dA("Build",B.cX)
+B.cB=s(["platform.developer_portal"],t.s)
+B.dH=new A.aM("Developer portal","M4 5h16v14H4Z M8 9l3 3-3 3 M13 15h4","/developer",B.cB,null)
+B.cO=s([B.dH],t.p)
+B.dm=new A.dA("Developer",B.cO)
 B.Z=s([B.dl,B.dn,B.dk,B.dj,B.dm],A.an("x<dA>"))
 B.eY=new A.ey(["catalog","Product catalog","Prices, stock, descriptions",u.u])
 B.f1=new A.ey(["inventory","Inventory & stock levels",'Turns stock counts into "in stock / low / out" answers',u.u])
@@ -24556,17 +24556,17 @@ B.df=new A.aD(B.ea,["http://www.w3.org/2000/svg","http://www.w3.org/1998/Math/Ma
 B.e3={name:0,product:1,productname:2,title:3,item:4,description:5,desc:6,details:7,category:8,cat:9,type:10,group:11,archetype:12,kind:13,sku:14,code:15,itemcode:16,barcode:17,price:18,sellingprice:19,amount:20,unitprice:21,cost:22,costprice:23,buyingprice:24,whatitcostsyou:25,stock:26,quantity:27,qty:28,instock:29,lowstock:30,lowstockthreshold:31,lowstockalert:32,reorderlevel:33,reorderpoint:34,unit:35,priceunit:36,measure:37,imageurl:38,image:39,photo:40,photourl:41,photolink:42,imagelink:43,picture:44}
 B.dg=new A.aD(B.e3,["name","name","name","name","name","description","description","description","category","category","category","category","archetype","archetype","sku","sku","sku","sku","price","price","price","price","cost","cost","cost","cost","stock","stock","stock","stock","lowStock","lowStock","lowStock","lowStock","lowStock","unit","unit","unit","imageUrl","imageUrl","imageUrl","imageUrl","imageUrl","imageUrl","imageUrl"],t.w)
 B.e6={pdf:0,zip:1,zip_empty:2,png:3,jpg:4,gif:5,rtf:6,ole:7,exe:8,elf:9}
-B.cu=s([37,80,68,70],t.t)
-B.cy=s([80,75,3,4],t.t)
-B.cz=s([80,75,5,6],t.t)
+B.ct=s([37,80,68,70],t.t)
+B.cx=s([80,75,3,4],t.t)
+B.cy=s([80,75,5,6],t.t)
 B.cn=s([137,80,78,71],t.t)
 B.cr=s([255,216,255],t.t)
-B.cw=s([71,73,70,56],t.t)
+B.cv=s([71,73,70,56],t.t)
 B.cl=s([123,92,114,116],t.t)
 B.cq=s([208,207,17,224],t.t)
-B.cx=s([77,90],t.t)
+B.cw=s([77,90],t.t)
 B.cm=s([127,69,76,70],t.t)
-B.dh=new A.aD(B.e6,[B.cu,B.cy,B.cz,B.cn,B.cr,B.cw,B.cl,B.cq,B.cx,B.cm],A.an("aD<f,l<k>>"))
+B.dh=new A.aD(B.e6,[B.ct,B.cx,B.cy,B.cn,B.cr,B.cv,B.cl,B.cq,B.cw,B.cm],A.an("aD<f,l<k>>"))
 B.aE=new A.ht(0,"confident")
 B.aF=new A.ht(1,"unsure")
 B.aG=new A.ht(2,"ignored")

@@ -47,22 +47,24 @@ PROJECT_NAME="${PROJECT_NAME:-kola-landing}"
 
 # ── BRANCH: THE REASON A "SUCCESSFUL" DEPLOY CHANGED NOTHING ──────────────────
 #
-# wrangler infers the branch from git. This repo is on `main`, so every
-# deploy went to `main.kola-landing.pages.dev` as a PREVIEW — while the
-# project's production branch was something else, leaving the bare
-# kola-landing.pages.dev (and the custom domain) serving a build from
-# before the rename. Verified: main.* had the new copy, the apex had the
-# old, at the same moment.
+# This project's production branch is named `production`. wrangler infers
+# the branch from GIT instead, and this repo is on `main` — so every
+# deploy landed as a PREVIEW at main.kola-landing.pages.dev, while
+# kola-landing.pages.dev and kolaa.co kept serving a 25-day-old build
+# from before the rename.
 #
-# Nothing in the output says "preview". It reports Success, prints a URL
-# that works, and the URL you actually check is a different one.
+# Nothing in wrangler's output says "preview". It prints ✨ Success, gives
+# a deployment URL that genuinely works, and an alias URL — and the URL
+# you actually go and check is a third one it never mentions.
 #
-# Pinning it explicitly makes the target a property of this script rather
-# than of whatever branch happens to be checked out. It only takes effect
-# once the project's production branch IS this value — set it under
-# Pages → kola-landing → Settings → Builds & deployments → Production
-# branch. Until then this deploys a preview no matter what is passed.
-BRANCH="${BRANCH:-main}"
+# `--branch production` is therefore NOT a description of where the code
+# lives. It names the Cloudflare ENVIRONMENT to publish into, and it
+# happens to be a git-shaped word for something that is not a git branch
+# here. Do not "correct" this to match the checked-out branch.
+#
+# Verified 15 Aug 2026: main.* served the renamed copy and the apex served
+# the old one, at the same moment.
+BRANCH="${BRANCH:-production}"
 
 # ── Validate ──────────────────────────────────────────────────────────────────
 if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
