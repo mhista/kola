@@ -140,6 +140,37 @@ class _LoginPageState extends State<LoginPage> {
 
             div(
               attributes: {
+                'style': 'display:flex;align-items:center;gap:10px;margin:18px 0;'
+                    'color:${KolaDashboardColors.muted};font-size:12px',
+              },
+              [
+                div(attributes: {'style': 'flex:1;height:1px;background:${KolaDashboardColors.border}'}, []),
+                Component.text('or'),
+                div(attributes: {'style': 'flex:1;height:1px;background:${KolaDashboardColors.border}'}, []),
+              ],
+            ),
+
+            // Hands the whole tab to Google — see AuthService.beginGoogleSignIn's
+            // doc comment for why this can't just return a value like _submit
+            // does. Disabled during _loading for the same reason the password
+            // button is: no double-submits mid-flow.
+            button(
+              [
+                Component.text('Continue with Google'),
+              ],
+              type: ButtonType.button,
+              disabled: _loading,
+              onClick: () => component.authService.beginGoogleSignIn(),
+              attributes: {
+                'style':
+                    'width:100%;background:transparent;color:${KolaDashboardColors.text};'
+                    'border:1px solid ${KolaDashboardColors.border};border-radius:10px;padding:11px;'
+                    'font-size:14px;font-weight:600;cursor:pointer;opacity:${_loading ? '0.7' : '1'}',
+              },
+            ),
+
+            div(
+              attributes: {
                 'style':
                     'text-align:center;margin-top:18px;font-size:13px;color:${KolaDashboardColors.muted}',
               },

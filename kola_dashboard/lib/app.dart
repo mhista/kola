@@ -57,6 +57,7 @@ import 'pages/create_bot_page.dart';
 import 'pages/bot_detail_chat_page.dart';
 import 'pages/bot_detail_dev_page.dart';
 import 'pages/login_page.dart';
+import 'pages/auth_callback_page.dart';
 import 'pages/create_workspace_page.dart';
 import 'pages/logout_page.dart';
 import 'pages/settings_page.dart';
@@ -413,7 +414,14 @@ class _DashboardAppState extends State<DashboardApp> {
     final loggedIn = _session != null;
 
     if (!loggedIn) {
-      return loc == '/login' ? null : '/login';
+      // /auth/callback is reachable while "unauthenticated" by this
+      // check's own definition — _session is still null the instant
+      // GoTrue redirects back from Google, since AuthCallbackPage is
+      // what calls onAuthenticated in the first place. Without this
+      // exception the redirect guard would bounce that very navigation
+      // straight to /login before the page ever got to read the
+      // fragment, and Google sign-in would silently never complete.
+      return (loc == '/login' || loc == '/auth/callback') ? null : '/login';
     }
     // Logging out is allowed from anywhere, and is checked BEFORE the
     // workspace guard below. Without this ordering, an owner whose
@@ -477,6 +485,18 @@ class _DashboardAppState extends State<DashboardApp> {
         Route(
           path: '/login',
           builder: (context, state) => LoginPage(
+            authService: _authService,
+            onAuthenticated: _handleAuthenticated,
+          ),
+        ),
+        // Google's landing point after /login's "Continue with Google" —
+        // see auth_callback_page.dart and AuthService.beginGoogleSignIn/
+        // consumeOAuthCallback. Deliberately NOT wrapped in shellFor, same
+        // reasoning as /logout: this page exists for a moment before the
+        // document is replaced.
+        Route(
+          path: '/auth/callback',
+          builder: (context, state) => AuthCallbackPage(
             authService: _authService,
             onAuthenticated: _handleAuthenticated,
           ),

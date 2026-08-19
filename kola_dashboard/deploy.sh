@@ -94,7 +94,7 @@ echo ""
 echo "🚀  Deploying to Cloudflare Pages (project: $PROJECT_NAME)..."
 echo ""
 
-$WRANGLER pages deploy web/ --project-name "$PROJECT_NAME"
+$WRANGLER pages deploy web/ --project-name "$PROJECT_NAME" --branch production
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
