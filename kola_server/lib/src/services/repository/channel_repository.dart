@@ -172,4 +172,17 @@ class ChannelRepository {
 
     return _dto.fromRow(response);
   }
+
+  /// Gate 1 — records that ChannelHealthCheckService actually attempted
+  /// this channel just now, regardless of outcome. Deliberately separate
+  /// from [markDisconnected]: a channel that passed its check still
+  /// needs lastHealthCheckAt updated, and a channel that failed gets
+  /// BOTH calls (see channel_health_check_service.dart's _flagUnhealthy).
+  Future<void> touchHealthCheck(int channelId) async {
+    _log.fine('touchHealthCheck channelId=$channelId');
+    await supabase
+        .from('channels')
+        .update({'last_health_check_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', channelId);
+  }
 }

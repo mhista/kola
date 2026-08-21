@@ -95,6 +95,12 @@ abstract class FeatureKeys {
   static const agentSupport = 'agents.support';
   static const agentFinance = 'agents.finance';
   static const agentInventory = 'agents.inventory';
+  // Added alongside AgentArchetypes.marketing (Phase A of the agent
+  // architecture correction) — the four keys above it already reserved
+  // this exact naming pattern before that registry existed. Declared
+  // here, referenced there for documentation — see that file's header
+  // on why it is not yet wired into live enforcement.
+  static const agentMarketing = 'agents.marketing';
   static const automations = 'automations.workflows';
   static const automationApprovals = 'automations.approvals';
   static const tasks = 'tasks.core';
@@ -155,6 +161,7 @@ abstract class FeatureKeys {
     forecasting,
     // Group 4
     agents, agentSales, agentSupport, agentFinance, agentInventory,
+    agentMarketing,
     automations, automationApprovals, tasks,
     // Group 5
     channelMessenger, channelInstagram, channelEmail, broadcast,

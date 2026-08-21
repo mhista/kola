@@ -16,10 +16,14 @@
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:web/web.dart' as web;
 
+import '../config/env.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
+import '../services/google_identity.dart';
 import '../models/auth_session.dart';
+import '../components/shell/kola_icon.dart';
 
 class LoginPage extends StatefulComponent {
   const LoginPage({required this.authService, required this.onAuthenticated});
@@ -37,6 +41,92 @@ class _LoginPageState extends State<LoginPage> {
   bool _isSignUp = false;
   bool _loading = false;
   String? _error;
+
+  // Google Identity Services' button renders into a real DOM element by
+  // id, which has to exist before GoogleIdentity.renderSignInButton runs
+  // — see _setupGoogleSignIn. Unique-ish id (not just "google-button")
+  // deliberately, so it can never collide with anything AppShell or
+  // another page puts in the DOM.
+  static const _googleButtonId = 'kola-google-signin-container';
+
+  @override
+  void initState() {
+    super.initState();
+    if (Env.googleClientId.isNotEmpty) _setupGoogleSignIn();
+  }
+
+  /// Waits for the async `gsi/client` <script> (web/index.html) to have
+  /// actually attached `window.google` before rendering into it —
+  /// GoogleIdentity.isReady is false until then, and calling
+  /// renderSignInButton before that silently does nothing. Bounded at 5s
+  /// (25 × 200ms): a slow/blocked script load means no Google button
+  /// rather than an infinite poll, and email/password sign-in still works
+  /// either way.
+  /// Retries BOTH "has GIS loaded" AND "has this component's own DOM been
+  /// mounted yet" together, in the same loop — not sequentially.
+  ///
+  /// The bug this replaces: when GoogleIdentity.isReady was ALREADY true
+  /// (GIS loaded fast / cached script), the old code's wait-for-isReady
+  /// loop executed zero iterations and fell straight through to
+  /// getElementById in the SAME synchronous tick as initState — before
+  /// Jaspr had mounted this page's first build to the real DOM at all.
+  /// initState always runs before a component's first build is attached,
+  /// same as Flutter; there is no guarantee the DOM exists yet even one
+  /// microtask later. Retrying the container lookup itself, not just
+  /// isReady, is what actually waits for mount — confirmed via the exact
+  /// breadcrumb sequence this diagnosis was built from: isReady=true
+  /// printed immediately, then container found=false.
+  Future<void> _setupGoogleSignIn() async {
+    web.HTMLElement? container;
+    for (var i = 0; i < 25; i++) {
+      if (GoogleIdentity.isReady) {
+        final el = web.document.getElementById(_googleButtonId);
+        if (el != null) {
+          container = el as web.HTMLElement;
+          break;
+        }
+      }
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    if (!mounted || container == null) return;
+
+    final (rawNonce, hashedNonce) = AuthService.generateNonce();
+
+    GoogleIdentity.renderSignInButton(
+      container: container,
+      clientId: Env.googleClientId,
+      hashedNonce: hashedNonce,
+      onCredential: (credential) => _handleGoogleCredential(credential, rawNonce),
+    );
+  }
+
+  Future<void> _handleGoogleCredential(String credential, String rawNonce) async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final session = await component.authService.signInWithGoogleIdToken(
+        idToken: credential,
+        nonce: rawNonce,
+      );
+      if (!mounted) return;
+      component.onAuthenticated(session);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Google sign-in failed. Check your connection and try again.';
+        _loading = false;
+      });
+    }
+  }
 
   Future<void> _submit() async {
     if (_email.trim().isEmpty || _password.isEmpty) {
@@ -85,11 +175,17 @@ class _LoginPageState extends State<LoginPage> {
           [
             div(
               attributes: {
-                'style':
-                    'font-family:${KolaDashboardFonts.display};font-size:22px;font-weight:700;'
-                    'margin-bottom:6px',
+                'style': 'display:flex;align-items:center;gap:8px;margin-bottom:6px',
               },
-              [Component.text('kolaa')],
+              [
+                kolaMark(size: 22),
+                div(
+                  attributes: {
+                    'style': 'font-family:${KolaDashboardFonts.display};font-size:22px;font-weight:700',
+                  },
+                  [Component.text('kolaa')],
+                ),
+              ],
             ),
             div(
               attributes: {'style': 'font-size:14px;color:${KolaDashboardColors.muted};margin-bottom:24px'},
@@ -138,36 +234,34 @@ class _LoginPageState extends State<LoginPage> {
               },
             ),
 
-            div(
-              attributes: {
-                'style': 'display:flex;align-items:center;gap:10px;margin:18px 0;'
-                    'color:${KolaDashboardColors.muted};font-size:12px',
-              },
-              [
-                div(attributes: {'style': 'flex:1;height:1px;background:${KolaDashboardColors.border}'}, []),
-                Component.text('or'),
-                div(attributes: {'style': 'flex:1;height:1px;background:${KolaDashboardColors.border}'}, []),
-              ],
-            ),
+            if (Env.googleClientId.isNotEmpty) ...[
+              div(
+                attributes: {
+                  'style': 'display:flex;align-items:center;gap:10px;margin:18px 0;'
+                      'color:${KolaDashboardColors.muted};font-size:12px',
+                },
+                [
+                  div(attributes: {'style': 'flex:1;height:1px;background:${KolaDashboardColors.border}'}, []),
+                  Component.text('or'),
+                  div(attributes: {'style': 'flex:1;height:1px;background:${KolaDashboardColors.border}'}, []),
+                ],
+              ),
 
-            // Hands the whole tab to Google — see AuthService.beginGoogleSignIn's
-            // doc comment for why this can't just return a value like _submit
-            // does. Disabled during _loading for the same reason the password
-            // button is: no double-submits mid-flow.
-            button(
-              [
-                Component.text('Continue with Google'),
-              ],
-              type: ButtonType.button,
-              disabled: _loading,
-              onClick: () => component.authService.beginGoogleSignIn(),
-              attributes: {
-                'style':
-                    'width:100%;background:transparent;color:${KolaDashboardColors.text};'
-                    'border:1px solid ${KolaDashboardColors.border};border-radius:10px;padding:11px;'
-                    'font-size:14px;font-weight:600;cursor:pointer;opacity:${_loading ? '0.7' : '1'}',
-              },
-            ),
+              // GoogleIdentity.renderSignInButton (see _setupGoogleSignIn)
+              // draws Google's OWN button into this element by id — nothing
+              // Dart renders here directly, deliberately. See
+              // services/google_identity.dart's header for why this
+              // dashboard talks to Google directly instead of redirecting
+              // through Supabase.
+              div(
+                attributes: {
+                  'id': _googleButtonId,
+                  'style': 'display:flex;justify-content:center;min-height:44px;'
+                      'opacity:${_loading ? '0.6' : '1'};pointer-events:${_loading ? 'none' : 'auto'}',
+                },
+                [],
+              ),
+            ],
 
             div(
               attributes: {

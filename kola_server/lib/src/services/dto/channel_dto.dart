@@ -30,6 +30,13 @@ class ChannelDto extends BaseDto<Channel> {
       status: row['status'] as String,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
+      // Migration 036 — Gate 1 connector contract.
+      syncCursor: row['sync_cursor'] as String?,
+      lastHealthCheckAt: row['last_health_check_at'] == null
+          ? null
+          : DateTime.parse(row['last_health_check_at'] as String),
+      retentionPolicy:
+          row['retention_policy'] as String? ?? 'retain_on_disconnect',
     );
   }
 
@@ -43,6 +50,9 @@ class ChannelDto extends BaseDto<Channel> {
       'encrypted_credential': model.encryptedCredential,
       'status': model.status,
       'updated_at': model.updatedAt.toIso8601String(),
+      'sync_cursor': model.syncCursor,
+      'last_health_check_at': model.lastHealthCheckAt?.toIso8601String(),
+      'retention_policy': model.retentionPolicy ?? 'retain_on_disconnect',
     };
   }
 }

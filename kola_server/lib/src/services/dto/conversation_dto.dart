@@ -25,6 +25,8 @@ class ConversationDto extends BaseDto<Conversation> {
       externalUserId: row['external_user_id'] as String,
       displayName: row['display_name'] as String?,
       status: row['status'] as String,
+      // Gate 3 (migration 039).
+      customerId: row['customer_id'] as int?,
       lastMessageAt: DateTime.parse(row['last_message_at'] as String),
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
@@ -42,6 +44,7 @@ class ConversationDto extends BaseDto<Conversation> {
       'external_user_id': model.externalUserId,
       'display_name': model.displayName,
       'status': model.status,
+      'customer_id': model.customerId,
       'last_message_at': model.lastMessageAt.toIso8601String(),
       'updated_at': model.updatedAt.toIso8601String(),
     };

@@ -75,6 +75,35 @@ fields:
   createdAt: DateTime
   updatedAt: DateTime
 
+  ## ── CONNECTOR CONTRACT (migration 036, Gate 1) ───────────────────────
+  ##
+  ## Sync-observability counters — "last sync, records seen, records
+  ## changed, errors, per connector, visible to the owner" (PART III).
+  ## Nothing writes these yet: no adapter in the generic store performs
+  ## a sync() run today (WhatsApp/Telegram, the two SHIPPED connectors,
+  ## live in the channel store — see connector_catalog.dart). These
+  ## columns exist now so the first Gate 4 pull-based adapter (Paystack,
+  ## Google Sheets) has somewhere to report to without a second
+  ## migration, matching the same "add the seam now, fill it in later"
+  ## instinct already used elsewhere in this codebase.
+  lastSyncRecordsSeen: int?
+  lastSyncRecordsChanged: int?
+
+  ## Nullable so this doesn't become a required constructor argument
+  ## anywhere a WorkspaceConnector might be built directly — the
+  ## database column is `not null default 0` (migration 036); treat a
+  ## null here as 0.
+  lastSyncErrorCount: int?
+
+  ## RetentionPolicy.retainOnDisconnect | .deleteOnDisconnect. Nullable
+  ## for the same constructor-compatibility reason as
+  ## lastSyncErrorCount — treat null as retainOnDisconnect, matching
+  ## WorkspaceConnectorRepository.disconnect's existing behavior (clears
+  ## encryptedConfig/displayDetail, keeps the row). This column makes
+  ## that an explicit, documented policy rather than an accident of how
+  ## disconnect() happened to be written.
+  retentionPolicy: String?
+
 indexes:
   workspace_connector_unique_idx:
     fields: workspaceId, connectorKey

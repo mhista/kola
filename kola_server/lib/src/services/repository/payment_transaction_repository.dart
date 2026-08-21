@@ -127,6 +127,34 @@ class PaymentTransactionRepository {
     return _dto.fromRow(response);
   }
 
+  /// Gate 3b — every payment on a customer's unified timeline.
+  Future<List<PaymentTransaction>> listByCustomer(int customerId) async {
+    _log.fine('listByCustomer($customerId)');
+    final response = await supabase
+        .from('payment_transactions')
+        .select()
+        .eq('customer_id', customerId)
+        .order('created_at', ascending: false);
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Gate 3 — called from PaymentWebhookHandler._emitPaymentConfirmed
+  /// only, i.e. only once a payment has actually confirmed. See
+  /// payment_transaction.spy.yaml's header on why identity resolution
+  /// waits until then rather than running at checkout-initiation time.
+  Future<void> setCustomer(int transactionId, int customerId) async {
+    _log.info('setCustomer transactionId=$transactionId customerId=$customerId');
+    await supabase
+        .from('payment_transactions')
+        .update({
+          'customer_id': customerId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', transactionId);
+  }
+
   Future<PaymentTransaction> markFailed(String reference) async {
     _log.info('Marking payment transaction failed reference=$reference');
     final response = await supabase

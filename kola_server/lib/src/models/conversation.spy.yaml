@@ -66,6 +66,14 @@ fields:
   # 'bot' | 'escalated' | 'closed' — see header.
   status: String
 
+  # Gate 3 (migration 039) — set by CustomerIdentityResolver right after
+  # this row is found-or-created. Null only in the brief window before
+  # that resolution runs, or if resolution itself failed (never blocks
+  # the conversation — see the resolver's header on why it never
+  # throws). This is what makes a WhatsApp thread show up on the same
+  # customer timeline as their Paystack payments and till sales.
+  customerId: int?
+
   lastMessageAt: DateTime
 
   createdAt: DateTime

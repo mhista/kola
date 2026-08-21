@@ -70,6 +70,45 @@ fields:
 
   createdAt: DateTime
 
+  ## ── PROVENANCE + IDEMPOTENCY (migration 036, Gate 1) ─────────────────
+  ##
+  ## The contract's "provenance on every record" (source, source ID,
+  ## fetched-at, permission scope) applied to inbound messages — see
+  ## docs/Kolaa_Connections_Backbone_Direction_v5.pdf PART III.
+  ##
+  ## 'whatsapp' | 'telegram' | null. Null for a human-typed reply or the
+  ## bot's own outbound text — those don't come from an external source.
+  sourcePlatform: String?
+
+  ## WhatsApp's wamid or Telegram's message id. THIS IS WHAT MAKES
+  ## WEBHOOK REPLAY IDEMPOTENT — migration 036's unique index on
+  ## (conversationId, externalMessageId) means the same inbound payload
+  ## delivered twice produces one row, not two (Postgres treats every
+  ## NULL as distinct from every other NULL, so outbound/human messages
+  ## with no external id are never mistaken for duplicates of each
+  ## other). Null for anything not sourced from an external platform
+  ## event.
+  externalMessageId: String?
+
+  ## When kola actually received this, as opposed to createdAt (when the
+  ## row was written) — the two are usually the same instant for a
+  ## webhook-delivered message, but kept distinct because a future
+  ## replayed/backfilled ingestion could write a row well after the
+  ## event actually happened, and the contract asks for fetched-at
+  ## specifically, not just created-at.
+  fetchedAt: DateTime?
+
+  ## The permission scope this message was read/received under —
+  ## currently always 'workspace' (a connected channel's full inbox is
+  ## visible to the owning workspace), kept as a field rather than a
+  ## hardcoded assumption because a future connector (Level 3, a
+  ## business's own system) may read under a narrower scope the
+  ## reasoning layer needs to respect.
+  permissionScope: String?
+
 indexes:
   message_conversation_idx:
     fields: conversationId
+  message_conversation_external_id_idx:
+    fields: conversationId, externalMessageId
+    unique: true

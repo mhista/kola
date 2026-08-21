@@ -1,0 +1,47 @@
+##
+## customer_merge_proposal.spy.yaml — Gate 3. "These two look like the
+## same customer" — PART V: "Merges are proposals, not facts. Surface
+## 'these two look like the same customer' as a finding the owner
+## confirms." Backed by migration 039.
+##
+## RAISED ONLY BY A GENUINE SIGNAL CONFLICT — never by comparing
+## customers for similarity (that would be fuzzy matching, explicitly
+## out of scope). The trigger is: a single incoming event carries two
+## signals (e.g. a payment's phone and email) that resolve to two
+## DIFFERENT existing customers. See CustomerIdentityResolver's header
+## for the exact algorithm.
+##
+## evidenceJson carries the actual signal values compared, for the
+## design system's existing "Evidence disclosure" component (design
+## brief §9) — reused here rather than invented fresh.
+##
+
+class: CustomerMergeProposal
+# table: customer_merge_proposals
+fields:
+  id: int?
+
+  workspaceId: int
+
+  ## Canonical order enforced at the database level (a < b) so the same
+  ## pair is never proposed twice.
+  customerAId: int
+  customerBId: int
+
+  ## Owner-facing sentence explaining what triggered this.
+  matchedOn: String
+
+  ## jsonEncode'd Map — see header.
+  evidenceJson: String
+
+  ## 'pending' | 'confirmed' | 'rejected'
+  status: String
+
+  resolvedByEmail: String?
+  resolvedAt: DateTime?
+
+  createdAt: DateTime
+
+indexes:
+  customer_merge_proposal_workspace_status_idx:
+    fields: workspaceId, status, createdAt

@@ -24,6 +24,8 @@ class PaymentTransactionDto extends BaseDto<PaymentTransaction> {
       currency: row['currency'] as String,
       customerEmail: row['customer_email'] as String,
       customerPhone: row['customer_phone'] as String?,
+      // Gate 3 (migration 039).
+      customerId: row['customer_id'] as int?,
       status: row['status'] as String,
       holdStatus: row['hold_status'] as String,
       conversationId: row['conversation_id'] as int?,
@@ -68,6 +70,7 @@ class PaymentTransactionDto extends BaseDto<PaymentTransaction> {
       'currency': model.currency,
       'customer_email': model.customerEmail,
       'customer_phone': model.customerPhone,
+      'customer_id': model.customerId,
       'status': model.status,
       'hold_status': model.holdStatus,
       'conversation_id': model.conversationId,

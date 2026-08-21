@@ -4,6 +4,20 @@
 // file grouped channels by bot, which is a different screen from the one
 // the design specifies — see DESIGN_DELTA.md, "Integrations — WRONG".
 //
+// ── PHASE C — CHANNELS ARE NOT A "SELL" CONNECTOR ─────────────────────
+//
+// WhatsApp and Telegram used to render as two more cards inside the
+// "Sell" category grid, indistinguishable from Shopify or Facebook
+// Catalog. That is the exact architectural leftover the owner called
+// out: connecting WhatsApp does not make something an agent — it's a
+// communication surface ANY agent can be given, not a sell tool that
+// happens to share a category id. The server always modelled this
+// distinction (`ConnectorStore.channel` in connector_catalog.dart) but
+// never put it on the wire; `ConnectorStatus.isChannel` now does, and
+// [_channelsSection] draws WhatsApp/Telegram in their own section,
+// above and outside the searchable/filterable category grid — not a
+// fifth category chip, a genuinely separate kind of thing.
+//
 // ── WHAT THE DESIGN SPECIFIES ────────────────────────────────────────
 //
 //   15 connectors, 4 categories        ← served, not hardcoded
@@ -127,15 +141,23 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
 
   // ── Derived ────────────────────────────────────────────────────────
 
+  /// WhatsApp, Telegram — communication surfaces, not "Sell" tools. Drawn
+  /// by [_channelsSection], never by [_grid] — see this file's header.
+  List<ConnectorStatus> get _channels =>
+      [for (final c in _connectors) if (c.isChannel) c];
+
+  /// Everything BUT channels — what the search box and category chips
+  /// actually operate over now.
   List<ConnectorStatus> get _visible {
     final q = _search.trim().toLowerCase();
     return [
       for (final c in _connectors)
-        if (_category == 'all' || c.category == _category)
-          if (q.isEmpty ||
-              c.name.toLowerCase().contains(q) ||
-              c.description.toLowerCase().contains(q))
-            c,
+        if (!c.isChannel)
+          if (_category == 'all' || c.category == _category)
+            if (q.isEmpty ||
+                c.name.toLowerCase().contains(q) ||
+                c.description.toLowerCase().contains(q))
+              c,
     ];
   }
 
@@ -148,12 +170,15 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     return null;
   }
 
-  /// Counted over EVERYTHING, not the filtered list — a chip reading
-  /// "Sell (5)" must keep saying 5 while a search narrows the grid, or
-  /// it is reporting the search rather than the category.
-  int _countFor(String id) => id == 'all'
-      ? _connectors.length
-      : _connectors.where((c) => c.category == id).length;
+  /// Counted over EVERYTHING non-channel, not the filtered list — a chip
+  /// reading "Sell (5)" must keep saying 5 while a search narrows the
+  /// grid, or it is reporting the search rather than the category.
+  /// Channels are excluded here the same way they're excluded from
+  /// [_visible] — they have their own section now, not a chip.
+  int _countFor(String id) {
+    final pool = _connectors.where((c) => !c.isChannel);
+    return id == 'all' ? pool.length : pool.where((c) => c.category == id).length;
+  }
 
   // ── Actions ────────────────────────────────────────────────────────
 
@@ -251,6 +276,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         else if (_loadError != null)
           _errorState()
         else ...[
+          if (_channels.isNotEmpty) _channelsSection(),
           _controls(),
           if (_visible.isEmpty) _emptyState() else _grid(),
         ],
@@ -281,6 +307,42 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                 'you do not have to enter the same thing twice.',
               ),
             ],
+          ),
+        ],
+      );
+
+  /// WhatsApp/Telegram, drawn separately from the category grid — see
+  /// this file's header. Same card visual language as [_card] (reused
+  /// directly, not reimplemented) so this reads as "the same kind of
+  /// tile, a different section," not a visually distinct feature.
+  Component _channelsSection() => div(
+        attributes: {'style': 'margin-bottom:${KolaSpace.lg}'},
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.ui};font-weight:700;'
+                  'color:${KolaVar.text};margin-bottom:4px',
+            },
+            [Component.text('Channels')],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'line-height:1.5;margin-bottom:${KolaSpace.smd};max-width:60ch',
+            },
+            [
+              Component.text(
+                'How your agents reach customers. Connect once — any agent '
+                'you create can use it, not just one.',
+              ),
+            ],
+          ),
+          div(
+            attributes: {
+              'style': 'display:grid;gap:${KolaSpace.smd};'
+                  'grid-template-columns:repeat(auto-fill,minmax(280px,1fr))',
+            },
+            [for (final c in _channels) _card(c)],
           ),
         ],
       );

@@ -31,11 +31,13 @@ import 'package:kola_server/src/services/messaging/telegram/telegram_bot_registr
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_credential.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_service.dart';
+import 'package:kola_server/src/services/connectors/contract/agent_lifecycle_events.dart';
 import 'package:kola_server/kola_logger.dart';
 
 class ChannelEndpoint extends Endpoint {
   BotRepository get _bots => getIt<BotRepository>();
   ChannelRepository get _channels => getIt<ChannelRepository>();
+  AgentLifecycleEvents get _agentEvents => getIt<AgentLifecycleEvents>();
 
   /// Connects [botToken] (a token from @BotFather) as the Telegram
   /// channel for [botId] inside [workspaceId]. Returns the resulting
@@ -107,7 +109,9 @@ class ChannelEndpoint extends Endpoint {
     // once a channel is actually connected — bot.spy.yaml's header
     // comment anticipated exactly this moment.
     if (bot.status == 'draft') {
-      await _bots.setStatus(botId, 'live');
+      final publishedBot = await _bots.setStatus(botId, 'live');
+      // Gate 2 — event bus. See agent_lifecycle_events.dart's header.
+      await _agentEvents.recordPublished(publishedBot);
     }
 
     Log.success(
@@ -302,7 +306,9 @@ class ChannelEndpoint extends Endpoint {
     );
 
     if (bot.status == 'draft') {
-      await _bots.setStatus(botId, 'live');
+      final publishedBot = await _bots.setStatus(botId, 'live');
+      // Gate 2 — event bus. See agent_lifecycle_events.dart's header.
+      await _agentEvents.recordPublished(publishedBot);
     }
 
     Log.success(

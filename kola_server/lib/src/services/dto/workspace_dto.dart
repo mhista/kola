@@ -41,6 +41,10 @@ class WorkspaceDto extends BaseDto<Workspace> {
       // the current pricing rather than falling to the international
       // tier and silently re-pricing someone.
       region: (row['region'] as String?) ?? 'NG',
+      // Migration 035. Defaults 0 when absent (a pre-till row, or a read
+      // against a database where 035 hasn't run) — matching that
+      // migration's own DEFAULT 0, never charging VAT nobody opted into.
+      taxRateBps: (row['tax_rate_bps'] as int?) ?? 0,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
     );
@@ -61,6 +65,7 @@ class WorkspaceDto extends BaseDto<Workspace> {
       'trial_ends_at': model.trialEndsAt.toIso8601String(),
       'is_internal': model.isInternal,
       'region': model.region,
+      'tax_rate_bps': model.taxRateBps,
       'updated_at': model.updatedAt.toIso8601String(),
       // created_at is set by Supabase default — we never write it on updates
     };

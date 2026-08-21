@@ -1,0 +1,17 @@
+##
+## sale_line_input.spy.yaml — the till. NOT A TABLE — a wire-only input
+## type for SaleEndpoint.ringUpSale, same convention as
+## created_api_key.spy.yaml (a plain Dart class in an endpoint file
+## cannot cross the generated client boundary; Serverpod only knows how
+## to serialize types it generated from a .spy.yaml). SaleRepository
+## still takes its own untyped record shape internally — this class
+## exists purely so the dashboard's Till page can hand the server a
+## typed list of cart lines.
+##
+
+class: SaleLineInput
+fields:
+  productId: int?
+  name: String
+  unitPriceMinor: int
+  quantity: int

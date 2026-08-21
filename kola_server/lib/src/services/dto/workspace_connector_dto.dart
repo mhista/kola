@@ -33,6 +33,12 @@ class WorkspaceConnectorDto extends BaseDto<WorkspaceConnector> {
       lastError: row['last_error'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
+      // Migration 036 — Gate 1 connector contract.
+      lastSyncRecordsSeen: row['last_sync_records_seen'] as int?,
+      lastSyncRecordsChanged: row['last_sync_records_changed'] as int?,
+      lastSyncErrorCount: row['last_sync_error_count'] as int? ?? 0,
+      retentionPolicy:
+          row['retention_policy'] as String? ?? 'retain_on_disconnect',
     );
   }
 
@@ -51,6 +57,10 @@ class WorkspaceConnectorDto extends BaseDto<WorkspaceConnector> {
       'last_synced_at': model.lastSyncedAt?.toIso8601String(),
       'last_error': model.lastError,
       'updated_at': model.updatedAt.toIso8601String(),
+      'last_sync_records_seen': model.lastSyncRecordsSeen,
+      'last_sync_records_changed': model.lastSyncRecordsChanged,
+      'last_sync_error_count': model.lastSyncErrorCount ?? 0,
+      'retention_policy': model.retentionPolicy ?? 'retain_on_disconnect',
     };
   }
 }

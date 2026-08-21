@@ -44,6 +44,7 @@ import 'package:logging/logging.dart';
 
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
+import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
 
 final _log = Logger('ManualPaymentService');
 
@@ -61,9 +62,12 @@ class NoVerifiedBankAccountException implements Exception {
 class ManualPaymentService {
   ManualPaymentService({
     required PaymentTransactionRepository transactions,
-  }) : _transactions = transactions;
+    required EventBus events,
+  }) : _transactions = transactions,
+       _events = events;
 
   final PaymentTransactionRepository _transactions;
+  final EventBus _events;
 
   /// How long after creation each reminder fires, measured from when the
   /// transfer was requested.
@@ -234,13 +238,37 @@ class ManualPaymentService {
     _log.warning('Transfer HUMAN-MARKED paid: txn=$transactionId '
         'workspace=$workspaceId by=$confirmedBy');
 
-    return _transactions.markHumanConfirmed(
+    final confirmed = await _transactions.markHumanConfirmed(
       transactionId: transactionId,
       confirmedBy: confirmedBy.trim(),
       confirmedAt: confirmedAt,
       proofReference: proofReference?.trim(),
       proofUrl: proofUrl?.trim(),
     );
+
+    // Gate 2 — event bus. Same event type and payload shape as the
+    // gateway-verified path (payment_webhook_handler.dart's
+    // _emitPaymentConfirmed) — the reasoning layer should not need to
+    // know a payment was human-marked vs. gateway-verified to answer
+    // "was this order paid", though confirmationMethod is still on the
+    // transaction row itself for anyone who does need that distinction.
+    await _events.emit(
+      workspaceId: workspaceId,
+      eventType: 'payment_confirmed',
+      fingerprint: 'payment_confirmed:$transactionId',
+      payload: {
+        'transactionId': transactionId,
+        'workspaceId': workspaceId,
+        'gateway': confirmed.gateway,
+        'reference': confirmed.reference,
+        'amountKobo': confirmed.amountKobo,
+        'currency': confirmed.currency,
+        'confirmationMethod': confirmed.confirmationMethod,
+      },
+      occurredAt: confirmedAt,
+    );
+
+    return confirmed;
   }
 
   /// Closes a transfer nobody confirmed within the window.

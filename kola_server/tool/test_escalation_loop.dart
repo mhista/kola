@@ -53,6 +53,15 @@ import 'package:kola_server/src/services/knowledge/bot_knowledge_service.dart';
 import 'package:kola_server/src/services/media/imagekit_service.dart';
 import 'package:kola_server/src/services/media/inbound_media_service.dart';
 import 'package:kola_server/src/services/conversations/inbound_message_handler.dart';
+import 'package:kola_server/src/services/repository/event_repository.dart';
+import 'package:kola_server/src/services/repository/webhook_endpoint_repository.dart';
+import 'package:kola_server/src/services/repository/connector_sync_log_repository.dart';
+import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
+import 'package:kola_server/src/services/connectors/contract/webhook_delivery_service.dart';
+import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
+import 'package:kola_server/src/services/repository/customer_repository.dart';
+import 'package:kola_server/src/services/repository/customer_identity_signal_repository.dart';
+import 'package:kola_server/src/services/repository/customer_merge_proposal_repository.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 
 Future<void> main(List<String> args) async {
@@ -112,6 +121,25 @@ Future<void> main(List<String> args) async {
   // written; wired here the same way dependency_injection.dart does,
   // building the full executor stack ErrandDispatchService needs.
   // Task #154 added whatsAppTemplates the same way.
+  // Gate 2 — the event bus stack, built by hand here the same way the
+  // rest of this script already builds its dependency graph rather than
+  // going through get_it (see this file's header on why).
+  final eventBus = EventBus(
+    events: const EventRepository(),
+    webhookDelivery: WebhookDeliveryService(
+      endpoints: const WebhookEndpointRepository(),
+      syncLog: const ConnectorSyncLogRepository(),
+    ),
+  );
+
+  // Gate 3 — built by hand the same way every other dependency in this
+  // script is, rather than through get_it (see this file's header).
+  final customerIdentity = CustomerIdentityResolver(
+    customers: const CustomerRepository(),
+    signals: const CustomerIdentitySignalRepository(),
+    mergeProposals: const CustomerMergeProposalRepository(),
+  );
+
   const errandExecutionLogs = ErrandExecutionLogRepository();
   final builtinExecutor = BuiltinErrandExecutor(
     executionLogs: errandExecutionLogs,
@@ -131,6 +159,7 @@ Future<void> main(List<String> args) async {
       credentials: const ErrandCredentialRepository(),
       executionLogs: errandExecutionLogs,
     ),
+    events: eventBus,
   );
 
   final handler = InboundMessageHandler(
@@ -153,6 +182,8 @@ Future<void> main(List<String> args) async {
       workspaces: workspaces,
       rateLimiter: NotificationRateLimiter(sends: const OwnerNotificationSendRepository()),
     ),
+    events: eventBus,
+    customerIdentity: customerIdentity,
   );
 
   try {

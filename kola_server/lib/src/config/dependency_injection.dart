@@ -52,6 +52,17 @@ import 'package:kola_server/src/services/repository/usage_record_repository.dart
 import 'package:kola_server/src/services/billing/paystack_service.dart';
 import 'package:kola_server/src/services/billing/flutterwave_service.dart';
 import 'package:kola_server/src/services/messaging/channel_health_check_service.dart';
+import 'package:kola_server/src/services/repository/connector_sync_log_repository.dart';
+import 'package:kola_server/src/services/repository/event_repository.dart';
+import 'package:kola_server/src/services/agents/agent_orchestrator.dart';
+import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
+import 'package:kola_server/src/services/connectors/contract/webhook_delivery_service.dart';
+import 'package:kola_server/src/services/connectors/contract/agent_lifecycle_events.dart';
+import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
+import 'package:kola_server/src/services/repository/customer_repository.dart';
+import 'package:kola_server/src/services/repository/customer_identity_signal_repository.dart';
+import 'package:kola_server/src/services/repository/customer_merge_proposal_repository.dart';
+import 'package:kola_server/src/services/repository/sale_repository.dart';
 import 'package:kola_server/src/services/repository/payment_gateway_credential_repository.dart';
 import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
 import 'package:kola_server/src/services/billing/payment_checkout_service.dart';
@@ -171,14 +182,66 @@ void setupDependencyInjection() {
       executionLogs: getIt<ErrandExecutionLogRepository>(),
     ),
   );
+  // ── GATE 2 — EVENT BUS ──────────────────────────────────────────────────
+  //
+  // Registered here, ahead of ErrandDispatchService (the first consumer
+  // below), but reaching forward to repositories registered further down
+  // this function (WebhookEndpointRepository, ConnectorSyncLogRepository)
+  // — safe for the same reason every other forward reference in this
+  // file is: registerLazySingleton defers construction until first USE,
+  // by which point every registration in this function has already run.
+  // See event_bus.dart / webhook_delivery_service.dart / migration 037
+  // for the full design.
+  getIt.registerLazySingleton<EventRepository>(() => const EventRepository());
+  getIt.registerLazySingleton<WebhookDeliveryService>(
+    () => WebhookDeliveryService(
+      endpoints: getIt<WebhookEndpointRepository>(),
+      syncLog: getIt<ConnectorSyncLogRepository>(),
+    ),
+  );
+  getIt.registerLazySingleton<EventBus>(
+    () => EventBus(
+      events: getIt<EventRepository>(),
+      webhookDelivery: getIt<WebhookDeliveryService>(),
+    ),
+  );
+  // Emits agent_drafted/agent_published/agent_paused — see
+  // agent_lifecycle_events.dart's header on the product-facing-only
+  // "bot" -> "agent" naming this gate introduces.
+  getIt.registerLazySingleton<AgentLifecycleEvents>(
+    () => AgentLifecycleEvents(events: getIt<EventBus>()),
+  );
+
+  // Gate 3 — the customer graph (migration 039). See
+  // customer_identity_resolver.dart's header for the matching algorithm
+  // and customer_repository.dart for the merge-redirect design.
+  getIt.registerLazySingleton<CustomerRepository>(() => const CustomerRepository());
+  getIt.registerLazySingleton<CustomerIdentitySignalRepository>(
+    () => const CustomerIdentitySignalRepository(),
+  );
+  getIt.registerLazySingleton<CustomerMergeProposalRepository>(
+    () => const CustomerMergeProposalRepository(),
+  );
+  getIt.registerLazySingleton<CustomerIdentityResolver>(
+    () => CustomerIdentityResolver(
+      customers: getIt<CustomerRepository>(),
+      signals: getIt<CustomerIdentitySignalRepository>(),
+      mergeProposals: getIt<CustomerMergeProposalRepository>(),
+    ),
+  );
+  getIt.registerLazySingleton<SaleRepository>(() => const SaleRepository());
+
   // Task #134 — the Session-free dispatch core shared by
   // ErrandEndpoint.executeErrand and the AI tool-calling engine
   // (InboundMessageHandler) — see errand_dispatch_service.dart's header.
+  // Gate 2 — now also emits 'errand_executed' on a successful run (see
+  // that file's own dispatch() doc comment).
   getIt.registerLazySingleton<ErrandDispatchService>(
     () => ErrandDispatchService(
       builtinExecutor: getIt<BuiltinErrandExecutor>(),
       webhookExecutor: getIt<WebhookErrandExecutor>(),
       dbCredentialExecutor: getIt<DbCredentialErrandExecutor>(),
+      events: getIt<EventBus>(),
     ),
   );
 
@@ -323,12 +386,22 @@ void setupDependencyInjection() {
     ),
   );
 
+  // PHASE B of the agent architecture correction — lets one agent's
+  // prompt be informed by another agent's recent activity in the same
+  // workspace. Only needs EventRepository (registered above, alongside
+  // Gate 2's event bus), so it can be constructed anywhere after that.
+  getIt.registerLazySingleton<AgentOrchestrator>(
+    () => AgentOrchestrator(events: getIt<EventRepository>()),
+  );
+
   getIt.registerLazySingleton<BotKnowledgeService>(
     () => BotKnowledgeService(
       aiOrchestrator: getIt<AiOrchestrator>(),
       // Phase 9 — real long-term memory, replacing the knowledgeSeed-only
       // grounding this service shipped with in Phase 3b.
       retrieval: getIt<MemoryRetrievalService>(),
+      // Phase B — cross-agent shared context, see agent_orchestrator.dart.
+      agentOrchestrator: getIt<AgentOrchestrator>(),
     ),
   );
   // Task #139 — Bot Mother v1 (see bot_mother_service.dart's header for
@@ -381,6 +454,12 @@ void setupDependencyInjection() {
       notificationDispatcher: getIt<OwnerNotificationDispatcher>(),
       securityFilter: getIt<SecurityFilter>(),
       trialStateMachine: getIt<TrialStateMachine>(),
+      // Gate 2 — emits 'new_conversation'. See inbound_message_handler
+      // .dart's own field comment.
+      events: getIt<EventBus>(),
+      // Gate 3 — resolves/creates the Customer a new conversation
+      // belongs to.
+      customerIdentity: getIt<CustomerIdentityResolver>(),
     ),
   );
 
@@ -420,11 +499,20 @@ void setupDependencyInjection() {
   // checkHealth) go through those registries' own singletons
   // (TelegramBotRegistry.instance / WhatsAppBotRegistry.instance), not
   // through get_it, so there's nothing else to inject here.
+  // Gate 1 — the shared dead-letter + sync-observability trail every
+  // connector adapter writes to (migration 036). Registered here,
+  // before ChannelHealthCheckService, because that service is now its
+  // first writer — see connector_sync_log_repository.dart's header.
+  getIt.registerLazySingleton<ConnectorSyncLogRepository>(
+    () => const ConnectorSyncLogRepository(),
+  );
+
   getIt.registerLazySingleton<ChannelHealthCheckService>(
     () => ChannelHealthCheckService(
       channels: getIt<ChannelRepository>(),
       bots: getIt<BotRepository>(),
       notifications: getIt<OwnerNotificationDispatcher>(),
+      syncLog: getIt<ConnectorSyncLogRepository>(),
     ),
   );
 

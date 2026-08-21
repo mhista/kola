@@ -39,9 +39,14 @@
 #   2. npm install -g wrangler
 #   3. wrangler login
 #
-# FIRST DEPLOY (creates the Cloudflare Pages project):
+# SUPABASE_URL, SUPABASE_ANON_KEY and GOOGLE_CLIENT_ID all default to the
+# real kola project's values below, so the plain form just works:
+#   KOLA_SERVER_URL=https://api.kolaa.co ./deploy.sh
+#
+# Override any of them explicitly if you ever need to point at a
+# different Supabase project or OAuth client:
 #   SUPABASE_URL=https://xxxx.supabase.co SUPABASE_ANON_KEY=eyJh... \
-#   KOLA_SERVER_URL=https://api.kola.app ./deploy.sh
+#   KOLA_SERVER_URL=https://api.kolaa.co ./deploy.sh
 #
 # SUBSEQUENT DEPLOYS: same command again.
 #
@@ -51,22 +56,27 @@
 
 set -e
 
-SUPABASE_URL="${SUPABASE_URL:-}"
-SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
-KOLA_SERVER_URL="${KOLA_SERVER_URL:-http://localhost:8090}"
+# Defaulted for the same reason build.sh's are — see that script's own
+# note. Both safe to hardcode: anon key is public-by-design.
+SUPABASE_URL="${SUPABASE_URL:-https://jwyrmptiehkkizwjbqtg.supabase.co}"
+SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3eXJtcHRpZWhra2l6d2picXRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE0NzEsImV4cCI6MjEwMDIwNzQ3MX0.jqjS8ZDrdSNj1hT01PTMoEFDFQITA9MoQyQJn4EagBY}"
+KOLA_SERVER_URL="${KOLA_SERVER_URL:-https://api.kolaa.co}"
 # Task #138 — sidebar Docs link; see build.sh's own note.
 KOLA_DOCS_URL="${KOLA_DOCS_URL:- https://kola-docs.pages.dev}"
+# Public OAuth client ID, not a secret — see lib/config/env.dart's header.
+GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-3591873336-klkujp9qlgs76985688s41guv1fvk1dj.apps.googleusercontent.com}"
 PROJECT_NAME="${PROJECT_NAME:-kola-app}"
 
-if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
-  echo ""
-  echo "❌  SUPABASE_URL and/or SUPABASE_ANON_KEY are not set."
-  echo ""
-  echo "    SUPABASE_URL=https://xxxx.supabase.co SUPABASE_ANON_KEY=eyJh... \\"
-  echo "    KOLA_SERVER_URL=https://api.kola.app ./deploy.sh"
-  echo ""
-  exit 1
-fi
+# ── BRANCH: verified live 19 Aug 2026, kola-app specifically ────────────────
+# Unlike kola-landing/kola-docs (whose Cloudflare Pages "Production branch"
+# setting really is named `production` — see kola_landing/deploy.sh's own
+# header), kola-app's is `main`: a deploy tagged --branch production landed
+# as PREVIEW at a *.kola-app.pages.dev url, while the existing --branch main
+# deploy was the one Cloudflare actually served at dash.kolaa.co. Copying
+# kola_landing's `production` default onto this script without checking
+# kola-app's own Settings → Builds & deployments was the bug — don't repeat
+# it by "fixing" this back to `production` without checking that page first.
+BRANCH="${BRANCH:-main}"
 
 if ! command -v wrangler &>/dev/null && ! command -v npx &>/dev/null; then
   echo "❌  wrangler CLI not found. Install it with: npm install -g wrangler"
@@ -88,13 +98,14 @@ SUPABASE_URL="$SUPABASE_URL" \
 SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
 KOLA_SERVER_URL="$KOLA_SERVER_URL" \
 KOLA_DOCS_URL="$KOLA_DOCS_URL" \
+GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
 ./build.sh
 
 echo ""
 echo "🚀  Deploying to Cloudflare Pages (project: $PROJECT_NAME)..."
 echo ""
 
-$WRANGLER pages deploy web/ --project-name "$PROJECT_NAME" --branch production
+$WRANGLER pages deploy web/ --project-name "$PROJECT_NAME" --branch "$BRANCH"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"

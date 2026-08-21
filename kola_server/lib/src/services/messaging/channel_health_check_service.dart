@@ -42,6 +42,7 @@ import 'package:kola_server/kola_logger.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
 import 'package:kola_server/src/services/repository/bot_repository.dart';
+import 'package:kola_server/src/services/repository/connector_sync_log_repository.dart';
 import 'package:kola_server/src/services/notifications/owner_notification_dispatcher.dart';
 import 'telegram/telegram_bot_registry.dart';
 import 'whatsapp/whatsapp_bot_registry.dart';
@@ -51,13 +52,21 @@ class ChannelHealthCheckService {
     required ChannelRepository channels,
     required BotRepository bots,
     required OwnerNotificationDispatcher notifications,
+    required ConnectorSyncLogRepository syncLog,
   }) : _channels = channels,
        _bots = bots,
-       _notifications = notifications;
+       _notifications = notifications,
+       _syncLog = syncLog;
 
   final ChannelRepository _channels;
   final BotRepository _bots;
   final OwnerNotificationDispatcher _notifications;
+
+  /// Gate 1 — this is now the first writer of connector_sync_log (see
+  /// migration 036), turning each run of this sweep into a
+  /// per-channel dead-letter/observability row, not just a
+  /// connected/disconnected flip on the Channel row itself.
+  final ConnectorSyncLogRepository _syncLog;
 
   /// Checks every currently-'connected' channel and marks+notifies any
   /// that fail. Returns the count flagged, for the caller's own log line
@@ -73,14 +82,38 @@ class ChannelHealthCheckService {
       final channelId = channel.id;
       if (channelId == null) continue;
 
+      // Gate 1 — resolve workspaceId for the sync-log row before the
+      // check itself, so a failure inside _checkOne still gets logged
+      // under the right workspace rather than silently under none.
+      final bot = await _bots.findById(channel.botId);
+      final workspaceId = bot?.workspaceId ?? 0;
+
       try {
         final healthy = await _checkOne(channel.platformType, channelId);
+        await _channels.touchHealthCheck(channelId);
+        await _syncLog.record(
+          workspaceId: workspaceId,
+          connectorKey: channel.platformType,
+          store: 'channel',
+          kind: 'health',
+          success: healthy,
+          errorMessage: healthy ? null : 'Routine credential check failed.',
+        );
+
         if (!healthy) {
           await _flagUnhealthy(channel);
           flaggedCount++;
         }
       } catch (e) {
         Log.error('ChannelHealthCheckService: check failed for channel $channelId', error: e);
+        await _syncLog.record(
+          workspaceId: workspaceId,
+          connectorKey: channel.platformType,
+          store: 'channel',
+          kind: 'health',
+          success: false,
+          errorMessage: e.toString(),
+        );
       }
     }
 

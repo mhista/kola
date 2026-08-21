@@ -42,4 +42,21 @@ abstract class Env {
     'KOLA_DOCS_URL',
     defaultValue: 'https://docs.kolaa.co',
   );
+
+  // Google OAuth client ID (Gate 0 — Google sign-in, GIS/signInWithIdToken
+  // approach). Safe to bake into this public bundle: an OAuth CLIENT ID is
+  // not a secret — it identifies the client to Google, same trust model as
+  // supabaseAnonKey above. The matching CLIENT SECRET lives only in
+  // Supabase's own Google provider config, never here.
+  //
+  // See services/google_identity.dart for where this is used, and its own
+  // header for why this dashboard talks to Google directly (via its
+  // Identity Services script) instead of redirecting through Supabase's
+  // /auth/v1/authorize — that redirect made Google's consent screen show
+  // jwyrmptiehkkizwjbqtg.supabase.co instead of this dashboard's own
+  // domain.
+  static const googleClientId = String.fromEnvironment(
+    'GOOGLE_CLIENT_ID',
+    defaultValue: '',
+  );
 }

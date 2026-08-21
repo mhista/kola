@@ -43,8 +43,11 @@ import 'package:kola_server/kola_logger.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
+import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/conversations/inbound_message_handler.dart';
+import 'package:kola_server/src/services/connectors/contract/connector_retry.dart';
+import 'package:kola_server/src/services/repository/connector_sync_log_repository.dart';
 import '../messaging_service_interface.dart';
 import 'telegram_service.dart';
 import 'telegram_service_adapter.dart';
@@ -227,9 +230,14 @@ void _register({required Channel channel, required String botToken}) {
           externalUserId: chatId.toString(),
           displayName: ctx.from?.firstName,
           inboundText: text,
+          // Gate 1 provenance/idempotency — see message_repository.dart's
+          // create(). message.messageId is the same field
+          // telegram_service_adapter.dart already reads at five other
+          // call sites in this codebase (verified in-repo, not guessed).
+          externalMessageId: ctx.message?.messageId.toString(),
         );
         if (reply != null) {
-          await ctx.reply(reply);
+          await _sendReply(ctx: ctx, channelId: channelId, text: reply);
         }
       } catch (e, stackTrace) {
         Log.error('InboundMessageHandler failed (Telegram channel $channelId)', error: e, stackTrace: stackTrace);
@@ -275,9 +283,10 @@ void _register({required Channel channel, required String botToken}) {
           mediaReference: largest.fileId,
           mediaKind: 'image',
           channel: channel,
+          externalMessageId: ctx.message?.messageId.toString(),
         );
         if (reply != null) {
-          await ctx.reply(reply);
+          await _sendReply(ctx: ctx, channelId: channelId, text: reply);
         }
       } catch (e, stackTrace) {
         Log.error('InboundMessageHandler failed on photo (Telegram channel $channelId)',
@@ -292,6 +301,39 @@ void _register({required Channel channel, required String botToken}) {
         stackTrace: err.stackTrace,
       );
     });
+  }
+
+  /// Gate 1 — every outbound reply goes through the shared retry/backoff
+  /// wrapper (connector_retry.dart) instead of a bare `ctx.reply()`
+  /// call. A transient Telegram API blip (rate limit, brief 5xx) used to
+  /// mean the customer's reply was just lost; now it retries up to 3
+  /// times with backoff before dead-lettering to connector_sync_log —
+  /// PART III's "retry and backoff, with a dead-letter path. A failed
+  /// sync must be visible, not silent" applied to the one outbound path
+  /// this registry owns. On final failure this rethrows, matching the
+  /// original bare call's behavior — the caller's own catch block still
+  /// runs and still shows the customer _fallbackErrorText.
+  Future<void> _sendReply({
+    required Context ctx,
+    required int channelId,
+    required String text,
+  }) async {
+    // Channel carries no workspaceId directly (see channel.spy.yaml) —
+    // it's reached via Bot.workspaceId, one hop up. _botIdForChannel is
+    // this registry's own populated-at-registration map, so this is an
+    // in-memory lookup plus one repository read, not a query per reply.
+    final botId = _botIdForChannel[channelId];
+    final bot = botId == null ? null : await getIt<BotRepository>().findById(botId);
+    final workspaceId = bot?.workspaceId ?? 0;
+
+    await ConnectorRetry.run(
+      () => ctx.reply(text),
+      deadLetter: getIt<ConnectorSyncLogRepository>(),
+      workspaceId: workspaceId,
+      connectorKey: 'telegram',
+      store: 'channel',
+      kind: 'sync',
+    );
   }
 
   static const _welcomeText =

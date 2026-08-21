@@ -32,10 +32,13 @@
 
 import 'dart:convert';
 import 'package:kola_server/kola_logger.dart';
+import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
 import 'package:kola_server/src/services/repository/payment_gateway_credential_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
+import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
+import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
 import 'paystack_service.dart';
 import 'flutterwave_service.dart';
 
@@ -43,6 +46,8 @@ class PaymentWebhookHandler {
   PaymentTransactionRepository get _transactions => getIt<PaymentTransactionRepository>();
   PaymentGatewayCredentialRepository get _credentials =>
       getIt<PaymentGatewayCredentialRepository>();
+  EventBus get _events => getIt<EventBus>();
+  CustomerIdentityResolver get _customerIdentity => getIt<CustomerIdentityResolver>();
 
   /// Returns true if the request should be treated as a genuine,
   /// correctly-signed event (regardless of which event type it was, or
@@ -164,11 +169,12 @@ class PaymentWebhookHandler {
       Log.warning('Paystack verify did not confirm success for $reference — not marking completed');
       return;
     }
-    await _transactions.markCompleted(
+    final txn = await _transactions.markCompleted(
       reference: reference,
       gatewayTransactionId: data['id']?.toString() ?? '',
       paidAt: data['paid_at'] != null ? DateTime.parse(data['paid_at'] as String) : DateTime.now(),
     );
+    await _emitPaymentConfirmed(txn);
   }
 
   Future<void> _confirmAndMarkFlutterwave(
@@ -186,10 +192,77 @@ class PaymentWebhookHandler {
       Log.warning('Flutterwave verify did not confirm success for $reference — not marking completed');
       return;
     }
-    await _transactions.markCompleted(
+    final txn = await _transactions.markCompleted(
       reference: reference,
       gatewayTransactionId: data['id']?.toString() ?? '',
       paidAt: DateTime.now(), // Flutterwave's verify response has no dedicated paid-at field.
+    );
+    await _emitPaymentConfirmed(txn);
+  }
+
+  /// Gate 2 — event bus. Shared by both gateways' confirm paths so the
+  /// payload shape can never drift between them. Fingerprint is the
+  /// transaction id alone — a given transaction is only ever confirmed
+  /// once (markCompleted is the terminal write for a successful payment;
+  /// nothing in this codebase un-confirms and re-confirms one), so
+  /// deduplicating a retried webhook delivery on transactionId is
+  /// correct, not just convenient.
+  Future<void> _emitPaymentConfirmed(PaymentTransaction txn) async {
+    final txnId = txn.id;
+    if (txnId == null) return;
+
+    // Gate 3 — resolve/create the Customer this payment belongs to.
+    // Phone is primary (matches the resolver's own priority order),
+    // email secondary — a payment carries both when the gateway
+    // collects them, so a phone match against one existing customer and
+    // an email match against a DIFFERENT existing customer is exactly
+    // the conflict CustomerIdentityResolver raises a merge proposal for
+    // rather than guessing. See its header.
+    if (txn.customerId == null) {
+      final primary = txn.customerPhone != null && txn.customerPhone!.trim().isNotEmpty
+          ? IdentitySignal(
+              type: 'phone',
+              value: CustomerIdentityResolver.normalizePhone(txn.customerPhone!),
+              sourceRef: txn.reference,
+            )
+          : IdentitySignal(
+              type: 'email',
+              value: CustomerIdentityResolver.normalizeEmail(txn.customerEmail),
+              sourceRef: txn.reference,
+            );
+      final secondary = txn.customerPhone != null && txn.customerPhone!.trim().isNotEmpty
+          ? IdentitySignal(
+              type: 'email',
+              value: CustomerIdentityResolver.normalizeEmail(txn.customerEmail),
+              sourceRef: txn.reference,
+            )
+          : null;
+
+      final customerId = await _customerIdentity.resolve(
+        workspaceId: txn.workspaceId,
+        primary: primary,
+        secondary: secondary,
+        source: txn.gateway,
+      );
+      if (customerId != null) {
+        await getIt<PaymentTransactionRepository>().setCustomer(txnId, customerId);
+      }
+    }
+
+    await _events.emit(
+      workspaceId: txn.workspaceId,
+      eventType: 'payment_confirmed',
+      fingerprint: 'payment_confirmed:$txnId',
+      payload: {
+        'transactionId': txnId,
+        'workspaceId': txn.workspaceId,
+        'gateway': txn.gateway,
+        'reference': txn.reference,
+        'amountKobo': txn.amountKobo,
+        'currency': txn.currency,
+        'conversationId': txn.conversationId,
+      },
+      occurredAt: txn.paidAt,
     );
   }
 

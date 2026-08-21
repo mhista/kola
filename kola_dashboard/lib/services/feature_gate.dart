@@ -137,4 +137,10 @@ abstract class Features {
 
   // ── Developer ──────────────────────────────────────────────────────
   static const developerPortal = 'platform.developer_portal';
+
+  /// Mirrors kola_server's `FeatureKeys.publicApi` — what
+  /// `PlatformEndpoint._require` actually checks for every API-key and
+  /// webhook call. Added alongside `ApiWebhooksPage`, Gate 2's UI
+  /// surface for the event bus's outbound delivery.
+  static const publicApi = 'platform.public_api';
 }

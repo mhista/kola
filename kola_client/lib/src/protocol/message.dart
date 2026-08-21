@@ -25,6 +25,10 @@ abstract class Message implements _i1.SerializableModel {
     this.mediaImagekitFileId,
     this.mediaMimeType,
     required this.createdAt,
+    this.sourcePlatform,
+    this.externalMessageId,
+    this.fetchedAt,
+    this.permissionScope,
   });
 
   factory Message({
@@ -39,6 +43,10 @@ abstract class Message implements _i1.SerializableModel {
     String? mediaImagekitFileId,
     String? mediaMimeType,
     required DateTime createdAt,
+    String? sourcePlatform,
+    String? externalMessageId,
+    DateTime? fetchedAt,
+    String? permissionScope,
   }) = _MessageImpl;
 
   factory Message.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -56,6 +64,12 @@ abstract class Message implements _i1.SerializableModel {
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
+      sourcePlatform: jsonSerialization['sourcePlatform'] as String?,
+      externalMessageId: jsonSerialization['externalMessageId'] as String?,
+      fetchedAt: jsonSerialization['fetchedAt'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(jsonSerialization['fetchedAt']),
+      permissionScope: jsonSerialization['permissionScope'] as String?,
     );
   }
 
@@ -81,6 +95,14 @@ abstract class Message implements _i1.SerializableModel {
 
   DateTime createdAt;
 
+  String? sourcePlatform;
+
+  String? externalMessageId;
+
+  DateTime? fetchedAt;
+
+  String? permissionScope;
+
   /// Returns a shallow copy of this [Message]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -96,6 +118,10 @@ abstract class Message implements _i1.SerializableModel {
     String? mediaImagekitFileId,
     String? mediaMimeType,
     DateTime? createdAt,
+    String? sourcePlatform,
+    String? externalMessageId,
+    DateTime? fetchedAt,
+    String? permissionScope,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -113,6 +139,10 @@ abstract class Message implements _i1.SerializableModel {
         'mediaImagekitFileId': mediaImagekitFileId,
       if (mediaMimeType != null) 'mediaMimeType': mediaMimeType,
       'createdAt': createdAt.toJson(),
+      if (sourcePlatform != null) 'sourcePlatform': sourcePlatform,
+      if (externalMessageId != null) 'externalMessageId': externalMessageId,
+      if (fetchedAt != null) 'fetchedAt': fetchedAt?.toJson(),
+      if (permissionScope != null) 'permissionScope': permissionScope,
     };
   }
 
@@ -137,6 +167,10 @@ class _MessageImpl extends Message {
     String? mediaImagekitFileId,
     String? mediaMimeType,
     required DateTime createdAt,
+    String? sourcePlatform,
+    String? externalMessageId,
+    DateTime? fetchedAt,
+    String? permissionScope,
   }) : super._(
          id: id,
          conversationId: conversationId,
@@ -149,6 +183,10 @@ class _MessageImpl extends Message {
          mediaImagekitFileId: mediaImagekitFileId,
          mediaMimeType: mediaMimeType,
          createdAt: createdAt,
+         sourcePlatform: sourcePlatform,
+         externalMessageId: externalMessageId,
+         fetchedAt: fetchedAt,
+         permissionScope: permissionScope,
        );
 
   /// Returns a shallow copy of this [Message]
@@ -167,6 +205,10 @@ class _MessageImpl extends Message {
     Object? mediaImagekitFileId = _Undefined,
     Object? mediaMimeType = _Undefined,
     DateTime? createdAt,
+    Object? sourcePlatform = _Undefined,
+    Object? externalMessageId = _Undefined,
+    Object? fetchedAt = _Undefined,
+    Object? permissionScope = _Undefined,
   }) {
     return Message(
       id: id is int? ? id : this.id,
@@ -186,6 +228,16 @@ class _MessageImpl extends Message {
           ? mediaMimeType
           : this.mediaMimeType,
       createdAt: createdAt ?? this.createdAt,
+      sourcePlatform: sourcePlatform is String?
+          ? sourcePlatform
+          : this.sourcePlatform,
+      externalMessageId: externalMessageId is String?
+          ? externalMessageId
+          : this.externalMessageId,
+      fetchedAt: fetchedAt is DateTime? ? fetchedAt : this.fetchedAt,
+      permissionScope: permissionScope is String?
+          ? permissionScope
+          : this.permissionScope,
     );
   }
 }

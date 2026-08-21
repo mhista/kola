@@ -206,6 +206,10 @@ class ConnectorService {
       key: def.key,
       name: def.name,
       category: def.category,
+      // Phase C of the agent architecture correction — see
+      // connector_status.spy.yaml's header on why this is now on the
+      // wire instead of only living in the catalog's own ConnectorStore.
+      isChannel: def.store == ConnectorStore.channel,
       description: def.description,
       status: ConnectorStatusValue.soon,
       authType: _authName(def.auth),

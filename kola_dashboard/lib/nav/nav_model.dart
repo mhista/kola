@@ -206,6 +206,17 @@ const navGroups = <NavGroup>[
       route: '/developer',
       features: [Features.developerPortal],
     ),
+    // Gated on publicApi, matching PlatformEndpoint._require exactly —
+    // not developerPortal, which is a separate, still-unbuilt page (see
+    // api_webhooks_page.dart's header). Reuses Icons.terminal rather
+    // than inventing a new path — same call as logOut/switchWorkspace
+    // sharing one path in icons.dart; the label tells the two apart.
+    NavItem(
+      label: 'API & Webhooks',
+      icon: Icons.terminal,
+      route: '/api-webhooks',
+      features: [Features.publicApi],
+    ),
   ]),
 ];
 

@@ -33,15 +33,17 @@
 import 'dart:convert';
 
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
+import 'package:kola_server/src/services/agents/agent_archetypes.dart';
 
-/// Kept here, not imported from bot_endpoint.dart — that file's
-/// `_validArchetypes` is private (deliberately: it's the DB-level
-/// source of truth for a value BotEndpoint itself validates against).
-/// Duplicated, not re-derived, so a change to one is a visible two-file
-/// diff rather than a silent drift — same honest flagging
-/// errand_tool_registry.dart's header already uses for its own
-/// necessarily-duplicated list.
-const _validArchetypes = {'customerCare', 'catalog', 'custom'};
+/// Phase A of the agent architecture correction: this used to be its own
+/// literal set, duplicated from bot_endpoint.dart's (also-private, also
+/// now retired) copy specifically so a change to one was a visible
+/// two-file diff rather than silent drift. Now both read from
+/// [AgentArchetypes.allKeys] instead — the registry itself is the single
+/// source of truth, so there is nothing left to drift. The prompt text
+/// below still needs its own hand-written prose (an LLM needs sentences,
+/// not just keys) and MUST list the same roles this set contains.
+final _validArchetypes = AgentArchetypes.allKeys;
 
 class DraftedBot {
   const DraftedBot({
@@ -65,14 +67,24 @@ class BotMotherService {
 
   final AiOrchestrator _ai;
 
+  // Archetype guide below MUST list the same roles AgentArchetypes.all
+  // declares (see this file's header) — kept as hand-written prose
+  // rather than generated from that list because an LLM needs a
+  // sentence of guidance per role, not a bare key.
   static const _systemPrompt = '''
-You help set up a new customer-service bot for a small business from one short description they type. Respond with ONLY a JSON object, no other text before or after it, matching exactly this shape:
-{"name": "<short, friendly bot name, 2-4 words>", "archetype": "<one of: customerCare, catalog, custom>", "knowledgeSeed": "<a short starter knowledge paragraph based ONLY on what the description actually states, or an empty string if it gives no concrete facts to seed>"}
+You help set up a new agent for a small business from one short description they type. An agent is defined by its ROLE — what job it does — not by which channel (WhatsApp, Telegram) it happens to talk on; do not let a mention of a specific channel change which role you pick. Respond with ONLY a JSON object, no other text before or after it, matching exactly this shape:
+{"name": "<short, friendly agent name, 2-4 words>", "archetype": "<one of: customerCare, catalog, payment, support, finance, inventory, marketing, sales, custom>", "knowledgeSeed": "<a short starter knowledge paragraph based ONLY on what the description actually states, or an empty string if it gives no concrete facts to seed>"}
 
 Archetype guide:
-- "customerCare": general Q&A, support, escalation to a human when stuck — the right default for most businesses.
+- "customerCare": general Q&A, support, escalation to a human when stuck — the right default for most businesses when nothing more specific fits.
 - "catalog": the business is primarily about browsing or negotiating over a product catalog (prices, stock, variants).
-- "custom": anything that clearly doesn't fit either of the above.
+- "payment": collecting or confirming payments from customers, on any channel, settling through any connected provider.
+- "support": resolving tickets and routing issues to the right person or department.
+- "finance": chasing overdue invoices, confirming payments, answering finance questions.
+- "inventory": watching stock levels and flagging what needs restocking.
+- "marketing": sending promotions, announcements, or follow-ups.
+- "sales": answering product questions and taking orders.
+- "custom": anything that clearly doesn't fit any of the above.
 
 If a business or product name is mentioned, use it in "name". Otherwise use something generic and friendly like "Store Assistant". Never invent prices, policies, hours, or any other fact "knowledgeSeed" doesn't actually come from — an empty string is the honest answer when the description doesn't give you enough to seed.''';
 

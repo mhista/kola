@@ -215,7 +215,7 @@ class _BotsPageState extends State<BotsPage> {
                   attributes: {
                     'style': 'font-size:${KolaType.micro};color:${KolaVar.muted}',
                   },
-                  [Component.text(bot.archetype)],
+                  [Component.text(_archetypeLabel(bot.archetype))],
                 ),
               ],
             ),
@@ -283,6 +283,26 @@ class _BotsPageState extends State<BotsPage> {
       ],
     );
   }
+
+  // Phase C of the agent architecture correction — mirrors
+  // AgentArchetypes.all server-side (kola_server/lib/src/services/
+  // agents/agent_archetypes.dart). This card used to show the raw
+  // stored string (e.g. "payment" in lowercase, camelCase for the
+  // pre-existing ones) — a role label is part of the same correction as
+  // giving those roles proper names in the first place.
+  String _archetypeLabel(String raw) => switch (raw) {
+        'customerCare' => 'Customer care',
+        'catalog' => 'Catalog',
+        'payment' => 'Payment agent',
+        'support' => 'Support agent',
+        'finance' => 'Finance agent',
+        'inventory' => 'Inventory agent',
+        'marketing' => 'Marketing agent',
+        'sales' => 'Sales agent',
+        'custom' => 'Custom',
+        '' => 'Not set up',
+        _ => raw,
+      };
 
   Component _empty() => div(
         attributes: {

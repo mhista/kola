@@ -1,0 +1,68 @@
+##
+## event.spy.yaml — Gate 2. One row per timestamped occurrence on the
+## event bus: "every ingestion, every webhook, every action" (PART V of
+## docs/Kolaa_Connections_Backbone_Direction_v5.pdf).
+##
+## Backed by migration 037. See that file's header for the full
+## reasoning on fingerprint deduplication and why payload is jsonb.
+##
+## PRODUCT-FACING NAMING: "bot" -> "agent". event_type values use
+## agent_published/agent_drafted/agent_paused, not bot_published — this
+## is a NAMING change only, confirmed with the user before this gate was
+## built. The underlying Bot class, BotRepository, BotEndpoint, the
+## `bots` table and every bot_id foreign key are UNCHANGED — same
+## precedent this project already set for kola-vs-kolaa (internal
+## identifiers stay put when product language changes; see the project
+## brief's own "Naming" section). Do not "finish" that rename here
+## either — a full internal rename is tracked as separate, deliberate
+## work, not bundled into an event-bus gate.
+##
+## NO `table:` LINE — this project runs Serverpod Mini with the database
+## feature disabled; Supabase owns the schema, and the DTO + repository
+## layer bridges the two (see workspace_finding.spy.yaml's header, which
+## explains the one time this convention was gotten wrong).
+##
+
+class: Event
+# table: events
+fields:
+  id: int? # Supabase assigns this automatically
+
+  workspaceId: int
+
+  ## PlatformEndpoint.eventTypes: 'new_conversation' | 'errand_executed'
+  ## | 'agent_published' | 'agent_drafted' | 'agent_paused' |
+  ## 'payment_confirmed'.
+  eventType: String
+
+  ## kind:subject, e.g. 'errand_executed:412'. THIS IS THE IDEMPOTENCY
+  ## KEY — migration 037's unique index on (workspaceId, fingerprint)
+  ## means EventRepository.emit() converges on retry/replay instead of
+  ## accumulating duplicates. Never derived from wording or a count,
+  ## same discipline workspace_finding.spy.yaml's fingerprint field
+  ## already established.
+  fingerprint: String
+
+  ## JSON-encoded (jsonEncode'd Map) — the event's own data, shape owned
+  ## by whichever call site built it (see event_bus.dart), not by this
+  ## model. A String here rather than a nested Serverpod type for the
+  ## same reason ErrandExecutionLog.inputJson/resultJson are Strings:
+  ## Serverpod Mini has no database feature to define a matching jsonb
+  ## column type against, so the DTO layer is what actually knows the
+  ## shape on each side.
+  payloadJson: String
+
+  ## When the underlying thing happened, vs ingestedAt (when this row
+  ## was written) — see migration 037's header on why these are kept
+  ## distinct rather than merged into one timestamp.
+  occurredAt: DateTime
+  ingestedAt: DateTime
+
+indexes:
+  event_workspace_fingerprint_idx:
+    fields: workspaceId, fingerprint
+    unique: true
+  event_workspace_occurred_idx:
+    fields: workspaceId, occurredAt
+  event_workspace_type_occurred_idx:
+    fields: workspaceId, eventType, occurredAt

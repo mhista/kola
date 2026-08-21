@@ -1,0 +1,56 @@
+##
+## connector_sync_log.spy.yaml — Gate 1. The shared dead-letter +
+## observability trail every connector adapter writes to, one row per
+## sync or health attempt, regardless of which of the three credential
+## stores (channel / paymentGateway / generic — see
+## connector_catalog.dart's ConnectorStore) the connector belongs to.
+##
+## Backed by migration 036. See that file's header for the full
+## reasoning, and connector_retry.dart for the code that actually writes
+## these rows.
+##
+## NO `table:` LINE — this project runs Serverpod Mini with the database
+## feature disabled; Supabase owns the schema, and the DTO + repository
+## layer bridges the two. Every other model in this project follows this
+## convention (see workspace_finding.spy.yaml's header, which explains
+## the one time this was gotten wrong).
+##
+
+class: ConnectorSyncLog
+# table: connector_sync_log
+fields:
+  id: int? # Supabase assigns this automatically
+
+  workspaceId: int
+
+  # Matches ConnectorDefinition.key in connector_catalog.dart.
+  connectorKey: String
+
+  # 'channel' | 'payment_gateway' | 'generic' — ConnectorStore's wire
+  # values. Self-describing, so this table is reachable for all three
+  # stores without joining back to the catalog.
+  store: String
+
+  # 'sync' | 'health' — a health check and a sync run are both "an
+  # attempt" worth a shared dead-letter shape, but answer different
+  # owner-facing questions, so the kind is kept rather than merged away.
+  kind: String
+
+  status: String # 'success' | 'error'
+
+  recordsSeen: int?
+  recordsChanged: int?
+
+  # Populated only when status is 'error'. Owner-language where
+  # possible, matching WorkspaceConnector.lastError's own convention —
+  # this is the contract's "a failed sync must be visible, not silent"
+  # requirement.
+  errorMessage: String?
+
+  ranAt: DateTime
+
+indexes:
+  connector_sync_log_workspace_idx:
+    fields: workspaceId
+  connector_sync_log_workspace_connector_idx:
+    fields: workspaceId, connectorKey, ranAt

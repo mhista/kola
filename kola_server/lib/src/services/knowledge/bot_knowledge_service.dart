@@ -51,6 +51,7 @@ import 'dart:convert';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
 import 'package:kola_server/src/services/ai/ai_provider.dart';
+import 'package:kola_server/src/services/agents/agent_orchestrator.dart';
 import 'package:kola_server/src/services/errand/errand_tool_registry.dart';
 import 'package:kola_server/src/services/memory/memory_retrieval_service.dart';
 
@@ -89,8 +90,10 @@ class BotKnowledgeService {
   BotKnowledgeService({
     required AiOrchestrator aiOrchestrator,
     MemoryRetrievalService? retrieval,
+    AgentOrchestrator? agentOrchestrator,
   })  : _ai = aiOrchestrator,
-        _retrieval = retrieval;
+        _retrieval = retrieval,
+        _agentOrchestrator = agentOrchestrator;
 
   final AiOrchestrator _ai;
 
@@ -101,6 +104,22 @@ class BotKnowledgeService {
   /// same knowledgeSeed path a workspace with no indexed documents takes
   /// — so those scripts keep working without a Supabase connection.
   final MemoryRetrievalService? _retrieval;
+
+  /// PHASE B of the agent architecture correction. Same nullable-for-
+  /// test-scripts reasoning as [_retrieval] above — null just means "no
+  /// cross-agent context available here," which degrades to exactly
+  /// today's behaviour (no shared-activity section in the prompt), not
+  /// an error.
+  final AgentOrchestrator? _agentOrchestrator;
+
+  /// Empty string when there's no orchestrator wired or nothing to show
+  /// — see [AgentOrchestrator.sharedContextBlock] for why this never
+  /// throws.
+  Future<String> _recentActivityBlock(Bot bot) async {
+    final orchestrator = _agentOrchestrator;
+    if (orchestrator == null) return '';
+    return orchestrator.sharedContextBlock(forBot: bot);
+  }
 
   /// Resolves the knowledge block for one question: retrieved memory if
   /// there is any, else the legacy seed, else nothing. This is the ONE
@@ -196,6 +215,7 @@ class BotKnowledgeService {
     required String question,
   }) async {
     final knowledge = await _resolveKnowledge(bot, question);
+    final recentActivity = await _recentActivityBlock(bot);
     final systemPrompt = (knowledge.hasContent
         ? 'You are a helpful assistant for this business. Answer the '
             'customer\'s question using ONLY the information below. If '
@@ -215,6 +235,7 @@ class BotKnowledgeService {
             'and say you\'re connecting the customer with a person on the '
             'team. End that message with exactly this token on its own '
             'line, verbatim: $_escalateToken') +
+        recentActivity +
         _costSavingNote(bot);
 
     try {
@@ -257,6 +278,7 @@ class BotKnowledgeService {
     required String question,
   }) async {
     final knowledge = await _resolveKnowledge(bot, question);
+    final recentActivity = await _recentActivityBlock(bot);
     final systemPrompt = (knowledge.hasContent
         ? 'You are a helpful assistant for this business. Answer the '
             'customer\'s question using ONLY the information below when '
@@ -279,6 +301,7 @@ class BotKnowledgeService {
             'with the best values you can infer. Otherwise, if you don\'t '
             'have enough information to help, call the '
             '$kEscalateToHumanToolName tool rather than guessing.') +
+        recentActivity +
         _costSavingNote(bot);
 
     try {

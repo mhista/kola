@@ -1,0 +1,29 @@
+##
+## sale_line.spy.yaml — one line item on a Sale. Backed by migration
+## 035. See sale.spy.yaml and migration 035's header — this is a
+## SNAPSHOT of name/unitPriceMinor at the moment of sale, never a live
+## join to Product, so a later price change or product rename cannot
+## rewrite a past receipt.
+##
+
+class: SaleLine
+# table: sale_lines
+fields:
+  id: int?
+
+  saleId: int
+
+  ## Nullable, ON DELETE SET NULL at the schema level — deleting a
+  ## product must not delete the record of having sold it.
+  productId: int?
+
+  name: String
+  unitPriceMinor: int
+  quantity: int
+  lineTotalMinor: int
+
+  createdAt: DateTime
+
+indexes:
+  sale_lines_sale_idx:
+    fields: saleId

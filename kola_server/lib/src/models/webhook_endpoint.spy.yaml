@@ -30,8 +30,19 @@ fields:
   ## the duplicate is invisible on the card.
   url: String
 
-  ## Subscribed events, from the design's EVENT_TYPES, stored snake_case:
-  ## new_conversation · errand_executed · bot_published · payment_confirmed
+  ## Subscribed events, from the design's EVENT_TYPES (PlatformEndpoint
+  ## .eventTypes), stored snake_case:
+  ## new_conversation · errand_executed · agent_drafted · agent_published
+  ## · agent_paused · payment_confirmed
+  ##
+  ## Gate 2 — bot_published renamed to agent_published (product-facing
+  ## naming only; see agent_lifecycle_events.dart's header). Any endpoint
+  ## row created before this migration with 'bot_published' in its events
+  ## array will simply never match again — this column has no
+  ## server-side migration of stored values, so an owner who subscribed
+  ## to the old name needs to re-save their endpoint. Worth stating
+  ## plainly rather than silently: this is the one place the rename has
+  ## a real, if small, compatibility cost.
   ##
   ## A list rather than a join table: the set is small, fixed, and always
   ## read whole. A join table would be three queries to draw one row of

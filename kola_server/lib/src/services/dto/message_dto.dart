@@ -32,6 +32,15 @@ class MessageDto extends BaseDto<Message> {
       mediaImagekitFileId: row['media_imagekit_file_id'] as String?,
       mediaMimeType: row['media_mime_type'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
+      // Migration 036 — Gate 1 provenance. All nullable: every row
+      // written before this migration, plus every human/bot-authored
+      // outbound message, has none of them.
+      sourcePlatform: row['source_platform'] as String?,
+      externalMessageId: row['external_message_id'] as String?,
+      fetchedAt: row['fetched_at'] == null
+          ? null
+          : DateTime.parse(row['fetched_at'] as String),
+      permissionScope: row['permission_scope'] as String?,
     );
   }
 
@@ -48,6 +57,10 @@ class MessageDto extends BaseDto<Message> {
       'media_thumbnail_url': model.mediaThumbnailUrl,
       'media_imagekit_file_id': model.mediaImagekitFileId,
       'media_mime_type': model.mediaMimeType,
+      'source_platform': model.sourcePlatform,
+      'external_message_id': model.externalMessageId,
+      'fetched_at': model.fetchedAt?.toIso8601String(),
+      'permission_scope': model.permissionScope,
     };
   }
 }

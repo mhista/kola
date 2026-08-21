@@ -114,4 +114,28 @@ class WebhookEndpointRepository {
         })
         .eq('id', endpointId);
   }
+
+  /// Gate 2 — records a SUCCESSFUL delivery. Flips a 'failing' endpoint
+  /// back to 'active' on the next delivery that actually goes through —
+  /// same "fixing it and it just starts working again" behavior
+  /// [upsert]'s re-registration path already gives an owner who edits
+  /// and re-saves, extended to the case where the receiving system fixed
+  /// itself without the owner touching kola at all. Deliberately does
+  /// NOT touch a 'paused' endpoint — that status is the owner's own
+  /// choice (see class header), and a delivery attempt against a paused
+  /// endpoint should never happen in the first place
+  /// (WebhookEndpointRepository.listActiveForEvent already excludes it).
+  Future<void> markDelivered(int endpointId) async {
+    _log.fine('markDelivered($endpointId)');
+    await supabase
+        .from('webhook_endpoints')
+        .update({
+          'status': 'active',
+          'last_error': null,
+          'last_delivery_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', endpointId)
+        .neq('status', 'paused');
+  }
 }

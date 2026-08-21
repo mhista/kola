@@ -48,8 +48,11 @@ import 'package:kola_server/kola_logger.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
+import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/conversations/inbound_message_handler.dart';
+import 'package:kola_server/src/services/connectors/contract/connector_retry.dart';
+import 'package:kola_server/src/services/repository/connector_sync_log_repository.dart';
 import '../messaging_service_interface.dart';
 import 'whatsapp_credential.dart';
 import 'whatsapp_service.dart';
@@ -335,9 +338,14 @@ class WhatsAppBotRegistry {
             externalUserId: from,
             displayName: displayName,
             inboundText: text,
+            // Gate 1 provenance/idempotency — see message_repository.dart's
+            // create(). map['id'] is WhatsApp's wamid, the same top-level
+            // message-id field Meta's docs and this codebase's own
+            // markAsRead/replyToMessage calls already key on.
+            externalMessageId: map['id'] as String?,
           );
           if (reply != null) {
-            await adapter.sendText(recipient: from, text: reply);
+            await _sendText(adapter: adapter, channelId: channelId, botId: botId, recipient: from, text: reply);
           }
         } else if (type == 'image' || type == 'video') {
           // ── PHOTOS AND VIDEO ──────────────────────────────────────
@@ -357,7 +365,7 @@ class WhatsAppBotRegistry {
           final channel = _channelById[channelId];
 
           if (mediaId == null || botId == null || channel == null) {
-            await adapter.sendText(recipient: from, text: _nonTextReplyText);
+            await _sendText(adapter: adapter, channelId: channelId, botId: botId, recipient: from, text: _nonTextReplyText);
             continue;
           }
 
@@ -379,21 +387,53 @@ class WhatsAppBotRegistry {
             mediaKind: type,
             mediaMimeType: media?['mime_type'] as String?,
             channel: channel,
+            externalMessageId: map['id'] as String?,
           );
           if (reply != null) {
-            await adapter.sendText(recipient: from, text: reply);
+            await _sendText(adapter: adapter, channelId: channelId, botId: botId, recipient: from, text: reply);
           }
         } else {
           // Everything else — audio, documents, location, contacts.
           // Still the Phase 2b ack, because none of those have a
           // handling story yet and pretending otherwise would be worse
           // than saying so.
-          await adapter.sendText(recipient: from, text: _nonTextReplyText);
+          await _sendText(adapter: adapter, channelId: channelId, botId: botId, recipient: from, text: _nonTextReplyText);
         }
       } catch (e) {
         Log.error('Failed to process/send WhatsApp reply (channel $channelId)', error: e);
       }
     }
+  }
+
+  /// Gate 1 — every outbound WhatsApp send goes through the shared
+  /// retry/backoff wrapper (connector_retry.dart) instead of a bare
+  /// `adapter.sendText()` call. A transient Graph API blip (rate limit,
+  /// brief 5xx) used to mean the reply was just lost; now it retries up
+  /// to 3 times with backoff before dead-lettering to
+  /// connector_sync_log — PART III's "retry and backoff, with a
+  /// dead-letter path. A failed sync must be visible, not silent"
+  /// applied to the one outbound path this registry owns. On final
+  /// failure this rethrows, matching the original bare call's behavior
+  /// — the surrounding try/catch in _replyToInboundMessages still logs
+  /// it exactly as before.
+  Future<void> _sendText({
+    required WhatsAppServiceAdapter adapter,
+    required int channelId,
+    required int? botId,
+    required String recipient,
+    required String text,
+  }) async {
+    final bot = botId == null ? null : await getIt<BotRepository>().findById(botId);
+    final workspaceId = bot?.workspaceId ?? 0;
+
+    await ConnectorRetry.run(
+      () => adapter.sendText(recipient: recipient, text: text),
+      deadLetter: getIt<ConnectorSyncLogRepository>(),
+      workspaceId: workspaceId,
+      connectorKey: 'whatsapp',
+      store: 'channel',
+      kind: 'sync',
+    );
   }
 
   String? _contactNameFor(List<dynamic>? contacts, String waId) {

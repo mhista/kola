@@ -1,0 +1,40 @@
+##
+## customer.spy.yaml — Gate 3. The identity anchor: PART VIII's
+## "entities exist with provenance." Backed by migration 039 — see that
+## file's header for why this is a NEW table and not an extension of
+## customer_profiles (which is conversation-bound and cannot represent a
+## customer who arrives via a payment or an in-person sale).
+##
+## displayName is denormalized off the latest 'name' identity signal —
+## not authoritative. CustomerIdentitySignal is.
+##
+## mergedIntoId: see migration 039's header on why a merge sets this
+## instead of rewriting any other table's customer_id — reversible,
+## non-destructive, per PART V.
+##
+## NO `table:` LINE — Serverpod Mini has the database feature disabled;
+## Supabase owns the schema, DTO + repository bridge the two.
+##
+
+class: Customer
+# table: customers
+fields:
+  id: int?
+
+  workspaceId: int
+
+  displayName: String?
+
+  ## 'whatsapp' | 'telegram' | 'paystack' | 'flutterwave' | 'till' | 'manual'
+  firstSeenSource: String
+  firstSeenAt: DateTime
+
+  ## Null unless this customer has been merged into another. See header.
+  mergedIntoId: int?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  customers_workspace_idx:
+    fields: workspaceId

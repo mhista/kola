@@ -34,16 +34,21 @@ class PricingSection extends StatelessComponent {
   final Region region;
   bool get _isWaitlist => mode != 'launched';
 
+  // Phase D of the agent architecture correction — product-facing copy
+  // says "agent"; the underlying limit is still PlanLimits.
+  // cappedFreeBotCap server-side (Bot stays the internal identifier, see
+  // agent_lifecycle_events.dart's header for why). Same word, two
+  // audiences, same discipline as everywhere else in this rename.
   static const _free = [
     'Sales counter, offline included',
     '50 customer messages / day',
-    '1 bot, 3 errands',
+    '1 agent, 3 errands',
     '5 knowledge documents',
   ];
 
   static const _pro = [
     'Everything in Free, uncapped',
-    'Unlimited bots and errands',
+    'Unlimited agents and errands',
     'Full knowledge base',
     'Priority support',
   ];

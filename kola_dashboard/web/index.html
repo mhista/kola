@@ -6,6 +6,10 @@
   <title>kolaa — Dashboard</title>
   <meta name="robots" content="noindex, nofollow">
 
+  <!-- Root-relative, same reasoning as styles.css/main.dart.js below —
+       a relative favicon href breaks on a hard load of a nested route. -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
   <!-- Space Grotesk (display) + Plus Jakarta Sans (UI) + IBM Plex Mono.
        Inter is gone as of the redesign — see lib/theme.dart. This href
        must stay identical to KolaFonts.googleFontsHref; the fonts are
@@ -35,6 +39,14 @@
        because the assets were already loaded from `/`; only a hard load
        of a nested path fails. The leading slash is the whole fix. -->
   <link rel="stylesheet" href="/styles.css">
+
+  <!-- Google Identity Services — loaded here rather than dynamically
+       injected from Dart, since it must be present before
+       google_identity.dart's JS interop calls google.accounts.id.*.
+       See that file's header for why this dashboard talks to Google
+       directly instead of redirecting through Supabase's own
+       /auth/v1/authorize. -->
+  <script src="https://accounts.google.com/gsi/client" async></script>
 
   <script defer src="/main.dart.js"></script>
 </head>

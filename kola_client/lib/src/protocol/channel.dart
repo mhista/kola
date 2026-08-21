@@ -22,6 +22,9 @@ abstract class Channel implements _i1.SerializableModel {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.syncCursor,
+    this.lastHealthCheckAt,
+    this.retentionPolicy,
   });
 
   factory Channel({
@@ -33,6 +36,9 @@ abstract class Channel implements _i1.SerializableModel {
     required String status,
     required DateTime createdAt,
     required DateTime updatedAt,
+    String? syncCursor,
+    DateTime? lastHealthCheckAt,
+    String? retentionPolicy,
   }) = _ChannelImpl;
 
   factory Channel.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -49,6 +55,13 @@ abstract class Channel implements _i1.SerializableModel {
       updatedAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['updatedAt'],
       ),
+      syncCursor: jsonSerialization['syncCursor'] as String?,
+      lastHealthCheckAt: jsonSerialization['lastHealthCheckAt'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(
+              jsonSerialization['lastHealthCheckAt'],
+            ),
+      retentionPolicy: jsonSerialization['retentionPolicy'] as String?,
     );
   }
 
@@ -68,6 +81,12 @@ abstract class Channel implements _i1.SerializableModel {
 
   DateTime updatedAt;
 
+  String? syncCursor;
+
+  DateTime? lastHealthCheckAt;
+
+  String? retentionPolicy;
+
   /// Returns a shallow copy of this [Channel]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -80,6 +99,9 @@ abstract class Channel implements _i1.SerializableModel {
     String? status,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncCursor,
+    DateTime? lastHealthCheckAt,
+    String? retentionPolicy,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -94,6 +116,10 @@ abstract class Channel implements _i1.SerializableModel {
       'status': status,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
+      if (syncCursor != null) 'syncCursor': syncCursor,
+      if (lastHealthCheckAt != null)
+        'lastHealthCheckAt': lastHealthCheckAt?.toJson(),
+      if (retentionPolicy != null) 'retentionPolicy': retentionPolicy,
     };
   }
 
@@ -115,6 +141,9 @@ class _ChannelImpl extends Channel {
     required String status,
     required DateTime createdAt,
     required DateTime updatedAt,
+    String? syncCursor,
+    DateTime? lastHealthCheckAt,
+    String? retentionPolicy,
   }) : super._(
          id: id,
          botId: botId,
@@ -124,6 +153,9 @@ class _ChannelImpl extends Channel {
          status: status,
          createdAt: createdAt,
          updatedAt: updatedAt,
+         syncCursor: syncCursor,
+         lastHealthCheckAt: lastHealthCheckAt,
+         retentionPolicy: retentionPolicy,
        );
 
   /// Returns a shallow copy of this [Channel]
@@ -139,6 +171,9 @@ class _ChannelImpl extends Channel {
     String? status,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Object? syncCursor = _Undefined,
+    Object? lastHealthCheckAt = _Undefined,
+    Object? retentionPolicy = _Undefined,
   }) {
     return Channel(
       id: id is int? ? id : this.id,
@@ -151,6 +186,13 @@ class _ChannelImpl extends Channel {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncCursor: syncCursor is String? ? syncCursor : this.syncCursor,
+      lastHealthCheckAt: lastHealthCheckAt is DateTime?
+          ? lastHealthCheckAt
+          : this.lastHealthCheckAt,
+      retentionPolicy: retentionPolicy is String?
+          ? retentionPolicy
+          : this.retentionPolicy,
     );
   }
 }

@@ -57,7 +57,6 @@ import 'pages/create_bot_page.dart';
 import 'pages/bot_detail_chat_page.dart';
 import 'pages/bot_detail_dev_page.dart';
 import 'pages/login_page.dart';
-import 'pages/auth_callback_page.dart';
 import 'pages/create_workspace_page.dart';
 import 'pages/logout_page.dart';
 import 'pages/settings_page.dart';
@@ -68,6 +67,9 @@ import 'pages/errand_builder_page.dart';
 import 'pages/knowledge_page.dart';
 import 'pages/conversations_page.dart';
 import 'pages/integrations_page.dart';
+import 'pages/api_webhooks_page.dart';
+import 'pages/customers_page.dart';
+import 'pages/till_page.dart';
 
 class DashboardApp extends StatefulComponent {
   const DashboardApp();
@@ -414,14 +416,7 @@ class _DashboardAppState extends State<DashboardApp> {
     final loggedIn = _session != null;
 
     if (!loggedIn) {
-      // /auth/callback is reachable while "unauthenticated" by this
-      // check's own definition — _session is still null the instant
-      // GoTrue redirects back from Google, since AuthCallbackPage is
-      // what calls onAuthenticated in the first place. Without this
-      // exception the redirect guard would bounce that very navigation
-      // straight to /login before the page ever got to read the
-      // fragment, and Google sign-in would silently never complete.
-      return (loc == '/login' || loc == '/auth/callback') ? null : '/login';
+      return loc == '/login' ? null : '/login';
     }
     // Logging out is allowed from anywhere, and is checked BEFORE the
     // workspace guard below. Without this ordering, an owner whose
@@ -485,18 +480,6 @@ class _DashboardAppState extends State<DashboardApp> {
         Route(
           path: '/login',
           builder: (context, state) => LoginPage(
-            authService: _authService,
-            onAuthenticated: _handleAuthenticated,
-          ),
-        ),
-        // Google's landing point after /login's "Continue with Google" —
-        // see auth_callback_page.dart and AuthService.beginGoogleSignIn/
-        // consumeOAuthCallback. Deliberately NOT wrapped in shellFor, same
-        // reasoning as /logout: this page exists for a moment before the
-        // document is replaced.
-        Route(
-          path: '/auth/callback',
-          builder: (context, state) => AuthCallbackPage(
             authService: _authService,
             onAuthenticated: _handleAuthenticated,
           ),
@@ -758,6 +741,49 @@ class _DashboardAppState extends State<DashboardApp> {
               accessToken: _session!.accessToken,
               workspaceId: _selectedWorkspace!.id!,
               gate: _gate,
+            ),
+          ),
+        ),
+        Route(
+          path: '/api-webhooks',
+          // Backs Kola API Webhooks.dc.html — Gate 2's UI surface for
+          // PlatformEndpoint (API keys, outbound webhooks). Wears
+          // AppShell, same as every other page built on the new design
+          // system.
+          builder: (context, state) => shellFor(
+            state,
+            ApiWebhooksPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
+          ),
+        ),
+        Route(
+          path: '/customers',
+          // Gate 3 / Gate 3b — design brief §8.11's Customers page, and
+          // the graph's proof surface. Backed by CustomerEndpoint.
+          builder: (context, state) => shellFor(
+            state,
+            CustomersPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+            ),
+          ),
+        ),
+        Route(
+          path: '/counter',
+          // Gate 3b — the sales counter finished as a graph consumer.
+          // Backed by SaleEndpoint. PART II's gap table named this
+          // outstanding; this closes it.
+          builder: (context, state) => shellFor(
+            state,
+            TillPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
             ),
           ),
         ),

@@ -16,7 +16,7 @@ class FaqSection extends StatelessComponent {
 
   static const faqs = [
     ('Do I need a developer?',
-        'No. Most owners set up their bot entirely by describing it in plain '
+        'No. Most owners set up their agent entirely by describing it in plain '
         'language. Developers can go further with the API if they want to.'),
     ('Does it work without internet?',
         'The sales counter does. You can scan, take payment and print a receipt '

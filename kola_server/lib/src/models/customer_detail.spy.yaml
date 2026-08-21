@@ -1,0 +1,21 @@
+##
+## customer_detail.spy.yaml — Gate 3b. NOT A TABLE — a wire-only return
+## type for CustomerEndpoint.getCustomerDetail, same convention as
+## created_api_key.spy.yaml and sale_line_input.spy.yaml. A plain Dart
+## class defined inside an endpoint file cannot cross the generated
+## client boundary (Serverpod only serializes types generated from a
+## .spy.yaml) — this was originally written as a local class in
+## customer_endpoint.dart and had to be moved here for that reason.
+##
+## The unified timeline a customer detail view needs in one round trip —
+## every source, tagged with where it came from (PART V: "it must always
+## be able to cite" provenance).
+##
+
+class: CustomerDetail
+fields:
+  customer: Customer
+  signals: List<CustomerIdentitySignal>
+  conversations: List<Conversation>
+  payments: List<PaymentTransaction>
+  sales: List<Sale>

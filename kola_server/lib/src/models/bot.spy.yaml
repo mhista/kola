@@ -19,9 +19,24 @@ fields:
   # Owner-facing bot name (may differ from the Workspace name).
   name: String
 
-  # What kind of bot this is. Values:
+  # What ROLE this agent plays — NOT which channel it talks on. Phase A
+  # of the agent architecture correction: WhatsApp/Telegram are
+  # communication surfaces an agent can be given (see channel.spy.yaml —
+  # one Bot already holds many Channels), not what defines the agent.
+  # This field is that definition. Source of truth is
+  # kola_server/lib/src/services/agents/agent_archetypes.dart
+  # (AgentArchetypes.allKeys) — see that file's header for the full
+  # reasoning and for every other place this exact list must stay in
+  # sync (bot_endpoint.dart's validation, bot_mother_service.dart's AI
+  # prompt, and the CHECK constraint in migration 038). Current values:
   #   'customerCare' — Q&A over Knowledge, MVP1
-  #   'catalog'      — catalog/negotiation commerce bot, MVP1
+  #   'catalog'      — catalog/negotiation commerce agent, MVP1
+  #   'payment'      — collects/confirms payments, settles via connectors
+  #   'support'      — resolves tickets, routes to the right department
+  #   'finance'      — chases invoices, confirms payments
+  #   'inventory'    — watches stock, flags restocks
+  #   'marketing'    — sends promotions, announcements, follow-ups
+  #   'sales'        — answers product questions, takes orders
   #   'custom'       — fully Errand-defined, no fixed archetype (Phase 2+)
   archetype: String
 

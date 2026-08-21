@@ -1,0 +1,51 @@
+##
+## customer_identity_signal.spy.yaml — Gate 3. Every phone/email/name/
+## platform-id ever seen for a customer — what
+## CustomerIdentityResolver checks a new signal against. Backed by
+## migration 039; see that file's header for:
+##   - why 'name' is stored but never matched on yet (no corroborating
+##     field exists in this schema — matching on name alone is
+##     explicitly forbidden by the PDF regardless)
+##   - why Telegram gets 'platform_user' instead of 'phone' (the Bot API
+##     does not hand over a real phone number)
+##
+## The unique index (workspaceId, signalType, normalizedValue) IS the
+## deterministic matcher: a lookup either finds the one customer who
+## already owns this value, or finds nothing. Two different customers
+## can never own the same signal — that state is what a merge proposal
+## exists to catch before it happens (see customer_merge_proposal
+## .spy.yaml).
+##
+
+class: CustomerIdentitySignal
+# table: customer_identity_signals
+fields:
+  id: int?
+
+  workspaceId: int
+  customerId: int
+
+  ## 'phone' | 'email' | 'name' | 'platform_user'
+  signalType: String
+
+  ## Normalized so the same real-world value always compares equal —
+  ## see migration 039's column comment for the exact rule per type.
+  normalizedValue: String
+
+  ## 'whatsapp' | 'telegram' | 'paystack' | 'flutterwave' | 'till' | 'manual'
+  source: String
+
+  ## Loose pointer into whichever table this signal came from — a
+  ## conversation id, a payment reference, a sale reference. Text, not
+  ## an FK, matching connector_sync_log's own precedent (migration 036)
+  ## for a row that can point into more than one table.
+  sourceRef: String?
+
+  firstSeenAt: DateTime
+
+indexes:
+  customer_identity_signal_lookup_idx:
+    fields: workspaceId, signalType, normalizedValue
+    unique: true
+  customer_identity_signal_customer_idx:
+    fields: customerId

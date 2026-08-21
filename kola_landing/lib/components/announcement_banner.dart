@@ -36,7 +36,11 @@ class AnnouncementBanner extends StatelessComponent {
             'text-align:center;padding:10px 44px 10px 16px;position:relative',
       },
       [
-        Component.text("Try kolaa's WhatsApp customer-care bot free "),
+        // Phase D of the agent architecture correction — was "Try
+        // kolaa's WhatsApp customer-care bot free", which named a
+        // channel as the product. WhatsApp is one channel an agent can
+        // be given, not what it is.
+        Component.text("Try kolaa's customer-care agent free "),
         a(
           attributes: {'style': 'color:${KolaColors.peach};font-weight:600'},
           [Component.text(' →')],

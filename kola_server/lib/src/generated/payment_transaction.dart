@@ -23,6 +23,7 @@ abstract class PaymentTransaction
     required this.currency,
     required this.customerEmail,
     this.customerPhone,
+    this.customerId,
     required this.status,
     required this.holdStatus,
     this.conversationId,
@@ -53,6 +54,7 @@ abstract class PaymentTransaction
     required String currency,
     required String customerEmail,
     String? customerPhone,
+    int? customerId,
     required String status,
     required String holdStatus,
     int? conversationId,
@@ -84,6 +86,7 @@ abstract class PaymentTransaction
       currency: jsonSerialization['currency'] as String,
       customerEmail: jsonSerialization['customerEmail'] as String,
       customerPhone: jsonSerialization['customerPhone'] as String?,
+      customerId: jsonSerialization['customerId'] as int?,
       status: jsonSerialization['status'] as String,
       holdStatus: jsonSerialization['holdStatus'] as String,
       conversationId: jsonSerialization['conversationId'] as int?,
@@ -139,6 +142,8 @@ abstract class PaymentTransaction
 
   String? customerPhone;
 
+  int? customerId;
+
   String status;
 
   String holdStatus;
@@ -189,6 +194,7 @@ abstract class PaymentTransaction
     String? currency,
     String? customerEmail,
     String? customerPhone,
+    int? customerId,
     String? status,
     String? holdStatus,
     int? conversationId,
@@ -221,6 +227,7 @@ abstract class PaymentTransaction
       'currency': currency,
       'customerEmail': customerEmail,
       if (customerPhone != null) 'customerPhone': customerPhone,
+      if (customerId != null) 'customerId': customerId,
       'status': status,
       'holdStatus': holdStatus,
       if (conversationId != null) 'conversationId': conversationId,
@@ -256,6 +263,7 @@ abstract class PaymentTransaction
       'currency': currency,
       'customerEmail': customerEmail,
       if (customerPhone != null) 'customerPhone': customerPhone,
+      if (customerId != null) 'customerId': customerId,
       'status': status,
       'holdStatus': holdStatus,
       if (conversationId != null) 'conversationId': conversationId,
@@ -297,6 +305,7 @@ class _PaymentTransactionImpl extends PaymentTransaction {
     required String currency,
     required String customerEmail,
     String? customerPhone,
+    int? customerId,
     required String status,
     required String holdStatus,
     int? conversationId,
@@ -325,6 +334,7 @@ class _PaymentTransactionImpl extends PaymentTransaction {
          currency: currency,
          customerEmail: customerEmail,
          customerPhone: customerPhone,
+         customerId: customerId,
          status: status,
          holdStatus: holdStatus,
          conversationId: conversationId,
@@ -359,6 +369,7 @@ class _PaymentTransactionImpl extends PaymentTransaction {
     String? currency,
     String? customerEmail,
     Object? customerPhone = _Undefined,
+    Object? customerId = _Undefined,
     String? status,
     String? holdStatus,
     Object? conversationId = _Undefined,
@@ -390,6 +401,7 @@ class _PaymentTransactionImpl extends PaymentTransaction {
       customerPhone: customerPhone is String?
           ? customerPhone
           : this.customerPhone,
+      customerId: customerId is int? ? customerId : this.customerId,
       status: status ?? this.status,
       holdStatus: holdStatus ?? this.holdStatus,
       conversationId: conversationId is int?

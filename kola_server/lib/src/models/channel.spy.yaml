@@ -45,6 +45,37 @@ fields:
   createdAt: DateTime
   updatedAt: DateTime
 
+  ## ── CONNECTOR CONTRACT (migration 036, Gate 1) ───────────────────────
+  ##
+  ## See docs/Kolaa_Connections_Backbone_Direction_v5.pdf PART III and
+  ## kola_server/lib/src/services/connectors/contract/.
+
+  ## Adapter-opaque watermark (contract/sync_types.dart's SyncCursor),
+  ## JSON-encoded when an adapter needs more than one field. Close to
+  ## vestigial for WhatsApp/Telegram today — both are push-driven, so
+  ## there is no "page" to resume from — and becomes load-bearing once a
+  ## pull-based adapter (Gate 4) needs somewhere to persist one.
+  syncCursor: String?
+
+  ## When ChannelHealthCheckService last actually attempted this
+  ## channel, regardless of outcome. Distinct from updatedAt, which also
+  ## changes on an unrelated edit (a display name rename) and so cannot
+  ## answer "when did we last actually check."
+  lastHealthCheckAt: DateTime?
+
+  ## RetentionPolicy.retainOnDisconnect | .deleteOnDisconnect — what
+  ## should happen to this channel's conversations/messages if the
+  ## workspace disconnects it. Nullable here so ChannelRepository.create's
+  ## existing direct `Channel(...)` construction doesn't need updating
+  ## for a field the database already defaults — see migration 036's
+  ## `not null default 'retain_on_disconnect'`. Treat a null here as
+  ## retainOnDisconnect, matching the existing, already-shipped behavior
+  ## of ChannelRepository.markDisconnected, which has never deleted a
+  ## message — this column makes that an explicit, documented policy
+  ## rather than an accident of how markDisconnected happened to be
+  ## written.
+  retentionPolicy: String?
+
 indexes:
   channel_bot_idx:
     fields: botId

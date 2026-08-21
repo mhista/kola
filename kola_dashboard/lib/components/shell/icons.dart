@@ -31,6 +31,10 @@ abstract class Icons {
 
   static const checkSquare = 'M9 12l2 2 4-4 M4 4h16v16H4Z';
   static const chevronDown = 'M6 9l6 6 6-6';
+  // Added for customers_page.dart's list->detail navigation (Gate 3) —
+  // same construction as chevronDown, rotated 90°.
+  static const chevronRight = 'M9 6l6 6-6 6';
+  static const chevronLeft = 'M15 6l-6 6 6 6';
 
   /// Dismiss. Added because modals were closing on a literal '×'
   /// character, which does not inherit the icon set's stroke weight and

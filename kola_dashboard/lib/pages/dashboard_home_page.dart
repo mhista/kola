@@ -174,12 +174,28 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     ];
   }
 
+  // Phase A of the agent architecture correction — mirrors
+  // AgentArchetypes.all server-side. New roles get their own icon
+  // rather than falling through to the generic gear, which used to be
+  // every archetype's fate except these first two.
   static String _archetypeIcon(String archetype) {
     switch (archetype) {
       case 'catalog':
         return '📦';
       case 'customerCare':
         return '🤖';
+      case 'payment':
+        return '💳';
+      case 'support':
+        return '🎧';
+      case 'finance':
+        return '💰';
+      case 'inventory':
+        return '📊';
+      case 'marketing':
+        return '📣';
+      case 'sales':
+        return '🤝';
       default:
         return '⚙️';
     }

@@ -90,6 +90,18 @@ fields:
   # Defaults false; migration 018 backfills every existing row to false.
   isInternal: bool
 
+  # The till's VAT rate, in basis points (750 = 7.5%) — migration
+  # 035_sales.sql added this column when the sales counter's schema was
+  # written, but it was never added to this model, so SaleEndpoint could
+  # not read it (compile error: "The getter 'taxRateBps' isn't defined
+  # for the type 'Workspace'"). Fixed here rather than worked around,
+  # since the column has existed on every workspace since migration 035
+  # — this was a gap in the model, not in the data. DEFAULT 0: a shop
+  # that is not VAT-registered must not start charging it because a
+  # field got added. See migration 035's own header for the full
+  # reasoning.
+  taxRateBps: int
+
   createdAt: DateTime
   updatedAt: DateTime
 

@@ -41,13 +41,14 @@ class CommerceSection extends StatelessComponent {
     ),
     (
       'Your catalog answers customers',
-      'The same prices and stock your counter uses are what the bot replies '
-          'with on WhatsApp. Ask "do you have this in size 12" and the '
-          'answer is real, not a guess.',
+      'The same prices and stock your counter uses are what your agent '
+          'replies with, on whichever channel the customer messaged. Ask '
+          '"do you have this in size 12" and the answer is real, not a '
+          'guess.',
     ),
     (
       'Receipts that bring people back',
-      'Printed or sent to WhatsApp — carrying the return window, the '
+      'Printed or sent on the customer\'s own channel — carrying the return window, the '
           'warranty, and a way to order again. Attached to the customer, so '
           'next time kolaa knows what they bought.',
     ),

@@ -42,7 +42,7 @@ class ChannelsSection extends StatelessComponent {
     'conversational': _TabContent(
       label: 'Conversational',
       body:
-          "A customer messages your bot with a question — a price, a delivery date, "
+          "A customer messages your agent with a question — a price, a delivery date, "
           "whether something is in stock. kolaa answers instantly, in the customer's "
           'own words, pulling from what you\'ve taught it.',
       phoneTitle: "Aisha's Fashion House",
@@ -93,7 +93,10 @@ class ChannelsSection extends StatelessComponent {
                 'font-size:13px;letter-spacing:0.06em;text-transform:uppercase;'
                 'color:${KolaColors.accent};font-weight:600;margin-bottom:14px',
           },
-          [Component.text('WhatsApp & Telegram bots')],
+          // Phase D of the agent architecture correction — was
+          // "WhatsApp & Telegram bots", naming the channels as the
+          // product. They're channels an agent uses, not the agent.
+          [Component.text('Channels your agent can use')],
         ),
         Component.element(
           tag: 'h2',

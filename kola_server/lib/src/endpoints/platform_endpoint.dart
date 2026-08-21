@@ -40,11 +40,25 @@ class PlatformEndpoint extends Endpoint {
   FeatureFlagService get _features => getIt<FeatureFlagService>();
 
   /// The design's EVENT_TYPES, in storage form.
+  ///
+  /// Gate 2 — 'bot_published' -> 'agent_published', plus
+  /// 'agent_drafted'/'agent_paused' for the rest of that same lifecycle
+  /// (Bot.status: 'draft' | 'live' | 'paused'). PRODUCT-FACING NAMING
+  /// ONLY, confirmed with the user before this gate was built — the
+  /// underlying Bot class, BotRepository, BotEndpoint, the `bots` table
+  /// and every bot_id foreign key are unchanged. See
+  /// agent_lifecycle_events.dart's header for the full reasoning.
   static const eventTypes = <String>[
     'new_conversation',
     'errand_executed',
-    'bot_published',
+    'agent_drafted',
+    'agent_published',
+    'agent_paused',
     'payment_confirmed',
+    // Gate 3b — sale_endpoint.dart's ringUpSale. See migration
+    // 039_customer_graph.sql's header for why this is the sales
+    // counter's proof that the graph is real.
+    'sale_completed',
   ];
 
   // ── Keys ─────────────────────────────────────────────────────────────

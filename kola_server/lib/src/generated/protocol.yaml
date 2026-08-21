@@ -20,6 +20,11 @@ conversation:
   - getMessages:
   - sendHumanReply:
   - closeConversation:
+customer:
+  - listCustomers:
+  - getCustomerDetail:
+  - listMergeProposals:
+  - resolveMergeProposal:
 errand:
   - createBuiltinErrand:
   - listErrandsForWorkspace:
@@ -75,6 +80,10 @@ product:
   - deleteProductMedia:
   - reorderProductMedia:
   - importMediaFromUrl:
+sale:
+  - ringUpSale:
+  - listSales:
+  - getSaleLines:
 supportTicket:
   - list:
   - setStatus:

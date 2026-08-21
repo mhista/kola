@@ -85,6 +85,8 @@ import 'package:kola_server/src/services/media/inbound_media_service.dart';
 import 'package:kola_server/src/services/security/security_filter.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
 import 'package:kola_server/src/services/billing/plan_limits.dart';
+import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
+import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
 
 class InboundMessageHandler {
   InboundMessageHandler({
@@ -98,6 +100,8 @@ class InboundMessageHandler {
     required ErrandDispatchService errandDispatch,
     required OwnerNotificationDispatcher notificationDispatcher,
     required InboundMediaService inboundMedia,
+    required EventBus events,
+    required CustomerIdentityResolver customerIdentity,
     SecurityFilter? securityFilter,
     TrialStateMachine? trialStateMachine,
   }) : _bots = bots,
@@ -110,6 +114,8 @@ class InboundMessageHandler {
        _errandDispatch = errandDispatch,
        _notifications = notificationDispatcher,
        _inboundMedia = inboundMedia,
+       _events = events,
+       _customerIdentity = customerIdentity,
        _security = securityFilter ?? SecurityFilter(),
        _trialStateMachine = trialStateMachine ?? const TrialStateMachine();
 
@@ -126,6 +132,20 @@ class InboundMessageHandler {
   /// Turns a Telegram file_id or WhatsApp media id into an ImageKit URL.
   /// See inbound_media_service.dart on why the bytes go through us.
   final InboundMediaService _inboundMedia;
+
+  /// Gate 2 — event bus. See event_bus.dart's header on why emit() is
+  /// safe to call unconditionally here: the fingerprint
+  /// ('new_conversation:{conversationId}') dedupes every message after
+  /// the first in a conversation, so this handler doesn't need to know
+  /// whether findOrCreate just created a row or found an existing one.
+  final EventBus _events;
+
+  /// Gate 3 — resolves/creates the Customer this conversation belongs
+  /// to. See CustomerIdentityResolver's header for the matching
+  /// algorithm and this file's own call site for why it only runs once
+  /// per conversation.
+  final CustomerIdentityResolver _customerIdentity;
+
   final SecurityFilter _security;
   final TrialStateMachine _trialStateMachine;
 
@@ -163,6 +183,15 @@ class InboundMessageHandler {
     String? mediaKind,
     String? mediaMimeType,
     Channel? channel,
+
+    // ── PROVENANCE + IDEMPOTENCY (migration 036, Gate 1) ────────────
+    //
+    // WhatsApp's wamid or Telegram's message id — see
+    // message_repository.dart's create() on why this is what makes a
+    // replayed webhook payload produce one Message row, not two.
+    // Nullable and additive: every existing caller that doesn't pass it
+    // keeps inserting exactly as before.
+    String? externalMessageId,
   }) async {
     final bot = await _bots.findById(botId);
     if (bot == null) {
@@ -180,6 +209,64 @@ class InboundMessageHandler {
       displayName: displayName,
     );
     final conversationId = conversation.id!;
+
+    // Gate 3 — resolve/create the Customer this conversation belongs
+    // to, once. WhatsApp's externalUserId is a real phone number
+    // (signal_type 'phone'); Telegram's is an opaque platform id
+    // (signal_type 'platform_user') — see migration 039's header on why
+    // these cannot share a signal type. Only runs when the conversation
+    // doesn't already have one, so an active thread's tenth message
+    // doesn't re-resolve identity on every turn.
+    if (conversation.customerId == null) {
+      final signal = platformType == 'whatsapp'
+          ? IdentitySignal(
+              type: 'phone',
+              value: CustomerIdentityResolver.normalizePhone(externalUserId),
+              sourceRef: conversationId.toString(),
+            )
+          : IdentitySignal(
+              type: 'platform_user',
+              value: CustomerIdentityResolver.normalizePlatformUser(platformType, externalUserId),
+              sourceRef: conversationId.toString(),
+            );
+      final customerId = await _customerIdentity.resolve(
+        workspaceId: workspaceId,
+        primary: signal,
+        source: platformType,
+      );
+      if (customerId != null) {
+        await _conversations.setCustomer(conversationId, customerId);
+        if (displayName != null && displayName.trim().isNotEmpty) {
+          await _customerIdentity.attachSignal(
+            workspaceId: workspaceId,
+            customerId: customerId,
+            signal: IdentitySignal(
+              type: 'name',
+              value: CustomerIdentityResolver.normalizeName(displayName),
+            ),
+            source: platformType,
+          );
+        }
+      }
+    }
+
+    // Gate 2 — event bus. Fired unconditionally (see _events' own field
+    // comment) rather than only when findOrCreate genuinely inserted a
+    // row — the fingerprint-level dedup in events makes that distinction
+    // unnecessary to compute here.
+    await _events.emit(
+      workspaceId: workspaceId,
+      eventType: 'new_conversation',
+      fingerprint: 'new_conversation:$conversationId',
+      payload: {
+        'conversationId': conversationId,
+        'workspaceId': workspaceId,
+        'botId': botId,
+        'channelId': channelId,
+        'platformType': platformType,
+        'externalUserId': externalUserId,
+      },
+    );
 
     // Resolve the picture BEFORE writing the message, so the row is
     // written once with whatever we ended up with.
@@ -221,6 +308,13 @@ class InboundMessageHandler {
       mediaThumbnailUrl: media?.thumbnailUrl,
       mediaImagekitFileId: media?.imagekitFileId,
       mediaMimeType: media?.mimeType ?? mediaMimeType,
+      // Gate 1 provenance — only the inbound-from-customer row carries
+      // this: it's the one message in this whole flow that actually
+      // came from an external platform event. The bot/human outbound
+      // replies below are kola's own writes and have no external id.
+      sourcePlatform: platformType,
+      externalMessageId: externalMessageId,
+      permissionScope: 'workspace',
     );
     await _conversations.touchLastMessageAt(conversationId);
 

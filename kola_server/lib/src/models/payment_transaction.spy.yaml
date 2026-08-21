@@ -49,6 +49,14 @@ fields:
   customerEmail: String
   customerPhone: String?
 
+  # Gate 3 (migration 039) — set by CustomerIdentityResolver in
+  # PaymentWebhookHandler._emitPaymentConfirmed, matched against
+  # customerPhone first, customerEmail second (same priority order the
+  # resolver always uses). Null until a payment actually confirms —
+  # resolving identity off a merely-initiated checkout would attach a
+  # customer to money that was never actually received.
+  customerId: int?
+
   # 'pending' | 'completed' | 'failed' — set to 'completed' only once
   # PaymentWebhookHandler has independently verified BOTH the signature
   # AND the gateway's own data.status/data.amount fields (see

@@ -25,6 +25,7 @@ abstract class Workspace implements _i1.SerializableModel {
     required this.trialEndsAt,
     required this.region,
     required this.isInternal,
+    required this.taxRateBps,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -41,6 +42,7 @@ abstract class Workspace implements _i1.SerializableModel {
     required DateTime trialEndsAt,
     required String region,
     required bool isInternal,
+    required int taxRateBps,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _WorkspaceImpl;
@@ -66,6 +68,7 @@ abstract class Workspace implements _i1.SerializableModel {
       isInternal: _i1.BoolJsonExtension.fromJson(
         jsonSerialization['isInternal'],
       ),
+      taxRateBps: jsonSerialization['taxRateBps'] as int,
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
@@ -97,6 +100,8 @@ abstract class Workspace implements _i1.SerializableModel {
 
   bool isInternal;
 
+  int taxRateBps;
+
   DateTime createdAt;
 
   DateTime updatedAt;
@@ -116,6 +121,7 @@ abstract class Workspace implements _i1.SerializableModel {
     DateTime? trialEndsAt,
     String? region,
     bool? isInternal,
+    int? taxRateBps,
     DateTime? createdAt,
     DateTime? updatedAt,
   });
@@ -134,6 +140,7 @@ abstract class Workspace implements _i1.SerializableModel {
       'trialEndsAt': trialEndsAt.toJson(),
       'region': region,
       'isInternal': isInternal,
+      'taxRateBps': taxRateBps,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
     };
@@ -160,6 +167,7 @@ class _WorkspaceImpl extends Workspace {
     required DateTime trialEndsAt,
     required String region,
     required bool isInternal,
+    required int taxRateBps,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : super._(
@@ -174,6 +182,7 @@ class _WorkspaceImpl extends Workspace {
          trialEndsAt: trialEndsAt,
          region: region,
          isInternal: isInternal,
+         taxRateBps: taxRateBps,
          createdAt: createdAt,
          updatedAt: updatedAt,
        );
@@ -194,6 +203,7 @@ class _WorkspaceImpl extends Workspace {
     DateTime? trialEndsAt,
     String? region,
     bool? isInternal,
+    int? taxRateBps,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -210,6 +220,7 @@ class _WorkspaceImpl extends Workspace {
       trialEndsAt: trialEndsAt ?? this.trialEndsAt,
       region: region ?? this.region,
       isInternal: isInternal ?? this.isInternal,
+      taxRateBps: taxRateBps ?? this.taxRateBps,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

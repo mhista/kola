@@ -963,9 +963,20 @@ class _BotDetailChatPageState extends State<BotDetailChatPage> {
 
   // ── Shared ─────────────────────────────────────────────────────────
 
+  // Phase A of the agent architecture correction — mirrors
+  // AgentArchetypes.all server-side (kola_server/lib/src/services/
+  // agents/agent_archetypes.dart). 'escalations' was never a valid
+  // stored value (kept as a defensive case, not a real archetype).
   String _archetypeLabel(String raw) => switch (raw) {
         'customerCare' => 'Customer Care',
         'catalog' => 'Catalog',
+        'payment' => 'Payment agent',
+        'support' => 'Support agent',
+        'finance' => 'Finance agent',
+        'inventory' => 'Inventory agent',
+        'marketing' => 'Marketing agent',
+        'sales' => 'Sales agent',
+        'custom' => 'Custom',
         'escalations' => 'Escalations',
         '' => 'Not set up',
         _ => raw,

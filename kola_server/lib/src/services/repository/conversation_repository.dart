@@ -84,6 +84,19 @@ class ConversationRepository {
         .toList();
   }
 
+  /// Gate 3b — every conversation on a customer's unified timeline.
+  Future<List<Conversation>> listByCustomer(int customerId) async {
+    _log.fine('listByCustomer($customerId)');
+    final response = await supabase
+        .from('conversations')
+        .select()
+        .eq('customer_id', customerId)
+        .order('last_message_at', ascending: false);
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
   // ── WRITE ─────────────────────────────────────────────────────────────────
 
   /// Find the Conversation for (channelId, externalUserId), or create a
@@ -160,6 +173,23 @@ class ConversationRepository {
         .single();
 
     return _dto.fromRow(response);
+  }
+
+  /// Gate 3 — set once by CustomerIdentityResolver right after
+  /// findOrCreate, only when the conversation doesn't already have a
+  /// customerId (see inbound_message_handler.dart's call site). Never
+  /// overwrites an existing link — identity resolution is idempotent by
+  /// construction (same phone always resolves to the same customer), so
+  /// there's nothing to reconcile on a repeat message.
+  Future<void> setCustomer(int conversationId, int customerId) async {
+    _log.info('setCustomer conversationId=$conversationId customerId=$customerId');
+    await supabase
+        .from('conversations')
+        .update({
+          'customer_id': customerId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', conversationId);
   }
 
   /// Bumps lastMessageAt — called every time a Message is stored (either

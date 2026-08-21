@@ -24,19 +24,23 @@ import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/errand/builtin_errand_executor.dart';
 import 'package:kola_server/src/services/errand/webhook_errand_executor.dart';
 import 'package:kola_server/src/services/errand/db_credential_errand_executor.dart';
+import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
 
 class ErrandDispatchService {
   ErrandDispatchService({
     required BuiltinErrandExecutor builtinExecutor,
     required WebhookErrandExecutor webhookExecutor,
     required DbCredentialErrandExecutor dbCredentialExecutor,
+    required EventBus events,
   }) : _builtin = builtinExecutor,
        _webhook = webhookExecutor,
-       _dbCredential = dbCredentialExecutor;
+       _dbCredential = dbCredentialExecutor,
+       _events = events;
 
   final BuiltinErrandExecutor _builtin;
   final WebhookErrandExecutor _webhook;
   final DbCredentialErrandExecutor _dbCredential;
+  final EventBus _events;
 
   /// Runs [errand] with [input], dispatching to the right executor by
   /// errand.source. Does NOT check errand.status or run the security
@@ -45,16 +49,43 @@ class ErrandDispatchService {
   /// ever sees Errands from listActiveByWorkspace, so status is already
   /// implied, but still runs the security filter itself before calling
   /// this — see its own header).
+  ///
+  /// Gate 2 — emits 'errand_executed' on the event bus AFTER a
+  /// successful run, never on failure (each executor already throws on
+  /// failure, so a caught exception here never reaches the emit call —
+  /// see the switch below). Fingerprint includes a microsecond
+  /// timestamp, deliberately NOT just errand.id — two distinct
+  /// executions of the same Errand are two distinct events, not a
+  /// duplicate of each other, unlike agent_drafted/new_conversation
+  /// where the fingerprint is meant to collapse repeats.
   Future<Map<String, dynamic>> dispatch({
     required Errand errand,
     required Map<String, dynamic> input,
   }) async {
-    return switch (errand.source) {
+    final result = switch (errand.source) {
       'builtin' => await _builtin.execute(errand: errand, input: input),
       'webhook' => await _webhook.execute(errand: errand, input: input),
       'dbCredential' => await _dbCredential.execute(errand: errand, input: input),
       _ => throw KolaException(
             message: 'This errand is set up in a way kola cannot run yet.'),
     };
+
+    final errandId = errand.id;
+    if (errandId != null) {
+      final now = DateTime.now().toUtc();
+      await _events.emit(
+        workspaceId: errand.workspaceId,
+        eventType: 'errand_executed',
+        fingerprint: 'errand_executed:$errandId:${now.microsecondsSinceEpoch}',
+        payload: {
+          'errandId': errandId,
+          'workspaceId': errand.workspaceId,
+          'source': errand.source,
+        },
+        occurredAt: now,
+      );
+    }
+
+    return result;
   }
 }

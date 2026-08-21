@@ -23,6 +23,7 @@ abstract class Conversation
     required this.externalUserId,
     this.displayName,
     required this.status,
+    this.customerId,
     required this.lastMessageAt,
     required this.createdAt,
     required this.updatedAt,
@@ -37,6 +38,7 @@ abstract class Conversation
     required String externalUserId,
     String? displayName,
     required String status,
+    int? customerId,
     required DateTime lastMessageAt,
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -52,6 +54,7 @@ abstract class Conversation
       externalUserId: jsonSerialization['externalUserId'] as String,
       displayName: jsonSerialization['displayName'] as String?,
       status: jsonSerialization['status'] as String,
+      customerId: jsonSerialization['customerId'] as int?,
       lastMessageAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['lastMessageAt'],
       ),
@@ -80,6 +83,8 @@ abstract class Conversation
 
   String status;
 
+  int? customerId;
+
   DateTime lastMessageAt;
 
   DateTime createdAt;
@@ -98,6 +103,7 @@ abstract class Conversation
     String? externalUserId,
     String? displayName,
     String? status,
+    int? customerId,
     DateTime? lastMessageAt,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -114,6 +120,7 @@ abstract class Conversation
       'externalUserId': externalUserId,
       if (displayName != null) 'displayName': displayName,
       'status': status,
+      if (customerId != null) 'customerId': customerId,
       'lastMessageAt': lastMessageAt.toJson(),
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
@@ -132,6 +139,7 @@ abstract class Conversation
       'externalUserId': externalUserId,
       if (displayName != null) 'displayName': displayName,
       'status': status,
+      if (customerId != null) 'customerId': customerId,
       'lastMessageAt': lastMessageAt.toJson(),
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
@@ -156,6 +164,7 @@ class _ConversationImpl extends Conversation {
     required String externalUserId,
     String? displayName,
     required String status,
+    int? customerId,
     required DateTime lastMessageAt,
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -168,6 +177,7 @@ class _ConversationImpl extends Conversation {
          externalUserId: externalUserId,
          displayName: displayName,
          status: status,
+         customerId: customerId,
          lastMessageAt: lastMessageAt,
          createdAt: createdAt,
          updatedAt: updatedAt,
@@ -186,6 +196,7 @@ class _ConversationImpl extends Conversation {
     String? externalUserId,
     Object? displayName = _Undefined,
     String? status,
+    Object? customerId = _Undefined,
     DateTime? lastMessageAt,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -199,6 +210,7 @@ class _ConversationImpl extends Conversation {
       externalUserId: externalUserId ?? this.externalUserId,
       displayName: displayName is String? ? displayName : this.displayName,
       status: status ?? this.status,
+      customerId: customerId is int? ? customerId : this.customerId,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

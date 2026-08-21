@@ -23,30 +23,29 @@
 // key identifies the calling PROJECT, not the user; the response body
 // is what actually proves who the user is.
 //
-// GOOGLE OAUTH (Gate 0) — a fourth endpoint, structurally different from
-// the three above because it's a browser REDIRECT dance, not a single
-// request/response:
-//   GET {SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to={url}
-// sends the browser to Google's consent screen; Google returns it to
-// GoTrue, which then 302s to {url} with the session appended as a URL
-// FRAGMENT (#access_token=...&refresh_token=...&expires_in=...) rather
-// than a query string or response body — GoTrue's default "implicit"
-// flow, chosen deliberately here because this codebase has no PKCE
-// code_verifier storage anywhere and adding one for a single provider
-// would be new state-management machinery, not a delta. If the
-// Supabase project's Auth settings force PKCE-only, this flow needs a
-// code_verifier/code_challenge pair added — NOT verified either way,
-// since the Google provider isn't enabled in Supabase yet to test
-// against.
+// GOOGLE SIGN-IN (Gate 0) — a fourth endpoint, and NOT a browser redirect:
+//   POST {SUPABASE_URL}/auth/v1/token?grant_type=id_token
+//        { provider: 'google', id_token, nonce }
+// [signInWithGoogleIdToken] is called with the ID token Google Identity
+// Services hands back client-side (see services/google_identity.dart) —
+// this dashboard never redirects through GoTrue's /auth/v1/authorize at
+// all. That earlier approach sent the whole browser to a Supabase-owned
+// URL, which made Google's consent screen show
+// "jwyrmptiehkkizwjbqtg.supabase.co" instead of this dashboard's own
+// domain, and depended on Supabase's Site URL / redirect-allow-list
+// config being correct (it wasn't — a real session ended up stranded on
+// http://localhost:3000). The ID-token flow has neither problem: the
+// whole exchange is a single request from this origin, response shape
+// identical to the password/refresh grants above, so it reuses
+// [_handleTokenResponse] directly.
 //
-// [beginGoogleSignIn] therefore does not return an AuthSession — it
-// never gets a response at all, it hands the tab to Google. The result
-// comes back on a *different* page load, at /auth/callback, which reads
-// the fragment via [consumeOAuthCallback]. See pages/auth_callback_page.dart.
+// Reference: https://supabase.com/docs/guides/auth/social-login/auth-google
+// ("Google pre-built" section) — fetched and read in full, not recalled.
 
 import 'dart:convert';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
-import 'package:web/web.dart' as web;
 import '../config/env.dart';
 import '../models/auth_session.dart';
 import 'local_storage.dart';
@@ -137,89 +136,43 @@ class AuthService {
     LocalStorage.removeItem(_storageKey);
   }
 
-  /// Navigates the whole tab to GoTrue's Google consent redirect. Does
-  /// not return an AuthSession — see the file header. `redirectTo` is
-  /// built from the CURRENT origin (window.location.origin), not a
-  /// baked-in config value, so this works unmodified on localhost, a
-  /// preview deploy, and production alike — each origin must still be
-  /// added to the Google OAuth client's "Authorized redirect URIs" and
-  /// to Supabase's own allow-list, or Google/GoTrue will reject the
-  /// redirect before this dashboard ever sees it again.
-  void beginGoogleSignIn() {
-    final redirectTo = '${web.window.location.origin}/auth/callback';
-    final uri = Uri.parse('$_baseUrl/auth/v1/authorize').replace(
-      queryParameters: {'provider': 'google', 'redirect_to': redirectTo},
+  /// Exchanges a Google Identity Services ID token for a real Supabase
+  /// session. [idToken] is `CredentialResponse.credential` from
+  /// GoogleIdentity's callback; [nonce] must be the RAW (unhashed) nonce
+  /// — Supabase re-hashes it itself and compares against the hash that
+  /// was sent to Google, per Supabase's own documented requirement.
+  /// Reuses [_handleTokenResponse] because grant_type=id_token returns
+  /// the exact same `{access_token, refresh_token, expires_in, user}`
+  /// shape as the password grant.
+  Future<AuthSession> signInWithGoogleIdToken({
+    required String idToken,
+    required String nonce,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/auth/v1/token?grant_type=id_token'),
+      headers: _headers,
+      body: jsonEncode({
+        'provider': 'google',
+        'id_token': idToken,
+        'nonce': nonce,
+      }),
     );
-    web.window.location.assign(uri.toString());
+    return _handleTokenResponse(response, context: 'Google sign-in');
   }
 
-  /// Parses the URL fragment GoTrue appends after a successful Google
-  /// redirect (`#access_token=...&refresh_token=...&expires_in=...`) and
-  /// persists it exactly like [_handleTokenResponse] does for password
-  /// auth, so downstream code (restoreSession, refresh) cannot tell the
-  /// difference between a Google session and a password one — by design,
-  /// AuthSession carries no `provider` field because nothing today reads
-  /// one.
-  ///
-  /// Returns null (rather than throwing) for a fragment that failed
-  /// on Google/GoTrue's side (`#error=...&error_description=...`) or is
-  /// simply missing tokens — the caller (AuthCallbackPage) treats both as
-  /// "show an error, offer to try again," never as a crash.
-  AuthSession? consumeOAuthCallback(String hash) {
-    final raw = hash.startsWith('#') ? hash.substring(1) : hash;
-    final params = Uri.splitQueryString(raw);
-
-    if (params.containsKey('error')) return null;
-
-    final accessToken = params['access_token'];
-    final refreshToken = params['refresh_token'];
-    if (accessToken == null || refreshToken == null) return null;
-
-    final expiresIn = int.tryParse(params['expires_in'] ?? '') ?? 3600;
-    final session = _sessionFromAccessToken(
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-      expiresIn: expiresIn,
-    );
-    _persist(session);
-    return session;
-  }
-
-  /// The implicit-flow fragment carries the tokens but not a decoded
-  /// user object (unlike the /token JSON responses _handleTokenResponse
-  /// parses) — id/email live inside the JWT's own claims instead. This
-  /// decodes just enough of the JWT (base64url payload, no signature
-  /// check — verifying it is kola_server's job via SessionVerifier, the
-  /// same division of responsibility the file header describes for the
-  /// password flow) to fill AuthSession.userId/email from `sub`/`email`.
-  AuthSession _sessionFromAccessToken({
-    required String accessToken,
-    required String refreshToken,
-    required int expiresIn,
-  }) {
-    final parts = accessToken.split('.');
-    var userId = '';
-    String? email;
-    if (parts.length == 3) {
-      try {
-        final normalized = base64Url.normalize(parts[1]);
-        final payload = jsonDecode(utf8.decode(base64Url.decode(normalized))) as Map<String, dynamic>;
-        userId = payload['sub'] as String? ?? '';
-        email = payload['email'] as String?;
-      } catch (_) {
-        // Malformed/unexpected JWT shape — leave userId/email empty
-        // rather than throw. kola_server still verifies the token
-        // itself on every real request; a blank display name here is
-        // cosmetic, not a security gap.
-      }
-    }
-    return AuthSession(
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-      expiresAt: DateTime.now().add(Duration(seconds: expiresIn)),
-      userId: userId,
-      email: email,
-    );
+  /// A (raw, SHA-256-hashed) nonce pair for Google's signInWithIdToken
+  /// flow. Google gets the HASHED value (GoogleIdentity.renderSignInButton's
+  /// `hashedNonce`); Supabase gets the RAW value back
+  /// (signInWithGoogleIdToken's `nonce`) and hashes it itself to verify
+  /// the two match — mirrors Supabase's own documented JS example exactly
+  /// (btoa of 32 random bytes for the raw value, hex SHA-256 of its UTF-8
+  /// bytes for the hash), just in Dart instead of JS.
+  static (String raw, String hashed) generateNonce() {
+    final rng = Random.secure();
+    final randomBytes = List<int>.generate(32, (_) => rng.nextInt(256));
+    final raw = base64.encode(randomBytes);
+    final hashed = sha256.convert(utf8.encode(raw)).toString();
+    return (raw, hashed);
   }
 
   void _persist(AuthSession session) {

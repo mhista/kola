@@ -19,6 +19,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
     required this.key,
     required this.name,
     required this.category,
+    required this.isChannel,
     required this.description,
     required this.status,
     required this.authType,
@@ -34,6 +35,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
     required String key,
     required String name,
     required String category,
+    required bool isChannel,
     required String description,
     required String status,
     required String authType,
@@ -50,6 +52,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
       key: jsonSerialization['key'] as String,
       name: jsonSerialization['name'] as String,
       category: jsonSerialization['category'] as String,
+      isChannel: _i1.BoolJsonExtension.fromJson(jsonSerialization['isChannel']),
       description: jsonSerialization['description'] as String,
       status: jsonSerialization['status'] as String,
       authType: jsonSerialization['authType'] as String,
@@ -73,6 +76,8 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
   String name;
 
   String category;
+
+  bool isChannel;
 
   String description;
 
@@ -99,6 +104,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
     String? key,
     String? name,
     String? category,
+    bool? isChannel,
     String? description,
     String? status,
     String? authType,
@@ -116,6 +122,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
       'key': key,
       'name': name,
       'category': category,
+      'isChannel': isChannel,
       'description': description,
       'status': status,
       'authType': authType,
@@ -141,6 +148,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
     required String key,
     required String name,
     required String category,
+    required bool isChannel,
     required String description,
     required String status,
     required String authType,
@@ -154,6 +162,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
          key: key,
          name: name,
          category: category,
+         isChannel: isChannel,
          description: description,
          status: status,
          authType: authType,
@@ -173,6 +182,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
     String? key,
     String? name,
     String? category,
+    bool? isChannel,
     String? description,
     String? status,
     String? authType,
@@ -187,6 +197,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
       key: key ?? this.key,
       name: name ?? this.name,
       category: category ?? this.category,
+      isChannel: isChannel ?? this.isChannel,
       description: description ?? this.description,
       status: status ?? this.status,
       authType: authType ?? this.authType,

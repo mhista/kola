@@ -31,6 +31,19 @@ fields:
   # Category id: 'sell' | 'pay' | 'know' | 'operate'.
   category: String
 
+  # PHASE C of the agent architecture correction. True for exactly the
+  # connectors catalogued with `store: ConnectorStore.channel` in
+  # connector_catalog.dart (today: WhatsApp, Telegram) — a communication
+  # surface any agent can be given, not a "sell" tool like Shopify or
+  # Facebook Catalog that happens to share the same category id. The
+  # distinction already existed server-side (ConnectorStore) but was
+  # never on the wire, so IntegrationsPage had no way to draw WhatsApp/
+  # Telegram as anything other than one more card in the "Sell" category
+  # — reinforcing exactly the "connecting WhatsApp makes it an agent"
+  # framing the correction is undoing. See integrations_page.dart's own
+  # header for how this field changes what the page draws.
+  isChannel: bool
+
   description: String
 
   # THE DESIGN'S FOUR STATES, resolved server-side:

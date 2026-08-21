@@ -25,6 +25,10 @@ abstract class WorkspaceConnector
     this.lastError,
     required this.createdAt,
     required this.updatedAt,
+    this.lastSyncRecordsSeen,
+    this.lastSyncRecordsChanged,
+    this.lastSyncErrorCount,
+    this.retentionPolicy,
   });
 
   factory WorkspaceConnector({
@@ -38,6 +42,10 @@ abstract class WorkspaceConnector
     String? lastError,
     required DateTime createdAt,
     required DateTime updatedAt,
+    int? lastSyncRecordsSeen,
+    int? lastSyncRecordsChanged,
+    int? lastSyncErrorCount,
+    String? retentionPolicy,
   }) = _WorkspaceConnectorImpl;
 
   factory WorkspaceConnector.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -60,6 +68,11 @@ abstract class WorkspaceConnector
       updatedAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['updatedAt'],
       ),
+      lastSyncRecordsSeen: jsonSerialization['lastSyncRecordsSeen'] as int?,
+      lastSyncRecordsChanged:
+          jsonSerialization['lastSyncRecordsChanged'] as int?,
+      lastSyncErrorCount: jsonSerialization['lastSyncErrorCount'] as int?,
+      retentionPolicy: jsonSerialization['retentionPolicy'] as String?,
     );
   }
 
@@ -83,6 +96,14 @@ abstract class WorkspaceConnector
 
   DateTime updatedAt;
 
+  int? lastSyncRecordsSeen;
+
+  int? lastSyncRecordsChanged;
+
+  int? lastSyncErrorCount;
+
+  String? retentionPolicy;
+
   /// Returns a shallow copy of this [WorkspaceConnector]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -97,6 +118,10 @@ abstract class WorkspaceConnector
     String? lastError,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? lastSyncRecordsSeen,
+    int? lastSyncRecordsChanged,
+    int? lastSyncErrorCount,
+    String? retentionPolicy,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -112,6 +137,12 @@ abstract class WorkspaceConnector
       if (lastError != null) 'lastError': lastError,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
+      if (lastSyncRecordsSeen != null)
+        'lastSyncRecordsSeen': lastSyncRecordsSeen,
+      if (lastSyncRecordsChanged != null)
+        'lastSyncRecordsChanged': lastSyncRecordsChanged,
+      if (lastSyncErrorCount != null) 'lastSyncErrorCount': lastSyncErrorCount,
+      if (retentionPolicy != null) 'retentionPolicy': retentionPolicy,
     };
   }
 
@@ -129,6 +160,12 @@ abstract class WorkspaceConnector
       if (lastError != null) 'lastError': lastError,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
+      if (lastSyncRecordsSeen != null)
+        'lastSyncRecordsSeen': lastSyncRecordsSeen,
+      if (lastSyncRecordsChanged != null)
+        'lastSyncRecordsChanged': lastSyncRecordsChanged,
+      if (lastSyncErrorCount != null) 'lastSyncErrorCount': lastSyncErrorCount,
+      if (retentionPolicy != null) 'retentionPolicy': retentionPolicy,
     };
   }
 
@@ -152,6 +189,10 @@ class _WorkspaceConnectorImpl extends WorkspaceConnector {
     String? lastError,
     required DateTime createdAt,
     required DateTime updatedAt,
+    int? lastSyncRecordsSeen,
+    int? lastSyncRecordsChanged,
+    int? lastSyncErrorCount,
+    String? retentionPolicy,
   }) : super._(
          id: id,
          workspaceId: workspaceId,
@@ -163,6 +204,10 @@ class _WorkspaceConnectorImpl extends WorkspaceConnector {
          lastError: lastError,
          createdAt: createdAt,
          updatedAt: updatedAt,
+         lastSyncRecordsSeen: lastSyncRecordsSeen,
+         lastSyncRecordsChanged: lastSyncRecordsChanged,
+         lastSyncErrorCount: lastSyncErrorCount,
+         retentionPolicy: retentionPolicy,
        );
 
   /// Returns a shallow copy of this [WorkspaceConnector]
@@ -180,6 +225,10 @@ class _WorkspaceConnectorImpl extends WorkspaceConnector {
     Object? lastError = _Undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Object? lastSyncRecordsSeen = _Undefined,
+    Object? lastSyncRecordsChanged = _Undefined,
+    Object? lastSyncErrorCount = _Undefined,
+    Object? retentionPolicy = _Undefined,
   }) {
     return WorkspaceConnector(
       id: id is int? ? id : this.id,
@@ -198,6 +247,18 @@ class _WorkspaceConnectorImpl extends WorkspaceConnector {
       lastError: lastError is String? ? lastError : this.lastError,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      lastSyncRecordsSeen: lastSyncRecordsSeen is int?
+          ? lastSyncRecordsSeen
+          : this.lastSyncRecordsSeen,
+      lastSyncRecordsChanged: lastSyncRecordsChanged is int?
+          ? lastSyncRecordsChanged
+          : this.lastSyncRecordsChanged,
+      lastSyncErrorCount: lastSyncErrorCount is int?
+          ? lastSyncErrorCount
+          : this.lastSyncErrorCount,
+      retentionPolicy: retentionPolicy is String?
+          ? retentionPolicy
+          : this.retentionPolicy,
     );
   }
 }

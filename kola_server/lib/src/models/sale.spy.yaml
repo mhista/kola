@@ -1,0 +1,58 @@
+##
+## sale.spy.yaml — the till. Backed by migration 035 (schema) and
+## migration 039 (customerId). PART II's own gap table: "Sales counter
+## PARTIAL. Migration 035 applied. Model, endpoint and Till page
+## outstanding" — this is that model, finishing what was left half-done.
+##
+## Also Gate 3b, PART VIII: "Sales counter finished AS A GRAPH
+## CONSUMER — a till sale becomes an Order entity on a customer
+## timeline. Cheapest possible test that Gate 3 is real." customerId is
+## how a sale becomes reachable from a customer's timeline; it is
+## nullable because a walk-in cash sale with nothing identifying the
+## buyer is a normal, complete sale — see design brief's "a workspace
+## with zero products is a complete workspace" sibling principle applied
+## to zero-identity sales.
+##
+## See migration 035's own header for the full reasoning on why
+## sale_lines snapshots name/price rather than joining products live,
+## why tax_rate_bps is stored per-sale, and why clientReference is the
+## offline-queue idempotency key.
+##
+## NO `table:` LINE — Supabase owns the schema.
+##
+
+class: Sale
+# table: sales
+fields:
+  id: int?
+
+  workspaceId: int
+  customerId: int?
+
+  reference: String
+  clientReference: String?
+
+  subtotalMinor: int
+  taxRateBps: int
+  taxMinor: int
+  totalMinor: int
+  currency: String
+
+  ## 'cash' | 'transfer' | 'card' | 'split'
+  paymentMethod: String
+
+  cashReceivedMinor: int?
+  changeMinor: int?
+
+  ## 'completed' | 'refunded' | 'void'
+  status: String
+
+  soldAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  sales_workspace_sold_at_idx:
+    fields: workspaceId, soldAt
+  sales_customer_idx:
+    fields: customerId

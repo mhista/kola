@@ -19,20 +19,26 @@ import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
 import 'package:kola_server/src/services/billing/plan_limits.dart';
 import 'package:kola_server/src/services/knowledge/bot_mother_service.dart';
+import 'package:kola_server/src/services/connectors/contract/agent_lifecycle_events.dart';
+import 'package:kola_server/src/services/agents/agent_archetypes.dart';
 import 'package:kola_server/kola_logger.dart';
 
-/// Bot.archetype's allowed values — the single source of truth this
-/// endpoint validates against, mirroring the check constraint already
-/// enforced at the database level (docs/migrations/001_initial_schema.sql)
-/// so a bad value fails here with a clear message, not as a raw Postgres
-/// constraint violation surfaced to the dashboard.
-const _validArchetypes = {'customerCare', 'catalog', 'custom'};
+/// Bot.archetype's allowed values — reads from [AgentArchetypes], the
+/// single source of truth (see that file's header), mirroring the check
+/// constraint enforced at the database level (docs/migrations/001_initial
+/// _schema.sql, widened by 038_agent_archetypes.sql) so a bad value fails
+/// here with a clear message, not as a raw Postgres constraint violation
+/// surfaced to the dashboard. Was a locally-declared literal set before
+/// Phase A of the agent architecture correction; kept as a local alias so
+/// every call site below didn't need touching.
+final _validArchetypes = AgentArchetypes.allKeys;
 
 class BotEndpoint extends Endpoint {
   BotRepository get _bots => getIt<BotRepository>();
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
   TrialStateMachine get _trialStateMachine => getIt<TrialStateMachine>();
   BotMotherService get _botMother => getIt<BotMotherService>();
+  AgentLifecycleEvents get _agentEvents => getIt<AgentLifecycleEvents>();
 
   /// TASK #146 — CONFIRMED WITH THE USER (2026-07-27): a cappedFree or
   /// paused workspace may have at most [PlanLimits.cappedFreeBotCap] bot
@@ -95,6 +101,10 @@ class BotEndpoint extends Endpoint {
       name: trimmedName,
       archetype: archetype,
     );
+
+    // Gate 2 — event bus. See agent_lifecycle_events.dart's header for
+    // why this lives in one shared class rather than being inlined here.
+    await _agentEvents.recordDrafted(bot);
 
     Log.success(
       'Bot created',
@@ -181,6 +191,12 @@ class BotEndpoint extends Endpoint {
         ),
       );
     }
+
+    // Gate 2 — event bus. Emitted with the FINAL bot (post-knowledgeSeed
+    // update if any), same reasoning as everywhere else in this gate:
+    // the event should reflect the row as it actually ended up, not an
+    // intermediate state.
+    await _agentEvents.recordDrafted(bot);
 
     Log.success(
       'Bot created from description (Bot Mother v1)',

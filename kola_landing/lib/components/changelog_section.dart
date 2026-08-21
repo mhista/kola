@@ -22,7 +22,7 @@ class ChangelogSection extends StatelessComponent {
         'every answer.'),
     ('Aug 2026', 'Sales counter groundwork — catalog, offline selling and receipts '
         'confirmed for launch.'),
-    ('Jul 2026', 'WhatsApp and Telegram both live — one bot, one set of errands, '
+    ('Jul 2026', 'WhatsApp and Telegram both live — one agent, one set of errands, '
         'both channels.'),
     ('Jul 2026', 'Payments through Paystack and Flutterwave — money goes straight '
         'to your own account.'),

@@ -94,6 +94,10 @@ class WorkspaceRepository {
       // becomes a parameter; defaulting here keeps every workspace
       // created today priced exactly as it is now.
       region: 'NG',
+      // Migration 035's own default — a new workspace is never
+      // VAT-registered by default; turning it on is a Settings decision
+      // the owner makes knowingly.
+      taxRateBps: 0,
       createdAt: createdAt,
       updatedAt: createdAt,
     );

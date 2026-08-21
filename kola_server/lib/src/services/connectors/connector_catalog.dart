@@ -182,7 +182,13 @@ class ConnectorCategory {
 
 abstract class ConnectorCatalog {
   static const categories = <ConnectorCategory>[
-    ConnectorCategory(id: 'sell', label: 'Sell', subtitle: 'channels, storefronts'),
+    // 'channels, storefronts' -> 'storefronts' — Phase C of the agent
+    // architecture correction: WhatsApp/Telegram no longer group under
+    // this category in IntegrationsPage (see ConnectorStatus.isChannel
+    // and that page's own header). This subtitle is server-side catalog
+    // data, not currently rendered by the dashboard, but kept accurate
+    // rather than left describing a grouping that no longer exists.
+    ConnectorCategory(id: 'sell', label: 'Sell', subtitle: 'storefronts'),
     ConnectorCategory(id: 'pay', label: 'Get paid', subtitle: 'gateways, accounting'),
     ConnectorCategory(id: 'know', label: 'Know', subtitle: 'storage, catalogs, CRM'),
     ConnectorCategory(
