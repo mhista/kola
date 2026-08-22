@@ -39,6 +39,8 @@ class WorkspaceConnectorDto extends BaseDto<WorkspaceConnector> {
       lastSyncErrorCount: row['last_sync_error_count'] as int? ?? 0,
       retentionPolicy:
           row['retention_policy'] as String? ?? 'retain_on_disconnect',
+      // Gate 4 (migration 041).
+      syncCursor: row['sync_cursor'] as String?,
     );
   }
 

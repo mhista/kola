@@ -106,6 +106,80 @@ class PaystackService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  /// Gate 4 — pulls a page of this account's transactions, newest API
+  /// shape confirmed against https://paystack.com/docs/api/transaction/#list
+  /// on 2026-08-21 (not guessed). [from] is Paystack's own incremental
+  /// filter (`created_at >= from`) — the sync engine's cursor is this
+  /// value, so re-syncing never re-reads a page it already processed.
+  /// Only `status: success` need ever reach the graph — pending/abandoned/
+  /// failed attempts are not payments, and PaymentWebhookHandler already
+  /// never marks anything completed off a status other than success.
+  /// Returns the raw decoded response; `data` is the list, `meta` carries
+  /// pagination (`perPage`, and Paystack's own `next`/`previous` opaque
+  /// cursors — this adapter uses `page`/`perPage` numeric paging instead,
+  /// since it is simpler to persist as [SyncCursor] and Paystack documents
+  /// both as equally valid).
+  Future<Map<String, dynamic>> listTransactions({
+    DateTime? from,
+    int page = 1,
+    int perPage = 50,
+    String status = 'success',
+  }) async {
+    final uri = Uri.parse('$_baseUrl/transaction').replace(queryParameters: {
+      'page': '$page',
+      'perPage': '$perPage',
+      'status': status,
+      if (from != null) 'from': from.toUtc().toIso8601String(),
+    });
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Paystack list transactions failed (${response.statusCode}): ${response.body}',
+      );
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Gate 4 — pulls a page of this account's customers, confirmed against
+  /// https://paystack.com/docs/api/customer/#list on 2026-08-21. Used
+  /// alongside [listTransactions] so a customer who exists in the
+  /// business's Paystack account but has no successful transaction yet
+  /// (an initialized-but-never-completed checkout, a customer created for
+  /// a future recurring charge) still lands in the graph rather than only
+  /// appearing the day they first pay.
+  Future<Map<String, dynamic>> listCustomers({
+    DateTime? from,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/customer').replace(queryParameters: {
+      'page': '$page',
+      'perPage': '$perPage',
+      if (from != null) 'from': from.toUtc().toIso8601String(),
+    });
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Paystack list customers failed (${response.statusCode}): ${response.body}',
+      );
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Cheap, side-effect-free authenticated probe — same call
+  /// PaymentEndpoint.connectGateway already uses to validate a key before
+  /// persisting it, exposed here as a real method rather than duplicated
+  /// as a second private extension for [PaystackAdapter.health] to call.
+  Future<void> probe() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/bank?currency=NGN'),
+      headers: _headers,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Paystack probe failed (${response.statusCode}): ${response.body}');
+    }
+  }
+
   /// Confirms [signatureHeader] (the `x-paystack-signature` request
   /// header) is a valid HMAC-SHA512 of [rawBody] using [secretKey] — the
   /// exact check Paystack's webhook docs specify. [rawBody] must be the

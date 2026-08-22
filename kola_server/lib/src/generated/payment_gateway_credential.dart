@@ -22,6 +22,8 @@ abstract class PaymentGatewayCredential
     this.encryptedWebhookSecret,
     required this.createdAt,
     required this.updatedAt,
+    this.syncCursor,
+    this.lastSyncedAt,
   });
 
   factory PaymentGatewayCredential({
@@ -32,6 +34,8 @@ abstract class PaymentGatewayCredential
     String? encryptedWebhookSecret,
     required DateTime createdAt,
     required DateTime updatedAt,
+    String? syncCursor,
+    DateTime? lastSyncedAt,
   }) = _PaymentGatewayCredentialImpl;
 
   factory PaymentGatewayCredential.fromJson(
@@ -50,6 +54,12 @@ abstract class PaymentGatewayCredential
       updatedAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['updatedAt'],
       ),
+      syncCursor: jsonSerialization['syncCursor'] as String?,
+      lastSyncedAt: jsonSerialization['lastSyncedAt'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(
+              jsonSerialization['lastSyncedAt'],
+            ),
     );
   }
 
@@ -67,6 +77,10 @@ abstract class PaymentGatewayCredential
 
   DateTime updatedAt;
 
+  String? syncCursor;
+
+  DateTime? lastSyncedAt;
+
   /// Returns a shallow copy of this [PaymentGatewayCredential]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -78,6 +92,8 @@ abstract class PaymentGatewayCredential
     String? encryptedWebhookSecret,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? syncCursor,
+    DateTime? lastSyncedAt,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -91,6 +107,8 @@ abstract class PaymentGatewayCredential
         'encryptedWebhookSecret': encryptedWebhookSecret,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
+      if (syncCursor != null) 'syncCursor': syncCursor,
+      if (lastSyncedAt != null) 'lastSyncedAt': lastSyncedAt?.toJson(),
     };
   }
 
@@ -106,6 +124,8 @@ abstract class PaymentGatewayCredential
         'encryptedWebhookSecret': encryptedWebhookSecret,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
+      if (syncCursor != null) 'syncCursor': syncCursor,
+      if (lastSyncedAt != null) 'lastSyncedAt': lastSyncedAt?.toJson(),
     };
   }
 
@@ -126,6 +146,8 @@ class _PaymentGatewayCredentialImpl extends PaymentGatewayCredential {
     String? encryptedWebhookSecret,
     required DateTime createdAt,
     required DateTime updatedAt,
+    String? syncCursor,
+    DateTime? lastSyncedAt,
   }) : super._(
          id: id,
          workspaceId: workspaceId,
@@ -134,6 +156,8 @@ class _PaymentGatewayCredentialImpl extends PaymentGatewayCredential {
          encryptedWebhookSecret: encryptedWebhookSecret,
          createdAt: createdAt,
          updatedAt: updatedAt,
+         syncCursor: syncCursor,
+         lastSyncedAt: lastSyncedAt,
        );
 
   /// Returns a shallow copy of this [PaymentGatewayCredential]
@@ -148,6 +172,8 @@ class _PaymentGatewayCredentialImpl extends PaymentGatewayCredential {
     Object? encryptedWebhookSecret = _Undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Object? syncCursor = _Undefined,
+    Object? lastSyncedAt = _Undefined,
   }) {
     return PaymentGatewayCredential(
       id: id is int? ? id : this.id,
@@ -159,6 +185,10 @@ class _PaymentGatewayCredentialImpl extends PaymentGatewayCredential {
           : this.encryptedWebhookSecret,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncCursor: syncCursor is String? ? syncCursor : this.syncCursor,
+      lastSyncedAt: lastSyncedAt is DateTime?
+          ? lastSyncedAt
+          : this.lastSyncedAt,
     );
   }
 }

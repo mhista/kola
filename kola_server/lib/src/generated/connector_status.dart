@@ -21,6 +21,7 @@ abstract class ConnectorStatus
     required this.name,
     required this.category,
     required this.isChannel,
+    required this.isPaymentGateway,
     required this.description,
     required this.status,
     required this.authType,
@@ -37,6 +38,7 @@ abstract class ConnectorStatus
     required String name,
     required String category,
     required bool isChannel,
+    required bool isPaymentGateway,
     required String description,
     required String status,
     required String authType,
@@ -54,6 +56,9 @@ abstract class ConnectorStatus
       name: jsonSerialization['name'] as String,
       category: jsonSerialization['category'] as String,
       isChannel: _i1.BoolJsonExtension.fromJson(jsonSerialization['isChannel']),
+      isPaymentGateway: _i1.BoolJsonExtension.fromJson(
+        jsonSerialization['isPaymentGateway'],
+      ),
       description: jsonSerialization['description'] as String,
       status: jsonSerialization['status'] as String,
       authType: jsonSerialization['authType'] as String,
@@ -79,6 +84,8 @@ abstract class ConnectorStatus
   String category;
 
   bool isChannel;
+
+  bool isPaymentGateway;
 
   String description;
 
@@ -106,6 +113,7 @@ abstract class ConnectorStatus
     String? name,
     String? category,
     bool? isChannel,
+    bool? isPaymentGateway,
     String? description,
     String? status,
     String? authType,
@@ -124,6 +132,7 @@ abstract class ConnectorStatus
       'name': name,
       'category': category,
       'isChannel': isChannel,
+      'isPaymentGateway': isPaymentGateway,
       'description': description,
       'status': status,
       'authType': authType,
@@ -144,6 +153,7 @@ abstract class ConnectorStatus
       'name': name,
       'category': category,
       'isChannel': isChannel,
+      'isPaymentGateway': isPaymentGateway,
       'description': description,
       'status': status,
       'authType': authType,
@@ -170,6 +180,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
     required String name,
     required String category,
     required bool isChannel,
+    required bool isPaymentGateway,
     required String description,
     required String status,
     required String authType,
@@ -184,6 +195,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
          name: name,
          category: category,
          isChannel: isChannel,
+         isPaymentGateway: isPaymentGateway,
          description: description,
          status: status,
          authType: authType,
@@ -204,6 +216,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
     String? name,
     String? category,
     bool? isChannel,
+    bool? isPaymentGateway,
     String? description,
     String? status,
     String? authType,
@@ -219,6 +232,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
       name: name ?? this.name,
       category: category ?? this.category,
       isChannel: isChannel ?? this.isChannel,
+      isPaymentGateway: isPaymentGateway ?? this.isPaymentGateway,
       description: description ?? this.description,
       status: status ?? this.status,
       authType: authType ?? this.authType,

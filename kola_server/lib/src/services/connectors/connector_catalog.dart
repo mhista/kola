@@ -296,27 +296,87 @@ abstract class ConnectorCatalog {
             key: 'adminToken', label: 'Admin API access token', secret: true),
       ],
     ),
+    // Gate 4 — same fields-into-generic-store shape Shopify already
+    // uses, extended to TWO secret fields rather than one. Confirmed
+    // against a real, live Bumpa account (not guessed from docs alone —
+    // see bumpa_service.dart's header): the secret key authenticates
+    // orders, and the PUBLIC key — a genuinely separate value, not the
+    // same key relabeled — is required for the product catalog. Passing
+    // the secret key where the public one belongs fails with a clear
+    // "Invalid or inactive public API key" error rather than silently
+    // working, so both are collected up front instead of only asking for
+    // the public one when a product sync first fails.
+    ConnectorDefinition(
+      key: 'bumpa',
+      name: 'Bumpa',
+      category: 'sell',
+      description: 'Pull orders and products from your Bumpa storefront.',
+      auth: ConnectorAuth.fields,
+      store: ConnectorStore.generic,
+      featureKey: FeatureKeys.connectorsCommerce,
+      helpText: 'Bumpa dashboard → Settings → API Keys. Both keys are needed — '
+          'the secret key reads orders, the public key reads your product catalog.',
+      fields: [
+        ConnectorField(
+            key: 'secretKey',
+            label: 'Secret key',
+            placeholder: 'sk_live_...',
+            secret: true),
+        ConnectorField(
+            key: 'publicKey',
+            label: 'Public key',
+            placeholder: 'pk_live_...',
+            secret: true),
+      ],
+    ),
 
     // ── Get paid ──────────────────────────────────────────────────────
+    // Gate 4 — was ConnectorAuth.manage pointing at /billing, which is
+    // kolaa's OWN subscription billing settings (which gateway kolaa
+    // uses to charge a workspace ITS Kola fee), not this business's own
+    // Paystack/Flutterwave account. That page has never rendered a
+    // connect form for either — see DESIGN_DELTA.md and
+    // payment_endpoint.dart's header on the real distinction (platform
+    // account vs. connected account). PaymentEndpoint.connectGateway
+    // already exists and already probes-before-persisting; the gap was
+    // only ever the missing UI, closed here by giving these the same
+    // fields-based shape Stripe already uses, routed through the
+    // paymentGateway store's own connect flow rather than
+    // ConnectorEndpoint.connectConnector — see connector_status
+    // .isPaymentGateway and integrations_page.dart's _submit for why.
     ConnectorDefinition(
       key: 'paystack',
       name: 'Paystack',
       category: 'pay',
       description: 'Payments and order confirmation directly inside chats.',
-      auth: ConnectorAuth.manage,
+      auth: ConnectorAuth.fields,
       store: ConnectorStore.paymentGateway,
       featureKey: FeatureKeys.payments,
-      manageRoute: '/billing',
+      helpText: 'Paystack dashboard → Settings → API Keys & Webhooks. '
+          'Use the SECRET key, not the public key.',
+      fields: [
+        ConnectorField(key: 'secretKey', label: 'Secret key', secret: true),
+      ],
     ),
     ConnectorDefinition(
       key: 'flutterwave',
       name: 'Flutterwave',
       category: 'pay',
       description: 'Payments and order confirmation directly inside chats.',
-      auth: ConnectorAuth.manage,
+      auth: ConnectorAuth.fields,
       store: ConnectorStore.paymentGateway,
       featureKey: FeatureKeys.payments,
-      manageRoute: '/billing',
+      helpText: 'Flutterwave dashboard → Settings → API. The webhook secret '
+          'hash is set separately, under Settings → Webhooks — both are '
+          'needed for kolaa to confirm payments automatically.',
+      fields: [
+        ConnectorField(key: 'secretKey', label: 'Secret key', secret: true),
+        ConnectorField(
+          key: 'webhookSecret',
+          label: 'Webhook secret hash',
+          secret: true,
+        ),
+      ],
     ),
     ConnectorDefinition(
       key: 'stripe',
@@ -341,6 +401,26 @@ abstract class ConnectorCatalog {
       auth: ConnectorAuth.oauth,
       store: ConnectorStore.generic,
       featureKey: FeatureKeys.connectorsStorage,
+    ),
+    // Gate 4 — OneDrive/SharePoint, not "Excel file upload". A plain
+    // .xlsx upload is a Business Memory (knowledge ingestion) concern,
+    // not a connector — see docs/connectors/onedrive-excel.md's header
+    // on that distinction. This entry is specifically live sync from a
+    // workbook stored in a business's own Microsoft 365 account, same
+    // shape as google_sheets below but through Microsoft Graph. A
+    // PERSONAL Microsoft account (outlook.com/hotmail.com) cannot use
+    // this — see helpText and microsoft_oauth_service.dart's header on
+    // why.
+    ConnectorDefinition(
+      key: 'onedrive_excel',
+      name: 'Excel (OneDrive/SharePoint)',
+      category: 'know',
+      description: 'Keep price lists and inventory synced from a live workbook.',
+      auth: ConnectorAuth.oauth,
+      store: ConnectorStore.generic,
+      featureKey: FeatureKeys.connectorsStorage,
+      helpText: 'Needs a Microsoft 365 work or school account — a personal '
+          'outlook.com/hotmail.com account cannot be used here.',
     ),
     ConnectorDefinition(
       key: 'google_drive',

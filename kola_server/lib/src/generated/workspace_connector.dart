@@ -29,6 +29,7 @@ abstract class WorkspaceConnector
     this.lastSyncRecordsChanged,
     this.lastSyncErrorCount,
     this.retentionPolicy,
+    this.syncCursor,
   });
 
   factory WorkspaceConnector({
@@ -46,6 +47,7 @@ abstract class WorkspaceConnector
     int? lastSyncRecordsChanged,
     int? lastSyncErrorCount,
     String? retentionPolicy,
+    String? syncCursor,
   }) = _WorkspaceConnectorImpl;
 
   factory WorkspaceConnector.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -73,6 +75,7 @@ abstract class WorkspaceConnector
           jsonSerialization['lastSyncRecordsChanged'] as int?,
       lastSyncErrorCount: jsonSerialization['lastSyncErrorCount'] as int?,
       retentionPolicy: jsonSerialization['retentionPolicy'] as String?,
+      syncCursor: jsonSerialization['syncCursor'] as String?,
     );
   }
 
@@ -104,6 +107,8 @@ abstract class WorkspaceConnector
 
   String? retentionPolicy;
 
+  String? syncCursor;
+
   /// Returns a shallow copy of this [WorkspaceConnector]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -122,6 +127,7 @@ abstract class WorkspaceConnector
     int? lastSyncRecordsChanged,
     int? lastSyncErrorCount,
     String? retentionPolicy,
+    String? syncCursor,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -143,6 +149,7 @@ abstract class WorkspaceConnector
         'lastSyncRecordsChanged': lastSyncRecordsChanged,
       if (lastSyncErrorCount != null) 'lastSyncErrorCount': lastSyncErrorCount,
       if (retentionPolicy != null) 'retentionPolicy': retentionPolicy,
+      if (syncCursor != null) 'syncCursor': syncCursor,
     };
   }
 
@@ -166,6 +173,7 @@ abstract class WorkspaceConnector
         'lastSyncRecordsChanged': lastSyncRecordsChanged,
       if (lastSyncErrorCount != null) 'lastSyncErrorCount': lastSyncErrorCount,
       if (retentionPolicy != null) 'retentionPolicy': retentionPolicy,
+      if (syncCursor != null) 'syncCursor': syncCursor,
     };
   }
 
@@ -193,6 +201,7 @@ class _WorkspaceConnectorImpl extends WorkspaceConnector {
     int? lastSyncRecordsChanged,
     int? lastSyncErrorCount,
     String? retentionPolicy,
+    String? syncCursor,
   }) : super._(
          id: id,
          workspaceId: workspaceId,
@@ -208,6 +217,7 @@ class _WorkspaceConnectorImpl extends WorkspaceConnector {
          lastSyncRecordsChanged: lastSyncRecordsChanged,
          lastSyncErrorCount: lastSyncErrorCount,
          retentionPolicy: retentionPolicy,
+         syncCursor: syncCursor,
        );
 
   /// Returns a shallow copy of this [WorkspaceConnector]
@@ -229,6 +239,7 @@ class _WorkspaceConnectorImpl extends WorkspaceConnector {
     Object? lastSyncRecordsChanged = _Undefined,
     Object? lastSyncErrorCount = _Undefined,
     Object? retentionPolicy = _Undefined,
+    Object? syncCursor = _Undefined,
   }) {
     return WorkspaceConnector(
       id: id is int? ? id : this.id,
@@ -259,6 +270,7 @@ class _WorkspaceConnectorImpl extends WorkspaceConnector {
       retentionPolicy: retentionPolicy is String?
           ? retentionPolicy
           : this.retentionPolicy,
+      syncCursor: syncCursor is String? ? syncCursor : this.syncCursor,
     );
   }
 }

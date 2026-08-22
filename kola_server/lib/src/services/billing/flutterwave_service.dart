@@ -112,6 +112,63 @@ class FlutterwaveService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  /// Gate 4 — pulls a page of this account's transactions, confirmed
+  /// against https://developer.flutterwave.com/reference/endpoints/transactions
+  /// ("Get multiple Transactions") on 2026-08-21. Unlike Paystack there is
+  /// no documented `status` query filter here — Flutterwave's own example
+  /// only takes `from`/`to`/pagination, so this pulls everything in range
+  /// and [FlutterwaveAdapter] filters to `status == 'successful'` itself,
+  /// same place PaymentWebhookHandler already does that check. Pagination
+  /// is `meta.page_info: {total, current_page, total_pages}` — a fixed
+  /// count you walk to the end of, unlike Paystack's "fewer than perPage
+  /// means last page" signal, because Flutterwave's response actually
+  /// tells you the total page count.
+  ///
+  /// NOTE: no separate "list customers" endpoint is documented for
+  /// Flutterwave the way Paystack has one (checked
+  /// developer.flutterwave.com/docs/customers — nothing there). Customer
+  /// identity for this gateway comes only from each transaction's own
+  /// customer_email/customer_name/phone_number fields, not a standalone
+  /// customer backfill pass. Documented here rather than silently
+  /// building a narrower adapter than Paystack's without saying why.
+  Future<Map<String, dynamic>> listTransactions({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/transactions').replace(queryParameters: {
+      'page': '$page',
+      if (from != null) 'from': _dateOnly(from),
+      if (to != null) 'to': _dateOnly(to),
+    });
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Flutterwave list transactions failed (${response.statusCode}): ${response.body}',
+      );
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Flutterwave's `from`/`to` filters are documented and demonstrated
+  /// as plain dates (`"2020-01-01"`), not full timestamps like
+  /// Paystack's — kept as its own helper rather than assumed identical.
+  String _dateOnly(DateTime d) => d.toUtc().toIso8601String().split('T').first;
+
+  /// Cheap, side-effect-free authenticated probe — same call
+  /// PaymentEndpoint.connectGateway already uses to validate a key before
+  /// persisting it, exposed here as a real method for
+  /// [FlutterwaveAdapter.health] rather than a second private extension.
+  Future<void> probe() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/banks/NG'),
+      headers: _headers,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Flutterwave probe failed (${response.statusCode}): ${response.body}');
+    }
+  }
+
   /// Confirms [verifHashHeader] (the `verif-hash` request header on an
   /// incoming webhook) matches [configuredSecretHash] — the exact string
   /// you set in the Flutterwave dashboard's webhook settings. Unlike

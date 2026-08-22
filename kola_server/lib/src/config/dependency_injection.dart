@@ -59,6 +59,7 @@ import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
 import 'package:kola_server/src/services/connectors/contract/webhook_delivery_service.dart';
 import 'package:kola_server/src/services/connectors/contract/agent_lifecycle_events.dart';
 import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
+import 'package:kola_server/src/services/connectors/connector_sync_sweep_service.dart';
 import 'package:kola_server/src/services/repository/customer_repository.dart';
 import 'package:kola_server/src/services/repository/customer_identity_signal_repository.dart';
 import 'package:kola_server/src/services/repository/customer_merge_proposal_repository.dart';
@@ -536,6 +537,22 @@ void setupDependencyInjection() {
   // payment_checkout_service.dart's header for why it takes no
   // Session/accessToken itself.
   getIt.registerLazySingleton<PaymentCheckoutService>(() => PaymentCheckoutService());
+
+  // Gate 4 — the pull-based sync engine's sweep. Depends on
+  // PaymentGatewayCredentialRepository and ConnectorSyncLogRepository,
+  // both already registered above — see connector_sync_sweep_service
+  // .dart's header for why this runs off the same plain-Timer pattern as
+  // TrialSweepService/ChannelHealthCheckService rather than a queue.
+  getIt.registerLazySingleton<ConnectorSyncSweepService>(
+    () => ConnectorSyncSweepService(
+      gatewayCredentials: getIt<PaymentGatewayCredentialRepository>(),
+      // Gate 4 — Google Sheets' own store. WorkspaceConnectorRepository
+      // is already registered elsewhere in this file (the generic
+      // connector marketplace read path) — reused here, not duplicated.
+      genericConnectors: getIt<WorkspaceConnectorRepository>(),
+      syncLog: getIt<ConnectorSyncLogRepository>(),
+    ),
+  );
 
   // Task #130 / Phase 8b — complaint ticketing with SLA tracking. The
   // sweep depends on ConversationRepository (already registered above)

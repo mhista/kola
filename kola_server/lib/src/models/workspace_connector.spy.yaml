@@ -104,6 +104,12 @@ fields:
   ## disconnect() happened to be written.
   retentionPolicy: String?
 
+  ## Gate 4 (migration 041) — the pull-based sync engine's watermark,
+  ## the generic store's own version of payment_gateway_credentials
+  ## .syncCursor (migration 040). Null until GoogleSheetsAdapter (or a
+  ## future generic-store adapter) has synced at least once.
+  syncCursor: String?
+
 indexes:
   workspace_connector_unique_idx:
     fields: workspaceId, connectorKey

@@ -65,6 +65,7 @@
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr_router/jaspr_router.dart';
+import 'package:web/web.dart' as web;
 import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
@@ -104,6 +105,18 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   final Map<String, String> _formValues = {};
   bool _submitting = false;
   String? _submitError;
+
+  /// Gate 4 — the target-URL field for authType 'oauth' connectors that
+  /// need something picked AFTER signing in: which sheet (google_sheets)
+  /// or which file (onedrive_excel) — see ConnectorEndpoint
+  /// .setGoogleSheetTarget/.setExcelFileTarget's own headers on why this
+  /// is a second step rather than part of the OAuth redirect itself.
+  /// One field shared by both rather than two near-identical ones,
+  /// because only one connector's modal is ever open at a time.
+  /// Separate from [_formValues] because that map is keyed by
+  /// ConnectorField.key for authType 'fields' connectors, which oauth
+  /// connectors have none of.
+  String _sheetUrl = '';
 
   @override
   void initState() {
@@ -186,6 +199,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     setState(() {
       _openKey = c.key;
       _submitError = null;
+      _sheetUrl = '';
       _formValues
         ..clear()
         ..addEntries(c.fields.map((f) => MapEntry(f.key, '')));
@@ -197,6 +211,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       _openKey = null;
       _submitError = null;
       _submitting = false;
+      _sheetUrl = '';
       _formValues.clear();
     });
   }
@@ -209,6 +224,8 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   }
 
   Future<void> _submit(ConnectorStatus c) async {
+    if (c.isPaymentGateway) return _submitGateway(c);
+
     setState(() {
       _submitting = true;
       _submitError = null;
@@ -223,6 +240,54 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       if (!mounted) return;
       setState(() {
         _replace(updated);
+        _openKey = null;
+        _submitting = false;
+        _formValues.clear();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = ErrorText.of(e);
+      });
+    }
+  }
+
+  /// Gate 4 — Paystack/Flutterwave submit through PaymentEndpoint
+  /// .connectGateway, not ConnectorEndpoint.connectConnector, which
+  /// explicitly rejects any store but generic (see that endpoint's
+  /// header). Same form UI as [_submit], different call underneath —
+  /// see connector_status.spy.yaml's [isPaymentGateway] doc comment.
+  Future<void> _submitGateway(ConnectorStatus c) async {
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      final secretKey = _formValues['secretKey'] ?? '';
+      final webhookSecret = _formValues['webhookSecret'];
+      await component.client.payment.connectGateway(
+        component.accessToken,
+        component.workspaceId,
+        c.key,
+        secretKey,
+        webhookSecret: (webhookSecret == null || webhookSecret.isEmpty)
+            ? null
+            : webhookSecret,
+      );
+      if (!mounted) return;
+      // PaymentEndpoint returns the raw credential, not a ConnectorStatus
+      // — re-read through the same merge listConnectors uses so this
+      // card's connected state/masked-secret stays consistent with a
+      // fresh page load, same reasoning as ConnectorEndpoint's own
+      // _one() helper server-side.
+      final list = await component.client.connector.listConnectors(
+        component.accessToken,
+        component.workspaceId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _connectors = list;
         _openKey = null;
         _submitting = false;
         _formValues.clear();
@@ -262,6 +327,112 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     }
   }
 
+  /// Gate 4 — starts an authType 'oauth' connector by asking the server
+  /// for a consent URL, then sending the WHOLE BROWSER there via a real
+  /// navigation (not fetched, not opened in a popup — every OAuth
+  /// provider's consent screen must be the top-level document for its
+  /// own anti-clickjacking checks to pass). Two providers today, picked
+  /// by [ConnectorStatus.key] — startGoogleOAuth/startMicrosoftOAuth are
+  /// the only things that know which scopes a given connector needs;
+  /// this method just relays whatever URL either one returns.
+  Future<void> _startOAuth(ConnectorStatus c) async {
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      final url = c.key == 'onedrive_excel'
+          ? await component.client.connector.startMicrosoftOAuth(
+              component.accessToken,
+              component.workspaceId,
+              c.key,
+            )
+          : await component.client.connector.startGoogleOAuth(
+              component.accessToken,
+              component.workspaceId,
+              c.key,
+            );
+      if (!mounted) return;
+      // Deliberately no setState(_submitting = false) on the success
+      // path — the browser is about to navigate away from this page
+      // entirely, so there is no "after" for this component to render.
+      web.window.location.assign(url);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = ErrorText.of(e);
+      });
+    }
+  }
+
+  /// Gate 4 — the second step of google_sheets' oauth flow: which sheet,
+  /// now that the account itself is connected. See
+  /// ConnectorEndpoint.setGoogleSheetTarget's header on why this is not
+  /// folded into the OAuth redirect.
+  Future<void> _submitSheetTarget(ConnectorStatus c) async {
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      final updated = await component.client.connector.setGoogleSheetTarget(
+        component.accessToken,
+        component.workspaceId,
+        c.key,
+        _sheetUrl.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _replace(updated);
+        _openKey = null;
+        _submitting = false;
+        _sheetUrl = '';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = ErrorText.of(e);
+      });
+    }
+  }
+
+  /// Gate 4 — the onedrive_excel twin of [_submitSheetTarget]. Same
+  /// [_sheetUrl] field is reused for the input value (see that field's
+  /// own doc comment — it is deliberately generic, not
+  /// google-sheets-specific) but this posts to
+  /// ConnectorEndpoint.setExcelFileTarget instead, which — unlike
+  /// setGoogleSheetTarget — makes a real Graph call server-side to
+  /// resolve the pasted link, so this can fail with a real "that link
+  /// didn't resolve" error rather than only a malformed-URL one.
+  Future<void> _submitFileTarget(ConnectorStatus c) async {
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      final updated = await component.client.connector.setExcelFileTarget(
+        component.accessToken,
+        component.workspaceId,
+        c.key,
+        _sheetUrl.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _replace(updated);
+        _openKey = null;
+        _submitting = false;
+        _sheetUrl = '';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = ErrorText.of(e);
+      });
+    }
+  }
 
   // ── Build ──────────────────────────────────────────────────────────
 
@@ -587,10 +758,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   List<Component> _modalBody(ConnectorStatus c) => switch (c.authType) {
         'fields' || 'whatsapp' => _formBody(c),
         'manage' => _manageBody(c),
-        'oauth' => _notYet(
-            'Connecting ${c.name} works by signing in with ${c.name}. That '
-            'sign-in flow is not built yet.',
-          ),
+        'oauth' => _oauthBody(c),
         'keydisplay' => _notYet(
             'This works by giving you a kolaa API key to paste into '
             '${c.name}. The public API that key would open does not exist '
@@ -637,7 +805,15 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
               },
               [Component.text(_submitting ? 'Connecting…' : 'Connect')],
             ),
-            if (c.status == 'connected' || c.status == 'error')
+            // Gate 4 — payment gateway credentials have no disconnect
+            // flow (only create-or-replace/rotate — see
+            // payment_gateway_credential_repository.dart's own upsert
+            // doc comment). ConnectorEndpoint.disconnectConnector would
+            // reject this store outright; hiding the button here is
+            // honest about what actually exists rather than showing an
+            // action that always fails.
+            if (!c.isPaymentGateway &&
+                (c.status == 'connected' || c.status == 'error'))
               button(
                 attributes: {
                   'type': 'button',
@@ -683,6 +859,189 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
           children: [Component.text('Open settings')],
         ),
       ];
+
+  /// Per-connector labels for [_oauthBody]'s target-picking step. Only
+  /// two entries today (google_sheets, onedrive_excel) — an oauth
+  /// connector NOT in this map has no second step at all (Drive,
+  /// Calendar, Slack, HubSpot as each is built), and [_oauthBody]'s
+  /// else-branch already renders correctly for that case without
+  /// consulting this map.
+  static const _oauthTargetConfig = <String, ({
+    String sentinel,
+    String label,
+    String placeholder,
+    String connectLabel,
+  })>{
+    'google_sheets': (
+      sentinel: 'Signed in — choose a sheet',
+      label: 'Sheet URL',
+      placeholder: 'https://docs.google.com/spreadsheets/d/…',
+      connectLabel: 'Connect with Google',
+    ),
+    'onedrive_excel': (
+      sentinel: 'Signed in — choose a file',
+      label: 'Excel file link',
+      placeholder: 'https://onedrive.live.com/… or a SharePoint link',
+      connectLabel: 'Connect with Microsoft',
+    ),
+  };
+
+  /// Gate 4 — authType 'oauth'. Three states, not two:
+  ///   not connected             → "Connect with Google/Microsoft" button
+  ///   connected, no target yet  → paste-a-link field (displayDetail ==
+  ///                               the exact sentinel the matching
+  ///                               callback route writes — see
+  ///                               GoogleOAuthCallbackRoute/
+  ///                               MicrosoftOAuthCallbackRoute's own
+  ///                               comments on why no target is chosen
+  ///                               during the redirect itself)
+  ///   connected, target chosen  → current target + a field to change it
+  ///
+  /// [_oauthTargetConfig] is what makes this ONE method for both
+  /// providers rather than a second near-identical copy — everything
+  /// provider-specific is a label lookup, everything else (states,
+  /// submit-error rendering, disconnect) is shared.
+  List<Component> _oauthBody(ConnectorStatus c) {
+    final target = _oauthTargetConfig[c.key];
+
+    if (c.status != 'connected') {
+      return [
+        if (c.helpText.isNotEmpty) _note(c.helpText),
+        if (_submitError != null)
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.danger};'
+                  'line-height:1.5;margin-bottom:${KolaSpace.sm}',
+            },
+            [Component.text(_submitError!)],
+          ),
+        button(
+          attributes: {
+            'type': 'button',
+            if (_submitting) 'disabled': 'disabled',
+            'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                'border:none;background:${KolaVar.accentFill};'
+                'color:${KolaVar.accentText};font-family:inherit;'
+                'font-size:${KolaType.body};font-weight:600;'
+                'cursor:${_submitting ? 'default' : 'pointer'};'
+                'opacity:${_submitting ? '0.65' : '1'}',
+          },
+          events: {
+            'click': (_) {
+              if (!_submitting) _startOAuth(c);
+            },
+          },
+          [Component.text(_submitting ? 'Redirecting…' : (target?.connectLabel ?? 'Connect'))],
+        ),
+      ];
+    }
+
+    final needsTarget = target != null && c.displayDetail == target.sentinel;
+
+    return [
+      _note(needsTarget
+          ? 'Signed in. Paste the link to the ${target.label.toLowerCase()} '
+              '${c.name} should read — open it in your browser and copy '
+              'the address bar.'
+          : target != null
+              ? 'Connected. Paste a different link below to point '
+                  '${c.name} somewhere else.'
+              : 'Connected.'),
+      if (c.displayDetail != null && !needsTarget)
+        div(
+          attributes: {
+            'style': 'font-family:${KolaFonts.mono};'
+                'font-size:${KolaType.small};color:${KolaVar.mutedStrong};'
+                'margin-bottom:${KolaSpace.sm};word-break:break-all',
+          },
+          [Component.text(c.displayDetail!)],
+        ),
+      if (target != null)
+        label(
+          attributes: {'style': 'display:block;margin-bottom:10px'},
+          [
+            span(
+              attributes: {
+                'style': 'display:block;font-size:${KolaType.small};'
+                    'font-weight:600;color:${KolaVar.mutedStrong};'
+                    'margin-bottom:4px',
+              },
+              [Component.text(target.label)],
+            ),
+            input<String>(
+              type: InputType.text,
+              attributes: {
+                'placeholder': target.placeholder,
+                'autocomplete': 'off',
+                'style': 'width:100%;box-sizing:border-box;padding:9px 12px;'
+                    'border-radius:${KolaRadius.md};'
+                    'border:1px solid ${KolaVar.border};'
+                    'background:${KolaVar.bg};color:${KolaVar.text};'
+                    'font-size:${KolaType.body}',
+              },
+              value: _sheetUrl,
+              onInput: (v) => _sheetUrl = v,
+            ),
+          ],
+        ),
+      if (_submitError != null)
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.danger};'
+                'line-height:1.5;margin-top:10px',
+          },
+          [Component.text(_submitError!)],
+        ),
+      div(
+        attributes: {
+          'style': 'display:flex;gap:8px;margin-top:${KolaSpace.md}',
+        },
+        [
+          if (target != null)
+            button(
+              attributes: {
+                'type': 'button',
+                if (_submitting || _sheetUrl.trim().isEmpty) 'disabled': 'disabled',
+                'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                    'border:none;background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};font-family:inherit;'
+                    'font-size:${KolaType.body};font-weight:600;'
+                    'cursor:${_submitting ? 'default' : 'pointer'};'
+                    'opacity:${(_submitting || _sheetUrl.trim().isEmpty) ? '0.65' : '1'}',
+              },
+              events: {
+                'click': (_) {
+                  if (_submitting || _sheetUrl.trim().isEmpty) return;
+                  if (c.key == 'onedrive_excel') {
+                    _submitFileTarget(c);
+                  } else {
+                    _submitSheetTarget(c);
+                  }
+                },
+              },
+              [Component.text(_submitting ? 'Saving…' : 'Save')],
+            ),
+          button(
+            attributes: {
+              'type': 'button',
+              if (_submitting) 'disabled': 'disabled',
+              'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                  'border:1px solid ${KolaVar.border};'
+                  'background:transparent;color:${KolaVar.danger};'
+                  'font-family:inherit;font-size:${KolaType.body};'
+                  'font-weight:600;cursor:pointer',
+            },
+            events: {
+              'click': (_) {
+                if (!_submitting) _disconnect(c);
+              },
+            },
+            [Component.text('Disconnect')],
+          ),
+        ],
+      ),
+    ];
+  }
 
   List<Component> _notYet(String explanation) => [
         _note(explanation),

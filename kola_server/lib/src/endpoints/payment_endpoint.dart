@@ -27,7 +27,6 @@
 // rather than adding a bespoke "ping" method to either.
 
 import 'package:serverpod/serverpod.dart';
-import 'package:http/http.dart' as http;
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/auth/workspace_access.dart';
@@ -38,6 +37,9 @@ import 'package:kola_server/src/services/billing/paystack_service.dart';
 import 'package:kola_server/src/services/billing/flutterwave_service.dart';
 import 'package:kola_server/src/services/billing/stripe_service.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
+import 'package:kola_server/src/services/features/feature_flag_service.dart';
+import 'package:kola_server/src/services/features/feature_keys.dart';
+import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/kola_logger.dart';
 
 class PaymentEndpoint extends Endpoint {
@@ -46,6 +48,8 @@ class PaymentEndpoint extends Endpoint {
   PaymentTransactionRepository get _transactions =>
       getIt<PaymentTransactionRepository>();
   PaymentCheckoutService get _checkout => getIt<PaymentCheckoutService>();
+  FeatureFlagService get _features => getIt<FeatureFlagService>();
+  WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
 
   /// Connects (or rotates) a workspace's OWN Paystack/Flutterwave secret
   /// key. Probes it against the real gateway before persisting anything.
@@ -59,6 +63,21 @@ class PaymentEndpoint extends Endpoint {
   }) async {
     await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
 
+    // Closes the gap DESIGN_DELTA.md recorded: this endpoint used to
+    // check workspace access and nothing else, so payments.collect
+    // being locked did not actually stop a gateway being connected —
+    // matching the gate ConnectorEndpoint.connectConnector already
+    // applies for every generic-store connector.
+    final workspace = await _workspaces.findById(workspaceId);
+    if (workspace == null) {
+      throw KolaException(message: 'Workspace $workspaceId not found.');
+    }
+    if (!await _features.isEnabled(FeatureKeys.payments, workspace)) {
+      throw KolaException(
+        message:         'Payment collection is not available on this workspace yet.',
+      );
+    }
+
     if (!validPaymentGateways.contains(gateway)) {
       throw ArgumentError('gateway must be one of: ${validPaymentGateways.join(", ")}');
     }
@@ -70,14 +89,14 @@ class PaymentEndpoint extends Endpoint {
     // ── Probe against the real gateway before touching the DB ───────────
     try {
       if (gateway == 'paystack') {
-        await PaystackService(secretKey: trimmedKey)._probeListBanks();
+        await PaystackService(secretKey: trimmedKey).probe();
       } else if (gateway == 'stripe') {
         // Retrieving the account is Stripe's cheapest authenticated
         // read — it creates nothing, so probing costs the business
         // nothing and cannot leave a stray object behind.
         await StripeService(secretKey: trimmedKey).retrieveAccount();
       } else {
-        await FlutterwaveService(secretKey: trimmedKey)._probeListBanks();
+        await FlutterwaveService(secretKey: trimmedKey).probe();
       }
     } catch (e) {
       throw InvalidPaymentGatewayCredentialException(
@@ -197,31 +216,7 @@ class PaymentEndpoint extends Endpoint {
   }
 }
 
-/// Cheap, side-effect-free authenticated probes — one per gateway,
-/// reusing each service's own auth header rather than adding a bespoke
-/// "ping" method inside paystack_service.dart/flutterwave_service.dart
-/// themselves (both files are otherwise deliberately scoped to exactly
-/// what Phase 5c documented — see each file's header).
-extension _PaystackProbe on PaystackService {
-  Future<void> _probeListBanks() async {
-    final response = await http.get(
-      Uri.parse('https://api.paystack.co/bank?currency=NGN'),
-      headers: {'Authorization': 'Bearer $secretKey'},
-    );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw KolaException(message: 'Paystack probe failed (${response.statusCode}): ${response.body}');
-    }
-  }
-}
-
-extension _FlutterwaveProbe on FlutterwaveService {
-  Future<void> _probeListBanks() async {
-    final response = await http.get(
-      Uri.parse('https://api.flutterwave.com/v3/banks/NG'),
-      headers: {'Authorization': 'Bearer $secretKey'},
-    );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw KolaException(message: 'Flutterwave probe failed (${response.statusCode}): ${response.body}');
-    }
-  }
-}
+// Both PaystackService.probe() and FlutterwaveService.probe() are now
+// real public methods on their own services (Gate 4), reused here and
+// by each provider's own ConnectorAdapter.health() — no private
+// extensions left to duplicate them.

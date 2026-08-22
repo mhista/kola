@@ -50,6 +50,45 @@ class PaymentGatewayCredentialRepository {
         .toList();
   }
 
+  /// Gate 4 — every workspace's credential for one [gateway], across the
+  /// whole platform. ConnectorSyncSweepService's only query: it needs
+  /// "everyone connected to Paystack," not one workspace at a time, same
+  /// precedent as ChannelRepository.listConnected() feeding
+  /// ChannelHealthCheckService's own sweep.
+  Future<List<PaymentGatewayCredential>> listAllByGateway(String gateway) async {
+    _log.fine('listAllByGateway($gateway)');
+    final response = await supabase
+        .from('payment_gateway_credentials')
+        .select()
+        .eq('gateway', gateway);
+
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Gate 4 — persists what a sync run learned: the next watermark to
+  /// resume from, and that an attempt happened at all (even if
+  /// [cursor] is unchanged, e.g. a run that found nothing new).
+  /// Never touches encrypted_secret_key/encrypted_webhook_secret — a
+  /// sync run has no reason to know about either.
+  Future<void> updateSyncState({
+    required int workspaceId,
+    required String gateway,
+    required String? cursor,
+    required DateTime syncedAt,
+  }) async {
+    _log.fine('updateSyncState($workspaceId, $gateway)');
+    await supabase
+        .from('payment_gateway_credentials')
+        .update({
+          'sync_cursor': cursor,
+          'last_synced_at': syncedAt.toUtc().toIso8601String(),
+        })
+        .eq('workspace_id', workspaceId)
+        .eq('gateway', gateway);
+  }
+
   /// Create-or-replace, keyed by the (workspaceId, gateway) unique index —
   /// the right call for both "connect this gateway for the first time" and
   /// "rotate a leaked/rotated secret key," since a caller should never need

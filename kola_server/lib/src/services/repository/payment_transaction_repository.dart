@@ -127,6 +127,72 @@ class PaymentTransactionRepository {
     return _dto.fromRow(response);
   }
 
+  /// Gate 4 — writes a transaction PaystackAdapter pulled from Paystack's
+  /// own transaction history, not one Kola initiated via
+  /// PaymentEndpoint.initializeCheckout. MUST be idempotent on [reference]
+  /// (PART VIII's "ingest the same payload twice, assert one entity, not
+  /// two"), because the sync engine will legitimately re-see the same
+  /// transaction across runs whenever [PaystackAdapter.sync]'s cursor
+  /// overlaps — Supabase upsert on the reference unique index is what
+  /// makes a second sighting a no-op write rather than a duplicate row or
+  /// a thrown unique-constraint error.
+  ///
+  /// Deliberately narrow: only the fields a bare Paystack transaction
+  /// record actually carries. conversationId/channelId/holdStatus/
+  /// metadataJson stay whatever a webhook-confirmed row already had (or
+  /// null, for a transaction Kola never initiated at all) — a sync run
+  /// has no opinion about them and must never null out something the
+  /// checkout flow set.
+  Future<PaymentTransaction> upsertFromSync({
+    required int workspaceId,
+    required String gateway,
+    required String reference,
+    required int amountKobo,
+    required String currency,
+    required String customerEmail,
+    String? customerPhone,
+    required String status,
+    String? gatewayTransactionId,
+    DateTime? paidAt,
+  }) async {
+    _log.info('upsertFromSync workspaceId=$workspaceId reference=$reference');
+    final now = DateTime.now().toUtc();
+
+    final existing = await findByReference(reference);
+    final row = <String, dynamic>{
+      'workspace_id': workspaceId,
+      'gateway': gateway,
+      'reference': reference,
+      'amount_kobo': amountKobo,
+      'currency': currency,
+      'customer_email': customerEmail,
+      'customer_phone': customerPhone,
+      'status': status,
+      'gateway_transaction_id': gatewayTransactionId,
+      'paid_at': paidAt?.toIso8601String(),
+      'updated_at': now.toIso8601String(),
+    };
+    // Only a genuinely new row needs the columns that have real defaults
+    // elsewhere (create()'s own required-with-default fields) — an
+    // upsert touching an existing row must never reset holdStatus,
+    // confirmationMethod, reminderCount etc. back to their defaults.
+    if (existing == null) {
+      row.addAll({
+        'hold_status': 'notHeld',
+        'confirmation_method': 'gateway_verified',
+        'reminder_count': 0,
+        'created_at': now.toIso8601String(),
+      });
+    }
+
+    final response = await supabase
+        .from('payment_transactions')
+        .upsert(row, onConflict: 'reference')
+        .select()
+        .single();
+    return _dto.fromRow(response);
+  }
+
   /// Gate 3b — every payment on a customer's unified timeline.
   Future<List<PaymentTransaction>> listByCustomer(int customerId) async {
     _log.fine('listByCustomer($customerId)');

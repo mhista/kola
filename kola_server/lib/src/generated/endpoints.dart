@@ -594,6 +594,142 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['values'],
                   ),
         ),
+        'startGoogleOAuth': _i1.MethodConnector(
+          name: 'startGoogleOAuth',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .startGoogleOAuth(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                  ),
+        ),
+        'setGoogleSheetTarget': _i1.MethodConnector(
+          name: 'setGoogleSheetTarget',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'sheetUrl': _i1.ParameterDescription(
+              name: 'sheetUrl',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .setGoogleSheetTarget(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                    params['sheetUrl'],
+                  ),
+        ),
+        'startMicrosoftOAuth': _i1.MethodConnector(
+          name: 'startMicrosoftOAuth',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .startMicrosoftOAuth(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                  ),
+        ),
+        'setExcelFileTarget': _i1.MethodConnector(
+          name: 'setExcelFileTarget',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'fileUrl': _i1.ParameterDescription(
+              name: 'fileUrl',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .setExcelFileTarget(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                    params['fileUrl'],
+                  ),
+        ),
         'disconnectConnector': _i1.MethodConnector(
           name: 'disconnectConnector',
           params: {

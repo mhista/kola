@@ -82,7 +82,7 @@ class CustomerIdentityResolver {
   /// null if resolution itself failed (never throws — see header).
   ///
   /// [source] / [firstSeenSource]: 'whatsapp' | 'telegram' | 'paystack'
-  /// | 'flutterwave' | 'till' | 'manual'.
+  /// | 'flutterwave' | 'bumpa' | 'till' | 'manual'.
   Future<int?> resolve({
     required int workspaceId,
     required IdentitySignal primary,

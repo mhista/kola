@@ -57,6 +57,9 @@ import 'package:kola_server/src/services/notifications/kola_notifier_bot.dart';
 import 'package:kola_server/src/services/billing/trial_sweep_service.dart';
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
 import 'package:kola_server/src/services/support/customer_campaign_sweep_service.dart';
+import 'package:kola_server/src/services/connectors/connector_sync_sweep_service.dart';
+import 'package:kola_server/src/services/connectors/google/google_oauth_callback_route.dart';
+import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_callback_route.dart';
 import 'package:kola_server/src/services/memory/embedding_orchestrator.dart';
 import 'package:kola_server/kola_logger.dart';
 import 'package:logging/logging.dart' as logging;
@@ -255,6 +258,15 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     pod.webServer.addRoute(KolaBillingPaystackWebhookRoute(), '/webhooks/kola-billing/paystack');
     pod.webServer.addRoute(KolaBillingFlutterwaveWebhookRoute(), '/webhooks/kola-billing/flutterwave');
 
+    // Gate 4 — one shared Google OAuth callback, for every workspace and
+    // every Google-backed connector (Sheets today, Drive/Calendar later)
+    // — see google_oauth_callback_route.dart's header. The path here
+    // MUST exactly match GOOGLE_OAUTH_REDIRECT_URI's path (both in .env
+    // and in the Authorized redirect URI registered on the OAuth client
+    // in Google Cloud Console) or Google rejects the callback outright.
+    pod.webServer.addRoute(GoogleOAuthCallbackRoute(), '/oauth/google/callback');
+    pod.webServer.addRoute(MicrosoftOAuthCallbackRoute(), '/oauth/microsoft/callback');
+
     Log.startupSuccess('Starting Serverpod Mini server...');
     await pod.start();
     Log.startupSuccess('Kola server running on port $webPort');
@@ -362,6 +374,29 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
         if (greeted > 0) Log.info('Customer campaign sweep: $greeted greeting(s) sent');
       } catch (e) {
         Log.error('Customer campaign sweep failed', error: e);
+      }
+    });
+
+    // 8. Gate 4 — the connector contract's pull-based sync engine.
+    //    Paystack and Flutterwave are the first two implementations; see
+    //    connector_sync_sweep_service.dart's header for why this adds a
+    //    call per adapter rather than a service per adapter, and why it
+    //    is a plain Timer like every other sweep above. Every 30 minutes
+    //    — frequent enough that a business watching "did that payment
+    //    land" isn't waiting an hour, infrequent enough not to hammer
+    //    either provider's API for workspaces with nothing new. Runs
+    //    once immediately so a credential connected while the server
+    //    was stopped gets its first backfill right away.
+    final connectorSyncSweep = getIt<ConnectorSyncSweepService>();
+    Log.startupInfo('Running initial connector sync sweep...');
+    final syncedNow = await connectorSyncSweep.sweepOnce();
+    Log.startupSuccess('Connector sync sweep complete — $syncedNow credential(s) synced');
+    Timer.periodic(const Duration(minutes: 30), (_) async {
+      try {
+        final synced = await connectorSyncSweep.sweepOnce();
+        if (synced > 0) Log.info('Connector sync sweep: $synced credential(s) synced');
+      } catch (e) {
+        Log.error('Connector sync sweep failed', error: e);
       }
     });
   } catch (e, stackTrace) {

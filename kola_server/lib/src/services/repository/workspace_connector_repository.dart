@@ -56,6 +56,52 @@ class WorkspaceConnectorRepository {
     return _dto.fromRow(response);
   }
 
+  /// Gate 4 — every workspace's row for one [connectorKey], across the
+  /// whole platform. ConnectorSyncSweepService's query for the generic
+  /// store, same precedent as PaymentGatewayCredentialRepository
+  /// .listAllByGateway for the paymentGateway store.
+  Future<List<WorkspaceConnector>> listAllByKey(String connectorKey) async {
+    _log.fine('listAllByKey($connectorKey)');
+    final response = await supabase
+        .from('workspace_connectors')
+        .select()
+        .eq('connector_key', connectorKey)
+        .eq('status', 'connected');
+
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Gate 4 — persists a sync run's watermark plus the observability
+  /// counters migration 036 added and nothing wrote until now. Separate
+  /// from [upsert] for the same reason PaymentGatewayCredentialRepository
+  /// .updateSyncState is separate from its own upsert: a sync run has no
+  /// business rewriting encrypted_config or any other connect-time field
+  /// it didn't read.
+  Future<void> recordSyncRun({
+    required int workspaceId,
+    required String connectorKey,
+    required String? cursor,
+    required DateTime syncedAt,
+    required int recordsSeen,
+    required int recordsChanged,
+    required int errorCount,
+  }) async {
+    _log.fine('recordSyncRun($workspaceId, $connectorKey)');
+    await supabase
+        .from('workspace_connectors')
+        .update({
+          'sync_cursor': cursor,
+          'last_synced_at': syncedAt.toUtc().toIso8601String(),
+          'last_sync_records_seen': recordsSeen,
+          'last_sync_records_changed': recordsChanged,
+          'last_sync_error_count': errorCount,
+        })
+        .eq('workspace_id', workspaceId)
+        .eq('connector_key', connectorKey);
+  }
+
   /// Connects or rotates. Upserts on (workspace_id, connector_key) —
   /// the unique index from migration 025 — because connecting a
   /// connector twice is a ROTATION, not a second connection. Without

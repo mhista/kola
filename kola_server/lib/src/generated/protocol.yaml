@@ -13,6 +13,10 @@ channel:
 connector:
   - listConnectors:
   - connectConnector:
+  - startGoogleOAuth:
+  - setGoogleSheetTarget:
+  - startMicrosoftOAuth:
+  - setExcelFileTarget:
   - disconnectConnector:
 conversation:
   - listEscalated:

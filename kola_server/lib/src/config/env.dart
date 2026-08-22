@@ -290,4 +290,84 @@ abstract class Env {
       _Env.flutterwaveWebhookSecretHash.isNotEmpty
       ? _Env.flutterwaveWebhookSecretHash
       : Platform.environment['FLUTTERWAVE_WEBHOOK_SECRET_HASH'] ?? '';
+
+  // ── Google OAuth (Gate 4 — Sheets/Drive/Calendar) ───────────────────────────
+  // One shared client for every Google-backed connector — see
+  // docs/DESIGN_DELTA.md's "Google OAuth: one provider, one consent flow,
+  // one refresh path, three scopes." google_oauth_service.dart is the only
+  // thing that reads these. Not required for the server to start — every
+  // Google-backed connector is simply unavailable until they're set.
+  @EnviedField(varName: 'GOOGLE_OAUTH_CLIENT_ID', obfuscate: true, defaultValue: '')
+  static final String googleOAuthClientId = _Env.googleOAuthClientId.isNotEmpty
+      ? _Env.googleOAuthClientId
+      : Platform.environment['GOOGLE_OAUTH_CLIENT_ID'] ?? '';
+
+  @EnviedField(varName: 'GOOGLE_OAUTH_CLIENT_SECRET', obfuscate: true, defaultValue: '')
+  static final String googleOAuthClientSecret =
+      _Env.googleOAuthClientSecret.isNotEmpty
+      ? _Env.googleOAuthClientSecret
+      : Platform.environment['GOOGLE_OAUTH_CLIENT_SECRET'] ?? '';
+
+  // Must exactly match an Authorized redirect URI registered on the OAuth
+  // client in Google Cloud Console, or the callback is rejected outright.
+  @EnviedField(varName: 'GOOGLE_OAUTH_REDIRECT_URI', defaultValue: '')
+  static final String googleOAuthRedirectUri =
+      _Env.googleOAuthRedirectUri.isNotEmpty
+      ? _Env.googleOAuthRedirectUri
+      : Platform.environment['GOOGLE_OAUTH_REDIRECT_URI'] ?? '';
+
+  // Where GoogleOAuthCallbackRoute sends the browser back to once the
+  // token exchange finishes — the DASHBOARD's own public origin, not
+  // this API server's. Confirmed from kola_dashboard/deploy.sh, which
+  // deploys to dash.kolaa.co (Cloudflare Pages) in production. Getting
+  // this wrong means the OAuth flow "succeeds" server-side and then
+  // redirects the owner's browser nowhere useful — worth its own env
+  // var rather than reusing WEBHOOK_BASE_URL/API_BASE_URL, both of
+  // which point at THIS server, not the dashboard.
+  @EnviedField(varName: 'DASHBOARD_BASE_URL', defaultValue: 'https://dash.kolaa.co')
+  static final String dashboardBaseUrl = _Env.dashboardBaseUrl.isNotEmpty
+      ? _Env.dashboardBaseUrl
+      : Platform.environment['DASHBOARD_BASE_URL'] ?? 'https://dash.kolaa.co';
+
+  // ── Microsoft OAuth (Gate 4 — OneDrive/SharePoint Excel) ────────────────────
+  // Second OAuth provider, same one-client-many-connectors shape as the
+  // Google block above — microsoft_oauth_service.dart is the only thing
+  // that reads these. Registered as an "App registration" in the Azure
+  // portal (Entra ID), not Google Cloud Console. Not required for the
+  // server to start — the OneDrive/SharePoint Excel connector is simply
+  // unavailable until they're set.
+  @EnviedField(varName: 'MICROSOFT_OAUTH_CLIENT_ID', obfuscate: true, defaultValue: '')
+  static final String microsoftOAuthClientId =
+      _Env.microsoftOAuthClientId.isNotEmpty
+      ? _Env.microsoftOAuthClientId
+      : Platform.environment['MICROSOFT_OAUTH_CLIENT_ID'] ?? '';
+
+  @EnviedField(varName: 'MICROSOFT_OAUTH_CLIENT_SECRET', obfuscate: true, defaultValue: '')
+  static final String microsoftOAuthClientSecret =
+      _Env.microsoftOAuthClientSecret.isNotEmpty
+      ? _Env.microsoftOAuthClientSecret
+      : Platform.environment['MICROSOFT_OAUTH_CLIENT_SECRET'] ?? '';
+
+  // Must exactly match a Redirect URI registered on the app registration
+  // in the Azure portal, under Authentication → Web, or the callback is
+  // rejected outright — same failure mode as Google's own redirect URI
+  // mismatch.
+  @EnviedField(varName: 'MICROSOFT_OAUTH_REDIRECT_URI', defaultValue: '')
+  static final String microsoftOAuthRedirectUri =
+      _Env.microsoftOAuthRedirectUri.isNotEmpty
+      ? _Env.microsoftOAuthRedirectUri
+      : Platform.environment['MICROSOFT_OAUTH_REDIRECT_URI'] ?? '';
+
+  // 'organizations' by default — see microsoft_oauth_service.dart's header
+  // on why a personal Microsoft account cannot use this connector at all
+  // (the Excel workbook API does not support it), and why restricting the
+  // sign-in screen itself to work/school accounts is a clearer failure
+  // than letting the whole OAuth dance complete and only THEN discovering
+  // Graph rejects every sync. Override to a specific tenant GUID for a
+  // future single-tenant deployment; 'common' is deliberately not offered
+  // as the default for the reason above.
+  @EnviedField(varName: 'MICROSOFT_OAUTH_TENANT', defaultValue: 'organizations')
+  static final String microsoftOAuthTenant = _Env.microsoftOAuthTenant.isNotEmpty
+      ? _Env.microsoftOAuthTenant
+      : Platform.environment['MICROSOFT_OAUTH_TENANT'] ?? 'organizations';
 }

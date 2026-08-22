@@ -337,7 +337,7 @@ class EndpointConnector extends _i1.EndpointRef {
   String get name => 'connector';
 
   /// Every connector in the catalog with this workspace's state resolved
-  /// onto it — all 15, always. A connector the workspace cannot use yet
+  /// onto it — all 16, always. A connector the workspace cannot use yet
   /// comes back as `soon` rather than being omitted, because the
   /// marketplace draws it either way.
   ///
@@ -379,6 +379,91 @@ class EndpointConnector extends _i1.EndpointRef {
       'workspaceId': workspaceId,
       'connectorKey': connectorKey,
       'values': values,
+    },
+  );
+
+  /// Gate 4 — the URL to redirect the owner's browser to, for a
+  /// connector whose auth type is 'oauth'. The dashboard opens this
+  /// directly (a real browser redirect, not an API call the client can
+  /// inspect); GoogleOAuthCallbackRoute is where the flow lands back.
+  _i2.Future<String> startGoogleOAuth(
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+  ) => caller.callServerEndpoint<String>(
+    'connector',
+    'startGoogleOAuth',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+    },
+  );
+
+  /// Gate 4 — sets which spreadsheet a CONNECTED Google Sheets integration
+  /// actually reads. Separate from the OAuth connect step because OAuth
+  /// authorizes an ACCOUNT, not a specific file — Google has no "pick one
+  /// sheet" step in the redirect flow itself (that needs the heavier
+  /// Picker API, deliberately not built for this pass), so the owner
+  /// pastes the sheet's URL after connecting instead.
+  _i2.Future<_i5.ConnectorStatus> setGoogleSheetTarget(
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+    String sheetUrl,
+  ) => caller.callServerEndpoint<_i5.ConnectorStatus>(
+    'connector',
+    'setGoogleSheetTarget',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+      'sheetUrl': sheetUrl,
+    },
+  );
+
+  /// Gate 4 — the Microsoft-provider twin of [startGoogleOAuth]. Same
+  /// state-signing contract, one real difference: [scopes] is embedded
+  /// in the encrypted state too, because
+  /// MicrosoftOAuthCallbackRoute.handleCall needs to restate the exact
+  /// same scope string on the token exchange (Microsoft's token endpoint
+  /// requires it; Google's does not — see microsoft_oauth_service.dart's
+  /// header).
+  _i2.Future<String> startMicrosoftOAuth(
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+  ) => caller.callServerEndpoint<String>(
+    'connector',
+    'startMicrosoftOAuth',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+    },
+  );
+
+  /// Gate 4 — the OneDrive/SharePoint twin of [setGoogleSheetTarget].
+  /// UNLIKE that method, this one makes a real Graph call: a sharing URL
+  /// carries no stable id the way a Google Sheets URL does, so the
+  /// pasted link has to be resolved into a (driveId, itemId) pair via
+  /// MicrosoftGraphExcelService.resolveShareUrl BEFORE anything is
+  /// stored — see that method's header. Doing this here rather than at
+  /// sync time means a bad link fails LOUD, in front of the owner who
+  /// just pasted it, not silently on the next unattended sweep run.
+  _i2.Future<_i5.ConnectorStatus> setExcelFileTarget(
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+    String fileUrl,
+  ) => caller.callServerEndpoint<_i5.ConnectorStatus>(
+    'connector',
+    'setExcelFileTarget',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+      'fileUrl': fileUrl,
     },
   );
 

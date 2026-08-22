@@ -44,6 +44,17 @@ fields:
   # header for how this field changes what the page draws.
   isChannel: bool
 
+  # Gate 4. True for exactly the connectors catalogued with
+  # `store: ConnectorStore.paymentGateway` (today: Paystack, Flutterwave,
+  # Stripe) — same reasoning as [isChannel]. These use authType 'fields'
+  # like a generic connector, but MUST NOT be submitted through
+  # ConnectorEndpoint.connectConnector (it explicitly rejects any store
+  # but generic — see that endpoint's header on why: probe-before-persist
+  # and encryption handling live in PaymentEndpoint instead). This field
+  # is what tells integrations_page.dart's submit handler which endpoint
+  # a given card's form actually belongs to.
+  isPaymentGateway: bool
+
   description: String
 
   # THE DESIGN'S FOUR STATES, resolved server-side:
@@ -67,8 +78,10 @@ fields:
   authType: String
 
   # For authType 'manage' — the in-app route where this is really
-  # configured, e.g. '/billing' for Paystack. The card links there
-  # instead of duplicating the form.
+  # configured, e.g. '/billing' for Slack notification settings. The
+  # card links there instead of duplicating the form. Paystack and
+  # Flutterwave used to point here before Gate 4 gave them a real
+  # 'fields' connect flow of their own — see [isPaymentGateway].
   manageRoute: String?
 
   # Where to find the credentials, in the provider's own terms. Shown

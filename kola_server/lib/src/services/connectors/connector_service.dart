@@ -210,6 +210,8 @@ class ConnectorService {
       // connector_status.spy.yaml's header on why this is now on the
       // wire instead of only living in the catalog's own ConnectorStore.
       isChannel: def.store == ConnectorStore.channel,
+      // Gate 4 — see connector_status.spy.yaml's own field comment.
+      isPaymentGateway: def.store == ConnectorStore.paymentGateway,
       description: def.description,
       status: ConnectorStatusValue.soon,
       authType: _authName(def.auth),

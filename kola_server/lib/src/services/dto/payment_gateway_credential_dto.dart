@@ -28,6 +28,11 @@ class PaymentGatewayCredentialDto extends BaseDto<PaymentGatewayCredential> {
       encryptedWebhookSecret: row['encrypted_webhook_secret'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
+      // Gate 4 (migration 040).
+      syncCursor: row['sync_cursor'] as String?,
+      lastSyncedAt: row['last_synced_at'] != null
+          ? DateTime.parse(row['last_synced_at'] as String)
+          : null,
     );
   }
 
