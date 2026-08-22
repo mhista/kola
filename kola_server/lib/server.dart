@@ -389,8 +389,30 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     //    was stopped gets its first backfill right away.
     final connectorSyncSweep = getIt<ConnectorSyncSweepService>();
     Log.startupInfo('Running initial connector sync sweep...');
-    final syncedNow = await connectorSyncSweep.sweepOnce();
-    Log.startupSuccess('Connector sync sweep complete — $syncedNow credential(s) synced');
+    // THIS CALL MUST NEVER BE ALLOWED TO THROW PAST THIS POINT (bug found
+    // 2026-08-22). It used to run bare — no try/catch — with
+    // Timer.periodic registered only AFTER it returned. One bad
+    // credential at boot (a revoked Google refresh token, a network
+    // blip while decrypting a config, anything) threw here, skipped the
+    // Timer.periodic registration entirely, and got swallowed by this
+    // function's own outer startup catch as a scary-looking but
+    // non-fatal "Fatal error starting Kola server" log line — after
+    // which EVERY pull-based connector (Paystack, Flutterwave, Google
+    // Sheets, OneDrive Excel, Bumpa) silently stopped syncing for the
+    // rest of that process's life, with no further error ever logged,
+    // because the timer that would have retried never existed. Diagnosed
+    // from a real production case: a Google Sheets connector sat at
+    // last_synced_at = null for 8+ hours with zero rows ever written to
+    // connector_sync_log, and zero ConnectorSyncSweepService log lines
+    // anywhere in that window. Wrapping this exactly like the periodic
+    // call below closes that gap — a bad sweep now costs one skipped run,
+    // not the feature's ability to ever run again.
+    try {
+      final syncedNow = await connectorSyncSweep.sweepOnce();
+      Log.startupSuccess('Connector sync sweep complete — $syncedNow credential(s) synced');
+    } catch (e) {
+      Log.error('Initial connector sync sweep failed — will retry on the next 30-minute interval', error: e);
+    }
     Timer.periodic(const Duration(minutes: 30), (_) async {
       try {
         final synced = await connectorSyncSweep.sweepOnce();
