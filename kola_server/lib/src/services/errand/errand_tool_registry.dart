@@ -306,7 +306,20 @@ class ErrandToolRegistry {
   /// [activeErrands].
   static Errand? findErrandForToolName(String toolName, List<Errand> activeErrands) {
     if (toolName == kEscalateToHumanToolName) return null;
-    final match = RegExp(r'^errand_(\d+)$').firstMatch(toolName);
+    // BUG FIXED HERE (2026-08-22): this regex was `^errand_(\d+)$` — \d+
+    // cannot match a leading minus sign, so it could never parse the
+    // NEGATIVE synthetic IDs connector_capability_registry.dart
+    // deliberately uses (SyntheticErrandIds.bookCalendarEvent = -2,
+    // .collectPayment = -1) to avoid colliding with real, positive
+    // Errand row IDs. The model was offered 'errand_-2', correctly
+    // chose to call it, and this method then silently returned null for
+    // a tool name that plainly existed — the caller had no way to tell
+    // "unknown tool" apart from "known tool, broken lookup," so it fell
+    // all the way through to the generic "could not put an answer
+    // together" fallback with no error anywhere. Every connector-native
+    // capability (calendar booking, payment collection) was affected,
+    // not just this one case — `-?` is the entire fix.
+    final match = RegExp(r'^errand_(-?\d+)$').firstMatch(toolName);
     if (match == null) return null;
     final id = int.tryParse(match.group(1)!);
     if (id == null) return null;
