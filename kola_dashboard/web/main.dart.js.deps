@@ -567,6 +567,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/workspace.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/workspace_answer.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/workspace_answer_action.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/workspace_answer_turn.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/workspace_connector.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/workspace_feature_override.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/workspace_finding.dart
