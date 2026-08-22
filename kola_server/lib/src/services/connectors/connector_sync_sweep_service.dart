@@ -40,6 +40,7 @@ import 'package:kola_server/src/services/connectors/paystack_adapter.dart';
 import 'package:kola_server/src/services/connectors/flutterwave_adapter.dart';
 import 'package:kola_server/src/services/connectors/google/google_oauth_service.dart';
 import 'package:kola_server/src/services/connectors/google/google_sheets_adapter.dart';
+import 'package:kola_server/src/services/connectors/google/google_sheets_config.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_service.dart';
 import 'package:kola_server/src/services/connectors/microsoft/onedrive_excel_adapter.dart';
 import 'package:kola_server/src/services/connectors/bumpa/bumpa_service.dart';
@@ -113,38 +114,75 @@ class ConnectorSyncSweepService {
           ChannelCredentialEncryptionService.decrypt(connector.encryptedConfig!),
         ) as Map<String, dynamic>;
         final refreshToken = config['refreshToken'] as String?;
-        final spreadsheetId = config['spreadsheetId'] as String?;
-        if (refreshToken == null || spreadsheetId == null) {
+        // Connect Gate, subphase 4d — a workspace can have MORE THAN ONE
+        // sheet connected now; GoogleSheetsConfig reads the new plural
+        // key and falls back to the old singular one transparently, so
+        // a workspace that never touched the picker keeps syncing
+        // exactly as before. See that file's header.
+        final spreadsheetIds = GoogleSheetsConfig.spreadsheetIdsFrom(config);
+        if (refreshToken == null || spreadsheetIds.isEmpty) {
           // Connected via OAuth but no sheet chosen yet — see
-          // ConnectorEndpoint.setGoogleSheetTarget. Not an error; just
+          // ConnectorEndpoint.setGoogleSheetTargets. Not an error; just
           // nothing to sync until the owner picks one.
           continue;
         }
 
-        final adapter = GoogleSheetsAdapter(
-          workspaceId: workspaceId,
-          refreshToken: refreshToken,
-          spreadsheetId: spreadsheetId,
-          oauth: oauth,
-        );
+        // One SyncResult per sheet, summed into a single sync-run record
+        // for this connector row — the dashboard's connector card shows
+        // one row per CONNECTOR, not one per sheet, so its totals need
+        // to already be the sum, not the last sheet's numbers.
+        var recordsSeen = 0;
+        var recordsChanged = 0;
+        final errors = <String>[];
+        String? lastCursor;
+        var anySucceeded = false;
 
-        final result = await ConnectorRetry.run<SyncResult>(
-          () => adapter.sync(),
-          deadLetter: _syncLog,
-          workspaceId: workspaceId,
-          connectorKey: 'google_sheets',
-          store: 'generic',
-          kind: 'sync',
-        );
+        for (final spreadsheetId in spreadsheetIds) {
+          try {
+            final adapter = GoogleSheetsAdapter(
+              workspaceId: workspaceId,
+              refreshToken: refreshToken,
+              spreadsheetId: spreadsheetId,
+              oauth: oauth,
+            );
+
+            final result = await ConnectorRetry.run<SyncResult>(
+              () => adapter.sync(),
+              deadLetter: _syncLog,
+              workspaceId: workspaceId,
+              connectorKey: 'google_sheets',
+              store: 'generic',
+              kind: 'sync',
+            );
+
+            recordsSeen += result.recordsSeen;
+            recordsChanged += result.recordsChanged;
+            if (result.errors.isNotEmpty) {
+              errors.addAll(result.errors.map((e) => '[$spreadsheetId] $e'));
+            }
+            if (!result.nextCursor.isEmpty) {
+              lastCursor = result.nextCursor.value as String?;
+            }
+            anySucceeded = true;
+          } catch (e) {
+            // One bad sheet (deleted, made private, malformed) must not
+            // stop the rest of this workspace's sheets from syncing —
+            // same "isolate failures" posture ConnectorRetry already
+            // applies across WORKSPACES, extended here across SHEETS
+            // within one workspace.
+            errors.add('[$spreadsheetId] $e');
+            Log.warning('ConnectorSyncSweepService: Google Sheets $spreadsheetId failed for workspace $workspaceId: $e');
+          }
+        }
 
         await _genericConnectors.recordSyncRun(
           workspaceId: workspaceId,
           connectorKey: 'google_sheets',
-          cursor: result.nextCursor.isEmpty ? connector.syncCursor : result.nextCursor.value as String?,
+          cursor: lastCursor ?? connector.syncCursor,
           syncedAt: DateTime.now(),
-          recordsSeen: result.recordsSeen,
-          recordsChanged: result.recordsChanged,
-          errorCount: result.errors.length,
+          recordsSeen: recordsSeen,
+          recordsChanged: recordsChanged,
+          errorCount: errors.length,
         );
 
         await _syncLog.record(
@@ -152,19 +190,19 @@ class ConnectorSyncSweepService {
           connectorKey: 'google_sheets',
           store: 'generic',
           kind: 'sync',
-          success: !result.hadErrors,
-          recordsSeen: result.recordsSeen,
-          recordsChanged: result.recordsChanged,
-          errorMessage: result.hadErrors ? result.errors.join('; ') : null,
+          success: errors.isEmpty,
+          recordsSeen: recordsSeen,
+          recordsChanged: recordsChanged,
+          errorMessage: errors.isEmpty ? null : errors.join('; '),
         );
 
-        if (result.recordsChanged > 0) {
+        if (recordsChanged > 0) {
           Log.info(
-            'ConnectorSyncSweepService: workspace $workspaceId Google Sheets — '
-            '${result.recordsSeen} seen, ${result.recordsChanged} changed',
+            'ConnectorSyncSweepService: workspace $workspaceId Google Sheets '
+            '(${spreadsheetIds.length} sheet(s)) — $recordsSeen seen, $recordsChanged changed',
           );
         }
-        succeeded++;
+        if (anySucceeded) succeeded++;
       } catch (e) {
         Log.error('ConnectorSyncSweepService: Google Sheets sync failed for workspace $workspaceId', error: e);
       }

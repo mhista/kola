@@ -38,13 +38,17 @@ class PlanLimits {
   /// bearing for real pricing decisions.
   static const int cappedFreeKnowledgeSeedCharCap = 2000;
 
-  /// Max Bots a cappedFree/paused workspace may have in total.
-  /// CONFIRMED WITH THE USER (2026-07-27) — not a guess: one bot per
-  /// free workspace, which may still connect BOTH Telegram and WhatsApp
-  /// channels to that single bot (this caps bot COUNT, not channel
-  /// count per bot — see channel_endpoint.dart, unaffected by this).
-  /// See bot_endpoint.dart's createBot/createBotFromDescription for
-  /// where this is enforced.
+  /// Max Bots ANY workspace may have in total, regardless of tier —
+  /// CORRECTED (2026-08-22): originally a cappedFree/paused-only limit
+  /// (see the name), now applied unconditionally by bot_endpoint.dart's
+  /// _enforceBotCap since a workspace has exactly one agent, period —
+  /// not a free-tier restriction paid plans escape. Kept this name
+  /// rather than renaming to avoid an unrelated diff across every call
+  /// site; read it as "the bot cap" now, not "the free-tier bot cap".
+  /// That one bot may still connect BOTH Telegram and WhatsApp channels
+  /// (this caps bot COUNT, not channel count per bot — see
+  /// channel_endpoint.dart, unaffected by this). See bot_endpoint.dart's
+  /// createBot/createBotFromDescription for where this is enforced.
   static const int cappedFreeBotCap = 1;
 
   /// PHASE 9 (Layer 2 — Business Memory). Max indexed KnowledgeDocuments

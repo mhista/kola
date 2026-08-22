@@ -1,0 +1,52 @@
+##
+## calendar_booking.spy.yaml — the Google Calendar connector's approval
+## queue. Backed by migration 042.
+##
+## THE FIRST WRITE-CAPABLE CONNECTOR IN THIS CODEBASE — see migration
+## 042's header for the full reasoning. Every prior connector (Paystack,
+## Flutterwave, Google Sheets, OneDrive Excel, Bumpa) only ever reads
+## from its provider; this one can create a real event on a business's
+## own calendar, so it needs a place to sit BEFORE that happens, not
+## just a record of it after.
+##
+## STATUS LIFECYCLE: 'pending' (draft mode, waiting on an owner) ->
+## 'approved' (owner said yes, about to call Google) -> 'booked' (the
+## real Google Calendar event exists, googleEventId is set) — or
+## 'pending' -> 'rejected' if the owner declines. Immediate mode (see
+## bookCalendarEvent's own header) skips straight to 'booked'.
+##
+
+class: CalendarBooking
+# table: calendar_bookings
+fields:
+  id: int?
+
+  workspaceId: int
+  conversationId: int?
+
+  title: String
+  description: String?
+
+  startsAt: DateTime
+  endsAt: DateTime
+
+  attendeeName: String?
+  attendeeEmail: String?
+  attendeePhone: String?
+
+  ## 'pending' | 'approved' | 'rejected' | 'booked'
+  status: String
+
+  ## Google's own event id — set once 'booked'. Needed to cancel/update
+  ## this event later.
+  googleEventId: String?
+
+  resolvedByEmail: String?
+  resolvedAt: DateTime?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  calendar_bookings_workspace_status_idx:
+    fields: workspaceId, status, createdAt

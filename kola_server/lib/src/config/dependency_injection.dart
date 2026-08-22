@@ -31,6 +31,7 @@ import 'package:kola_server/src/services/errand/builtin_errand_executor.dart';
 import 'package:kola_server/src/services/errand/webhook_errand_executor.dart';
 import 'package:kola_server/src/services/errand/db_credential_errand_executor.dart';
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
+import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
 import 'package:kola_server/src/services/assistant/workspace_answer_service.dart';
 import 'package:kola_server/src/services/observation/workspace_sweep_service.dart';
@@ -64,6 +65,9 @@ import 'package:kola_server/src/services/repository/customer_repository.dart';
 import 'package:kola_server/src/services/repository/customer_identity_signal_repository.dart';
 import 'package:kola_server/src/services/repository/customer_merge_proposal_repository.dart';
 import 'package:kola_server/src/services/repository/sale_repository.dart';
+import 'package:kola_server/src/services/repository/calendar_booking_repository.dart';
+import 'package:kola_server/src/services/connectors/google/google_oauth_service.dart';
+import 'package:kola_server/src/services/connectors/google/calendar_booking_service.dart';
 import 'package:kola_server/src/services/repository/payment_gateway_credential_repository.dart';
 import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
 import 'package:kola_server/src/services/billing/payment_checkout_service.dart';
@@ -167,6 +171,7 @@ void setupDependencyInjection() {
       // for the same lazy-resolution reason as PaymentCheckoutService
       // above.
       whatsAppTemplates: getIt<WhatsAppTemplateCreationService>(),
+      calendarBookings: getIt<CalendarBookingService>(),
     ),
   );
 
@@ -231,6 +236,32 @@ void setupDependencyInjection() {
     ),
   );
   getIt.registerLazySingleton<SaleRepository>(() => const SaleRepository());
+  getIt.registerLazySingleton<CalendarBookingRepository>(() => const CalendarBookingRepository());
+  getIt.registerLazySingleton<CalendarBookingService>(
+    () => CalendarBookingService(
+      connectors: getIt<WorkspaceConnectorRepository>(),
+      bookings: getIt<CalendarBookingRepository>(),
+      oauth: GoogleOAuthService(
+        clientId: Env.googleOAuthClientId,
+        clientSecret: Env.googleOAuthClientSecret,
+        redirectUri: Env.googleOAuthRedirectUri,
+      ),
+    ),
+  );
+
+  // Connect Gate, subphase 4b — connector-native capabilities become
+  // available to the workspace's one agent automatically on connection,
+  // no Errand registration required. See connector_capability_registry
+  // .dart's header. References WorkspaceConnectorRepository and
+  // PaymentGatewayCredentialRepository, both registered elsewhere in
+  // this function — fine regardless of line order since
+  // registerLazySingleton defers construction until first real use.
+  getIt.registerLazySingleton<ConnectorCapabilityRegistry>(
+    () => ConnectorCapabilityRegistry(
+      connectors: getIt<WorkspaceConnectorRepository>(),
+      paymentGateways: getIt<PaymentGatewayCredentialRepository>(),
+    ),
+  );
 
   // Task #134 — the Session-free dispatch core shared by
   // ErrandEndpoint.executeErrand and the AI tool-calling engine
@@ -461,6 +492,9 @@ void setupDependencyInjection() {
       // Gate 3 — resolves/creates the Customer a new conversation
       // belongs to.
       customerIdentity: getIt<CustomerIdentityResolver>(),
+      // Connect Gate, subphase 4b — connector-native capabilities,
+      // merged into this turn's tool list alongside real Errands.
+      connectorCapabilities: getIt<ConnectorCapabilityRegistry>(),
     ),
   );
 

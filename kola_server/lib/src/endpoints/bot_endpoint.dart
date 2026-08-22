@@ -40,27 +40,30 @@ class BotEndpoint extends Endpoint {
   BotMotherService get _botMother => getIt<BotMotherService>();
   AgentLifecycleEvents get _agentEvents => getIt<AgentLifecycleEvents>();
 
-  /// TASK #146 — CONFIRMED WITH THE USER (2026-07-27): a cappedFree or
-  /// paused workspace may have at most [PlanLimits.cappedFreeBotCap] bot
-  /// (today, 1), not per-channel — that one bot may still connect BOTH
-  /// Telegram and WhatsApp. fullTrial/paid workspaces are never gated
-  /// here. Shared by [createBot] and [createBotFromDescription] so
-  /// neither creation path can bypass the other's limit.
+  /// CORRECTED (2026-08-22): a workspace has exactly one agent, full
+  /// stop — not a free-tier limit that paid plans escape. The old
+  /// multi-bot model (several specialised bots sharing one workspace)
+  /// belonged to Kola's earlier life as a bot platform; it was dropped
+  /// because every bot in a workspace reads from the SAME knowledge base
+  /// and connectors, so a second bot cannot behave differently from the
+  /// first — it can only confuse the owner about which one to talk to.
+  /// A second agent now only ever comes from creating a second
+  /// *workspace* (WorkspaceEndpoint.createWorkspace), which brings its
+  /// own agent with it. This cap applies to EVERY tier, unconditionally
+  /// — [PlanLimits.cappedFreeBotCap] (1) happens to already be the right
+  /// number, so it's reused here rather than introducing a second
+  /// "always 1" constant, but the tier branch that used to guard this is
+  /// gone: fullTrial/paid workspaces are capped too now. Shared by
+  /// [createBot] and [createBotFromDescription] so neither creation path
+  /// can bypass the other's limit.
   Future<void> _enforceBotCap(int workspaceId) async {
-    final workspace = await _workspaces.findById(workspaceId);
-    if (workspace == null) return;
-
-    final tier = _trialStateMachine.effectiveTier(workspace);
-    if (tier != EffectiveTier.cappedFree && tier != EffectiveTier.paused) {
-      return;
-    }
-
     final existingCount = (await _bots.listByWorkspace(workspaceId)).length;
     if (existingCount >= PlanLimits.cappedFreeBotCap) {
       throw KolaException(
-        message:         'This workspace is on the free plan, which allows up to '
-        '${PlanLimits.cappedFreeBotCap} bot${PlanLimits.cappedFreeBotCap == 1 ? "" : "s"}. '
-        'Upgrade to create another.',
+        message: 'This workspace already has an agent. Kola gives each '
+            'workspace exactly one — rename the existing one instead of '
+            'creating another, or create a new workspace if you need a '
+            'fully separate agent with its own knowledge base.',
       );
     }
   }

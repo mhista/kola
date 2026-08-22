@@ -118,6 +118,22 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   /// connectors have none of.
   String _sheetUrl = '';
 
+  // ── Connect Gate, subphase 4d — Google Sheets picker ─────────────────
+  //
+  // Replaces the paste-a-link step for google_sheets specifically (NOT
+  // onedrive_excel — see ConnectorEndpoint.setExcelFileTarget's header
+  // on why a OneDrive/SharePoint sharing link still has to be pasted,
+  // it carries no stable id the way a Drive file does). The account
+  // already grants read access to every sheet it can see
+  // (spreadsheets.readonly is account-wide, not per-file) — this list
+  // is purely a DISCOVERY aid, fetched via ConnectorEndpoint
+  // .listGoogleSheets, which itself calls Drive under
+  // drive.metadata.readonly. See google_drive_service.dart's header.
+  List<GoogleDriveSpreadsheet> _driveSheets = const [];
+  bool _loadingDriveSheets = false;
+  String? _driveSheetsError;
+  final Set<String> _selectedSheetIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -200,10 +216,16 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       _openKey = c.key;
       _submitError = null;
       _sheetUrl = '';
+      _driveSheets = const [];
+      _driveSheetsError = null;
+      _selectedSheetIds.clear();
       _formValues
         ..clear()
         ..addEntries(c.fields.map((f) => MapEntry(f.key, '')));
     });
+    if (c.key == 'google_sheets' && c.status == 'connected') {
+      _loadDriveSheets(c);
+    }
   }
 
   void _closeModal() {
@@ -212,8 +234,87 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       _submitError = null;
       _submitting = false;
       _sheetUrl = '';
+      _driveSheets = const [];
+      _driveSheetsError = null;
+      _selectedSheetIds.clear();
       _formValues.clear();
     });
+  }
+
+  /// Connect Gate, subphase 4d — fetches the account's spreadsheets for
+  /// the picker. A workspace connected before drive.metadata.readonly
+  /// existed will get [ConnectorEndpoint.listGoogleSheets]'s "reconnect"
+  /// KolaException here — surfaced as [_driveSheetsError] with a
+  /// reconnect button, not silently as an empty list, since an empty
+  /// list is also the honest state for an account with zero spreadsheets.
+  Future<void> _loadDriveSheets(ConnectorStatus c) async {
+    setState(() {
+      _loadingDriveSheets = true;
+      _driveSheetsError = null;
+    });
+    try {
+      final sheets = await component.client.connector.listGoogleSheets(
+        component.accessToken,
+        component.workspaceId,
+        c.key,
+      );
+      if (!mounted) return;
+      setState(() {
+        _driveSheets = sheets;
+        _selectedSheetIds
+          ..clear()
+          ..addAll([for (final s in sheets) if (s.alreadyConnected) s.id]);
+        _loadingDriveSheets = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingDriveSheets = false;
+        _driveSheetsError = ErrorText.of(e);
+      });
+    }
+  }
+
+  void _toggleSheetSelected(String id) {
+    setState(() {
+      if (_selectedSheetIds.contains(id)) {
+        _selectedSheetIds.remove(id);
+      } else {
+        _selectedSheetIds.add(id);
+      }
+    });
+  }
+
+  /// Connect Gate, subphase 4d — saves the FULL current selection in one
+  /// call (ConnectorEndpoint.setGoogleSheetTargets replaces, not appends
+  /// — see that method's own doc comment), so unchecking a previously-
+  /// connected sheet here actually stops it from syncing, not just skips
+  /// adding new ones.
+  Future<void> _saveSheetSelection(ConnectorStatus c) async {
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      final updated = await component.client.connector.setGoogleSheetTargets(
+        component.accessToken,
+        component.workspaceId,
+        c.key,
+        _selectedSheetIds.toList(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _replace(updated);
+        _openKey = null;
+        _submitting = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = ErrorText.of(e);
+      });
+    }
   }
 
   void _replace(ConnectorStatus updated) {
@@ -866,6 +967,13 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   /// Calendar, Slack, HubSpot as each is built), and [_oauthBody]'s
   /// else-branch already renders correctly for that case without
   /// consulting this map.
+  ///
+  /// google_sheets' sentinel/label/placeholder are now UNUSED —
+  /// _oauthBody branches to [_googleSheetsPickerBody] for that key
+  /// before ever consulting them (Connect Gate, subphase 4d) — kept
+  /// only because `connectLabel` still drives the not-yet-connected
+  /// button's text, and splitting one field out into its own map felt
+  /// like more churn than it was worth for three dead fields.
   static const _oauthTargetConfig = <String, ({
     String sentinel,
     String label,
@@ -934,6 +1042,14 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
           [Component.text(_submitting ? 'Redirecting…' : (target?.connectLabel ?? 'Connect'))],
         ),
       ];
+    }
+
+    // Connect Gate, subphase 4d — google_sheets gets a picker instead of
+    // the generic paste-a-link body below. onedrive_excel (and any
+    // future oauth connector without Drive-style listing) falls through
+    // to the unchanged generic body.
+    if (c.key == 'google_sheets') {
+      return _googleSheetsPickerBody(c);
     }
 
     final needsTarget = target != null && c.displayDetail == target.sentinel;
@@ -1012,6 +1128,12 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
               events: {
                 'click': (_) {
                   if (_submitting || _sheetUrl.trim().isEmpty) return;
+                  // Only onedrive_excel reaches this generic paste-link
+                  // body now — google_sheets branches to
+                  // _googleSheetsPickerBody before this point. Kept as
+                  // an explicit key check rather than an unconditional
+                  // call so a future third paste-link oauth connector
+                  // fails loud here instead of silently misrouting.
                   if (c.key == 'onedrive_excel') {
                     _submitFileTarget(c);
                   } else {
@@ -1041,6 +1163,197 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         ],
       ),
     ];
+  }
+
+  /// Connect Gate, subphase 4d — google_sheets' connected-state body.
+  /// Replaces the old "paste a link" step: the account already grants
+  /// read access to every sheet it can see (spreadsheets.readonly is
+  /// account-wide), so this just needs to show what's THERE and let the
+  /// owner pick as many as they want, instead of asking them to go find
+  /// and copy a URL. See _loadDriveSheets/_saveSheetSelection above.
+  List<Component> _googleSheetsPickerBody(ConnectorStatus c) {
+    if (_loadingDriveSheets) {
+      return [_note('Loading your spreadsheets…')];
+    }
+
+    if (_driveSheetsError != null) {
+      return [
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.danger};'
+                'line-height:1.5;margin-bottom:${KolaSpace.sm}',
+          },
+          [Component.text(_driveSheetsError!)],
+        ),
+        div(
+          attributes: {'style': 'display:flex;gap:8px'},
+          [
+            button(
+              attributes: {
+                'type': 'button',
+                'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                    'border:none;background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};font-family:inherit;'
+                    'font-size:${KolaType.body};font-weight:600;cursor:pointer',
+              },
+              events: {'click': (_) => _startOAuth(c)},
+              [Component.text('Reconnect with Google')],
+            ),
+            button(
+              attributes: {
+                'type': 'button',
+                'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                    'border:1px solid ${KolaVar.border};'
+                    'background:transparent;color:${KolaVar.danger};'
+                    'font-family:inherit;font-size:${KolaType.body};'
+                    'font-weight:600;cursor:pointer',
+              },
+              events: {'click': (_) => _disconnect(c)},
+              [Component.text('Disconnect')],
+            ),
+          ],
+        ),
+      ];
+    }
+
+    return [
+      _note(_driveSheets.isEmpty
+          ? "Signed in, but kolaa didn't find any spreadsheets in this "
+              'Google account. Create one, then reopen this to pick it.'
+          : 'Signed in. Pick which of your spreadsheets ${c.name} should '
+              'read — you can select more than one.'),
+      if (_driveSheets.isNotEmpty)
+        div(
+          attributes: {
+            'style': 'max-height:260px;overflow-y:auto;'
+                'border:1px solid ${KolaVar.border};'
+                'border-radius:${KolaRadius.md};margin-bottom:${KolaSpace.sm}',
+          },
+          [
+            for (final sheet in _driveSheets) _sheetRow(sheet),
+          ],
+        ),
+      if (_submitError != null)
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.danger};'
+                'line-height:1.5;margin-top:10px',
+          },
+          [Component.text(_submitError!)],
+        ),
+      div(
+        attributes: {
+          'style': 'display:flex;gap:8px;margin-top:${KolaSpace.md}',
+        },
+        [
+          button(
+            attributes: {
+              'type': 'button',
+              if (_submitting) 'disabled': 'disabled',
+              'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                  'border:none;background:${KolaVar.accentFill};'
+                  'color:${KolaVar.accentText};font-family:inherit;'
+                  'font-size:${KolaType.body};font-weight:600;'
+                  'cursor:${_submitting ? 'default' : 'pointer'};'
+                  'opacity:${_submitting ? '0.65' : '1'}',
+            },
+            events: {
+              'click': (_) {
+                if (!_submitting) _saveSheetSelection(c);
+              },
+            },
+            [
+              Component.text(_submitting
+                  ? 'Saving…'
+                  : _selectedSheetIds.isEmpty
+                      ? 'Save (sync nothing)'
+                      : 'Save (${_selectedSheetIds.length} selected)'),
+            ],
+          ),
+          button(
+            attributes: {
+              'type': 'button',
+              if (_submitting) 'disabled': 'disabled',
+              'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                  'border:1px solid ${KolaVar.border};'
+                  'background:transparent;color:${KolaVar.danger};'
+                  'font-family:inherit;font-size:${KolaType.body};'
+                  'font-weight:600;cursor:pointer',
+            },
+            events: {
+              'click': (_) {
+                if (!_submitting) _disconnect(c);
+              },
+            },
+            [Component.text('Disconnect')],
+          ),
+        ],
+      ),
+    ];
+  }
+
+  /// One row in [_googleSheetsPickerBody]'s list — a button-based toggle,
+  /// not `<input type="checkbox">`. See _eventCheckbox in
+  /// api_webhooks_page.dart for why: InputType.checkbox is a documented
+  /// landmine in this codebase (media_upload.dart's header — "analysed
+  /// clean and failed" at runtime once already). Same shape reused here:
+  /// a full-row button, aria-pressed, a small square that fills in when
+  /// selected.
+  Component _sheetRow(GoogleDriveSpreadsheet sheet) {
+    final checked = _selectedSheetIds.contains(sheet.id);
+    return div(
+      attributes: {
+        'style': 'display:flex;align-items:center;gap:8px;'
+            'border-bottom:1px solid ${KolaVar.border}',
+      },
+      [
+        button(
+          attributes: {
+            'type': 'button',
+            'aria-pressed': checked ? 'true' : 'false',
+            'style': 'flex:1;display:flex;align-items:center;gap:10px;'
+                'background:transparent;border:none;padding:10px 12px;'
+                'font-family:inherit;font-size:${KolaType.body};'
+                'color:${KolaVar.text};cursor:pointer;text-align:left;'
+                'min-width:0',
+          },
+          events: {
+            'click': (_) => _toggleSheetSelected(sheet.id),
+          },
+          [
+            div(
+              attributes: {
+                'style': 'width:16px;height:16px;flex:none;'
+                    'border-radius:4px;'
+                    'border:1px solid ${checked ? KolaVar.accent : KolaVar.border};'
+                    'background:${checked ? KolaVar.accentFill : 'transparent'};'
+                    'color:${KolaVar.accentText};'
+                    'display:flex;align-items:center;justify-content:center',
+              },
+              [if (checked) kolaIcon(Icons.check, size: 11, strokeWidth: 3)],
+            ),
+            span(
+              attributes: {
+                'style': 'flex:1;overflow:hidden;text-overflow:ellipsis;'
+                    'white-space:nowrap;min-width:0',
+              },
+              [Component.text(sheet.name)],
+            ),
+          ],
+        ),
+        if (sheet.webViewLink != null)
+          a(
+            href: sheet.webViewLink!,
+            attributes: {
+              'target': '_blank',
+              'rel': 'noopener noreferrer',
+              'style': 'flex:none;padding:0 12px;font-size:${KolaType.small};'
+                  'color:${KolaVar.mutedStrong};text-decoration:none',
+            },
+            [Component.text('Open ↗')],
+          ),
+      ],
+    );
   }
 
   List<Component> _notYet(String explanation) => [

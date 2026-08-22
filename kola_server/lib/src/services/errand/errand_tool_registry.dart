@@ -47,6 +47,21 @@
 // what replaces bot_knowledge_service.dart's old sentinel-token hack for
 // the new tool-calling path (that path is unchanged, for the old
 // `answerGrounded` callers that still use it).
+//
+// CONNECTOR-NATIVE CAPABILITIES EXTEND THIS SAME PATTERN (2026-08-22):
+// 'escalate_to_human' was the first tool with no backing Errand row;
+// collectPayment and bookCalendarEvent now work the same way, EXCEPT
+// they're conditional on connection state instead of unconditional —
+// see connector_capability_registry.dart. That file builds real (but
+// never-persisted) Errand objects for whatever capabilities a
+// workspace's connected connectors currently grant, and
+// InboundMessageHandler merges them into the same list this class
+// already knows how to turn into tools and dispatch. This registry
+// itself needed only one change for that: `bookCalendarEvent`'s entry
+// in [_builtinParameterSchemas], since collectPayment's schema already
+// existed for the (now removed) Errand-registration path. Errands
+// proper — the DB-backed kind — stay reserved for genuinely custom,
+// business-authored actions; see errand.spy.yaml's header.
 
 import 'dart:convert';
 
@@ -179,6 +194,46 @@ const Map<String, Map<String, dynamic>> _builtinParameterSchemas = {
   // _contextInjectedKeys below) — the model has no business picking which
   // of a business's channels to submit a Meta template against, and
   // InboundMessageHandler already knows.
+  // 'bookCalendarEvent' — Connect Gate, subphase 4b. Schema for
+  // builtin_errand_executor.dart's _bookCalendarEvent handler.
+  // 'conversationId' is context-injected (see below), never asked of
+  // the model. workspaceId isn't in this schema at all — the handler
+  // reads it off the Errand itself (errand.workspaceId), real or
+  // synthetic — see connector_capability_registry.dart.
+  'bookCalendarEvent': {
+    'type': 'object',
+    'properties': {
+      'title': {
+        'type': 'string',
+        'description': 'A short title for the appointment/booking, e.g. "Consultation with Jane".',
+      },
+      'description': {
+        'type': 'string',
+        'description': 'Optional extra detail about what this booking is for.',
+      },
+      'startsAt': {
+        'type': 'string',
+        'description': 'Start time as an ISO-8601 datetime, e.g. 2026-08-25T14:00:00Z.',
+      },
+      'endsAt': {
+        'type': 'string',
+        'description': 'End time as an ISO-8601 datetime — must be after startsAt.',
+      },
+      'attendeeName': {
+        'type': 'string',
+        'description': "The customer's name, if known.",
+      },
+      'attendeeEmail': {
+        'type': 'string',
+        'description': "The customer's email address, if known — used to invite them on the calendar event.",
+      },
+      'attendeePhone': {
+        'type': 'string',
+        'description': "The customer's phone number, if known.",
+      },
+    },
+    'required': ['title', 'startsAt', 'endsAt'],
+  },
   'createProductListTemplate': {
     'type': 'object',
     'properties': {
@@ -204,6 +259,7 @@ const Map<String, Set<String>> _contextInjectedKeys = {
   'sendOtp': {'conversationId'},
   'verifyOtp': {'conversationId'},
   'createProductListTemplate': {'channelId'},
+  'bookCalendarEvent': {'conversationId'},
 };
 
 /// Arguments a webhook/dbCredential Errand's flat `inputSchemaJson`

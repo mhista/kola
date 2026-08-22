@@ -30,8 +30,12 @@ import 'package:kola_server/src/services/repository/workspace_connector_reposito
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/connectors/google/google_oauth_service.dart';
+import 'package:kola_server/src/services/connectors/google/google_calendar_service.dart';
+import 'package:kola_server/src/services/connectors/google/google_drive_service.dart';
+import 'package:kola_server/src/services/connectors/google/google_sheets_config.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_service.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_graph_excel_service.dart';
+import 'package:kola_server/src/services/repository/calendar_booking_repository.dart';
 import 'package:kola_server/src/config/env.dart';
 import 'package:kola_server/kola_logger.dart';
 
@@ -53,6 +57,9 @@ class ConnectorEndpoint extends Endpoint {
         tenant: Env.microsoftOAuthTenant,
       );
   MicrosoftGraphExcelService get _microsoftExcel => const MicrosoftGraphExcelService();
+  GoogleCalendarService get _googleCalendar => const GoogleCalendarService();
+  GoogleDriveService get _googleDrive => const GoogleDriveService();
+  CalendarBookingRepository get _bookings => getIt<CalendarBookingRepository>();
 
   /// Every connector in the catalog with this workspace's state resolved
   /// onto it — all 16, always. A connector the workspace cannot use yet
@@ -236,12 +243,118 @@ class ConnectorEndpoint extends Endpoint {
     return _googleOAuth.authorizationUrl(state: state, scopes: scopes);
   }
 
-  /// Gate 4 — sets which spreadsheet a CONNECTED Google Sheets integration
-  /// actually reads. Separate from the OAuth connect step because OAuth
-  /// authorizes an ACCOUNT, not a specific file — Google has no "pick one
-  /// sheet" step in the redirect flow itself (that needs the heavier
-  /// Picker API, deliberately not built for this pass), so the owner
-  /// pastes the sheet's URL after connecting instead.
+  /// Connect Gate, subphase 4d — every Google Sheets spreadsheet the
+  /// CONNECTED account can see, for the dashboard's picker. This is what
+  /// [setGoogleSheetTarget]'s old doc comment said didn't exist yet ("the
+  /// heavier Picker API, deliberately not built for this pass") — it's
+  /// simpler than Google's own Picker widget: a plain Drive files.list
+  /// call under drive.metadata.readonly (see google_drive_service.dart),
+  /// requested alongside the Sheets scope specifically so this becomes
+  /// possible. [alreadyConnected] is computed against this workspace's
+  /// current selection so the dashboard can pre-check rows without a
+  /// second round trip.
+  ///
+  /// Throws [GoogleSheetsReconnectRequiredException]-shaped KolaException
+  /// for a workspace that connected BEFORE this scope existed — their
+  /// stored refresh token has no Drive grant, so Google will 403 this
+  /// call until they reconnect. See this file's header on why that's
+  /// surfaced as a clear "reconnect" message, not a raw API error.
+  Future<List<GoogleDriveSpreadsheet>> listGoogleSheets(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final existing = await _stored.findByWorkspaceAndKey(workspaceId, connectorKey);
+    if (existing == null || existing.status != 'connected' || existing.encryptedConfig == null) {
+      throw KolaException(message: 'Connect with Google before choosing sheets.');
+    }
+
+    final config = jsonDecode(
+      ChannelCredentialEncryptionService.decrypt(existing.encryptedConfig!),
+    ) as Map<String, dynamic>;
+    final refreshToken = config['refreshToken'] as String?;
+    if (refreshToken == null) {
+      throw KolaException(message: 'This connection is missing its sign-in — reconnect Google Sheets.');
+    }
+
+    final tokens = await _googleOAuth.refreshAccessToken(refreshToken);
+    final oauthAccessToken = tokens['access_token'] as String?;
+    if (oauthAccessToken == null) {
+      throw KolaException(message: 'Google did not return a valid access token — try reconnecting.');
+    }
+
+    final currentIds = GoogleSheetsConfig.spreadsheetIdsFrom(config).toSet();
+
+    try {
+      final files = await _googleDrive.listSpreadsheets(accessToken: oauthAccessToken);
+      return files
+          .map((f) => GoogleDriveSpreadsheet(
+                id: f.id,
+                name: f.name,
+                webViewLink: f.webViewLink,
+                alreadyConnected: currentIds.contains(f.id),
+              ))
+          .toList();
+    } catch (e) {
+      // A connection made before drive.metadata.readonly existed has no
+      // Drive grant on its stored refresh token — Google 403s this call
+      // specifically, not the Sheets read itself. See this file's header.
+      Log.warning('ConnectorEndpoint.listGoogleSheets: Drive list failed for workspace $workspaceId: $e');
+      throw KolaException(
+        message: 'Kolaa can\'t list your spreadsheets yet — reconnect Google Sheets to grant access '
+            'to your Drive file list (your existing sheets keep syncing either way).',
+      );
+    }
+  }
+
+  /// Connect Gate, subphase 4d — REPLACES the full set of spreadsheets a
+  /// CONNECTED Google Sheets integration reads, in one call — what the
+  /// picker's "Save" button calls after an owner checks/unchecks rows
+  /// from [listGoogleSheets]. An empty list is valid: it means "sync
+  /// nothing", not an error — same as never having picked a sheet at all
+  /// under the old single-target flow.
+  Future<ConnectorStatus> setGoogleSheetTargets(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+    List<String> spreadsheetIds,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final workspace = await _requireWorkspace(workspaceId);
+    final existing = await _stored.findByWorkspaceAndKey(workspaceId, connectorKey);
+    if (existing == null || existing.status != 'connected' || existing.encryptedConfig == null) {
+      throw KolaException(message: 'Connect with Google before choosing sheets.');
+    }
+
+    final config = jsonDecode(
+      ChannelCredentialEncryptionService.decrypt(existing.encryptedConfig!),
+    ) as Map<String, dynamic>;
+    final nextConfig = GoogleSheetsConfig.withSpreadsheetIds(config, spreadsheetIds);
+    final reencrypted = ChannelCredentialEncryptionService.encrypt(jsonEncode(nextConfig));
+
+    await _stored.upsert(
+      workspaceId: workspaceId,
+      connectorKey: connectorKey,
+      status: 'connected',
+      encryptedConfig: reencrypted,
+      displayDetail: _sheetsDisplayDetail(spreadsheetIds),
+      lastSyncedAt: existing.lastSyncedAt,
+    );
+
+    Log.info('Google Sheets targets set for workspace $workspaceId: ${spreadsheetIds.length} sheet(s)');
+    return _one(workspace, connectorKey);
+  }
+
+  /// Kept for any caller still on the old single-sheet flow (a paste box
+  /// as a fallback next to the picker, or an older dashboard build) —
+  /// ADDS [sheetUrl] to whatever's already selected rather than
+  /// replacing it, since a paste box has no way to express "and keep the
+  /// others too" the way the picker's checkbox list does.
   Future<ConnectorStatus> setGoogleSheetTarget(
     Session session,
     String accessToken,
@@ -251,12 +364,9 @@ class ConnectorEndpoint extends Endpoint {
   ) async {
     await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
 
-    final workspace = await _requireWorkspace(workspaceId);
     final existing = await _stored.findByWorkspaceAndKey(workspaceId, connectorKey);
     if (existing == null || existing.status != 'connected' || existing.encryptedConfig == null) {
-      throw KolaException(
-        message:         'Connect with Google before choosing a sheet.',
-      );
+      throw KolaException(message: 'Connect with Google before choosing a sheet.');
     }
 
     final spreadsheetId = _extractSpreadsheetId(sheetUrl);
@@ -267,27 +377,22 @@ class ConnectorEndpoint extends Endpoint {
       );
     }
 
-    // The stored config already holds the refresh token, under a JSON
-    // key set by GoogleOAuthCallbackRoute — decrypt, add spreadsheetId
-    // alongside it, re-encrypt as one blob. Never touches the refresh
-    // token itself.
     final config = jsonDecode(
       ChannelCredentialEncryptionService.decrypt(existing.encryptedConfig!),
     ) as Map<String, dynamic>;
-    config['spreadsheetId'] = spreadsheetId;
-    final reencrypted = ChannelCredentialEncryptionService.encrypt(jsonEncode(config));
+    final current = GoogleSheetsConfig.spreadsheetIdsFrom(config);
+    final next = {...current, spreadsheetId}.toList();
 
-    await _stored.upsert(
-      workspaceId: workspaceId,
-      connectorKey: connectorKey,
-      status: 'connected',
-      encryptedConfig: reencrypted,
-      displayDetail: 'Sheet: ${spreadsheetId.substring(0, spreadsheetId.length.clamp(0, 8))}…',
-      lastSyncedAt: existing.lastSyncedAt,
-    );
+    return setGoogleSheetTargets(session, accessToken, workspaceId, connectorKey, next);
+  }
 
-    Log.info('Google Sheets target set for workspace $workspaceId: $spreadsheetId');
-    return _one(workspace, connectorKey);
+  static String _sheetsDisplayDetail(List<String> spreadsheetIds) {
+    if (spreadsheetIds.isEmpty) return 'Connected — no sheet chosen yet';
+    if (spreadsheetIds.length == 1) {
+      final id = spreadsheetIds.first;
+      return 'Sheet: ${id.substring(0, id.length.clamp(0, 8))}…';
+    }
+    return '${spreadsheetIds.length} sheets connected';
   }
 
   /// Gate 4 — the Microsoft-provider twin of [startGoogleOAuth]. Same
@@ -406,6 +511,140 @@ class ConnectorEndpoint extends Endpoint {
     return _one(workspace, connectorKey);
   }
 
+  /// Gate 4 — sets whether a bot-proposed calendar booking is created on
+  /// Google immediately, or held as a pending row an owner must approve
+  /// first. See calendar_booking.spy.yaml's header on why this exists:
+  /// Calendar is the first write-capable connector, and this is the
+  /// owner's own guardrail on it, not a fixed platform decision.
+  /// [bookingMode] must be 'draft' or 'immediate'. Read back by
+  /// bookCalendarEvent (builtin_errand_executor.dart), which treats an
+  /// UNSET value (a connection made before this setting existed, or one
+  /// never touched) as 'draft' — the safer default, never 'immediate'
+  /// by omission.
+  Future<ConnectorStatus> setCalendarBookingMode(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String bookingMode,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+    if (bookingMode != 'draft' && bookingMode != 'immediate') {
+      throw KolaException(message: 'bookingMode must be "draft" or "immediate".');
+    }
+
+    final workspace = await _requireWorkspace(workspaceId);
+    final existing = await _stored.findByWorkspaceAndKey(workspaceId, 'google_calendar');
+    if (existing == null || existing.status != 'connected' || existing.encryptedConfig == null) {
+      throw KolaException(message: 'Connect Google Calendar before setting this.');
+    }
+
+    final config = jsonDecode(
+      ChannelCredentialEncryptionService.decrypt(existing.encryptedConfig!),
+    ) as Map<String, dynamic>;
+    config['bookingMode'] = bookingMode;
+    final reencrypted = ChannelCredentialEncryptionService.encrypt(jsonEncode(config));
+
+    await _stored.upsert(
+      workspaceId: workspaceId,
+      connectorKey: 'google_calendar',
+      status: 'connected',
+      encryptedConfig: reencrypted,
+      displayDetail: 'Connected — $bookingMode bookings',
+      lastSyncedAt: existing.lastSyncedAt,
+    );
+
+    Log.info('Calendar booking mode set for workspace $workspaceId: $bookingMode');
+    return _one(workspace, 'google_calendar');
+  }
+
+  /// Gate 4 — every booking this workspace's bot(s) have proposed that
+  /// still needs an owner's yes/no. Draft-mode bookings only — a
+  /// workspace running in immediate mode never accumulates any of these,
+  /// since bookCalendarEvent skips straight to Google for them.
+  Future<List<CalendarBooking>> listPendingBookings(
+    Session session,
+    String accessToken,
+    int workspaceId,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+    return _bookings.listPending(workspaceId);
+  }
+
+  /// Approves a pending booking: marks it 'approved', creates the real
+  /// Google Calendar event, then marks it 'booked' with the real event
+  /// id. If the Google call itself fails (token revoked, etc.), the
+  /// booking is left sitting at 'approved' rather than silently reverted
+  /// — visibly stuck, matching migration 042's own reasoning for why
+  /// 'approved' and 'booked' are distinct states, not one.
+  Future<CalendarBooking> approveBooking(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int bookingId,
+  ) async {
+    final member = await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final booking = await _bookings.findById(workspaceId, bookingId);
+    if (booking == null) {
+      throw KolaException(message: 'Booking not found.');
+    }
+    if (booking.status != 'pending') {
+      throw KolaException(message: 'This booking has already been resolved.');
+    }
+
+    final connector = await _stored.findByWorkspaceAndKey(workspaceId, 'google_calendar');
+    if (connector == null || connector.encryptedConfig == null) {
+      throw KolaException(message: 'Google Calendar is not connected for this workspace.');
+    }
+    final config = jsonDecode(
+      ChannelCredentialEncryptionService.decrypt(connector.encryptedConfig!),
+    ) as Map<String, dynamic>;
+    final refreshToken = config['refreshToken'] as String?;
+    if (refreshToken == null) {
+      throw KolaException(message: 'This Google Calendar connection is missing its sign-in — reconnect and try again.');
+    }
+
+    await _bookings.markApproved(bookingId, resolvedByEmail: member.userId);
+
+    final tokens = await _googleOAuth.refreshAccessToken(refreshToken);
+    final googleAccessToken = tokens['access_token'] as String?;
+    if (googleAccessToken == null) {
+      throw KolaException(message: 'Google did not return a valid access token. The booking is approved but not yet on the calendar — try again shortly.');
+    }
+
+    final eventId = await _googleCalendar.createEvent(
+      accessToken: googleAccessToken,
+      title: booking.title,
+      description: booking.description,
+      startsAt: booking.startsAt,
+      endsAt: booking.endsAt,
+      attendeeEmail: booking.attendeeEmail,
+    );
+
+    Log.info('Calendar booking $bookingId approved and booked (workspace $workspaceId, event $eventId)');
+    return _bookings.markBooked(bookingId, googleEventId: eventId);
+  }
+
+  Future<CalendarBooking> rejectBooking(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int bookingId,
+  ) async {
+    final member = await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final booking = await _bookings.findById(workspaceId, bookingId);
+    if (booking == null) {
+      throw KolaException(message: 'Booking not found.');
+    }
+    if (booking.status != 'pending') {
+      throw KolaException(message: 'This booking has already been resolved.');
+    }
+
+    Log.info('Calendar booking $bookingId rejected (workspace $workspaceId)');
+    return _bookings.markRejected(bookingId, resolvedByEmail: member.userId);
+  }
+
   /// Disconnects, clearing the stored credential but keeping the row —
   /// 'disconnected' and "never connected" are different states, and the
   /// row is the only record that this business ever had it working.
@@ -469,8 +708,16 @@ class ConnectorEndpoint extends Endpoint {
   /// OAuth-flow detail, not part of the marketplace's own catalog shape,
   /// and this is the ONLY place in the codebase that needs to know one.
   static List<String>? _googleScopesFor(String connectorKey) => switch (connectorKey) {
-        'google_sheets' => const [GoogleOAuthService.scopeSheetsReadonly],
-        _ => null, // google_drive/google_calendar join this once their adapters exist
+        // Connect Gate, subphase 4d — drive.metadata.readonly rides
+        // along with the Sheets grant so the dashboard can list the
+        // account's spreadsheets for a picker, instead of requiring a
+        // pasted link. See google_drive_service.dart's header.
+        'google_sheets' => const [
+            GoogleOAuthService.scopeSheetsReadonly,
+            GoogleOAuthService.scopeDriveMetadataReadonly,
+          ],
+        'google_calendar' => const [GoogleOAuthService.scopeCalendarEvents],
+        _ => null, // google_drive joins this once its adapter exists
       };
 
   /// Which Microsoft Graph scope a connector's OAuth grant should

@@ -62,6 +62,9 @@ import 'package:kola_server/src/services/connectors/contract/customer_identity_r
 import 'package:kola_server/src/services/repository/customer_repository.dart';
 import 'package:kola_server/src/services/repository/customer_identity_signal_repository.dart';
 import 'package:kola_server/src/services/repository/customer_merge_proposal_repository.dart';
+import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
+import 'package:kola_server/src/services/repository/payment_gateway_credential_repository.dart';
+import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 
 Future<void> main(List<String> args) async {
@@ -184,6 +187,16 @@ Future<void> main(List<String> args) async {
     ),
     events: eventBus,
     customerIdentity: customerIdentity,
+    // Connect Gate, subphase 4b — required dependency, this script only
+    // exercises the text/escalation path so no connector is ever
+    // connected for the throwaway workspace, meaning forWorkspace()
+    // always returns an empty list here. Constructed rather than made
+    // nullable for the same "fail at startup, not silently" reasoning
+    // as inboundMedia above.
+    connectorCapabilities: ConnectorCapabilityRegistry(
+      connectors: const WorkspaceConnectorRepository(),
+      paymentGateways: const PaymentGatewayCredentialRepository(),
+    ),
   );
 
   try {

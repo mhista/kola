@@ -65,6 +65,7 @@ import 'package:kola_server/src/services/repository/support_ticket_repository.da
 import 'package:kola_server/src/services/repository/customer_profile_repository.dart';
 import 'package:kola_server/src/services/otp/otp_service.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_template_creation_service.dart';
+import 'package:kola_server/src/services/connectors/google/calendar_booking_service.dart';
 
 typedef BuiltinErrandHandler = Future<Map<String, dynamic>> Function(
   Errand errand,
@@ -90,12 +91,14 @@ class BuiltinErrandExecutor {
     required CustomerProfileRepository customerProfiles,
     required OtpService otpService,
     required WhatsAppTemplateCreationService whatsAppTemplates,
+    required CalendarBookingService calendarBookings,
   }) : _executionLogs = executionLogs,
        _paymentCheckout = paymentCheckout,
        _supportTickets = supportTickets,
        _customerProfiles = customerProfiles,
        _otp = otpService,
-       _whatsAppTemplates = whatsAppTemplates;
+       _whatsAppTemplates = whatsAppTemplates,
+       _calendarBookings = calendarBookings;
 
   final ErrandExecutionLogRepository _executionLogs;
   final PaymentCheckoutService _paymentCheckout;
@@ -103,6 +106,7 @@ class BuiltinErrandExecutor {
   final CustomerProfileRepository _customerProfiles;
   final OtpService _otp;
   final WhatsAppTemplateCreationService _whatsAppTemplates;
+  final CalendarBookingService _calendarBookings;
 
   late final Map<String, BuiltinErrandHandler> _handlers = {
     'escalateToHuman': _escalateToHuman,
@@ -112,20 +116,45 @@ class BuiltinErrandExecutor {
     'sendOtp': _sendOtp,
     'verifyOtp': _verifyOtp,
     'createProductListTemplate': _createProductListTemplate,
+    'bookCalendarEvent': _bookCalendarEvent,
   };
 
-  /// Every valid builtinHandlerKey today — ErrandEndpoint.createBuiltinErrand
-  /// validates against this directly, so a typo'd key is rejected at
-  /// registration time with a clear message, not discovered at first
-  /// invocation. Kept as a static, hand-kept-in-sync-with-_handlers
-  /// constant rather than derived from an instance's _handlers map (task
-  /// #128 made _handlers instance-level, since 'collectPayment' needs
-  /// this instance's own _paymentCheckout dependency) — the set of valid
-  /// keys is a fixed fact about this class, not something that should
-  /// need constructing an instance just to ask.
+  /// Every valid builtinHandlerKey today — the full technical truth of
+  /// what this class can dispatch, real Errand row or synthetic. Kept as
+  /// a static, hand-kept-in-sync-with-_handlers constant rather than
+  /// derived from an instance's _handlers map (task #128 made _handlers
+  /// instance-level, since 'collectPayment' needs this instance's own
+  /// _paymentCheckout dependency) — the set of valid keys is a fixed
+  /// fact about this class, not something that should need constructing
+  /// an instance just to ask.
   static const Set<String> handlerKeys = {
     'escalateToHuman',
     'collectPayment',
+    'createSupportTicket',
+    'recordCustomerProfile',
+    'sendOtp',
+    'verifyOtp',
+    'createProductListTemplate',
+    'bookCalendarEvent',
+  };
+
+  /// Connect Gate, subphase 4b/4c — the subset of [handlerKeys] that is
+  /// now available automatically once its connector is connected (see
+  /// connector_capability_registry.dart), and therefore must NOT also be
+  /// separately registrable as a real Errand row — doing both would give
+  /// the agent two tools that do the same thing. ErrandEndpoint
+  /// .createBuiltinErrand rejects these explicitly, with a message that
+  /// explains why rather than just "unknown key".
+  static const Set<String> connectorNativeHandlerKeys = {
+    'collectPayment',
+    'bookCalendarEvent',
+  };
+
+  /// [handlerKeys] minus [connectorNativeHandlerKeys] — what
+  /// ErrandEndpoint.createBuiltinErrand actually validates registration
+  /// attempts against.
+  static const Set<String> registrableHandlerKeys = {
+    'escalateToHuman',
     'createSupportTicket',
     'recordCustomerProfile',
     'sendOtp',
@@ -479,6 +508,77 @@ class BuiltinErrandExecutor {
       return {
         'replyToCustomer':
             "I can't send that as a formatted product list on this chat yet, but here's what we have: ${productList.trim()}",
+        'error': e.message,
+      };
+    }
+  }
+
+  /// The first write-capable built-in Errand — see
+  /// calendar_booking_service.dart's header for the draft-vs-immediate
+  /// branch this delegates to. Deliberately does NOT decide that branch
+  /// itself; a bot invoking this never knows or needs to know which mode
+  /// the owner chose, it just gets back a reply that's honest about
+  /// which one happened.
+  ///
+  /// input required: 'title' (string, AI-composed from what the customer
+  /// asked for — "Haircut appointment", "Delivery for order #4"),
+  /// 'startsAt', 'endsAt' (ISO-8601 datetime strings).
+  /// input optional: 'description', 'attendeeName', 'attendeeEmail',
+  /// 'attendeePhone' — whatever the AI has learned about who this is for.
+  /// input context-injected: 'conversationId' (int, same pattern as
+  /// sendOtp/verifyOtp — see errand_tool_registry.dart's header).
+  Future<Map<String, dynamic>> _bookCalendarEvent(
+    Errand errand,
+    Map<String, dynamic> input,
+  ) async {
+    final title = input['title'] as String?;
+    final startsAtRaw = input['startsAt'] as String?;
+    final endsAtRaw = input['endsAt'] as String?;
+    if (title == null || startsAtRaw == null || endsAtRaw == null) {
+      throw ArgumentError('bookCalendarEvent requires title, startsAt, and endsAt in input');
+    }
+    final startsAt = DateTime.tryParse(startsAtRaw);
+    final endsAt = DateTime.tryParse(endsAtRaw);
+    if (startsAt == null || endsAt == null) {
+      throw ArgumentError('bookCalendarEvent: startsAt/endsAt must be valid ISO-8601 datetimes');
+    }
+    if (!endsAt.isAfter(startsAt)) {
+      throw ArgumentError('bookCalendarEvent: endsAt must be after startsAt');
+    }
+
+    try {
+      final booking = await _calendarBookings.requestBooking(
+        workspaceId: errand.workspaceId,
+        conversationId: input['conversationId'] as int?,
+        title: title,
+        description: input['description'] as String?,
+        startsAt: startsAt,
+        endsAt: endsAt,
+        attendeeName: input['attendeeName'] as String?,
+        attendeeEmail: input['attendeeEmail'] as String?,
+        attendeePhone: input['attendeePhone'] as String?,
+      );
+
+      Log.info('bookCalendarEvent: booking ${booking.id} status=${booking.status} (workspace ${errand.workspaceId})');
+
+      final replyToCustomer = booking.status == 'booked'
+          ? "You're booked — I've added it to the calendar."
+          : "I've noted your requested time — the team will confirm it shortly.";
+
+      return {
+        'replyToCustomer': replyToCustomer,
+        'bookingId': booking.id,
+        'status': booking.status,
+      };
+    } on CalendarNotConnectedException catch (e) {
+      // Not a customer-facing bug — this business simply hasn't
+      // connected Google Calendar yet, or its connection needs
+      // reconnecting. Honest, not alarming — same posture as
+      // collectPayment's InvalidPaymentGatewayCredentialException catch.
+      Log.warning('bookCalendarEvent failed — calendar not connected: $e');
+      return {
+        'replyToCustomer':
+            "I can't book that directly yet — let me have the team follow up to confirm your time instead.",
         'error': e.message,
       };
     }

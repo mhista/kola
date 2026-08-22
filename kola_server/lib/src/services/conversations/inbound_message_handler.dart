@@ -80,6 +80,7 @@ import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/knowledge/bot_knowledge_service.dart';
 import 'package:kola_server/src/services/errand/errand_tool_registry.dart';
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
+import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
 import 'package:kola_server/src/services/notifications/owner_notification_dispatcher.dart';
 import 'package:kola_server/src/services/media/inbound_media_service.dart';
 import 'package:kola_server/src/services/security/security_filter.dart';
@@ -102,6 +103,7 @@ class InboundMessageHandler {
     required InboundMediaService inboundMedia,
     required EventBus events,
     required CustomerIdentityResolver customerIdentity,
+    required ConnectorCapabilityRegistry connectorCapabilities,
     SecurityFilter? securityFilter,
     TrialStateMachine? trialStateMachine,
   }) : _bots = bots,
@@ -116,6 +118,7 @@ class InboundMessageHandler {
        _inboundMedia = inboundMedia,
        _events = events,
        _customerIdentity = customerIdentity,
+       _connectorCapabilities = connectorCapabilities,
        _security = securityFilter ?? SecurityFilter(),
        _trialStateMachine = trialStateMachine ?? const TrialStateMachine();
 
@@ -128,6 +131,14 @@ class InboundMessageHandler {
   final BotKnowledgeService _knowledge;
   final ErrandDispatchService _errandDispatch;
   final OwnerNotificationDispatcher _notifications;
+
+  /// Connect Gate, subphase 4b — connector-native capabilities
+  /// (collectPayment, bookCalendarEvent, ...) as synthetic, never-
+  /// persisted Errands, added to this turn's tool list alongside real
+  /// ones whenever the underlying connector is actually connected. See
+  /// connector_capability_registry.dart's header for why this exists
+  /// instead of requiring an Errand row per capability.
+  final ConnectorCapabilityRegistry _connectorCapabilities;
 
   /// Turns a Telegram file_id or WhatsApp media id into an ImageKit URL.
   /// See inbound_media_service.dart on why the bytes go through us.
@@ -412,8 +423,16 @@ class InboundMessageHandler {
     // into a customer-facing reply. This is what replaces the plain
     // answerGrounded() call this file used before this task; that method
     // itself is untouched for any other caller still using it.
+    //
+    // Connect Gate, subphase 4b — connector-native capabilities merge in
+    // here as synthetic Errands, alongside the workspace's real, custom
+    // ones. ErrandToolRegistry/ErrandDispatchService don't need to know
+    // which is which — a synthetic Errand dispatches exactly like a real
+    // one — so this is the one place the two lists become one.
     final activeErrands = await _errands.listActiveByWorkspace(workspaceId);
-    final tools = ErrandToolRegistry.buildTools(activeErrands);
+    final connectorErrands = await _connectorCapabilities.forWorkspace(workspaceId);
+    final allErrands = [...activeErrands, ...connectorErrands];
+    final tools = ErrandToolRegistry.buildTools(allErrands);
     final decision = await _knowledge.decide(bot: bot, tools: tools, question: inboundText);
 
     String answerText;
@@ -436,7 +455,7 @@ class InboundMessageHandler {
           '$kEscalateToHumanToolName (reason: ${toolCall.arguments['reason']})',
         );
       } else {
-        final errand = ErrandToolRegistry.findErrandForToolName(toolCall.toolName, activeErrands);
+        final errand = ErrandToolRegistry.findErrandForToolName(toolCall.toolName, allErrands);
         if (errand == null) {
           // The model named a tool that doesn't (or no longer) exist —
           // treat like an infrastructure gap, not a customer problem to

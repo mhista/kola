@@ -14,9 +14,15 @@ connector:
   - listConnectors:
   - connectConnector:
   - startGoogleOAuth:
+  - listGoogleSheets:
+  - setGoogleSheetTargets:
   - setGoogleSheetTarget:
   - startMicrosoftOAuth:
   - setExcelFileTarget:
+  - setCalendarBookingMode:
+  - listPendingBookings:
+  - approveBooking:
+  - rejectBooking:
   - disconnectConnector:
 conversation:
   - listEscalated:

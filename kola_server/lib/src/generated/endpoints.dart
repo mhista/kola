@@ -625,6 +625,74 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['connectorKey'],
                   ),
         ),
+        'listGoogleSheets': _i1.MethodConnector(
+          name: 'listGoogleSheets',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .listGoogleSheets(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                  ),
+        ),
+        'setGoogleSheetTargets': _i1.MethodConnector(
+          name: 'setGoogleSheetTargets',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'spreadsheetIds': _i1.ParameterDescription(
+              name: 'spreadsheetIds',
+              type: _i1.getType<List<String>>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .setGoogleSheetTargets(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                    params['spreadsheetIds'],
+                  ),
+        ),
         'setGoogleSheetTarget': _i1.MethodConnector(
           name: 'setGoogleSheetTarget',
           params: {
@@ -728,6 +796,124 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['workspaceId'],
                     params['connectorKey'],
                     params['fileUrl'],
+                  ),
+        ),
+        'setCalendarBookingMode': _i1.MethodConnector(
+          name: 'setCalendarBookingMode',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'bookingMode': _i1.ParameterDescription(
+              name: 'bookingMode',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .setCalendarBookingMode(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['bookingMode'],
+                  ),
+        ),
+        'listPendingBookings': _i1.MethodConnector(
+          name: 'listPendingBookings',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .listPendingBookings(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                  ),
+        ),
+        'approveBooking': _i1.MethodConnector(
+          name: 'approveBooking',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'bookingId': _i1.ParameterDescription(
+              name: 'bookingId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .approveBooking(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['bookingId'],
+                  ),
+        ),
+        'rejectBooking': _i1.MethodConnector(
+          name: 'rejectBooking',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'bookingId': _i1.ParameterDescription(
+              name: 'bookingId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i4.ConnectorEndpoint)
+                  .rejectBooking(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['bookingId'],
                   ),
         ),
         'disconnectConnector': _i1.MethodConnector(

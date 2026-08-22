@@ -1,0 +1,33 @@
+##
+## google_drive_spreadsheet.spy.yaml — Connect Gate, subphase 4d.
+##
+## NOT A TABLE. One row of the "pick a sheet" list ConnectorEndpoint
+## .listGoogleSheets returns straight from a live Drive API call — see
+## google_drive_service.dart's header on why kolaa can list these at all
+## now (drive.metadata.readonly, requested alongside the Sheets scope).
+## Exists as a real model, not a raw Map, for the same wire-shape
+## discipline connector_status.spy.yaml's header explains: a generated
+## type the dashboard can rely on, not an ad-hoc JSON shape that drifts.
+##
+
+class: GoogleDriveSpreadsheet
+fields:
+  # The Drive file id — what gets stored (as one entry in
+  # workspace_connectors' encrypted config) once the owner picks it.
+  id: String
+
+  # The spreadsheet's title, exactly as it appears in Drive/Sheets — the
+  # only thing the picker UI actually shows a human.
+  name: String
+
+  # Drive's own "open in browser" link, if Drive returned one — used for
+  # an "open" affordance next to each row in the picker so an owner can
+  # double-check which sheet they're about to select without leaving
+  # kolaa in a half-picked state.
+  webViewLink: String?
+
+  # True for a spreadsheet whose id is already in this workspace's
+  # connected list — lets the picker pre-check/pre-select rows that are
+  # already syncing, instead of showing an undifferentiated flat list on
+  # every visit.
+  alreadyConnected: bool

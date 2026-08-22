@@ -128,10 +128,24 @@ class ErrandEndpoint extends Endpoint {
         'reads to decide when to invoke this Errand.',
       );
     }
-    if (!BuiltinErrandExecutor.handlerKeys.contains(builtinHandlerKey)) {
+    // Connect Gate, subphase 4b — collectPayment/bookCalendarEvent are no
+    // longer registered as Errands; they become available automatically
+    // once their connector is connected (see
+    // connector_capability_registry.dart). Rejected here with a specific
+    // explanation rather than falling through to the generic "unknown
+    // key" message below, which would be confusing for a key that IS
+    // real, just not registrable this way anymore.
+    if (BuiltinErrandExecutor.connectorNativeHandlerKeys.contains(builtinHandlerKey)) {
+      throw KolaException(
+        message: '"$builtinHandlerKey" doesn\'t need to be registered as an '
+            'Errand — it becomes available to the agent automatically once '
+            'the matching connector is connected.',
+      );
+    }
+    if (!BuiltinErrandExecutor.registrableHandlerKeys.contains(builtinHandlerKey)) {
       throw KolaException(
         message:         'Unknown builtinHandlerKey "$builtinHandlerKey" — must be one of: '
-        '${BuiltinErrandExecutor.handlerKeys.join(", ")}',
+        '${BuiltinErrandExecutor.registrableHandlerKeys.join(", ")}',
       );
     }
     if (!_validCreatedVia.contains(createdVia)) {

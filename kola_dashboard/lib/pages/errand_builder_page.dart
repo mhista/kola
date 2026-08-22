@@ -56,10 +56,14 @@ import 'package:kola_client/kola_client.dart';
 import '../theme.dart';
 import '../components/back_link.dart';
 
-/// One selectable template card — the 7 real built-in handlers
-/// BuiltinErrandExecutor registers (builtin_errand_executor.dart), plus
-/// 'custom' for webhook/database Errands. [builtinHandlerKey] is null
-/// only for 'custom'.
+/// One selectable template card — the built-in handlers that are still
+/// registered as Errands (BuiltinErrandExecutor.registrableHandlerKeys
+/// in builtin_errand_executor.dart), plus 'custom' for webhook/database
+/// Errands. [builtinHandlerKey] is null only for 'custom'.
+///
+/// 'collectPayment' and 'bookCalendarEvent' are deliberately absent —
+/// see the comment above the removed collectPayment template below for
+/// why.
 class _Template {
   const _Template({
     required this.id,
@@ -89,14 +93,14 @@ const _templates = [
     desc: 'Hand the conversation to a real person on your team',
     defaultTrigger: "When a customer is frustrated, asks for a human, or kolaa can't resolve the issue.",
   ),
-  _Template(
-    id: 'collectPayment',
-    builtinHandlerKey: 'collectPayment',
-    icon: '💳',
-    name: 'Collect a payment',
-    desc: "Send a payment link and confirm once it's paid",
-    defaultTrigger: 'When a customer is ready to pay for an order or service.',
-  ),
+  // 'collectPayment' removed as a selectable template (Connect Gate,
+  // subphase 4b): collecting payment is no longer something an owner
+  // registers as an Errand — it becomes available to the agent
+  // automatically the moment a payment gateway (Paystack/Flutterwave)
+  // is connected under Integrations. See
+  // connector_capability_registry.dart on the server. Same is true of
+  // booking a calendar event once Google Calendar is connected, which
+  // is why there's no 'bookCalendarEvent' template here either.
   _Template(
     id: 'createSupportTicket',
     builtinHandlerKey: 'createSupportTicket',

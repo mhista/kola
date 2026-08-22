@@ -105,10 +105,17 @@ class GoogleOAuthCallbackRoute extends Route {
         connectorKey: connectorKey,
         status: 'connected',
         encryptedConfig: encrypted,
-        // No spreadsheetId yet — ConnectorEndpoint.setGoogleSheetTarget
-        // is the next step, prompted by the dashboard once it sees this
-        // connector come back 'connected' with no sheet chosen.
-        displayDetail: 'Signed in — choose a sheet',
+        // google_sheets needs a follow-up step (ConnectorEndpoint
+        // .setGoogleSheetTarget) before it can sync anything — there is
+        // no equivalent step for google_calendar, which targets the
+        // connected account's own primary calendar automatically (see
+        // google_calendar_service.dart's header). Branching here rather
+        // than hardcoding Sheets' own follow-up text for every Google
+        // connector, which is what this line did before Calendar became
+        // the second one and made that leak visible.
+        displayDetail: connectorKey == 'google_sheets'
+            ? 'Signed in — choose a sheet'
+            : 'Connected',
       );
 
       _log.info('Google OAuth connected: workspace=$workspaceId connector=$connectorKey');

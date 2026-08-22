@@ -1,13 +1,29 @@
 ##
-## errand.spy.yaml — A registered bot capability (SRS.md §7, PRD.md §5).
+## errand.spy.yaml — A registered, CUSTOM bot capability (SRS.md §7,
+## PRD.md §5).
+##
+## CORRECTED SCOPE (2026-08-22): Errands are for what's genuinely
+## business-specific — a webhook to the business's own backend, a
+## pre-approved database query template, a bespoke natural-language
+## instruction. They are NOT how a connected tool's own native ability
+## becomes available to the agent. Collecting a payment through a
+## connected Paystack/Flutterwave account, or booking an event on a
+## connected Google Calendar, is available to the agent automatically
+## the moment that connector is connected — see
+## connector_capability_registry.dart, which builds those as synthetic,
+## never-persisted Errand objects rather than requiring a real row here.
+## An owner should never need to separately "register" a capability a
+## connection already grants; Errands exist for the extra aid beyond
+## that, not as a gate in front of it.
 ##
 ## Conceptually a cloud-function registry entry: registered once (name,
 ## description, input schema, fulfillment target, permission scope), then
 ## invoked at conversation time by the AI orchestrator. Scoped to a
-## WORKSPACE, not a single Bot — SRS.md §7.3: "Every Errand is scoped to a
-## single workspace at creation and cannot be invoked outside that
-## workspace's conversations" — a workspace with more than one Bot can
-## share the same Errand across all of them.
+## WORKSPACE. (Historical note: the "share across every Bot in a
+## workspace" reasoning below predates the one-agent-per-workspace
+## correction — a workspace has exactly one agent now, see
+## bot_endpoint.dart's _enforceBotCap, so this is simply "the workspace's
+## Errand" today, not shared across multiple bots.)
 ##
 ## FULFILLMENT TARGETS (source), in increasing order of platform trust
 ## required (SRS.md §7.2):

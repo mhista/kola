@@ -49,6 +49,26 @@ class GoogleOAuthService {
   static const scopeSheetsReadonly =
       'https://www.googleapis.com/auth/spreadsheets.readonly';
 
+  /// Connect Gate, subphase 4d — lets kolaa LIST the account's Drive
+  /// files (id/name/link only, metadata) so the dashboard can offer a
+  /// picker of the account's spreadsheets instead of making an owner
+  /// paste a link. Deliberately metadata.readonly, not drive.readonly or
+  /// the bare drive scope: nothing here ever needs to read or write a
+  /// file's actual content — see google_drive_service.dart's header.
+  /// Requested ALONGSIDE [scopeSheetsReadonly] for the Sheets connector,
+  /// never instead of it — this scope alone cannot read a spreadsheet's
+  /// values.
+  static const scopeDriveMetadataReadonly =
+      'https://www.googleapis.com/auth/drive.metadata.readonly';
+
+  /// Calendar scope — deliberately `calendar.events`, not the broader
+  /// `calendar` scope. `calendar.events` grants read/write on events
+  /// only (exactly what booking an appointment needs); the bare
+  /// `calendar` scope additionally lets a caller create/delete/share
+  /// whole CALENDARS, which nothing in this codebase does or should be
+  /// asking an owner to grant.
+  static const scopeCalendarEvents = 'https://www.googleapis.com/auth/calendar.events';
+
   /// The URL to redirect the owner's browser to. [state] must be an
   /// opaque, server-signed value the callback route can verify — see
   /// ConnectorEndpoint.startGoogleOAuth for how it's built. Google
