@@ -330,6 +330,21 @@ class WorkspaceAnswerService {
         tools: [_replyTool(), ...actionTools.tools],
       );
 
+      // DIAGNOSTIC LOGGING (added 2026-08-22) — completeWithTools()
+      // returning successfully with NO tool call AND NO text was
+      // previously a completely silent path: no exception is thrown, so
+      // none of this method's `catch` blocks ever ran, and nothing was
+      // ever logged. From the outside this looked identical to "AI
+      // provider is down," but the AI call actually succeeded — the
+      // model just returned nothing usable. This line makes that
+      // specific failure mode visible instead of indistinguishable from
+      // every other one.
+      _log.info(
+        'WorkspaceAnswerService: ${result.providerName} answered for '
+        'workspace $workspaceId — toolCall=${result.toolCall?.toolName ?? 'none'}, '
+        'textLength=${(result.text ?? '').trim().length}',
+      );
+
       final call = result.toolCall;
 
       // Connect Gate, subphase 4f — the model chose to DO something
@@ -356,6 +371,16 @@ class WorkspaceAnswerService {
       if (call == null || call.toolName != _toolName) {
         final text = (result.text ?? '').trim();
         if (text.isEmpty) {
+          // This used to return silently — no exception, so nothing was
+          // ever logged, and the owner-facing result (a canned "could
+          // not put an answer together") was indistinguishable from a
+          // real provider outage. Logged now so this specific case is
+          // visible in the logs rather than looking identical to every
+          // other failure mode.
+          _log.warning(
+            'WorkspaceAnswerService: ${result.providerName} returned no tool '
+            'call and no text for workspace $workspaceId — falling back',
+          );
           return _fallback(_couldNotAnswer, _defaultActions(catalog));
         }
 

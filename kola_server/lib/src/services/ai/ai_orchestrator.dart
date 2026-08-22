@@ -76,6 +76,7 @@ class AiOrchestrator {
           userMessage: userMessage,
           maxTokens: maxTokens,
         );
+        Log.info('AiOrchestrator: ${provider.name} answered — textLength=${text.trim().length}');
         return AiCompletionResult(text: text, providerName: provider.name);
       } catch (e) {
         Log.warning('AiOrchestrator: ${provider.name} failed, trying next provider: $e');
@@ -120,6 +121,15 @@ class AiOrchestrator {
           userMessage: userMessage,
           tools: tools,
           maxTokens: maxTokens,
+        );
+        // Visible on EVERY call, not just failures — otherwise there is
+        // no way to tell from the logs which provider actually answered
+        // a given request, or to notice a pattern like "gemini keeps
+        // answering with empty content" before it shows up as a
+        // downstream WorkspaceAnswerService warning three calls deep.
+        Log.info(
+          'AiOrchestrator: ${provider.name} answered (tool-calling) — '
+          'toolCall=${result.toolCall?.toolName ?? 'none'}',
         );
         return AiToolOrchestratorResult(
           text: result.text,
