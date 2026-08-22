@@ -136,12 +136,26 @@ class TelegramService {
             'Falling back to long-polling mode. '
             'Check that WEBHOOK_BASE_URL is publicly reachable by Telegram.',
           );
-          await _bot.start();
+          // NOT awaited — see the header comment below _NoOpFetcher (bug
+          // found 2026-08-22): Bot.start() with a real LongPollingFetcher
+          // does not return once it starts, the polling loop IS the
+          // awaited Future, by design, for as long as the bot runs. This
+          // used to be `await _bot.start();` here, which meant this
+          // method's own caller (and everything sequenced after it —
+          // server.dart's trial sweep, ticket SLA sweep, customer
+          // campaign sweep, and critically the connector sync sweep that
+          // Google Sheets/Paystack/Flutterwave/etc. depend on) never ran
+          // on any deploy that reached this bot: server.dart's startup
+          // sequence was permanently stuck inside this one `await`,
+          // confirmed by a production boot log showing zero log lines
+          // for anything past this point, ever, across many deploys.
+          unawaited(_bot.start());
           _log.info('Telegram bot started in polling mode (webhook fallback)');
         }
       } else {
         _log.info('No webhook URL configured — using long-polling mode');
-        await _bot.start();
+        // Same fix, same reason — see the catch block above.
+        unawaited(_bot.start());
         _log.info('Telegram bot started in polling mode');
       }
 
