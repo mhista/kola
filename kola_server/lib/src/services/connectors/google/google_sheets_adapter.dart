@@ -32,6 +32,7 @@ import 'package:kola_server/src/services/repository/product_repository.dart';
 import 'package:kola_server/src/services/connectors/contract/connector_adapter.dart';
 import 'package:kola_server/src/services/connectors/contract/sync_types.dart';
 import 'package:kola_server/src/services/connectors/catalog_row_mapper.dart';
+import 'package:kola_server/src/services/memory/document_ingestion_service.dart';
 import 'google_oauth_service.dart';
 import 'google_sheets_service.dart';
 
@@ -52,6 +53,16 @@ class GoogleSheetsAdapter implements ConnectorAdapter {
   final GoogleSheetsService _sheets;
 
   ProductRepository get _products => getIt<ProductRepository>();
+  DocumentIngestionService get _ingestion => getIt<DocumentIngestionService>();
+
+  /// Caps how much of a sheet gets embedded into the knowledge base per
+  /// sync — a 10,000-row sheet must not blow the free embedding budget
+  /// (Gemini's free tier: 1,500 requests/day, see document_ingestion_
+  /// service.dart's header) in one run. Same "cap it, don't pretend a
+  /// huge source is small" instinct as WorkspaceAnswerService's own
+  /// _catalogDigestLimit.
+  static const _maxIngestedRows = 400;
+  static const _maxIngestedChars = 12000;
 
   @override
   String get connectorKey => 'google_sheets';
@@ -84,6 +95,14 @@ class GoogleSheetsAdapter implements ConnectorAdapter {
       accessToken: accessToken,
     );
     if (rows.isEmpty) return const SyncResult.empty();
+
+    // Knowledge ingestion runs BEFORE the catalog-mapping check below and
+    // regardless of its outcome — a sheet with no resolvable product-name
+    // column (a FAQ table, a price list in an unrecognized shape, notes)
+    // still deserves to be summarizable/searchable, it just isn't a
+    // catalog. Best-effort: a failure here must never break the catalog
+    // sync this method exists primarily to do.
+    await _ingestIntoKnowledgeBase(rows);
 
     final mappings = CatalogRowMapper.mapHeader(rows.first);
     if (!mappings.any((m) => m.field == 'name')) {
@@ -181,6 +200,47 @@ class GoogleSheetsAdapter implements ConnectorAdapter {
       nextCursor: SyncCursor(jsonEncode({'rowsLastSynced': parsed.length})),
       errors: errors,
     );
+  }
+
+  /// Renders the raw sheet [rows] as plain text and hands it to
+  /// [DocumentIngestionService.ingestFromConnector] so the sheet becomes
+  /// summarizable/searchable knowledge, independent of whether it also
+  /// maps to a product catalog. Best-effort: any failure is logged and
+  /// swallowed, never rethrown, so a knowledge-ingestion problem can
+  /// never break the catalog sync in [sync].
+  ///
+  /// KNOWN SIMPLIFICATION: the title is derived from [spreadsheetId]
+  /// rather than the sheet's real display name — the Sheets API call this
+  /// adapter already makes (getValues) does not return the spreadsheet's
+  /// title, and fetching it would mean a second API call on every sync
+  /// purely for a nicer label. Matches this file's own header precedent
+  /// of naming and flagging such trade-offs rather than hiding them.
+  Future<void> _ingestIntoKnowledgeBase(List<List<dynamic>> rows) async {
+    try {
+      final capped = rows.take(_maxIngestedRows).toList();
+      final buffer = StringBuffer();
+      for (final row in capped) {
+        buffer.writeln(row.map((cell) => cell?.toString() ?? '').join(' | '));
+        if (buffer.length >= _maxIngestedChars) break;
+      }
+
+      var text = buffer.toString();
+      if (text.length > _maxIngestedChars) {
+        text = text.substring(0, _maxIngestedChars);
+      }
+      if (text.trim().isEmpty) return;
+
+      await _ingestion.ingestFromConnector(
+        workspaceId: workspaceId,
+        title: 'Google Sheet ($spreadsheetId)',
+        text: text,
+        sourceRef: 'google_sheets:$spreadsheetId',
+      );
+    } catch (e) {
+      // Best-effort only — see this method's doc comment. The catalog
+      // sync in [sync] must proceed regardless of what happens here.
+      Log.warning('GoogleSheetsAdapter: knowledge ingestion failed, continuing with catalog sync: $e');
+    }
   }
 
   @override

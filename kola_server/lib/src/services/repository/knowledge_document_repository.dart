@@ -80,6 +80,33 @@ class KnowledgeDocumentRepository {
     return _dto.fromRow(response);
   }
 
+  /// Finds this workspace's existing document for a given connector
+  /// source, if any — e.g. `'google_sheets:<spreadsheetId>'`. Lets a
+  /// connector sync REINDEX its own prior ingestion in place (same
+  /// document id, chunks replaced) instead of creating a second,
+  /// independent document every time it re-syncs — see
+  /// DocumentIngestionService.ingestFromConnector's header for why that
+  /// distinction matters. Newest-first + limit 1 as a defensive measure
+  /// only: sourceRef is meant to be unique per (workspace, source), this
+  /// does not enforce that at the database level.
+  Future<KnowledgeDocument?> findBySourceRef(
+    int workspaceId,
+    String sourceRef,
+  ) async {
+    _log.fine('findBySourceRef($workspaceId, $sourceRef)');
+    final response = await supabase
+        .from('knowledge_documents')
+        .select()
+        .eq('workspace_id', workspaceId)
+        .eq('source_ref', sourceRef)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return _dto.fromRow(response);
+  }
+
   /// True if this workspace has at least one fully-indexed document.
   /// bot_knowledge_service.dart calls this to decide whether to use real
   /// retrieval or fall back to the legacy Bot.knowledgeSeed — a cheap

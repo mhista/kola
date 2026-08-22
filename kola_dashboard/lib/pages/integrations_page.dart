@@ -134,6 +134,21 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   String? _driveSheetsError;
   final Set<String> _selectedSheetIds = {};
 
+  // ── google_calendar's booking-mode + pending-approval body ───────────
+  //
+  // Gate 4 built ConnectorEndpoint.setCalendarBookingMode/
+  // listPendingBookings/approveBooking/rejectBooking, but nothing in this
+  // file ever called them — the connector's modal fell through to the
+  // generic oauth body, which shows nothing but "Connected." and a
+  // Disconnect button for a connector with no [_oauthTargetConfig]
+  // entry. An owner had no way to see or change bookingMode, and no way
+  // to approve a pending booking, without a direct API call. This is
+  // that missing screen.
+  List<CalendarBooking> _pendingBookings = const [];
+  bool _loadingPendingBookings = false;
+  String? _pendingBookingsError;
+  bool _bookingActionInFlight = false;
+
   @override
   void initState() {
     super.initState();
@@ -226,6 +241,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     if (c.key == 'google_sheets' && c.status == 'connected') {
       _loadDriveSheets(c);
     }
+    if (c.key == 'google_calendar' && c.status == 'connected') {
+      _pendingBookings = const [];
+      _pendingBookingsError = null;
+      _loadPendingBookings(c);
+    }
   }
 
   void _closeModal() {
@@ -238,7 +258,135 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       _driveSheetsError = null;
       _selectedSheetIds.clear();
       _formValues.clear();
+      _pendingBookings = const [];
+      _pendingBookingsError = null;
     });
+  }
+
+  /// Which mode [c]'s connection is in right now. Read from
+  /// [ConnectorStatus.displayDetail] rather than a dedicated field —
+  /// ConnectorEndpoint.setCalendarBookingMode writes exactly
+  /// 'Connected — $bookingMode bookings' there (see that method's own
+  /// body), and adding a whole new wire field for one string felt like
+  /// more surface than this needed. Unset/unrecognized displayDetail
+  /// defaults to 'draft' — the same safe-by-default the SERVER already
+  /// enforces in builtin_errand_executor.dart's _bookCalendarEvent.
+  String _bookingMode(ConnectorStatus c) {
+    final detail = c.displayDetail;
+    if (detail != null && detail.contains('immediate')) return 'immediate';
+    return 'draft';
+  }
+
+  Future<void> _loadPendingBookings(ConnectorStatus c) async {
+    setState(() {
+      _loadingPendingBookings = true;
+      _pendingBookingsError = null;
+    });
+    try {
+      final bookings = await component.client.connector.listPendingBookings(
+        component.accessToken,
+        component.workspaceId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingBookings = bookings;
+        _loadingPendingBookings = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingPendingBookings = false;
+        _pendingBookingsError = ErrorText.of(e);
+      });
+    }
+  }
+
+  Future<void> _setBookingMode(ConnectorStatus c, String mode) async {
+    if (_bookingMode(c) == mode) return; // already there, no call needed
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      final updated = await component.client.connector.setCalendarBookingMode(
+        component.accessToken,
+        component.workspaceId,
+        mode,
+      );
+      if (!mounted) return;
+      setState(() {
+        _replace(updated);
+        _submitting = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = ErrorText.of(e);
+      });
+    }
+  }
+
+  /// Approves [booking] — the server creates the real Google Calendar
+  /// event and marks it 'booked'. Refreshes the pending list afterward
+  /// rather than optimistically removing the row locally, since a
+  /// same-workspace owner approving from two tabs (or the Google write
+  /// itself failing) both need the SERVER's answer, not an assumed one.
+  Future<void> _approveBooking(CalendarBooking booking) async {
+    setState(() {
+      _bookingActionInFlight = true;
+      _pendingBookingsError = null;
+    });
+    try {
+      await component.client.connector.approveBooking(
+        component.accessToken,
+        component.workspaceId,
+        booking.id!,
+      );
+      if (!mounted) return;
+      final refreshed = await component.client.connector.listPendingBookings(
+        component.accessToken,
+        component.workspaceId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingBookings = refreshed;
+        _bookingActionInFlight = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _bookingActionInFlight = false;
+        _pendingBookingsError = ErrorText.of(e);
+      });
+    }
+  }
+
+  Future<void> _rejectBooking(CalendarBooking booking) async {
+    setState(() {
+      _bookingActionInFlight = true;
+      _pendingBookingsError = null;
+    });
+    try {
+      await component.client.connector.rejectBooking(
+        component.accessToken,
+        component.workspaceId,
+        booking.id!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingBookings = [
+          for (final b in _pendingBookings) if (b.id != booking.id) b,
+        ];
+        _bookingActionInFlight = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _bookingActionInFlight = false;
+        _pendingBookingsError = ErrorText.of(e);
+      });
+    }
   }
 
   /// Connect Gate, subphase 4d — fetches the account's spreadsheets for
@@ -1052,6 +1200,10 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       return _googleSheetsPickerBody(c);
     }
 
+    if (c.key == 'google_calendar') {
+      return _calendarBookingModeBody(c);
+    }
+
     final needsTarget = target != null && c.displayDetail == target.sentinel;
 
     return [
@@ -1290,6 +1442,194 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         ],
       ),
     ];
+  }
+
+  /// google_calendar's connected-state body: a Draft/Immediate mode
+  /// toggle plus the list of bookings still waiting on an owner's yes/no
+  /// (draft mode only — immediate mode never accumulates any). See this
+  /// file's header note above [_pendingBookings] for why this exists.
+  List<Component> _calendarBookingModeBody(ConnectorStatus c) {
+    final mode = _bookingMode(c);
+    return [
+      _note('Choose how kola handles a booking it proposes. Immediate '
+          'writes straight to your Google Calendar; draft holds it here '
+          'first so you can approve or reject it.'),
+      div(
+        attributes: {'style': 'display:flex;gap:8px;margin-bottom:${KolaSpace.md}'},
+        [
+          _modeButton(c, mode, 'draft', 'Draft — needs approval'),
+          _modeButton(c, mode, 'immediate', 'Immediate — books instantly'),
+        ],
+      ),
+      if (_submitError != null)
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.danger};'
+                'line-height:1.5;margin-bottom:${KolaSpace.sm}',
+          },
+          [Component.text(_submitError!)],
+        ),
+      div(
+        attributes: {
+          'style': 'font-size:${KolaType.small};font-weight:600;'
+              'color:${KolaVar.mutedStrong};margin-bottom:8px',
+        },
+        [Component.text('Pending approval')],
+      ),
+      if (_loadingPendingBookings)
+        _note('Loading pending bookings…')
+      else if (_pendingBookingsError != null)
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.danger};'
+                'line-height:1.5;margin-bottom:${KolaSpace.sm}',
+          },
+          [Component.text(_pendingBookingsError!)],
+        )
+      else if (_pendingBookings.isEmpty)
+        _note('Nothing waiting on you right now.')
+      else
+        div(
+          attributes: {
+            'style': 'max-height:260px;overflow-y:auto;'
+                'border:1px solid ${KolaVar.border};'
+                'border-radius:${KolaRadius.md};margin-bottom:${KolaSpace.sm}',
+          },
+          [for (final b in _pendingBookings) _pendingBookingRow(b)],
+        ),
+      div(
+        attributes: {'style': 'display:flex;gap:8px;margin-top:${KolaSpace.md}'},
+        [
+          button(
+            attributes: {
+              'type': 'button',
+              if (_submitting) 'disabled': 'disabled',
+              'style': 'padding:10px 16px;border-radius:${KolaRadius.md};'
+                  'border:1px solid ${KolaVar.border};'
+                  'background:transparent;color:${KolaVar.danger};'
+                  'font-family:inherit;font-size:${KolaType.body};'
+                  'font-weight:600;cursor:pointer',
+            },
+            events: {
+              'click': (_) {
+                if (!_submitting) _disconnect(c);
+              },
+            },
+            [Component.text('Disconnect')],
+          ),
+        ],
+      ),
+    ];
+  }
+
+  Component _modeButton(ConnectorStatus c, String currentMode, String mode, String label) {
+    final active = currentMode == mode;
+    return button(
+      attributes: {
+        'type': 'button',
+        'aria-pressed': active ? 'true' : 'false',
+        if (_submitting) 'disabled': 'disabled',
+        'style': 'flex:1;padding:10px 14px;border-radius:${KolaRadius.md};'
+            'border:1px solid ${active ? KolaVar.accent : KolaVar.border};'
+            'background:${active ? KolaVar.accent : 'transparent'};'
+            'color:${active ? KolaVar.accentText : KolaVar.mutedStrong};'
+            'font-family:inherit;font-size:${KolaType.small};'
+            'font-weight:600;cursor:${_submitting ? 'default' : 'pointer'};'
+            'opacity:${_submitting ? '0.65' : '1'}',
+      },
+      events: {
+        'click': (_) {
+          if (!_submitting) _setBookingMode(c, mode);
+        },
+      },
+      [Component.text(label)],
+    );
+  }
+
+  /// One row in the pending-bookings list — title, when, and who it's
+  /// for, plus Approve/Reject. No checkbox/select-state to manage (unlike
+  /// [_sheetRow]) since each row acts immediately on its own booking.
+  Component _pendingBookingRow(CalendarBooking b) {
+    final when = '${_fmtDate(b.startsAt)} – ${_fmtDate(b.endsAt)}';
+    final who = [
+      if (b.attendeeName != null && b.attendeeName!.isNotEmpty) b.attendeeName,
+      if (b.attendeeEmail != null && b.attendeeEmail!.isNotEmpty) b.attendeeEmail,
+    ].whereType<String>().join(' · ');
+    return div(
+      attributes: {
+        'style': 'padding:10px 12px;border-bottom:1px solid ${KolaVar.border};'
+            'display:flex;flex-direction:column;gap:4px',
+      },
+      [
+        span(
+          attributes: {
+            'style': 'font-size:${KolaType.body};font-weight:600;'
+                'color:${KolaVar.text}',
+          },
+          [Component.text(b.title)],
+        ),
+        span(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.mutedStrong}',
+          },
+          [Component.text(who.isEmpty ? when : '$when · $who')],
+        ),
+        div(
+          attributes: {'style': 'display:flex;gap:8px;margin-top:4px'},
+          [
+            button(
+              attributes: {
+                'type': 'button',
+                if (_bookingActionInFlight) 'disabled': 'disabled',
+                'style': 'padding:6px 12px;border-radius:${KolaRadius.sm};'
+                    'border:none;background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};font-family:inherit;'
+                    'font-size:${KolaType.small};font-weight:600;'
+                    'cursor:${_bookingActionInFlight ? 'default' : 'pointer'};'
+                    'opacity:${_bookingActionInFlight ? '0.65' : '1'}',
+              },
+              events: {
+                'click': (_) {
+                  if (!_bookingActionInFlight) _approveBooking(b);
+                },
+              },
+              [Component.text('Approve')],
+            ),
+            button(
+              attributes: {
+                'type': 'button',
+                if (_bookingActionInFlight) 'disabled': 'disabled',
+                'style': 'padding:6px 12px;border-radius:${KolaRadius.sm};'
+                    'border:1px solid ${KolaVar.border};'
+                    'background:transparent;color:${KolaVar.danger};'
+                    'font-family:inherit;font-size:${KolaType.small};'
+                    'font-weight:600;cursor:${_bookingActionInFlight ? 'default' : 'pointer'}',
+              },
+              events: {
+                'click': (_) {
+                  if (!_bookingActionInFlight) _rejectBooking(b);
+                },
+              },
+              [Component.text('Reject')],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Plain, timezone-naive local formatting — this modal is a quick
+  /// glance at "what's waiting on me," not a full scheduling UI. Good
+  /// enough to recognize which booking is which; a real calendar view is
+  /// a bigger, separate piece of work if this ever needs one.
+  String _fmtDate(DateTime dt) {
+    final local = dt.toLocal();
+    final h = local.hour == 0
+        ? 12
+        : (local.hour > 12 ? local.hour - 12 : local.hour);
+    final period = local.hour >= 12 ? 'PM' : 'AM';
+    final min = local.minute.toString().padLeft(2, '0');
+    return '${local.month}/${local.day} $h:$min $period';
   }
 
   /// One row in [_googleSheetsPickerBody]'s list — a button-based toggle,

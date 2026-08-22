@@ -268,6 +268,55 @@ class DocumentIngestionService {
     );
   }
 
+  /// Ingests text from a CONNECTOR sync (Google Sheets today; any future
+  /// read-and-summarize connector reuses this same entry point) — the
+  /// one deliberate departure from [ingestText]'s "the caller decides
+  /// what to do with a duplicate" contract, and from
+  /// knowledge_document.spy.yaml's "supersession is proposed, never
+  /// automatic" rule for pasted/uploaded documents.
+  ///
+  /// WHY THE DEPARTURE IS SAFE HERE: [sourceRef] (e.g.
+  /// 'google_sheets:<spreadsheetId>') is a STABLE identity for a
+  /// connector-sourced document in a way two independently-pasted texts
+  /// never are — this call and the next one an hour from now are the
+  /// SAME external source re-fetched, not two documents whose
+  /// relationship a human needs to judge. So: found existing → reindex
+  /// in place (same document id, chunks replaced, matching
+  /// [reindex]'s own "briefly knowing less beats briefly knowing two
+  /// contradictory versions" trade-off). Not found → ingestText creates
+  /// it fresh with sourceType 'connector'.
+  Future<IngestionResult> ingestFromConnector({
+    required int workspaceId,
+    required String title,
+    required String text,
+    required String sourceRef,
+  }) async {
+    final existing = await _documents.findBySourceRef(workspaceId, sourceRef);
+    if (existing != null && existing.id != null) {
+      return reindex(
+        workspaceId: workspaceId,
+        documentId: existing.id!,
+        title: title,
+        text: text,
+      );
+    }
+    return ingestText(
+      workspaceId: workspaceId,
+      title: title,
+      text: text,
+      sourceType: 'connector',
+      sourceRef: sourceRef,
+      // A connector's re-sync legitimately produces byte-identical text
+      // to some OTHER already-ingested document in rare cases (an empty
+      // sheet twice, say) — allowDuplicate: true here because the
+      // sourceRef-based find-or-create above is already this method's
+      // real dedupe mechanism; content-hash dedupe on top of that would
+      // just block a legitimate first ingestion under an unlucky hash
+      // collision with unrelated content.
+      allowDuplicate: true,
+    );
+  }
+
   /// Turns an exception into something a business owner can read and act
   /// on. Anything unrecognized falls through to a generic message rather
   /// than leaking a stack trace or provider internals into the dashboard.

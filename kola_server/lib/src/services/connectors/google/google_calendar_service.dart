@@ -52,8 +52,20 @@ class GoogleCalendarService {
     required DateTime endsAt,
     String? attendeeEmail,
   }) async {
+    // sendUpdates=all IS THE NOTIFICATION. Without this query parameter,
+    // Google creates the event exactly as asked but emails no one about
+    // it — attendees is just data on the event, not an instruction to
+    // notify. This was reported as "the meeting was created but I never
+    // got a notification": the booking worked, this parameter was
+    // simply never sent. Always 'all' rather than conditional on
+    // [attendeeEmail] being set: harmless with zero attendees, and
+    // matches what an owner opening Google Calendar directly and typing
+    // a guest in would get by default.
+    final uri = Uri.parse(_baseUrl).replace(
+      queryParameters: {'sendUpdates': 'all'},
+    );
     final response = await http.post(
-      Uri.parse(_baseUrl),
+      uri,
       headers: {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
