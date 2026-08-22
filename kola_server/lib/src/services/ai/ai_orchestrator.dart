@@ -37,7 +37,12 @@ class AiOrchestrator {
   AiOrchestrator({List<AiProvider>? providers})
       : _providers = providers ??
             [
-              GroqProvider(apiKey: Env.groqApiKey),
+              // GROQ_API_KEY_2 (optional) — a second Groq account's key,
+              // tried by GroqProvider itself once every model on the
+              // primary key is quota-exceeded, BEFORE this cascade ever
+              // has to fall through to Gemini. See groq_provider.dart's
+              // header.
+              GroqProvider(apiKey: Env.groqApiKey, secondaryApiKey: Env.groqApiKey2),
               GeminiProvider(apiKey: Env.geminiApiKey),
               OpenRouterProvider(apiKey: Env.openRouterApiKey),
             ];

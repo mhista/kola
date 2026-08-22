@@ -187,6 +187,18 @@ abstract class Env {
       ? _Env.groqApiKey
       : Platform.environment['GROQ_API_KEY'] ?? '';
 
+  // A SECOND Groq account's key, tried only after GROQ_API_KEY hits a 429
+  // (quota exceeded) — see groq_provider.dart's header on why this exists
+  // one level BELOW the Groq -> Gemini -> OpenRouter cascade above rather
+  // than as a fourth provider: Groq's free tier is generous enough that a
+  // second key buys real headroom before ever needing to degrade to a
+  // different (slower/weaker) provider. Optional — if unset, GroqProvider
+  // just has one key, same as before this field existed.
+  @EnviedField(varName: 'GROQ_API_KEY_2', obfuscate: true, defaultValue: '')
+  static final String groqApiKey2 = _Env.groqApiKey2.isNotEmpty
+      ? _Env.groqApiKey2
+      : Platform.environment['GROQ_API_KEY_2'] ?? '';
+
   @EnviedField(varName: 'GEMINI_API_KEY', obfuscate: true, defaultValue: '')
   static final String geminiApiKey = _Env.geminiApiKey.isNotEmpty
       ? _Env.geminiApiKey

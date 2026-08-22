@@ -8,6 +8,7 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:kola_server/kola_logger.dart';
 import '../ai_provider.dart';
 
 class GeminiProvider implements AiProvider {
@@ -44,6 +45,20 @@ class GeminiProvider implements AiProvider {
   /// is honoured.
   static const _models = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
 
+  // ── SECOND BUG FOUND IN THIS SAME FALLBACK LOOP (2026-08-22) ─────────
+  //
+  // complete()/completeWithTools() used to only catch
+  // AiQuotaExceededException when deciding whether to try the second
+  // model — any OTHER failure from the first model (bad request, a
+  // model rename, an unexpected response shape) threw straight out of
+  // the loop, skipping gemini-3.6-flash entirely and propagating all
+  // the way up to AiOrchestrator. With OpenRouter unconfigured in
+  // production, that meant a single non-quota Gemini error could take
+  // down the entire Groq -> Gemini -> OpenRouter chain after Groq's own
+  // quota was hit — exactly the failure the owner hit trying to book a
+  // calendar event. Both loops now catch everything, matching
+  // GroqProvider's per-model loop, and log every attempt.
+
   @override
   String get name => 'gemini';
 
@@ -65,12 +80,20 @@ class GeminiProvider implements AiProvider {
           userMessage: userMessage,
           maxTokens: maxTokens,
         );
-      } on AiQuotaExceededException catch (e) {
+      } catch (e) {
+        // BUG FIXED HERE — this used to only catch AiQuotaExceededException,
+        // so any OTHER failure (bad request, a renamed/retired model, an
+        // unexpected response shape) skipped straight past the second
+        // Gemini model and threw all the way up to AiOrchestrator. With
+        // OpenRouter unconfigured, that meant one non-quota Gemini error
+        // could take down the ENTIRE fallback chain after Groq. Now
+        // catches everything, same as GroqProvider's own per-model loop,
+        // and logs every attempt instead of hiding all but the last.
         lastError = e;
-        continue; // try the next Gemini model before giving up on Gemini
+        Log.warning('GeminiProvider: $model failed, trying next: $e');
       }
     }
-    throw Exception('Gemini: all models exhausted quota. Last error: $lastError');
+    throw Exception('Gemini: all models failed. Last error: $lastError');
   }
 
   Future<String> _call({
@@ -140,12 +163,15 @@ class GeminiProvider implements AiProvider {
           tools: tools,
           maxTokens: maxTokens,
         );
-      } on AiQuotaExceededException catch (e) {
+      } catch (e) {
+        // See [complete]'s identical fix above — was quota-only, now
+        // catches every failure so one non-quota error from the first
+        // model doesn't skip the second Gemini model entirely.
         lastError = e;
-        continue;
+        Log.warning('GeminiProvider: $model failed (tool-calling), trying next: $e');
       }
     }
-    throw Exception('Gemini: all models exhausted quota (tool-calling). Last error: $lastError');
+    throw Exception('Gemini: all models failed (tool-calling). Last error: $lastError');
   }
 
   Future<AiToolCompletionResult> _callWithTools({

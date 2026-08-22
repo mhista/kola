@@ -14,9 +14,24 @@ import 'package:kola_server/kola_logger.dart';
 import '../ai_provider.dart';
 
 class GroqProvider implements AiProvider {
-  GroqProvider({required this.apiKey});
+  GroqProvider({required this.apiKey, String? secondaryApiKey})
+      : _keys = [
+          if (apiKey.isNotEmpty) apiKey,
+          if (secondaryApiKey != null && secondaryApiKey.isNotEmpty) secondaryApiKey,
+        ];
 
   final String apiKey;
+
+  /// GROQ_API_KEY, then (if set) GROQ_API_KEY_2 — a second Groq account's
+  /// key, tried ONLY after every model has failed on the first key. This
+  /// exists because Groq's free-tier quota is shared across every model
+  /// under one account: a 429 on gpt-oss-120b almost always means
+  /// gpt-oss-20b will 429 too, since they're the same account hitting the
+  /// same cap. A second, separate account's key is real headroom in a way
+  /// a second model on the SAME key is not. If GROQ_API_KEY_2 is unset,
+  /// [_keys] just holds one entry and this behaves exactly as before this
+  /// field existed.
+  final List<String> _keys;
 
   /// ── BOTH PREVIOUS MODELS WERE RETIRED FROM GROQ'S CATALOG ─────────
   ///
@@ -58,28 +73,42 @@ class GroqProvider implements AiProvider {
     int maxTokens = 1024,
   }) async {
     Object? lastError;
-    for (final model in _models) {
-      try {
-        return await _call(
-          model: model,
-          systemPrompt: systemPrompt,
-          userMessage: userMessage,
-          maxTokens: maxTokens,
-        );
-      } catch (e) {
-        lastError = e;
-        // Logged HERE, not just thrown at the end — a model that's been
-        // retired reports 404 on every single call, and swallowing that
-        // until the final "last error" message hid exactly which
-        // model(s) were dead for longer than it should have (see this
-        // file's header). Every attempt is now visible in its own line.
-        Log.warning('GroqProvider: $model failed, trying next: $e');
+    // Keys OUTER, models INNER: a 429 on key 1 almost always means every
+    // model on key 1 is also quota-exceeded (same account, same cap), so
+    // exhaust key 1's models first, THEN move to key 2 — not the other
+    // way round, which would burn key 2's quota on a model that's simply
+    // retired rather than actually rate-limited.
+    for (final key in _keys) {
+      for (final model in _models) {
+        try {
+          return await _call(
+            apiKey: key,
+            model: model,
+            systemPrompt: systemPrompt,
+            userMessage: userMessage,
+            maxTokens: maxTokens,
+          );
+        } catch (e) {
+          lastError = e;
+          // Logged HERE, not just thrown at the end — a model that's been
+          // retired reports 404 on every single call, and swallowing that
+          // until the final "last error" message hid exactly which
+          // model(s) were dead for longer than it should have (see this
+          // file's header). Every attempt is now visible in its own line.
+          Log.warning('GroqProvider: $model on ${_keyLabel(key)} failed, trying next: $e');
+        }
       }
     }
-    throw Exception('Groq: all models failed. Last error: $lastError');
+    throw Exception('Groq: all keys/models failed. Last error: $lastError');
   }
 
+  /// Never logs the real key — just which slot it is, so key rotation
+  /// failures are traceable in logs without a secret ever appearing in
+  /// them.
+  String _keyLabel(String key) => key == apiKey ? 'primary key' : 'secondary key';
+
   Future<String> _call({
+    required String apiKey,
     required String model,
     required String systemPrompt,
     required String userMessage,
@@ -124,26 +153,32 @@ class GroqProvider implements AiProvider {
     int maxTokens = 1024,
   }) async {
     Object? lastError;
-    for (final model in _models) {
-      try {
-        return await _callWithTools(
-          model: model,
-          systemPrompt: systemPrompt,
-          userMessage: userMessage,
-          tools: tools,
-          maxTokens: maxTokens,
-        );
-      } catch (e) {
-        lastError = e;
-        // See the plain-completion loop above for why this is logged
-        // per-attempt now instead of only at the end.
-        Log.warning('GroqProvider: $model failed (tool-calling), trying next: $e');
+    // Same keys-outer, models-inner order as [complete] — see that
+    // method's comment.
+    for (final key in _keys) {
+      for (final model in _models) {
+        try {
+          return await _callWithTools(
+            apiKey: key,
+            model: model,
+            systemPrompt: systemPrompt,
+            userMessage: userMessage,
+            tools: tools,
+            maxTokens: maxTokens,
+          );
+        } catch (e) {
+          lastError = e;
+          // See the plain-completion loop above for why this is logged
+          // per-attempt now instead of only at the end.
+          Log.warning('GroqProvider: $model on ${_keyLabel(key)} failed (tool-calling), trying next: $e');
+        }
       }
     }
-    throw Exception('Groq: all models failed (tool-calling). Last error: $lastError');
+    throw Exception('Groq: all keys/models failed (tool-calling). Last error: $lastError');
   }
 
   Future<AiToolCompletionResult> _callWithTools({
+    required String apiKey,
     required String model,
     required String systemPrompt,
     required String userMessage,
