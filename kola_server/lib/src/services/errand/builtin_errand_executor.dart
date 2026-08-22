@@ -186,28 +186,54 @@ class BuiltinErrandExecutor {
       );
     }
 
+    // BUG FIXED HERE (2026-08-22) — errand_execution_logs.errand_id has a
+    // foreign key to errands.id. SYNTHETIC capabilities
+    // (connector_capability_registry.dart's SyntheticErrandIds —
+    // collectPayment = -1, bookCalendarEvent = -2) are deliberately
+    // NEVER persisted to the errands table at all, so logging their
+    // execution always violated that FK constraint — on success AND on
+    // failure. Concretely: a synthetic execution's REAL error (e.g. a
+    // missing calendar_bookings table) would be logged correctly via
+    // Log.error below, and then the very next line — the attempt to
+    // persist that failure to errand_execution_logs — would ITSELF throw
+    // a second, unrelated FK-violation exception that overwrote the
+    // first one before it ever reached the caller. A successful synthetic
+    // execution had the same problem on the way out: the logExecution
+    // call before `return result` would throw before the result could
+    // ever be returned. Every connector-native capability call was
+    // silently broken by this, independent of whether the underlying
+    // action actually worked. Only real, persisted Errands (positive ids)
+    // get an execution log row now; synthetic ones still get the
+    // Log.error/Log.info console trail, just not a DB row that can't
+    // legally exist for them.
+    final isSyntheticCapability = (errand.id ?? 0) < 0;
+
     final stopwatch = Stopwatch()..start();
     try {
       final result = await handler(errand, input);
       stopwatch.stop();
-      await _executionLogs.logExecution(
-        errand: errand,
-        input: input,
-        result: result,
-        success: true,
-        latencyMs: stopwatch.elapsedMilliseconds,
-      );
+      if (!isSyntheticCapability) {
+        await _executionLogs.logExecution(
+          errand: errand,
+          input: input,
+          result: result,
+          success: true,
+          latencyMs: stopwatch.elapsedMilliseconds,
+        );
+      }
       return result;
     } catch (e) {
       stopwatch.stop();
       Log.error('Built-in errand execution failed (errandId: ${errand.id})', error: e);
-      await _executionLogs.logExecution(
-        errand: errand,
-        input: input,
-        success: false,
-        errorMessage: e.toString(),
-        latencyMs: stopwatch.elapsedMilliseconds,
-      );
+      if (!isSyntheticCapability) {
+        await _executionLogs.logExecution(
+          errand: errand,
+          input: input,
+          success: false,
+          errorMessage: e.toString(),
+          latencyMs: stopwatch.elapsedMilliseconds,
+        );
+      }
       rethrow;
     }
   }
