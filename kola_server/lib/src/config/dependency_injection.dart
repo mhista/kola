@@ -415,6 +415,17 @@ void setupDependencyInjection() {
       aiOrchestrator: getIt<AiOrchestrator>(),
       memory: getIt<MemoryRetrievalService>(),
       products: getIt<ProductRepository>(),
+      // Connect Gate, subphase 4e — connector-status awareness for the
+      // owner dashboard's "Ask kola" box. Both already registered
+      // elsewhere in this function.
+      workspaces: getIt<WorkspaceRepository>(),
+      connectors: getIt<ConnectorService>(),
+      // Connect Gate, subphase 4f — real action execution, the same
+      // tool set InboundMessageHandler gives a customer conversation.
+      // All three already registered elsewhere in this function.
+      errands: getIt<ErrandRepository>(),
+      connectorCapabilities: getIt<ConnectorCapabilityRegistry>(),
+      errandDispatch: getIt<ErrandDispatchService>(),
     ),
   );
 

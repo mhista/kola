@@ -14,13 +14,16 @@
 // ── THE SHAPE, AND WHY IT IS NOT JUST "ASK THE MODEL" ────────────────
 //
 //   question
-//     ├─ memory retrieval        the owner's own documents
-//     ├─ catalog digest          what they actually sell
-//     └─ model ──▶ tool call ──▶ { answer, product ids, intents }
-//                                          │
-//                                          └─ server resolves routes
+//     ├─ memory retrieval          the owner's own documents
+//     ├─ catalog digest            what they actually sell
+//     ├─ connector digest          what's actually connected right now
+//     ├─ action tools              real Errands + connector capabilities
+//     └─ model ──▶ EITHER an action tool call ──▶ dispatched for real
+//               ──▶ OR reply_to_owner ──▶ { answer, product ids, intents }
+//                                                  │
+//                                                  └─ server resolves routes
 //
-// Two rules make this safe to put in front of an owner:
+// Three rules make this safe to put in front of an owner:
 //
 //   1. The model may POINT at products, never DESCRIBE them. It returns
 //      ids; the dashboard loads those rows and renders real prices,
@@ -31,6 +34,16 @@
 //      workspace_answer_action.spy.yaml — this codebase has already
 //      shipped two links to routes that did not exist, by hand, and a
 //      model cannot read the router.
+//
+//   3. CONNECT GATE, SUBPHASE 4F — CONFIRMED WITH THE USER: the model
+//      may EXECUTE an action, but only by calling a real tool this
+//      service itself offered it this turn (see [_actionTools]) — it
+//      can never claim to have done something it didn't actually call a
+//      tool for (see the prompt's own instruction on this). Every
+//      action dispatches through the SAME ErrandDispatchService a
+//      customer conversation uses (InboundMessageHandler) — this is not
+//      a second, looser execution path, it's the one agent's abilities
+//      reached through a second front door.
 //
 // ── STRUCTURED OUTPUT VIA A TOOL CALL, NOT "RETURN JSON" ─────────────
 //
@@ -55,6 +68,13 @@ import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
 import 'package:kola_server/src/services/ai/ai_provider.dart';
 import 'package:kola_server/src/services/memory/memory_retrieval_service.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
+import 'package:kola_server/src/services/repository/workspace_repository.dart';
+import 'package:kola_server/src/services/repository/errand_repository.dart';
+import 'package:kola_server/src/services/connectors/connector_service.dart';
+import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
+import 'package:kola_server/src/services/errand/errand_tool_registry.dart';
+import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
+import 'package:kola_server/src/services/security/security_filter.dart';
 
 // package:logging, like every other service here. `Log` (kola_logger.dart)
 // is the ENDPOINT-layer helper — it takes a Session so an entry is
@@ -66,13 +86,54 @@ class WorkspaceAnswerService {
     required AiOrchestrator aiOrchestrator,
     required MemoryRetrievalService memory,
     required ProductRepository products,
+    required WorkspaceRepository workspaces,
+    required ConnectorService connectors,
+    required ErrandRepository errands,
+    required ConnectorCapabilityRegistry connectorCapabilities,
+    required ErrandDispatchService errandDispatch,
+    SecurityFilter? securityFilter,
   })  : _ai = aiOrchestrator,
         _memory = memory,
-        _products = products;
+        _products = products,
+        _workspaces = workspaces,
+        _connectors = connectors,
+        _errands = errands,
+        _connectorCapabilities = connectorCapabilities,
+        _errandDispatch = errandDispatch,
+        _security = securityFilter ?? SecurityFilter();
 
   final AiOrchestrator _ai;
   final MemoryRetrievalService _memory;
   final ProductRepository _products;
+
+  /// Connect Gate, subphase 4e — this assistant had ZERO visibility into
+  /// what the owner had connected (WhatsApp aside, via the catalog
+  /// path). An owner who had just connected Google Calendar was told
+  /// "I do not have a calendar integration connected" — true when this
+  /// file was written, false the moment Gate 4 shipped, and nobody
+  /// updated this service because nothing here was reading connector
+  /// state at all. [_connectorDigest] below is what fixes that: the
+  /// SAME merged, secret-free view ConnectorService already builds for
+  /// the Integrations page, reused here as prompt context instead of
+  /// screen content.
+  final WorkspaceRepository _workspaces;
+  final ConnectorService _connectors;
+
+  /// Connect Gate, subphase 4f — CONFIRMED WITH THE USER: this assistant
+  /// now EXECUTES, not just informs. It reuses the exact same tool set a
+  /// customer conversation gets (InboundMessageHandler) — real, active
+  /// Errands plus synthetic connector-capability ones (see
+  /// connector_capability_registry.dart) — because it's the same one
+  /// agent's abilities, just reached through a different front door: the
+  /// owner talking to their own dashboard instead of a customer talking
+  /// on WhatsApp. `escalate_to_human` is deliberately excluded from what
+  /// this surface offers (see [_actionTools]) — the owner IS the human,
+  /// escalating to them makes no sense here the way it does for a
+  /// customer.
+  final ErrandRepository _errands;
+  final ConnectorCapabilityRegistry _connectorCapabilities;
+  final ErrandDispatchService _errandDispatch;
+  final SecurityFilter _security;
 
   /// The tool the model is asked to call. One tool, always called —
   /// which is how a chat model is made to emit a fixed schema.
@@ -165,13 +226,15 @@ class WorkspaceAnswerService {
       );
     }
 
-    // Both reads before the model call, because the prompt needs them
-    // and neither depends on the other.
+    // Three reads before the model call, because the prompt needs all of
+    // them and none depends on another.
     final retrieved = await _memory.retrieve(
       workspaceId: workspaceId,
       query: trimmed,
     );
     final catalog = await _catalogDigest(workspaceId);
+    final connectorDigest = await _connectorDigest(workspaceId);
+    final actionTools = await _actionTools(workspaceId);
 
     final citations = <KnowledgeSearchHit>[
       for (final m in retrieved.matches)
@@ -185,9 +248,13 @@ class WorkspaceAnswerService {
         ),
     ];
 
-    // Nothing to answer FROM. Said plainly rather than sent to a model
-    // that would then have to invent a way to say it.
-    if (retrieved.matches.isEmpty && catalog.isEmpty) {
+    // Nothing to answer FROM, and nothing it could DO either. Said
+    // plainly rather than sent to a model that would then have to invent
+    // a way to say it. An owner with zero products/knowledge but a
+    // connected calendar asking "book an appointment" must NOT hit this
+    // — actionTools.tools.isEmpty is what keeps that case falling
+    // through to the real model call below instead.
+    if (retrieved.matches.isEmpty && catalog.isEmpty && actionTools.tools.isEmpty) {
       return _fallback(
         "I have not been taught anything yet, so I cannot answer that from "
         "your own words.\n\n"
@@ -205,12 +272,36 @@ class WorkspaceAnswerService {
         systemPrompt: _systemPrompt(
           memoryBlock: retrieved.promptBlock,
           catalog: catalog,
+          connectors: connectorDigest,
+          hasActionTools: actionTools.tools.isNotEmpty,
         ),
         userMessage: trimmed,
-        tools: [_replyTool()],
+        tools: [_replyTool(), ...actionTools.tools],
       );
 
       final call = result.toolCall;
+
+      // Connect Gate, subphase 4f — the model chose to DO something
+      // rather than just answer. Dispatched through the exact same
+      // ErrandDispatchService a customer conversation uses.
+      if (call != null && call.toolName != _toolName) {
+        final errand = ErrandToolRegistry.findErrandForToolName(call.toolName, actionTools.errands);
+        if (errand != null) {
+          return _executeAction(
+            errand: errand,
+            arguments: call.arguments,
+            workspaceId: workspaceId,
+            catalog: catalog,
+            citations: citations,
+            providerName: result.providerName,
+          );
+        }
+        // Not a real action tool (e.g. a stale/unknown name) — fall
+        // through to the existing text-recovery handling below exactly
+        // as before this change, by leaving `call` as it is; the next
+        // check re-reads call.toolName != _toolName and takes that path.
+      }
+
       if (call == null || call.toolName != _toolName) {
         final text = (result.text ?? '').trim();
         if (text.isEmpty) {
@@ -312,6 +403,7 @@ class WorkspaceAnswerService {
           systemPrompt: _systemPrompt(
             memoryBlock: retrieved.promptBlock,
             catalog: catalog,
+            connectors: connectorDigest,
           ),
           userMessage: trimmed,
         );
@@ -353,6 +445,8 @@ class WorkspaceAnswerService {
   String _systemPrompt({
     required String memoryBlock,
     required List<_CatalogEntry> catalog,
+    required String connectors,
+    bool hasActionTools = false,
   }) {
     final buffer = StringBuffer()
       ..writeln(
@@ -382,6 +476,65 @@ class WorkspaceAnswerService {
         'price and stock underneath your answer. Repeating those numbers '
         'in text only risks contradicting them.',
       );
+
+    // Connect Gate, subphase 4e — CONNECTOR STATUS IS GROUND TRUTH.
+    //
+    // Before this, the model had no idea what was or wasn't connected
+    // and would confidently repeat whatever it last saw in ITS OWN
+    // training or an earlier turn — observed verbatim as "I do not have
+    // a calendar integration connected" to an owner who had connected
+    // one. The list below is read fresh, this turn, from the same
+    // source the Integrations page itself draws from — it is never
+    // stale in the way a remembered fact can be.
+    //
+    // THIS ASSISTANT CANNOT ACT ON A CONNECTOR ITSELF — that's stated
+    // explicitly rather than left implicit, because "I can see Google
+    // Calendar is connected" is one short model-hop away from "so I've
+    // added that to your calendar," which would be a lie: this service
+    // only points at screens and recites facts (see this file's own
+    // header on the two safety rules), it has no tool-calling path to
+    // any connector. The customer-facing chat (InboundMessageHandler)
+    // is what actually executes bookings/payments — see
+    // connector_capability_registry.dart — a genuinely different
+    // surface with a genuinely different safety posture, not something
+    // this file quietly gained.
+    buffer
+      ..writeln()
+      ..writeln('--- CONNECTED TOOLS (this is the CURRENT, real state — '
+          'never say something is or isn\'t connected other than what is '
+          'listed here) ---')
+      ..writeln(connectors.trim().isEmpty
+          ? 'Nothing is connected yet.'
+          : connectors)
+      ..writeln();
+
+    // Connect Gate, subphase 4f — CONFIRMED WITH THE USER: this
+    // assistant now executes real actions (book a calendar event, and
+    // whatever else is offered as a tool this turn), not just informs.
+    // [hasActionTools] mirrors exactly what [ask] actually offered the
+    // model as callable tools THIS turn — never claim an ability the
+    // model wasn't actually given a tool for.
+    if (hasActionTools) {
+      buffer.writeln(
+        'Some of your tools this turn are REAL ACTIONS on a connected '
+        'service (e.g. booking a calendar event), not just information. '
+        'If the owner is asking you to DO something and a matching tool '
+        'is available, call it — do not just describe how they could do '
+        'it themselves. If no matching tool exists for what they asked, '
+        'say so plainly and point them at Integrations rather than '
+        'pretending to have done it. Never claim you performed an action '
+        'unless you actually called the matching tool this turn.',
+      );
+    } else {
+      buffer.writeln(
+        'You have no action tools available this turn (nothing relevant '
+        'is connected, or connecting a tool would enable one) — you can '
+        'only inform and route. If asked to DO something through a '
+        'connected tool, say plainly that you can\'t do that right now '
+        'and point at Integrations. Never imply you performed an action '
+        'you did not perform.',
+      );
+    }
 
     if (catalog.isNotEmpty) {
       buffer
@@ -654,6 +807,140 @@ class WorkspaceAnswerService {
       ];
 
   // ── Catalog digest ──────────────────────────────────────────────────
+
+  // ── Action tools (Connect Gate, subphase 4f) ───────────────────────
+
+  /// The real, active Errands plus synthetic connector-capability ones
+  /// (see connector_capability_registry.dart), turned into [AiTool]s the
+  /// SAME way InboundMessageHandler does for a customer conversation —
+  /// `escalate_to_human` filtered out, since it has no meaning for the
+  /// owner talking to their own assistant. Returns both the tools (for
+  /// the model) and the source [Errand] list (for dispatch afterward),
+  /// so [ask] doesn't fetch either twice.
+  Future<({List<AiTool> tools, List<Errand> errands})> _actionTools(int workspaceId) async {
+    try {
+      final activeErrands = await _errands.listActiveByWorkspace(workspaceId);
+      final connectorErrands = await _connectorCapabilities.forWorkspace(workspaceId);
+      final allErrands = [...activeErrands, ...connectorErrands];
+      final tools = ErrandToolRegistry.buildTools(allErrands)
+          .where((t) => t.name != kEscalateToHumanToolName)
+          .toList();
+      return (tools: tools, errands: allErrands);
+    } catch (e) {
+      // A tool-list build failure must not take down the ability to
+      // answer at all — same "degrade, do not break" posture as every
+      // other digest in this file.
+      _log.warning('action tools failed to build for $workspaceId: $e');
+      return (tools: const <AiTool>[], errands: const <Errand>[]);
+    }
+  }
+
+  /// Dispatches a real action the owner asked for, through the exact
+  /// same ErrandDispatchService a customer conversation uses. Every
+  /// builtin handler already produces an honest, ready-to-show
+  /// `replyToCustomer` string (see builtin_errand_executor.dart) — that
+  /// field name is a customer-chat leftover, the text itself reads fine
+  /// for an owner too ("You're booked — I've added it to the
+  /// calendar."), so it's used directly rather than asking the model to
+  /// paraphrase a result it already phrased correctly.
+  Future<WorkspaceAnswer> _executeAction({
+    required Errand errand,
+    required Map<String, dynamic> arguments,
+    required int workspaceId,
+    required List<_CatalogEntry> catalog,
+    required List<KnowledgeSearchHit> citations,
+    required String providerName,
+  }) async {
+    // Phase 3d (SRS.md §10) — same checkpoint InboundMessageHandler runs
+    // before ANY Errand call: the owner typed prose, the model inferred
+    // structured arguments, and that inference gets checked before it's
+    // allowed to do anything, exactly as it would for a customer.
+    final inputCheck = _security.checkErrandInput(arguments);
+    if (!inputCheck.allowed) {
+      _log.warning(
+        'WorkspaceAnswerService: security filter blocked an inferred action '
+        'for workspace $workspaceId (errand ${errand.id})',
+      );
+      return WorkspaceAnswer(
+        answer: inputCheck.warningMessage ?? "I can't do that from here.",
+        productIds: const [],
+        actions: _actionsFromIntents(_defaultActions(catalog)),
+        citations: citations,
+        generated: true,
+        providerName: providerName,
+      );
+    }
+
+    try {
+      final dispatchResult = await _errandDispatch.dispatch(errand: errand, input: arguments);
+      final reply = dispatchResult['replyToCustomer'];
+      return WorkspaceAnswer(
+        answer: reply is String && reply.isNotEmpty ? reply : 'Done.',
+        productIds: const [],
+        actions: _actionsFromIntents(_defaultActions(catalog)),
+        citations: citations,
+        generated: true,
+        providerName: providerName,
+      );
+    } catch (e) {
+      // A malformed-input ArgumentError (missing title/startsAt, etc.)
+      // or a genuine provider failure both land here — either way the
+      // owner gets an honest "couldn't do it" rather than a stack trace,
+      // same posture as every other failure path in this file.
+      _log.warning(
+        'WorkspaceAnswerService: action dispatch failed for workspace '
+        '$workspaceId (errand ${errand.id}): $e',
+      );
+      return WorkspaceAnswer(
+        answer: "I couldn't complete that — try again in a moment, or do it "
+            'directly from Integrations.',
+        productIds: const [],
+        actions: _actionsFromIntents(_defaultActions(catalog)),
+        citations: citations,
+        generated: true,
+        providerName: providerName,
+      );
+    }
+  }
+
+  // ── Connector digest ─────────────────────────────────────────────────
+
+  /// Connect Gate, subphase 4e — a short, plain-text rendering of
+  /// [ConnectorService.listForWorkspace], the same merge the Integrations
+  /// page itself renders from. Only 'connected' and 'error' rows are
+  /// worth a line — 'available'/'soon' entries are the ENTIRE catalog
+  /// (15+ connectors), which would bloat the prompt with things that
+  /// aren't set up and add nothing an owner asked about. An owner asking
+  /// "what's connected" gets a real answer either way: something to
+  /// list, or the explicit "nothing is connected yet" this method's
+  /// caller renders for an empty result.
+  Future<String> _connectorDigest(int workspaceId) async {
+    try {
+      final workspace = await _workspaces.findById(workspaceId);
+      if (workspace == null) return '';
+
+      final statuses = await _connectors.listForWorkspace(workspace);
+      final relevant = statuses.where((s) =>
+          s.status == ConnectorStatusValue.connected ||
+          s.status == ConnectorStatusValue.error);
+
+      final lines = <String>[
+        for (final s in relevant)
+          s.status == ConnectorStatusValue.error
+              ? '${s.name}: connected, but currently reporting an error '
+                  '(${s.lastError ?? 'see Integrations for detail'})'
+              : '${s.name}: connected'
+                  '${s.displayDetail != null ? ' — ${s.displayDetail}' : ''}',
+      ];
+      return lines.join('\n');
+    } catch (e) {
+      // A connector-status read failing must not take the whole answer
+      // down with it — same "degrade, do not break" posture as
+      // _catalogDigest right below.
+      _log.warning('connector digest failed for $workspaceId: $e');
+      return '';
+    }
+  }
 
   Future<List<_CatalogEntry>> _catalogDigest(int workspaceId) async {
     try {
