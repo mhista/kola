@@ -95,6 +95,10 @@ import 'package:kola_server/src/services/repository/workspace_feature_override_r
 import 'package:kola_server/src/services/repository/product_repository.dart';
 import 'package:kola_server/src/services/media/imagekit_service.dart';
 import 'package:kola_server/src/services/media/inbound_media_service.dart';
+// Connect Gate, subphase 4g — short-term conversational memory for the
+// owner dashboard's "Ask kola" box. See workspace_answer_turn_repository
+// .dart's header.
+import 'package:kola_server/src/services/repository/workspace_answer_turn_repository.dart';
 
 final getIt = GetIt.instance;
 
@@ -406,6 +410,12 @@ void setupDependencyInjection() {
     ),
   );
 
+  // Connect Gate, subphase 4g — short-term conversational memory. See
+  // workspace_answer_turn_repository.dart's header.
+  getIt.registerLazySingleton<WorkspaceAnswerTurnRepository>(
+    () => const WorkspaceAnswerTurnRepository(),
+  );
+
   // Answers the OWNER, in the dashboard. Distinct from
   // BotKnowledgeService, which answers CUSTOMERS on a channel — see
   // workspace_answer_service.dart on why the two cannot share a posture
@@ -426,6 +436,9 @@ void setupDependencyInjection() {
       errands: getIt<ErrandRepository>(),
       connectorCapabilities: getIt<ConnectorCapabilityRegistry>(),
       errandDispatch: getIt<ErrandDispatchService>(),
+      // Connect Gate, subphase 4g — short-term conversational memory.
+      // Registered immediately above.
+      turns: getIt<WorkspaceAnswerTurnRepository>(),
     ),
   );
 

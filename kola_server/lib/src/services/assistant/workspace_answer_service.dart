@@ -70,6 +70,7 @@ import 'package:kola_server/src/services/memory/memory_retrieval_service.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
+import 'package:kola_server/src/services/repository/workspace_answer_turn_repository.dart';
 import 'package:kola_server/src/services/connectors/connector_service.dart';
 import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
 import 'package:kola_server/src/services/errand/errand_tool_registry.dart';
@@ -91,6 +92,7 @@ class WorkspaceAnswerService {
     required ErrandRepository errands,
     required ConnectorCapabilityRegistry connectorCapabilities,
     required ErrandDispatchService errandDispatch,
+    required WorkspaceAnswerTurnRepository turns,
     SecurityFilter? securityFilter,
   })  : _ai = aiOrchestrator,
         _memory = memory,
@@ -100,6 +102,7 @@ class WorkspaceAnswerService {
         _errands = errands,
         _connectorCapabilities = connectorCapabilities,
         _errandDispatch = errandDispatch,
+        _turns = turns,
         _security = securityFilter ?? SecurityFilter();
 
   final AiOrchestrator _ai;
@@ -134,6 +137,21 @@ class WorkspaceAnswerService {
   final ConnectorCapabilityRegistry _connectorCapabilities;
   final ErrandDispatchService _errandDispatch;
   final SecurityFilter _security;
+
+  /// Connect Gate, subphase 4g — CONFIRMED WITH THE USER: this
+  /// assistant was fully stateless — every call saw only the current
+  /// question, so a follow-up like "and the second one?" had nothing to
+  /// resolve against and read as kola "resetting" every turn. See
+  /// migration 043's header and [_recentTurnsBlock]/[_saveTurns] below.
+  final WorkspaceAnswerTurnRepository _turns;
+
+  /// How many recent turns (user + assistant messages combined) go into
+  /// the prompt as a transcript — 3 question/answer pairs. Deliberately
+  /// smaller than WorkspaceAnswerTurnRepository.maxStoredPerWorkspace
+  /// (40): this is a RECENCY window for resolving "the second one"/"that
+  /// price" style references, not an attempt to keep the whole day's
+  /// conversation in every prompt's token budget.
+  static const _recentTurnsLimit = 6;
 
   /// The tool the model is asked to call. One tool, always called —
   /// which is how a chat model is made to emit a fixed schema.
@@ -213,7 +231,38 @@ class WorkspaceAnswerService {
   /// that work starts.
   static const _catalogDigestLimit = 60;
 
+  /// Public entry point — [_askInner] does the actual work and returns a
+  /// [WorkspaceAnswer]; this wrapper's only job is conversational memory:
+  /// persist the exchange when [WorkspaceAnswer.generated] is true (a
+  /// REAL model-produced or action-executed reply, not a canned fallback
+  /// — see _fallback's own doc comment on why that field means what it
+  /// means), so the NEXT call to [ask] sees it via [_recentTurnsBlock].
+  /// Fallback/error replies are deliberately not saved — "I could not
+  /// put an answer together" as remembered context would only make the
+  /// next real answer worse, not better.
   Future<WorkspaceAnswer> ask({
+    required int workspaceId,
+    required String question,
+  }) async {
+    final answer = await _askInner(workspaceId: workspaceId, question: question);
+
+    final trimmedQuestion = question.trim();
+    if (answer.generated && trimmedQuestion.isNotEmpty) {
+      try {
+        await _turns.create(workspaceId: workspaceId, role: 'user', content: trimmedQuestion);
+        await _turns.create(workspaceId: workspaceId, role: 'assistant', content: answer.answer);
+        // Best-effort, after both inserts — a trim failure must never
+        // undo (or block returning) an answer that already succeeded.
+        await _turns.trimToRecent(workspaceId);
+      } catch (e) {
+        _log.warning('failed to save conversation turn for workspace $workspaceId: $e');
+      }
+    }
+
+    return answer;
+  }
+
+  Future<WorkspaceAnswer> _askInner({
     required int workspaceId,
     required String question,
   }) async {
@@ -226,7 +275,7 @@ class WorkspaceAnswerService {
       );
     }
 
-    // Three reads before the model call, because the prompt needs all of
+    // Four reads before the model call, because the prompt needs all of
     // them and none depends on another.
     final retrieved = await _memory.retrieve(
       workspaceId: workspaceId,
@@ -235,6 +284,7 @@ class WorkspaceAnswerService {
     final catalog = await _catalogDigest(workspaceId);
     final connectorDigest = await _connectorDigest(workspaceId);
     final actionTools = await _actionTools(workspaceId);
+    final recentTurns = await _recentTurnsBlock(workspaceId);
 
     final citations = <KnowledgeSearchHit>[
       for (final m in retrieved.matches)
@@ -274,6 +324,7 @@ class WorkspaceAnswerService {
           catalog: catalog,
           connectors: connectorDigest,
           hasActionTools: actionTools.tools.isNotEmpty,
+          recentTurns: recentTurns,
         ),
         userMessage: trimmed,
         tools: [_replyTool(), ...actionTools.tools],
@@ -404,6 +455,7 @@ class WorkspaceAnswerService {
             memoryBlock: retrieved.promptBlock,
             catalog: catalog,
             connectors: connectorDigest,
+            recentTurns: recentTurns,
           ),
           userMessage: trimmed,
         );
@@ -446,6 +498,7 @@ class WorkspaceAnswerService {
     required String memoryBlock,
     required List<_CatalogEntry> catalog,
     required String connectors,
+    required String recentTurns,
     bool hasActionTools = false,
   }) {
     final buffer = StringBuffer()
@@ -476,6 +529,24 @@ class WorkspaceAnswerService {
         'price and stock underneath your answer. Repeating those numbers '
         'in text only risks contradicting them.',
       );
+
+    // Connect Gate, subphase 4g — SHORT-TERM CONVERSATIONAL MEMORY.
+    //
+    // Without this, every question was answered in total isolation — a
+    // follow-up like "and the second one?" or "what about tomorrow?" had
+    // nothing to resolve "the second one"/"tomorrow" against, and the
+    // owner experienced that as kola forgetting what was just said. This
+    // is a RECENT WINDOW (see _recentTurnsLimit), not the full history —
+    // said explicitly so the model doesn't assume it can see further
+    // back than it actually can.
+    if (recentTurns.trim().isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('--- RECENT CONVERSATION (oldest first — use this to '
+            'resolve references like "that one" or "the second one"; it '
+            'is a recent window, not the full history) ---')
+        ..writeln(recentTurns);
+    }
 
     // Connect Gate, subphase 4e — CONNECTOR STATUS IS GROUND TRUTH.
     //
@@ -900,6 +971,32 @@ class WorkspaceAnswerService {
         generated: true,
         providerName: providerName,
       );
+    }
+  }
+
+  // ── Recent conversation (Connect Gate, subphase 4g) ────────────────
+
+  /// The last [_recentTurnsLimit] turns for [workspaceId], rendered as a
+  /// plain "You: ...\nkola: ..." transcript. Plain text rather than a
+  /// real multi-turn message array because AiProvider's interface
+  /// (ai_provider.dart) only takes one systemPrompt + one userMessage —
+  /// adding a proper message-history parameter would mean touching
+  /// every provider (Groq/Gemini/OpenRouter), a bigger change than this
+  /// fix needs. A labelled transcript inside the system prompt is a
+  /// well-understood pattern and works with zero provider changes.
+  Future<String> _recentTurnsBlock(int workspaceId) async {
+    try {
+      final turns = await _turns.listRecent(workspaceId, limit: _recentTurnsLimit);
+      if (turns.isEmpty) return '';
+      return turns
+          .map((t) => '${t.role == 'user' ? 'You' : 'kola'}: ${t.content}')
+          .join('\n');
+    } catch (e) {
+      // Same "degrade, do not break" posture as every other digest here
+      // — a memory-read failure must not stop the owner getting an
+      // answer, it should just answer without recent context this once.
+      _log.warning('recent turns failed to load for $workspaceId: $e');
+      return '';
     }
   }
 

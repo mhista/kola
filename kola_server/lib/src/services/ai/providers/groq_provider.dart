@@ -10,6 +10,7 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:kola_server/kola_logger.dart';
 import '../ai_provider.dart';
 
 class GroqProvider implements AiProvider {
@@ -17,10 +18,32 @@ class GroqProvider implements AiProvider {
 
   final String apiKey;
 
-  /// llama-3.3-70b-versatile — best quality, tried first.
-  /// llama-3.1-8b-instant    — faster fallback within Groq alone, tried
-  /// only if the first model's call fails for any reason.
-  static const _models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+  /// ── BOTH PREVIOUS MODELS WERE RETIRED FROM GROQ'S CATALOG ─────────
+  ///
+  /// This listed llama-3.3-70b-versatile and llama-3.1-8b-instant.
+  /// Neither appears in Groq's Production, Production Systems, or
+  /// Preview tables anymore (checked https://console.groq.com/docs/models
+  /// directly, 2026-08-22) — Groq has moved its hosted Llama 3.x lineup
+  /// out entirely. Every call through this provider was failing with
+  /// 404 model_not_found, and because the per-model loop below only
+  /// surfaces the LAST model's error, the log read as "llama-3.1-8b-
+  /// instant doesn't exist" when the real story was "neither model in
+  /// this list exists anymore" — the exact same invisible-failure shape
+  /// already documented (and partly fixed) in gemini_provider.dart's
+  /// header. [_call]/[_callWithTools] below now log every attempt, not
+  /// just the survivor, so this doesn't hide again.
+  ///
+  /// openai/gpt-oss-120b — best quality, tried first. Built for
+  ///                       tool-use/agentic tasks per Groq's own model
+  ///                       page, which matters here since this provider
+  ///                       is used for tool calling.
+  /// openai/gpt-oss-20b  — faster/cheaper fallback within Groq alone.
+  ///
+  /// Deliberately NOT groq/compound or groq/compound-mini — those are
+  /// Groq's own agentic SYSTEMS with their own built-in tools (web
+  /// search, code execution), not a plain chat model this codebase can
+  /// hand its OWN tool schema to.
+  static const _models = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
 
   @override
   String get name => 'groq';
@@ -45,8 +68,12 @@ class GroqProvider implements AiProvider {
         );
       } catch (e) {
         lastError = e;
-        // Try the next model in this provider's own list before giving
-        // up on Groq entirely.
+        // Logged HERE, not just thrown at the end — a model that's been
+        // retired reports 404 on every single call, and swallowing that
+        // until the final "last error" message hid exactly which
+        // model(s) were dead for longer than it should have (see this
+        // file's header). Every attempt is now visible in its own line.
+        Log.warning('GroqProvider: $model failed, trying next: $e');
       }
     }
     throw Exception('Groq: all models failed. Last error: $lastError');
@@ -108,6 +135,9 @@ class GroqProvider implements AiProvider {
         );
       } catch (e) {
         lastError = e;
+        // See the plain-completion loop above for why this is logged
+        // per-attempt now instead of only at the end.
+        Log.warning('GroqProvider: $model failed (tool-calling), trying next: $e');
       }
     }
     throw Exception('Groq: all models failed (tool-calling). Last error: $lastError');

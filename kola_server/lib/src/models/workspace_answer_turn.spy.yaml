@@ -1,0 +1,28 @@
+##
+## workspace_answer_turn.spy.yaml — Connect Gate, subphase 4g.
+##
+## One turn (either the owner's question or kola's reply) in the owner
+## dashboard's short-term conversational memory — see migration 043's
+## header for why this exists and why it's a new table rather than
+## reusing conversations/messages.
+##
+
+class: WorkspaceAnswerTurn
+# table: workspace_answer_turns
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key -> workspaces.id. ONE rolling thread per workspace, not
+  # per user — see migration 043's header.
+  workspaceId: int
+
+  # 'user' | 'assistant'.
+  role: String
+
+  content: String
+
+  createdAt: DateTime
+
+indexes:
+  workspace_answer_turn_workspace_idx:
+    fields: workspaceId
