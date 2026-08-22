@@ -163,6 +163,55 @@ class _AskKolaState extends State<AskKola> {
       // hide the actions and product cards for another second and a half
       // every time they came back to the page.
       _streamed = _LastAnswer.answer!.answer;
+
+      // Self-healing, found 2026-08-23: this cache has no expiry. Before
+      // this fix, restoring a cached answer was the ONLY thing this
+      // method did — an answer asked before a server-side fix landed
+      // (e.g. "kolaa can't read your Sheets" from before the connector
+      // sweep bug was fixed) would replay verbatim, forever, labelled
+      // "From memory" as if that were just a timestamp rather than a
+      // warning. A full reload cleared it, but nothing told an owner to
+      // reload; they just kept seeing a wrong answer and reasonably
+      // assumed it was still true.
+      //
+      // Fired silently, not shown as a second loading state — the owner
+      // already has an answer on screen and re-running the "Reading
+      // what you have taught me" theatre over it would make a cache hit
+      // look like a cache miss. If the fresh answer differs, it swaps
+      // in once it arrives; if it matches, nothing visibly changes.
+      unawaited(_silentRefresh(_answeredQuestion));
+    }
+  }
+
+  /// Re-asks [question] in the background and swaps in the result if it
+  /// is still the question on screen. Never touches `_searching` or
+  /// `_hasSearched` — those drive the loading skeleton, and this refresh
+  /// must be invisible unless the answer actually changes. Any failure
+  /// here (offline, server error) is swallowed: the owner still has the
+  /// cached answer, which is strictly better than replacing it with an
+  /// error for a refresh they never asked for.
+  Future<void> _silentRefresh(String question) async {
+    try {
+      final answer = await component.client.knowledge.askWorkspace(
+        component.accessToken,
+        component.workspaceId,
+        question,
+      );
+      if (!mounted) return;
+      // The owner may have asked something new while this was in
+      // flight — do not clobber a newer answer with a slow-arriving old
+      // one.
+      if (_answeredQuestion != question) return;
+
+      _LastAnswer.workspaceId = component.workspaceId;
+      _LastAnswer.question = question;
+      _LastAnswer.answer = answer;
+      setState(() {
+        _answer = answer;
+        _streamed = answer.answer;
+      });
+    } catch (_) {
+      // Silent by design — see the doc comment above.
     }
   }
 
