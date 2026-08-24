@@ -4,16 +4,32 @@
 // Customer via CustomerIdentityResolver and immediately shows up on
 // that customer's page (customers_page.dart).
 //
-// ── REBUILT AGAINST Kola Till.dc.html, PIXEL-FOR-PIXEL ─────────────────
+// ── BUILT FROM Kola Till.dc.html, NOT COPIED FROM IT ────────────────────
 //
-// The previous version of this file was a working but visually
-// unrelated page — a two-column search/cart layout that never matched
-// the design export. This rewrite follows the export's own structure
-// exactly: a Sell → Payment → Receipt screen flow (not one long form),
-// category chips, a phone/tablet layout toggle, and a barcode-scanner
-// modal, all drawn with this codebase's own KolaVar/KolaType/KolaRadius
-// tokens rather than the export's literal hex values — same rule
-// settings_page.dart and every other rebuilt page already follows.
+// The export is a design tool's illustration of layout and states —
+// not a spec to reproduce verbatim, dummy content included. This page
+// keeps the export's real structure (a Sell → Payment → Receipt screen
+// flow, category chips, a barcode-scanner modal) and its visual
+// language (this codebase's own KolaVar/KolaType/KolaRadius tokens,
+// same rule every rebuilt page follows), but treats everything else in
+// the export as a hint about what a state should look like, not literal
+// content or literal mechanics to carry over:
+//
+//   - REAL product photos where the catalog has one (ProductMedia, the
+//     exact listMediaForProducts/position-0-is-main approach
+//     catalog_page.dart already uses), the placeholder icon only when a
+//     product genuinely has none — never the export's icon-for-every-
+//     product treatment.
+//   - REAL responsive layout, driven by the actual viewport (see
+//     `_view`, kept in sync with a resize listener) — not the export's
+//     manual Phone/Tablet toggle. That toggle is how a design tool lets
+//     someone preview both states in one static file; it has no reason
+//     to exist in a shipped app, where the till just fits whatever
+//     screen it's actually running on. A cashier on a desktop should
+//     never see a button offering to pretend the desktop is a phone.
+//   - Independent scroll regions with a pinned totals/Charge footer —
+//     see _sellRail's and _phoneBody's own comments for the exact bug
+//     this fixes (the button drifting down the page as the cart grew).
 //
 // ── WHERE THIS DELIBERATELY DEVIATES FROM THE EXPORT, AND WHY ─────────
 //
@@ -50,6 +66,7 @@
 // the receipt is rendered from what that call returns plus the cart
 // snapshot taken right before it clears, never guessed.
 
+import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:jaspr/jaspr.dart';
@@ -61,6 +78,7 @@ import 'package:kola_client/kola_client.dart';
 import '../components/shell/kola_icon.dart';
 import '../components/shell/icons.dart';
 import '../services/error_text.dart';
+import '../services/imagekit_url.dart';
 import '../services/money_format.dart';
 import '../theme.dart';
 
@@ -114,9 +132,13 @@ enum _Screen { sell, payment, receipt }
 
 class _TillPageState extends State<TillPage> {
   List<Product> _products = const [];
+  Map<int, ProductMedia> _mainImages = const {};
   bool _loading = true;
   String? _loadError;
 
+  /// Driven by the real viewport, not a manual switch — see the file
+  /// header. Updated live on resize, same convention app_shell.dart
+  /// already uses for its own listeners.
   String _view = 'tablet';
   _Screen _screen = _Screen.sell;
 
@@ -130,6 +152,7 @@ class _TillPageState extends State<TillPage> {
   bool _online = true;
   web.EventListener? _onlineListener;
   web.EventListener? _offlineListener;
+  web.EventListener? _resizeListener;
 
   bool _showScanner = false;
   String _scanInput = '';
@@ -161,6 +184,20 @@ class _TillPageState extends State<TillPage> {
     }.toJS;
     web.window.addEventListener('online', _onlineListener);
     web.window.addEventListener('offline', _offlineListener);
+
+    // Real responsive layout. A cashier does not pick "phone" or
+    // "tablet" from a menu — the till just fits the screen it's on, and
+    // re-fits itself if that screen rotates or a browser window is
+    // resized. No debounce: setState from a resize handler is cheap
+    // here (a layout swap, not a re-fetch), and every other listener in
+    // this codebase (app_shell.dart's included) is un-debounced too.
+    _resizeListener = (web.Event _) {
+      final next = web.window.innerWidth >= KolaBreak.tablet ? 'tablet' : 'phone';
+      if (mounted && next != _view) setState(() => _view = next);
+      return;
+    }.toJS;
+    web.window.addEventListener('resize', _resizeListener);
+
     _load();
   }
 
@@ -171,6 +208,9 @@ class _TillPageState extends State<TillPage> {
     }
     if (_offlineListener != null) {
       web.window.removeEventListener('offline', _offlineListener);
+    }
+    if (_resizeListener != null) {
+      web.window.removeEventListener('resize', _resizeListener);
     }
     super.dispose();
   }
@@ -194,12 +234,44 @@ class _TillPageState extends State<TillPage> {
         _products = [for (final p in products) if (p.status != 'archived') p];
         _loading = false;
       });
+      unawaited(_hydrateMedia());
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loadError = ErrorText.of(e);
         _loading = false;
       });
+    }
+  }
+
+  /// One batched photo call for the whole till catalog — same
+  /// `listMediaForProducts`/position-0-is-the-main-image approach
+  /// catalog_page.dart already uses, not a placeholder icon standing in
+  /// for a photo that exists. Unlike that page, this one is not scoped
+  /// to a visible page of results: a till's catalog is what's on
+  /// screen right now (no pagination here), so there's nothing to
+  /// scope the ask to short of the whole list.
+  Future<void> _hydrateMedia() async {
+    final ids = [for (final p in _products) if (p.id != null) p.id!];
+    if (ids.isEmpty) return;
+    try {
+      final media = await component.client.product.listMediaForProducts(
+        component.accessToken,
+        component.workspaceId,
+        ids.join(','),
+      );
+      if (!mounted) return;
+      final images = <int, ProductMedia>{};
+      for (final m in media) {
+        final existing = images[m.productId];
+        if (existing == null || m.position < existing.position) {
+          images[m.productId] = m;
+        }
+      }
+      setState(() => _mainImages = images);
+    } catch (_) {
+      // No thumbnails rather than no catalog — a till that can't show
+      // photos today must still ring up sales.
     }
   }
 
@@ -370,14 +442,26 @@ class _TillPageState extends State<TillPage> {
 
   @override
   Component build(BuildContext context) {
+    // Viewport-locked, per styles.css's own convention (html/body carry
+    // `overflow:hidden` everywhere in this app — see its header comment
+    // — so a page that wants to scroll must own a bounded height and an
+    // internal overflow region, never rely on document-level scroll).
+    // Fixed header, then a flex:1 body that the tablet/phone layouts
+    // each split further so the product grid and the cart scroll
+    // independently of the totals/Charge footer, which is what stops
+    // the button that was sliding down the page as the cart grew.
     return div(
       attributes: {
         'style': "font-family:${KolaFonts.sans};background:${KolaVar.bg};"
-            'color:${KolaVar.text};min-height:100vh;box-sizing:border-box',
+            'color:${KolaVar.text};height:100vh;box-sizing:border-box;'
+            'display:flex;flex-direction:column;overflow:hidden',
       },
       [
         _header(),
-        if (_view == 'tablet') _tabletBody() else _phoneBody(),
+        div(
+          attributes: {'style': 'flex:1;min-height:0;overflow:hidden'},
+          [if (_view == 'tablet') _tabletBody() else _phoneBody()],
+        ),
         if (_showScanner) _scannerModal(),
       ],
     );
@@ -386,7 +470,7 @@ class _TillPageState extends State<TillPage> {
   Component _header() => div(
         attributes: {
           'style': 'display:flex;justify-content:space-between;'
-              'align-items:center;padding:14px 20px;'
+              'align-items:center;padding:14px 20px;flex:none;'
               'border-bottom:1px solid ${KolaVar.border};gap:10px;'
               'flex-wrap:wrap',
         },
@@ -431,72 +515,46 @@ class _TillPageState extends State<TillPage> {
               ),
             ],
           ),
-          div(
-            attributes: {'style': 'display:flex;gap:8px;flex:none'},
-            [
-              Link(
-                to: '/documents',
-                attributes: {
-                  'style': 'background:transparent;border:1px solid ${KolaVar.border};'
-                      'color:${KolaVar.text};border-radius:${KolaRadius.pill};padding:7px 14px;'
-                      'font-size:${KolaType.small};font-family:inherit;text-decoration:none;'
-                      'display:inline-flex;align-items:center',
-                },
-                children: [Component.text('Documents')],
-              ),
-              div(
-                attributes: {
-                  'style': 'display:flex;background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-                      'border-radius:${KolaRadius.pill};padding:3px',
-                },
-                [
-                  _viewToggleButton('phone', 'Phone'),
-                  _viewToggleButton('tablet', 'Tablet/Desktop'),
-                ],
-              ),
-            ],
+          Link(
+            to: '/documents',
+            attributes: {
+              'style': 'background:transparent;border:1px solid ${KolaVar.border};'
+                  'color:${KolaVar.text};border-radius:${KolaRadius.pill};padding:7px 14px;'
+                  'font-size:${KolaType.small};font-family:inherit;text-decoration:none;'
+                  'display:inline-flex;align-items:center;flex:none',
+            },
+            children: [Component.text('Documents')],
           ),
         ],
       );
-
-  Component _viewToggleButton(String value, String label) {
-    final active = _view == value;
-    return button(
-      attributes: {
-        'type': 'button',
-        'style': 'border:none;padding:6px 12px;border-radius:${KolaRadius.pill};'
-            'font-size:${KolaType.tiny};font-family:inherit;cursor:pointer;'
-            'background:${active ? KolaVar.accentFill : 'transparent'};'
-            'color:${active ? KolaVar.accentText : KolaVar.muted}',
-      },
-      events: {'click': (_) => setState(() => _view = value)},
-      [Component.text(label)],
-    );
-  }
 
   // ── Tablet/desktop: two-pane ─────────────────────────────────────────
 
   Component _tabletBody() => div(
         attributes: {
-          'style': 'display:grid;grid-template-columns:1fr 360px;'
-              'min-height:calc(100vh - 57px)',
+          'style': 'display:grid;grid-template-columns:1fr 360px;height:100%',
         },
         [
           div(
-            attributes: {'style': 'padding:20px 24px;box-sizing:border-box'},
-            [
-              _searchRow(),
-              _categoryChips(),
-              _productGrid(columns: 4),
-            ],
+            attributes: {'style': 'overflow-y:auto;height:100%;box-sizing:border-box'},
+            [_tabletProductPanel()],
           ),
           div(
             attributes: {
               'style': 'border-left:1px solid ${KolaVar.border};display:flex;'
-                  'flex-direction:column;box-sizing:border-box',
+                  'flex-direction:column;box-sizing:border-box;height:100%;overflow:hidden',
             },
             [_rightRail()],
           ),
+        ],
+      );
+
+  Component _tabletProductPanel() => div(
+        attributes: {'style': 'padding:20px 24px;box-sizing:border-box'},
+        [
+          _searchRow(),
+          _categoryChips(),
+          _productGrid(columns: 4),
         ],
       );
 
@@ -513,22 +571,40 @@ class _TillPageState extends State<TillPage> {
 
   // ── Phone: single column ──────────────────────────────────────────
 
-  Component _phoneBody() => div(
-        attributes: {'style': 'max-width:420px;margin:0 auto;padding-bottom:20px'},
+  // Same independent-scroll-region fix as the tablet rail (see
+  // _sellRail's comment): the sell screen's totals+Charge footer is a
+  // flex sibling OUTSIDE the scrolling content, not a `position:sticky`
+  // child of it, so it stays pinned no matter how long the cart gets
+  // rather than getting pushed down the page as products are added.
+  Component _phoneBody() {
+    if (_screen == _Screen.sell) {
+      return div(
+        attributes: {
+          'style': 'max-width:420px;margin:0 auto;height:100%;display:flex;'
+              'flex-direction:column;min-height:0',
+        },
         [
-          if (_screen == _Screen.sell) ...[
-            div(
-              attributes: {'style': 'padding:14px 16px 0'},
-              [_searchRow(), _categoryChips(), _productGrid(columns: 2)],
-            ),
-            if (_cart.isNotEmpty) _phoneCartList() else _phoneEmptyBasketNote(),
-            _phoneSellFooter(),
-          ] else if (_screen == _Screen.payment)
-            _phonePayment()
-          else
-            _phoneReceipt(),
+          div(
+            attributes: {'style': 'flex:1;min-height:0;overflow-y:auto'},
+            [
+              div(
+                attributes: {'style': 'padding:14px 16px 0'},
+                [_searchRow(), _categoryChips(), _productGrid(columns: 2)],
+              ),
+              if (_cart.isNotEmpty) _phoneCartList() else _phoneEmptyBasketNote(),
+            ],
+          ),
+          _phoneSellFooter(),
         ],
       );
+    }
+    return div(
+      attributes: {
+        'style': 'max-width:420px;margin:0 auto;height:100%;overflow-y:auto;box-sizing:border-box',
+      },
+      [_screen == _Screen.payment ? _phonePayment() : _phoneReceipt()],
+    );
+  }
 
   // ── Shared: search + categories + grid ────────────────────────────
 
@@ -607,6 +683,37 @@ class _TillPageState extends State<TillPage> {
     );
   }
 
+  /// The tile's photo — a real one when the catalog has one, the same
+  /// placeholder icon only when it genuinely doesn't. Mirrors
+  /// catalog_page.dart's `_rowThumb`: original `url`, not the stored
+  /// `thumbnailUrl` (see that file's own comment on why the thumbnail
+  /// column doesn't resolve on this ImageKit account).
+  Component _tileImage(Product p) {
+    final media = p.id == null ? null : _mainImages[p.id];
+    if (media == null) {
+      return div(
+        attributes: {
+          'style': 'width:100%;aspect-ratio:1.4;background:${KolaVar.bg};'
+              'display:flex;align-items:center;justify-content:center;flex:none',
+        },
+        [kolaIcon(Icons.imagePlaceholder, size: 22, strokeWidth: 1.7, extraStyle: 'color:${KolaVar.muted}')],
+      );
+    }
+    return div(
+      attributes: {'style': 'width:100%;aspect-ratio:1.4;background:${KolaVar.bg};flex:none'},
+      [
+        img(
+          src: ImageKitUrl.thumb(media.url),
+          alt: '',
+          attributes: {
+            'loading': 'lazy',
+            'style': 'width:100%;height:100%;object-fit:cover;display:block',
+          },
+        ),
+      ],
+    );
+  }
+
   Component _productTile(Product p) {
     final priced = p.priceMinor != null;
     final qty = _quantityInCart(p);
@@ -625,13 +732,7 @@ class _TillPageState extends State<TillPage> {
         },
       },
       [
-        div(
-          attributes: {
-            'style': 'width:100%;aspect-ratio:1.4;background:${KolaVar.bg};'
-                'display:flex;align-items:center;justify-content:center;flex:none',
-          },
-          [kolaIcon(Icons.imagePlaceholder, size: 22, strokeWidth: 1.7, extraStyle: 'color:${KolaVar.muted}')],
-        ),
+        _tileImage(p),
         div(
           attributes: {
             'style': 'padding:10px 12px;flex:1;display:flex;flex-direction:column;'
@@ -670,9 +771,18 @@ class _TillPageState extends State<TillPage> {
 
   // ── Tablet right rail: sell ───────────────────────────────────────
 
-  Component _sellRail() => div([
+  // The root needs display:flex;flex-direction:column;height:100% of
+  // its own — without it, `flex:1` on the item-list child below is
+  // meaningless (nothing to grow WITHIN), the whole rail just grows to
+  // fit its content, and the Charge button drifts down the page as the
+  // cart fills. This is the fix for exactly that bug.
+  Component _sellRail() => div(
+        attributes: {
+          'style': 'display:flex;flex-direction:column;height:100%;min-height:0',
+        },
+        [
         div(
-          attributes: {'style': 'padding:18px 20px;flex:1;overflow-y:auto'},
+          attributes: {'style': 'padding:18px 20px;flex:1;min-height:0;overflow-y:auto'},
           [
             div(
               attributes: {
@@ -810,16 +920,21 @@ class _TillPageState extends State<TillPage> {
 
   // ── Tablet right rail: payment ────────────────────────────────────
 
-  Component _paymentRail() => div([
-        div(
-          attributes: {'style': 'padding:18px 20px;flex:1;overflow-y:auto'},
-          [_paymentBody()],
-        ),
-        div(
-          attributes: {'style': 'padding:16px 20px;border-top:1px solid ${KolaVar.border}'},
-          [_paymentActions()],
-        ),
-      ]);
+  Component _paymentRail() => div(
+        attributes: {
+          'style': 'display:flex;flex-direction:column;height:100%;min-height:0',
+        },
+        [
+          div(
+            attributes: {'style': 'padding:18px 20px;flex:1;min-height:0;overflow-y:auto'},
+            [_paymentBody()],
+          ),
+          div(
+            attributes: {'style': 'padding:16px 20px;border-top:1px solid ${KolaVar.border}'},
+            [_paymentActions()],
+          ),
+        ],
+      );
 
   Component _paymentBody() => div([
         button(
@@ -952,9 +1067,13 @@ class _TillPageState extends State<TillPage> {
   Component _receiptRail() {
     final completed = _completed;
     if (completed == null) return div([]);
-    return div([
+    return div(
+      attributes: {
+        'style': 'display:flex;flex-direction:column;height:100%;min-height:0',
+      },
+      [
       div(
-        attributes: {'style': 'padding:22px 20px;flex:1;overflow-y:auto'},
+        attributes: {'style': 'padding:22px 20px;flex:1;min-height:0;overflow-y:auto'},
         [_receiptBody(completed)],
       ),
       div(
@@ -1153,9 +1272,15 @@ class _TillPageState extends State<TillPage> {
         [Component.text('Basket is empty — tap a product or scan a barcode')],
       );
 
+  // A flex sibling of the scrolling content above it (see _phoneBody),
+  // not `position:sticky` — sticky only pins within its OWN scroll
+  // ancestor, which was the entire page here, so as the cart grew this
+  // footer scrolled along with it instead of staying put. flex:none
+  // (the default for a non-flex parent's child) plus a bounded-height
+  // ancestor is what actually keeps it in place.
   Component _phoneSellFooter() => div(
         attributes: {
-          'style': 'position:sticky;bottom:0;left:0;right:0;background:${KolaVar.bg};'
+          'style': 'flex:none;background:${KolaVar.bg};'
               'border-top:1px solid ${KolaVar.border};padding:14px 16px 18px;box-sizing:border-box',
         },
         [

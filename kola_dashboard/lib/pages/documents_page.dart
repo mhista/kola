@@ -1,9 +1,9 @@
 // documents_page.dart — receipts, invoices and reports, one sale in
 // every form it needs to take. Linked from Kola Till.dc.html's header
-// and its post-sale "Print" action; rebuilt against
-// Kola Documents.dc.html, pixel-for-pixel, using this codebase's own
-// KolaVar/KolaType/KolaRadius tokens rather than the export's literal
-// hex values.
+// and its post-sale "Print" action; built from Kola Documents.dc.html's
+// structure and visual language (this codebase's own
+// KolaVar/KolaType/KolaRadius tokens), not copied from it verbatim —
+// see till_page.dart's own header for why that distinction matters.
 //
 // ── WHAT IS REAL HERE, AND WHAT ISN'T — STATED PLAINLY ─────────────────
 //
@@ -21,16 +21,25 @@
 // there is no Invoice/Order entity (PART V's own gap table names this;
 // Gate 5's entity-mapping status note hit the identical wall) and no
 // EOD aggregation endpoint. Building either is a real design decision on
-// its own, not a corner of "redesign Till to match its export." So
-// these two tabs are rendered as clearly labeled PREVIEWS using the
-// export's own example numbers — visually exact, honestly marked, never
-// presented as this workspace's real data.
+// its own, not a corner of "redesign Till to match its export."
+//
+// An earlier pass rendered these two as populated mock documents using
+// the export's own dummy numbers (a fake "Kemi Catering Co." bill-to,
+// a fake ₦340,000 day) sitting next to this workspace's REAL name —
+// real and fabricated data side by side on the same document, which is
+// worse than either alone: it reads as a bug, not a preview. Fixed to
+// the same honest empty-state pattern settings_page.dart's `_notYet`
+// already uses elsewhere in this codebase — what's missing, and what it
+// takes to get it — rather than a screen that looks populated but
+// isn't.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/kola_icon.dart';
+import '../components/shell/icons.dart';
 import '../services/error_text.dart';
 import '../services/money_format.dart';
 import '../theme.dart';
@@ -121,10 +130,16 @@ class _DocumentsPageState extends State<DocumentsPage> {
 
   @override
   Component build(BuildContext context) {
+    // Viewport-locked, per styles.css's own convention (html/body carry
+    // overflow:hidden app-wide — a page must own a bounded height and
+    // scroll internally, or content taller than the viewport gets
+    // silently clipped with no way to reach the rest of it, which is
+    // exactly what was happening here before this had its own
+    // height:100vh + overflow-y:auto).
     return div(
       attributes: {
         'style': "font-family:${KolaFonts.sans};background:${KolaVar.bg};"
-            'color:${KolaVar.text};min-height:100vh;box-sizing:border-box',
+            'color:${KolaVar.text};height:100vh;overflow-y:auto;box-sizing:border-box',
       },
       [
         div(
@@ -412,246 +427,59 @@ class _DocumentsPageState extends State<DocumentsPage> {
     );
   }
 
-  // ── A4 invoice (no Invoice entity — preview only) ─────────────────
+  // ── A4 invoice and End-of-day report — no backend for either ──────
+  //
+  // See the file header: there is no Invoice/Order entity and no EOD
+  // aggregation endpoint, so there is nothing real to show. Both tabs
+  // use the same honest "not built yet" treatment settings_page.dart's
+  // `_notYet` already established elsewhere in this codebase, instead
+  // of a populated mock document that mixes this workspace's real name
+  // with someone else's fabricated invoice.
 
-  Component _a4Tab() => div([
-        _previewBanner(
-          'Kola does not generate invoices yet — there is no Invoice/Order '
-          'entity behind this tab. This shows the export\'s own example so '
-          'the layout is on record; nothing below is real data.',
-        ),
-        div(
-          attributes: {'style': 'display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap'},
-          [
-            for (final (label, active) in const [
-              ('Draft', false), ('Sent', false), ('Viewed', false),
-              ('Partly paid', true), ('Paid', false), ('Overdue', false),
-            ])
-              span(
-                attributes: {
-                  'style': 'font-size:${KolaType.micro};font-weight:600;padding:5px 12px;'
-                      'border-radius:${KolaRadius.pill};'
-                      'background:${active ? KolaVar.pill : KolaVar.card};'
-                      'color:${active ? KolaVar.text : KolaVar.muted}',
-                },
-                [Component.text(label)],
-              ),
-          ],
-        ),
-        div(
-          attributes: {
-            'style': 'background:#fff;color:#1C1815;width:100%;max-width:620px;margin:0 auto;'
-                'padding:48px;font-family:${KolaFonts.sans};box-shadow:0 14px 40px rgba(0,0,0,0.35);'
-                'box-sizing:border-box',
-          },
-          [
-            div(
-              attributes: {
-                'style': 'display:flex;justify-content:space-between;align-items:flex-start;'
-                    'margin-bottom:32px;gap:16px',
-              },
-              [
-                div(
-                  attributes: {'style': 'font-weight:700;font-size:${KolaType.subhead}'},
-                  [Component.text(component.workspaceName)],
-                ),
-                div(
-                  attributes: {'style': 'text-align:right'},
-                  [
-                    div(
-                      attributes: {
-                        'style': 'font-weight:700;font-size:${KolaType.title};'
-                            'font-family:${KolaFonts.display}',
-                      },
-                      [Component.text('INVOICE')],
-                    ),
-                    div(attributes: {'style': 'font-size:${KolaType.tiny};color:#6B655E'}, [Component.text('#889')]),
-                    div(
-                      attributes: {'style': 'font-size:${KolaType.tiny};color:#6B655E;margin-top:6px'},
-                      [Component.text('Issued Aug 3, 2026')],
-                    ),
-                    div(
-                      attributes: {'style': 'font-size:${KolaType.tiny};color:#B33A2A;font-weight:600'},
-                      [Component.text('Due Aug 8, 2026')],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            div(
-              attributes: {'style': 'margin-bottom:20px'},
-              [
-                div(
-                  attributes: {
-                    'style': 'font-size:${KolaType.micro};color:#6B655E;text-transform:uppercase;'
-                        'letter-spacing:0.04em;margin-bottom:4px',
-                  },
-                  [Component.text('Bill to')],
-                ),
-                div(
-                  attributes: {'style': 'font-size:${KolaType.bodyLg};font-weight:600'},
-                  [Component.text('Kemi Catering Co.')],
-                ),
-                div(
-                  attributes: {'style': 'font-size:${KolaType.small};color:#6B655E'},
-                  [Component.text('Ajah, Lagos · 0805 442 1190')],
-                ),
-              ],
-            ),
-            div(
-              attributes: {
-                'style': 'display:grid;grid-template-columns:1fr 60px 100px 100px;gap:8px;'
-                    'padding:9px 0;border-top:1px solid #1C1815;border-bottom:1px solid #E8E1D6;'
-                    'font-size:${KolaType.micro};color:#6B655E;font-weight:600;text-transform:uppercase',
-              },
-              [
-                Component.text('Item'), Component.text('Qty'), Component.text('Unit'),
-                div(attributes: {'style': 'text-align:right'}, [Component.text('Amount')]),
-              ],
-            ),
-            div(
-              attributes: {
-                'style': 'display:grid;grid-template-columns:1fr 60px 100px 100px;gap:8px;'
-                    'padding:9px 0;border-bottom:1px solid #F1EAE0;font-size:${KolaType.bodyLg}',
-              },
-              [
-                Component.text('Aso-ebi bundle (10yd)'), Component.text('1'), Component.text('₦42,000'),
-                div(
-                  attributes: {'style': 'text-align:right;font-family:${KolaFonts.mono}'},
-                  [Component.text('₦42,000')],
-                ),
-              ],
-            ),
-            div(
-              attributes: {'style': 'display:flex;justify-content:flex-end;margin-top:12px'},
-              [
-                div(
-                  attributes: {'style': 'width:220px'},
-                  [
-                    _invoiceTotalRow('Subtotal', '₦42,000'),
-                    _invoiceTotalRow('VAT (7.5%)', '₦3,150'),
-                    _invoiceTotalRow('Paid Aug 3', '−₦21,000', border: true),
-                    div(
-                      attributes: {
-                        'style': 'display:flex;justify-content:space-between;font-weight:700;'
-                            'font-size:${KolaType.subhead};padding-top:8px;border-top:1px solid #1C1815;'
-                            'margin-top:6px',
-                      },
-                      [Component.text('Balance due'), Component.text('₦24,150')],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            div(
-              attributes: {
-                'style': 'margin-top:24px;background:#F1EAE0;border-radius:10px;padding:14px 16px',
-              },
-              [
-                div(
-                  attributes: {'style': 'font-size:${KolaType.tiny};color:#6B655E;margin-bottom:2px'},
-                  [Component.text('Payment instructions')],
-                ),
-                div(
-                  attributes: {'style': 'font-size:${KolaType.small};color:#3E3934'},
-                  [Component.text('Preview only — no payment link or bank details are wired up.')],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ]);
-
-  Component _invoiceTotalRow(String label, String value, {bool border = false}) => div(
-        attributes: {
-          'style': 'display:flex;justify-content:space-between;font-size:${KolaType.body};padding:4px 0'
-              '${border ? ';border-top:1px solid #E8E1D6;margin-top:4px' : ''}',
-        },
-        [span(attributes: {'style': 'color:#6B655E'}, [Component.text(label)]), Component.text(value)],
+  Component _a4Tab() => _comingSoon(
+        icon: Icons.billing,
+        headline: 'Invoicing isn\'t built yet',
+        body: 'There\'s no Invoice entity behind this tab yet — creating one, '
+            'and deciding how a sale becomes a bill with terms and a due '
+            'date, is its own piece of work. Nothing here is wired to real '
+            'data.',
       );
 
-  // ── End-of-day report (no aggregation endpoint — preview only) ────
+  Component _reportTab() => _comingSoon(
+        icon: Icons.barChart,
+        headline: 'End-of-day reports aren\'t built yet',
+        body: 'There\'s no aggregation endpoint behind this tab yet — '
+            'summing a day\'s takings by payment method needs its own '
+            'server-side work. Nothing here is wired to real data.',
+      );
 
-  Component _reportTab() => div([
-        _previewBanner(
-          'There is no end-of-day aggregation endpoint yet. This shows the '
-          "export's own example so the layout is on record; nothing below "
-          'is real data.',
-        ),
-        div(
-          attributes: {
-            'style': 'background:#fff;color:#1C1815;width:100%;max-width:620px;margin:0 auto;'
-                'padding:44px;font-family:${KolaFonts.sans};box-shadow:0 14px 40px rgba(0,0,0,0.35);'
-                'box-sizing:border-box',
-          },
-          [
-            div(
-              attributes: {'style': 'font-weight:700;font-size:${KolaType.title};margin-bottom:2px'},
-              [Component.text('End-of-day report — Z-142')],
-            ),
-            div(
-              attributes: {'style': 'font-size:${KolaType.tiny};color:#6B655E;margin-bottom:22px'},
-              [Component.text('${component.workspaceName} · Tuesday, August 5, 2026, closed 8:02pm')],
-            ),
-            div(
-              attributes: {
-                'style': 'display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px',
-              },
-              [
-                _reportStat('Gross takings', '₦340,000'),
-                _reportStat('Transactions', '48'),
-                _reportStat('Refunds', '₦4,500'),
-              ],
-            ),
-            div(
-              attributes: {
-                'style': 'font-size:${KolaType.tiny};color:#6B655E;text-transform:uppercase;'
-                    'letter-spacing:0.04em;margin-bottom:8px',
-              },
-              [Component.text('By payment method')],
-            ),
-            div(
-              attributes: {
-                'style': 'border-top:1px solid #1C1815;border-bottom:1px solid #E8E1D6;margin-bottom:18px',
-              },
-              [
-                for (final (name, amount) in const [
-                  ('Cash', '₦186,000'), ('Transfer', '₦104,000'), ('Paystack', '₦50,000'),
-                ])
-                  div(
-                    attributes: {
-                      'style': 'display:flex;justify-content:space-between;padding:8px 0;'
-                          'border-bottom:1px solid #F1EAE0;font-size:${KolaType.bodyLg}',
-                    },
-                    [
-                      Component.text(name),
-                      span(attributes: {'style': 'font-family:${KolaFonts.mono}'}, [Component.text(amount)]),
-                    ],
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ]);
-
-  Component _reportStat(String label, String value) => div(
-        attributes: {'style': 'background:#F1EAE0;border-radius:10px;padding:14px'},
+  /// The honest empty state for a tab with nothing real behind it yet.
+  /// Two parts on purpose, same as settings_page.dart's `_notYet`: what
+  /// is missing, then what it would take — "coming soon" on its own
+  /// tells the owner nothing they can act on.
+  Component _comingSoon({required String icon, required String headline, required String body}) => div(
+        attributes: {
+          'style': 'border:1px dashed ${KolaVar.border};border-radius:${KolaRadius.lg};'
+              'padding:40px 24px;text-align:center;max-width:440px;margin:0 auto',
+        },
         [
-          div(attributes: {'style': 'font-size:${KolaType.micro};color:#6B655E'}, [Component.text(label)]),
           div(
-            attributes: {'style': 'font-size:${KolaType.h3};font-weight:700'},
-            [Component.text(value)],
+            attributes: {'style': 'color:${KolaVar.muted};margin-bottom:14px;display:flex;justify-content:center'},
+            [kolaIcon(icon, size: 22)],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.ui};font-weight:700;color:${KolaVar.text};margin-bottom:8px',
+            },
+            [Component.text(headline)],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};line-height:1.55',
+            },
+            [Component.text(body)],
           ),
         ],
-      );
-
-  Component _previewBanner(String text) => div(
-        attributes: {
-          'style': 'background:${KolaVar.warningBg};border:1px solid ${KolaVar.border};'
-              'border-radius:${KolaRadius.md};padding:12px 16px;margin-bottom:16px;'
-              'font-size:${KolaType.small};color:${KolaVar.mutedStrong};line-height:1.5',
-        },
-        [Component.text(text)],
       );
 
   // ── Shared states ──────────────────────────────────────────────────
