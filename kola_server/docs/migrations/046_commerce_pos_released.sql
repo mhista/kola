@@ -1,0 +1,67 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Kola — Supabase schema (migration 046 — the sales counter is real)
+--
+-- Apply AFTER 045.
+--
+-- ── THE THIRD OF THE EIGHT LOCKED FLAGS ──────────────────────────────────────
+--
+-- Migration 030 released commerce.core and commerce.catalog once the catalog
+-- was actually built, and left commerce.pos locked with one reason: "no sales
+-- counter, no orders table. Releasing this would put 'Sales counter' back in
+-- the sidebar pointing at an unregistered /counter — the exact defect 028
+-- removed."
+--
+-- That reason stopped being true at migration 035. Since then the codebase
+-- has carried, fully built and never released:
+--
+--   • sales / sale_lines tables (035_sales.sql)               — money-safe
+--     snapshotting, per-sale tax rate, offline client_reference dedup
+--   • SaleEndpoint.ringUpSale/listSales/listLines             — gated on
+--     commerce.core + commerce.pos already, matching the flag this migration
+--     releases exactly, not introducing a new one
+--   • kola_dashboard TillPage, routed at /counter in app.dart               —
+--     already wired into nav_model.dart's Sales counter item, itself already
+--     gated on [commerce.core, commerce.pos]
+--   • Gate 3b: every completed sale resolves/creates a Customer through
+--     CustomerIdentityResolver and lands on that customer's timeline
+--
+-- Checked before writing this: TillPage does not read commerce.receipts,
+-- commerce.offline, commerce.stock, commerce.catalog_import, or
+-- commerce.barcode_lookup anywhere — those five stay locked, unaffected, each
+-- still true to its own reason in migration 030's header (nothing generates a
+-- receipt, no offline queue, no stock-movement history, no importer, no
+-- barcode lookup service). Ringing up a sale online, by hand, with a walk-in
+-- or identified customer, works completely without any of the five.
+--
+-- ── WHAT THIS TURNS ON, EXACTLY ──────────────────────────────────────────────
+--
+--   • Sidebar → Sales counter (needs core + pos)        appears, resolves to
+--                                                        /counter
+--   • Mobile "More" sheet → Sales counter                same
+--   • SaleEndpoint's flag check                          starts passing
+--   • Overview's "Sales this week —, starts counting when the sales counter
+--     arrives" placeholder                               stops rendering, is
+--                                                        replaced by a real
+--                                                        weekly total once
+--                                                        overview_page.dart's
+--                                                        stat wiring for it is
+--                                                        built (not yet — see
+--                                                        note below)
+--
+-- ── ONE THING THIS DOES NOT FINISH ───────────────────────────────────────────
+--
+-- overview_page.dart's stat-card list still has an unconditional
+-- `if (!gate.isEnabled(Features.commerceCore))` branch producing the "—,
+-- starts counting" placeholder, with no real branch behind it yet (unlike the
+-- Products card, which got its real branch at migration 030). Flipping this
+-- flag alone makes that condition false and the card vanish entirely, not
+-- show a number. A real "Sales this week" stat, reading from SaleEndpoint,
+-- is a small separate follow-up — tracked, not done here, to keep this
+-- migration to exactly what its own name says: releasing the flag.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+update feature_flags
+   set state      = 'released',
+       updated_at = now()
+ where key = 'commerce.pos'
+   and state <> 'released';

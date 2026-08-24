@@ -1660,6 +1660,185 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['inputJson'],
                   ),
         ),
+        'discoverDbSchema': _i1.MethodConnector(
+          name: 'discoverDbSchema',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectionString': _i1.ParameterDescription(
+              name: 'connectionString',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['errand'] as _i7.ErrandEndpoint).discoverDbSchema(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectionString'],
+                  ),
+        ),
+        'discoverDbSchemaForErrand': _i1.MethodConnector(
+          name: 'discoverDbSchemaForErrand',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'errandId': _i1.ParameterDescription(
+              name: 'errandId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['errand'] as _i7.ErrandEndpoint)
+                  .discoverDbSchemaForErrand(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['errandId'],
+                  ),
+        ),
+        'testWebhookErrand': _i1.MethodConnector(
+          name: 'testWebhookErrand',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'webhookUrl': _i1.ParameterDescription(
+              name: 'webhookUrl',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'sampleInputJson': _i1.ParameterDescription(
+              name: 'sampleInputJson',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'authHeaderName': _i1.ParameterDescription(
+              name: 'authHeaderName',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+            'authHeaderValue': _i1.ParameterDescription(
+              name: 'authHeaderValue',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['errand'] as _i7.ErrandEndpoint).testWebhookErrand(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['webhookUrl'],
+                    params['sampleInputJson'],
+                    authHeaderName: params['authHeaderName'],
+                    authHeaderValue: params['authHeaderValue'],
+                  ),
+        ),
+        'getEntityMapping': _i1.MethodConnector(
+          name: 'getEntityMapping',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'errandId': _i1.ParameterDescription(
+              name: 'errandId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['errand'] as _i7.ErrandEndpoint).getEntityMapping(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['errandId'],
+                  ),
+        ),
+        'setEntityMapping': _i1.MethodConnector(
+          name: 'setEntityMapping',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'errandId': _i1.ParameterDescription(
+              name: 'errandId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'mappingJson': _i1.ParameterDescription(
+              name: 'mappingJson',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['errand'] as _i7.ErrandEndpoint).setEntityMapping(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['errandId'],
+                    params['mappingJson'],
+                  ),
+        ),
       },
     );
     connectors['feature'] = _i1.EndpointConnector(
@@ -3760,6 +3939,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
+            'sellsCatalogItems': _i1.ParameterDescription(
+              name: 'sellsCatalogItems',
+              type: _i1.getType<bool?>(),
+              nullable: true,
+            ),
           },
           call:
               (
@@ -3773,6 +3957,7 @@ class Endpoints extends _i1.EndpointDispatch {
                     name: params['name'],
                     industryTag: params['industryTag'],
                     ownerName: params['ownerName'],
+                    sellsCatalogItems: params['sellsCatalogItems'],
                   ),
         ),
         'getBillingSummary': _i1.MethodConnector(

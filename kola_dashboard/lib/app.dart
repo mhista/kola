@@ -70,6 +70,7 @@ import 'pages/integrations_page.dart';
 import 'pages/api_webhooks_page.dart';
 import 'pages/customers_page.dart';
 import 'pages/till_page.dart';
+import 'pages/documents_page.dart';
 
 class DashboardApp extends StatefulComponent {
   const DashboardApp();
@@ -599,6 +600,7 @@ class _DashboardAppState extends State<DashboardApp> {
               workspaceId: _selectedWorkspace!.id!,
               greetingName: _greetingName(_session!.email),
               gate: _gate,
+              sellsCatalogItems: _selectedWorkspace!.sellsCatalogItems,
             ),
           ),
         ),
@@ -778,13 +780,30 @@ class _DashboardAppState extends State<DashboardApp> {
           // Gate 3b — the sales counter finished as a graph consumer.
           // Backed by SaleEndpoint. PART II's gap table named this
           // outstanding; this closes it.
-          builder: (context, state) => shellFor(
-            state,
-            TillPage(
-              client: _client,
-              accessToken: _session!.accessToken,
-              workspaceId: _selectedWorkspace!.id!,
-            ),
+          //
+          // NOT wrapped in shellFor. Kola Till.dc.html draws its own
+          // full-bleed header (a "Dashboard" back-link, its own
+          // Documents button, the phone/tablet toggle) rather than
+          // sitting inside the sidebar shell — the same choice
+          // /conversations already made for a page with its own chrome.
+          builder: (context, state) => TillPage(
+            client: _client,
+            accessToken: _session!.accessToken,
+            workspaceId: _selectedWorkspace!.id!,
+            workspaceName: _selectedWorkspace!.name,
+            taxRateBps: _selectedWorkspace!.taxRateBps,
+          ),
+        ),
+        Route(
+          path: '/documents',
+          // Kola Documents.dc.html — the receipt/invoice/report surface
+          // linked from Till's header and its post-sale "Print" action.
+          // Same full-bleed, no-shell treatment as /counter.
+          builder: (context, state) => DocumentsPage(
+            client: _client,
+            accessToken: _session!.accessToken,
+            workspaceId: _selectedWorkspace!.id!,
+            workspaceName: _selectedWorkspace!.name,
           ),
         ),
       ],

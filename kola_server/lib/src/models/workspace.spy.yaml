@@ -102,6 +102,16 @@ fields:
   # reasoning.
   taxRateBps: int
 
+  # Gate 7 (migration 045) — "does this business sell things people can
+  # order from a catalog?" Null means never asked; that keeps today's
+  # behavior (catalog nag shown, Products card shown) for every existing
+  # workspace. True/false only after an owner has actually answered, in
+  # Settings. See migration 045's header on why this is one boolean, not
+  # the direction doc's broader multi-value "workspace profile" — nothing
+  # in this codebase reads a profile for anything beyond the catalog
+  # surface yet.
+  sellsCatalogItems: bool?
+
   createdAt: DateTime
   updatedAt: DateTime
 

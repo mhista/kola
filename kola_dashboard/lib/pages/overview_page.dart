@@ -45,6 +45,7 @@ import '../components/shell/kola_icon.dart';
 import '../services/feature_gate.dart';
 import '../services/local_storage.dart';
 import '../services/error_text.dart';
+import '../services/money_format.dart';
 import '../theme.dart';
 
 class OverviewPage extends StatefulComponent {
@@ -54,11 +55,21 @@ class OverviewPage extends StatefulComponent {
     required this.workspaceId,
     required this.greetingName,
     required this.gate,
+    this.sellsCatalogItems,
   });
 
   final Client client;
   final String accessToken;
   final int workspaceId;
+
+  /// Gate 7 (migration 045). Passed in rather than fetched here — the
+  /// caller (app.dart) already holds the selected Workspace in full;
+  /// this page otherwise only ever asked the server for workspaceId's
+  /// child data (bots, documents, products...), never the Workspace
+  /// record itself, and fetching it a second time just for this one
+  /// field would be a new round-trip for something the caller already
+  /// has in hand.
+  final bool? sellsCatalogItems;
 
   /// Who to greet. A PERSON, not the business.
   ///
@@ -85,6 +96,7 @@ class _OverviewPageState extends State<OverviewPage> {
   List<SupportTicket> _tickets = const [];
   List<KnowledgeDocument> _documents = const [];
   List<Product> _products = const [];
+  List<Sale> _recentSales = const [];
 
   /// What the server's sweep noticed. See WorkspaceSweepService.
   List<WorkspaceFinding> _findings = const [];
@@ -226,6 +238,24 @@ class _OverviewPageState extends State<OverviewPage> {
         component.client.finding
             .listFindings(token, id)
             .catchError((_) => const <WorkspaceFinding>[]),
+
+        // Tenth read: the sales counter, migration 046's release.
+        //
+        // "Sales this week" was a hardcoded em-dash placeholder gated on
+        // commerce.core — which migration 030 already released to
+        // everyone, so the placeholder was never actually reachable
+        // (nothing checked commerce.pos, the flag that actually decides
+        // whether a sales counter exists). Fixed here rather than left:
+        // 50 is a generous cap for "this week" on a single till: this
+        // section computes a sum, not a paginated list, so more than 50
+        // sales in seven days would need a real aggregation endpoint,
+        // not a client-side fold — worth revisiting once a shop is
+        // actually ringing up that many.
+        gate.isEnabled(Features.commercePos)
+            ? component.client.sale
+                .listSales(token, id, limit: 50, offset: 0)
+                .catchError((_) => const <Sale>[])
+            : Future.value(const <Sale>[]),
       ]);
 
       if (!mounted) return;
@@ -239,6 +269,7 @@ class _OverviewPageState extends State<OverviewPage> {
         _connectors = results[6].cast<ConnectorStatus>();
         _products = results[7].cast<Product>();
         _findings = results[8].cast<WorkspaceFinding>();
+        _recentSales = results[9].cast<Sale>();
         _phase = _Phase.ready;
       });
     } catch (e) {
@@ -257,6 +288,17 @@ class _OverviewPageState extends State<OverviewPage> {
   /// — showing them "get started" in that situation tells them their
   /// work did not take.
   bool get _isEmpty => _bots.isEmpty && _documents.isEmpty;
+
+  /// Sum of every completed sale rung up in the last 7 days. `_recentSales`
+  /// is already capped at 50 rows and sorted newest-first by the server
+  /// (SaleRepository.listByWorkspace orders on sold_at descending), so
+  /// this filters rather than re-sorts.
+  int get _salesThisWeekMinor {
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    return _recentSales
+        .where((s) => s.status == 'completed' && s.soldAt.isAfter(cutoff))
+        .fold(0, (sum, s) => sum + s.totalMinor);
+  }
 
   @override
   Component build(BuildContext context) {
@@ -683,6 +725,7 @@ class _OverviewPageState extends State<OverviewPage> {
       // revisited, which is what that kind of note is for and exactly
       // how it fails.
       hasProducts: _products.isNotEmpty,
+      sellsCatalogItems: component.sellsCatalogItems,
       dismissed: _dismissed,
     );
 
@@ -902,8 +945,22 @@ class _OverviewPageState extends State<OverviewPage> {
       // a worse duplicate of something already on screen. The design's
       // own header carries three cards, not five.
 
-      // Announced on the landing page, not shipped yet.
-      if (!gate.isEnabled(Features.commerceCore))
+      // Sales this week — real once commerce.pos is released (migration
+      // 046). Previously gated on commerce.core, which migration 030
+      // released to every workspace years before a till existed; that
+      // meant this branch could never actually show, and the placeholder
+      // silently never appeared for anyone. Fixed to check the flag that
+      // actually gates the sales counter, and to show a real number
+      // instead of a permanent em-dash once it's on.
+      if (gate.isEnabled(Features.commercePos))
+        _salesThisWeekMinor == 0
+            ? (
+                label: 'Sales this week',
+                value: '—',
+                note: 'Starts counting once you ring up a sale.',
+              )
+            : (label: 'Sales this week', value: formatMinor(_salesThisWeekMinor), note: null)
+      else
         (
           label: 'Sales this week',
           value: '—',
@@ -916,15 +973,24 @@ class _OverviewPageState extends State<OverviewPage> {
       // the card instead of filling it in. A placeholder written without
       // its counterpart is a card that disappears the moment the feature
       // it was waiting for arrives — the opposite of what it was for.
-      if (gate.isEnabled(Features.commerceCatalog))
-        _stat('Products', _products.length,
-            'Add or import your first product and it appears here.')
-      else
-        (
-          label: 'Products',
-          value: '—',
-          note: 'Available once you can add a catalog.',
-        ),
+      //
+      // Gate 7 (migration 045): commerceCatalog is a release/plan flag,
+      // on for every workspace once shipped — not a statement that THIS
+      // business sells anything. A workspace that has explicitly said
+      // "no" (sellsCatalogItems == false) drops the card entirely rather
+      // than show a permanent zero. Unanswered (null) keeps today's
+      // behavior so nothing changes for a workspace nobody has asked yet.
+      if (component.sellsCatalogItems != false) ...[
+        if (gate.isEnabled(Features.commerceCatalog))
+          _stat('Products', _products.length,
+              'Add or import your first product and it appears here.')
+        else
+          (
+            label: 'Products',
+            value: '—',
+            note: 'Available once you can add a catalog.',
+          ),
+      ],
     ];
 
     return div(

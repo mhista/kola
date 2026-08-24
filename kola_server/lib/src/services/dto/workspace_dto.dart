@@ -45,6 +45,10 @@ class WorkspaceDto extends BaseDto<Workspace> {
       // against a database where 035 hasn't run) — matching that
       // migration's own DEFAULT 0, never charging VAT nobody opted into.
       taxRateBps: (row['tax_rate_bps'] as int?) ?? 0,
+      // Gate 7 (migration 045). Absent column or genuinely unanswered
+      // both read as null — "never asked", the safe default (see that
+      // migration's header).
+      sellsCatalogItems: row['sells_catalog_items'] as bool?,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
     );
@@ -66,6 +70,7 @@ class WorkspaceDto extends BaseDto<Workspace> {
       'is_internal': model.isInternal,
       'region': model.region,
       'tax_rate_bps': model.taxRateBps,
+      'sells_catalog_items': model.sellsCatalogItems,
       'updated_at': model.updatedAt.toIso8601String(),
       // created_at is set by Supabase default — we never write it on updates
     };

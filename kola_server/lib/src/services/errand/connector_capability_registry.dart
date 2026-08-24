@@ -44,6 +44,7 @@ class SyntheticErrandIds {
   const SyntheticErrandIds._();
   static const int collectPayment = -1;
   static const int bookCalendarEvent = -2;
+  static const int checkRecentTransactions = -3;
 }
 
 class ConnectorCapabilityRegistry {
@@ -82,6 +83,32 @@ class ConnectorCapabilityRegistry {
             'connected payment gateway. Use this when the customer has '
             'agreed to pay for something and you know the amount.',
         builtinHandlerKey: 'collectPayment',
+        now: now,
+      ));
+
+      // Found 2026-08-24: WorkspaceAnswerService (the owner-dashboard
+      // assistant) could tell the owner "Paystack: connected" via
+      // _connectorDigest, but had no way to actually read a transaction
+      // row — collectPayment only INITIATES a new checkout, it cannot
+      // look one up. A question like "check my paystack transaction" had
+      // no tool that could answer it, so the model correctly reported it
+      // had no path to the data, which read as a refusal. This closes
+      // that gap the same way every other connector-native capability
+      // is closed: gated on the connector actually being connected,
+      // read-only, backed by PaymentTransactionRepository directly
+      // rather than any gateway API call (payment_transactions is
+      // kolaa's own synced+created record, already the source of truth).
+      capabilities.add(_synthetic(
+        id: SyntheticErrandIds.checkRecentTransactions,
+        workspaceId: workspaceId,
+        name: 'Check recent transactions',
+        descriptionForAi:
+            'Look up the business\'s recent payment transactions, or one '
+            'specific transaction by its reference, from its connected '
+            'payment gateway. Use this whenever the owner asks about a '
+            'payment, an order\'s payment status, or wants to see recent '
+            'transactions — do not guess or invent transaction details.',
+        builtinHandlerKey: 'checkRecentTransactions',
         now: now,
       ));
     }

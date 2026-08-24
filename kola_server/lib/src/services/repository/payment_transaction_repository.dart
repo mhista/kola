@@ -193,6 +193,29 @@ class PaymentTransactionRepository {
     return _dto.fromRow(response);
   }
 
+  /// The most recent transactions for [workspaceId] regardless of
+  /// customer, newest first — backs the 'checkRecentTransactions'
+  /// synthetic connector capability (see connector_capability_registry.dart)
+  /// so an owner asking "check my paystack transaction" has something to
+  /// actually read from, instead of the assistant having no query path
+  /// to this table at all. [limit] defaults small — this answers a
+  /// conversational question, not a reconciliation export.
+  Future<List<PaymentTransaction>> listRecentByWorkspace({
+    required int workspaceId,
+    int limit = 5,
+  }) async {
+    _log.fine('listRecentByWorkspace($workspaceId, limit=$limit)');
+    final response = await supabase
+        .from('payment_transactions')
+        .select()
+        .eq('workspace_id', workspaceId)
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Gate 3b — every payment on a customer's unified timeline.
   Future<List<PaymentTransaction>> listByCustomer(int customerId) async {
     _log.fine('listByCustomer($customerId)');

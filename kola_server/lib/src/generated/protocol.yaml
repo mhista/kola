@@ -45,6 +45,11 @@ errand:
   - createWebhookErrand:
   - createDbCredentialErrand:
   - executeErrand:
+  - discoverDbSchema:
+  - discoverDbSchemaForErrand:
+  - testWebhookErrand:
+  - getEntityMapping:
+  - setEntityMapping:
 feature:
   - listEnabledFeatures:
   - isFeatureEnabled:

@@ -18,6 +18,10 @@ abstract class Icons {
   static const activity = 'M2 12h4l3-8 4 16 3-8h6';
   static const arrowRight = 'M4 12h16M14 6l6 6-6 6';
   static const barChart = 'M4 20V10 M10 20V4 M16 20v-7 M2 20h20';
+  // Kola Till.dc.html's scanner-button glyph, copied path-for-path —
+  // the four corner brackets plus the internal barcode bars.
+  static const barcode =
+      'M3 7V4h3 M17 4h3v3 M20 17v3h-3 M7 20H4v-3 M7 8v8 M11 8v8 M14 8v2 M14 14v2 M17 8v8';
   static const billing = 'M17 9V7a5 5 0 0 0-10 0v2 M5 9h14v11H5Z';
   static const book = 'M4 5c2-1 5-1 8 0v14c-3-1-6-1-8 0Z M20 5c-2-1-5-1-8 0v14c3-1 6-1 8 0Z';
   static const bot = 'M9 3v2 M15 3v2 M9 19v2 M15 19v2 M3 9h2 M3 15h2 M19 9h2 M19 15h2 M6 6h12v12H6Z M9 9h6v6H9Z';
@@ -46,7 +50,11 @@ abstract class Icons {
   static const plus = 'M12 5v14 M5 12h14';
   static const diamond = 'M12 2 22 12 12 22 2 12Z';
   static const eye = 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z';
-  static const headset = 'M4 13v-1a8 8 0 1 1 16 0v1 M3 13h2v6H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z M21 13h-2v6h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1Z';
+  // Kola Till.dc.html's product-tile placeholder — a product with no
+  // photo yet gets this rather than a blank tile.
+  static const imagePlaceholder =
+      'M4 16l4.5-4.5a2 2 0 0 1 2.8 0L16 16 M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 16 M4 4h16v16H4Z';
+  static const headset ='M4 13v-1a8 8 0 1 1 16 0v1 M3 13h2v6H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z M21 13h-2v6h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1Z';
   static const home = 'M3 21h18 M5 21V7l7-4 7 4v14 M9 21v-6h6v6';
   static const list = 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01';
 

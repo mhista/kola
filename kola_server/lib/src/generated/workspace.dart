@@ -27,6 +27,7 @@ abstract class Workspace
     required this.region,
     required this.isInternal,
     required this.taxRateBps,
+    this.sellsCatalogItems,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -44,6 +45,7 @@ abstract class Workspace
     required String region,
     required bool isInternal,
     required int taxRateBps,
+    bool? sellsCatalogItems,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _WorkspaceImpl;
@@ -70,6 +72,11 @@ abstract class Workspace
         jsonSerialization['isInternal'],
       ),
       taxRateBps: jsonSerialization['taxRateBps'] as int,
+      sellsCatalogItems: jsonSerialization['sellsCatalogItems'] == null
+          ? null
+          : _i1.BoolJsonExtension.fromJson(
+              jsonSerialization['sellsCatalogItems'],
+            ),
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
@@ -103,6 +110,8 @@ abstract class Workspace
 
   int taxRateBps;
 
+  bool? sellsCatalogItems;
+
   DateTime createdAt;
 
   DateTime updatedAt;
@@ -123,6 +132,7 @@ abstract class Workspace
     String? region,
     bool? isInternal,
     int? taxRateBps,
+    bool? sellsCatalogItems,
     DateTime? createdAt,
     DateTime? updatedAt,
   });
@@ -142,6 +152,7 @@ abstract class Workspace
       'region': region,
       'isInternal': isInternal,
       'taxRateBps': taxRateBps,
+      if (sellsCatalogItems != null) 'sellsCatalogItems': sellsCatalogItems,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
     };
@@ -163,6 +174,7 @@ abstract class Workspace
       'region': region,
       'isInternal': isInternal,
       'taxRateBps': taxRateBps,
+      if (sellsCatalogItems != null) 'sellsCatalogItems': sellsCatalogItems,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
     };
@@ -190,6 +202,7 @@ class _WorkspaceImpl extends Workspace {
     required String region,
     required bool isInternal,
     required int taxRateBps,
+    bool? sellsCatalogItems,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : super._(
@@ -205,6 +218,7 @@ class _WorkspaceImpl extends Workspace {
          region: region,
          isInternal: isInternal,
          taxRateBps: taxRateBps,
+         sellsCatalogItems: sellsCatalogItems,
          createdAt: createdAt,
          updatedAt: updatedAt,
        );
@@ -226,6 +240,7 @@ class _WorkspaceImpl extends Workspace {
     String? region,
     bool? isInternal,
     int? taxRateBps,
+    Object? sellsCatalogItems = _Undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -243,6 +258,9 @@ class _WorkspaceImpl extends Workspace {
       region: region ?? this.region,
       isInternal: isInternal ?? this.isInternal,
       taxRateBps: taxRateBps ?? this.taxRateBps,
+      sellsCatalogItems: sellsCatalogItems is bool?
+          ? sellsCatalogItems
+          : this.sellsCatalogItems,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

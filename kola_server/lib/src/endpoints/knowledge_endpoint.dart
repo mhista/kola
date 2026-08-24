@@ -350,6 +350,22 @@ class KnowledgeEndpoint extends Endpoint {
         message: 'kola cannot read Word files yet. Copy the text and paste it '
             'in — it will be learned the same way.',
       );
+    } else if (lower.endsWith('.csv') || lower.endsWith('.tsv')) {
+      // Gate 6 (Kolaa Rev 5, Part VIII, "Level 1b proven"). A CSV/TSV
+      // already reached this method before this branch existed — the
+      // plain-text ELSE below decoded it fine, and it ingested. What was
+      // missing is the same fix GoogleSheetsAdapter.
+      // _ingestIntoKnowledgeBase (google_sheets_adapter.dart) already
+      // needed for the identical reason: hybrid_match_knowledge_chunks'
+      // keyword side matches on chunk CONTENT, and raw delimited rows
+      // carry no natural-language words — "Blue Ankara,3500,12" cannot
+      // be found by a query like "price of the blue ankara" without
+      // "price" (or a column name near it) appearing somewhere in the
+      // chunk. Prepending one sentence naming the columns fixes that.
+      // See _withCsvPreamble's own header on why this does not attempt
+      // to reformat every row.
+      final decoded = utf8.decode(bytes, allowMalformed: true);
+      text = _withCsvPreamble(decoded, title: _titleFrom(fileName));
     } else {
       // Plain text of some kind. Decoded permissively: a price list
       // saved from a Windows machine is often not valid UTF-8, and
@@ -383,5 +399,37 @@ class KnowledgeEndpoint extends Endpoint {
     if (dot > 0) name = name.substring(0, dot);
     name = name.replaceAll(RegExp(r'[_\-]+'), ' ').trim();
     return name.isEmpty ? 'Uploaded document' : name;
+  }
+
+  /// Prepends one natural-language sentence naming [rawText]'s columns —
+  /// see the Gate 6 comment at this method's only call site
+  /// (addDocumentFromFile) for why. Reads only the first line, and only
+  /// well enough to guess a delimiter (tab if the first line has a tab
+  /// and no comma, comma otherwise) and split it into column names.
+  ///
+  /// DELIBERATELY NOT A REAL CSV PARSER: a naive split breaks on a
+  /// quoted field that itself contains the delimiter ("Smith, John" as
+  /// one cell, say) — this project has no `csv` package dependency to
+  /// parse that correctly yet, and this method only touches the header
+  /// line to build one descriptive sentence, never the data rows
+  /// themselves, so a mis-split header degrades to a slightly odd
+  /// preamble, not corrupted data. Best-effort: any header that can't
+  /// be read this way returns [rawText] completely unchanged rather
+  /// than blocking the upload over a cosmetic improvement.
+  static String _withCsvPreamble(String rawText, {required String title}) {
+    final firstLineEnd = rawText.indexOf('\n');
+    final firstLine = (firstLineEnd == -1 ? rawText : rawText.substring(0, firstLineEnd)).trim();
+    if (firstLine.isEmpty) return rawText;
+
+    final delimiter = firstLine.contains('\t') && !firstLine.contains(',') ? '\t' : ',';
+    final columns = firstLine
+        .split(delimiter)
+        .map((c) => c.trim())
+        .where((c) => c.isNotEmpty)
+        .toList();
+    if (columns.isEmpty) return rawText;
+
+    final preamble = 'This is data from the file "$title". Columns: ${columns.join(', ')}.\n\n';
+    return '$preamble$rawText';
   }
 }

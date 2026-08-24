@@ -74,4 +74,30 @@ class GoogleDriveService {
         .map((f) => GoogleDriveFile.fromJson(f as Map<String, dynamic>))
         .toList();
   }
+
+  /// Single-file metadata lookup — just the display name, for callers
+  /// that already have a spreadsheetId (from stored config, not the
+  /// picker) and want a human-readable label instead of the opaque id.
+  /// One small GET, `fields=id,name` only, matching this file's own
+  /// "metadata, never content" scope note above. Callers that treat a
+  /// failure here as fatal are using this wrong — see
+  /// GoogleSheetsAdapter._ingestIntoKnowledgeBase for the intended
+  /// best-effort usage.
+  Future<GoogleDriveFile> getFile({
+    required String fileId,
+    required String accessToken,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/$fileId').replace(
+      queryParameters: {'fields': 'id,name'},
+    );
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $accessToken'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Google Drive file lookup failed (${response.statusCode}): ${response.body}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    return GoogleDriveFile.fromJson(decoded);
+  }
 }

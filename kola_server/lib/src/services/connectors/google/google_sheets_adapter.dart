@@ -35,6 +35,7 @@ import 'package:kola_server/src/services/connectors/catalog_row_mapper.dart';
 import 'package:kola_server/src/services/memory/document_ingestion_service.dart';
 import 'google_oauth_service.dart';
 import 'google_sheets_service.dart';
+import 'google_drive_service.dart';
 
 class GoogleSheetsAdapter implements ConnectorAdapter {
   GoogleSheetsAdapter({
@@ -43,14 +44,17 @@ class GoogleSheetsAdapter implements ConnectorAdapter {
     required this.spreadsheetId,
     required GoogleOAuthService oauth,
     GoogleSheetsService? sheets,
+    GoogleDriveService? drive,
   })  : _oauth = oauth,
-        _sheets = sheets ?? const GoogleSheetsService();
+        _sheets = sheets ?? const GoogleSheetsService(),
+        _drive = drive ?? const GoogleDriveService();
 
   final int workspaceId;
   final String refreshToken;
   final String spreadsheetId;
   final GoogleOAuthService _oauth;
   final GoogleSheetsService _sheets;
+  final GoogleDriveService _drive;
 
   ProductRepository get _products => getIt<ProductRepository>();
   DocumentIngestionService get _ingestion => getIt<DocumentIngestionService>();
@@ -102,7 +106,7 @@ class GoogleSheetsAdapter implements ConnectorAdapter {
     // still deserves to be summarizable/searchable, it just isn't a
     // catalog. Best-effort: a failure here must never break the catalog
     // sync this method exists primarily to do.
-    await _ingestIntoKnowledgeBase(rows);
+    await _ingestIntoKnowledgeBase(rows, accessToken);
 
     final mappings = CatalogRowMapper.mapHeader(rows.first);
     if (!mappings.any((m) => m.field == 'name')) {
@@ -209,16 +213,40 @@ class GoogleSheetsAdapter implements ConnectorAdapter {
   /// swallowed, never rethrown, so a knowledge-ingestion problem can
   /// never break the catalog sync in [sync].
   ///
-  /// KNOWN SIMPLIFICATION: the title is derived from [spreadsheetId]
-  /// rather than the sheet's real display name — the Sheets API call this
-  /// adapter already makes (getValues) does not return the spreadsheet's
-  /// title, and fetching it would mean a second API call on every sync
-  /// purely for a nicer label. Matches this file's own header precedent
-  /// of naming and flagging such trade-offs rather than hiding them.
-  Future<void> _ingestIntoKnowledgeBase(List<List<dynamic>> rows) async {
+  /// Both the title and a short natural-language preamble prepended to
+  /// the ingested text use the spreadsheet's real display name, fetched
+  /// via one best-effort `GoogleDriveService.getFile` call (metadata
+  /// only — same drive.metadata.readonly scope [GoogleDriveService]
+  /// already uses for the sheet picker; no new scope needed). This
+  /// exists because hybrid_match_knowledge_chunks (see
+  /// docs/migrations/023_hybrid_retrieval.sql) ranks purely on chunk
+  /// CONTENT, never on document title, and raw pipe-delimited rows carry
+  /// no natural-language words a keyword/semantic query could match — a
+  /// query like "check my sheets, and report" could not find a document
+  /// titled "Google Sheet (<opaque id>)" full of "Widget | 500 | 12"
+  /// rows. If the Drive lookup fails for any reason (token scope,
+  /// deleted file, network), this falls back to the previous
+  /// [spreadsheetId]-only title and skips the preamble — never blocks
+  /// ingestion, let alone the catalog sync.
+  Future<void> _ingestIntoKnowledgeBase(List<List<dynamic>> rows, String accessToken) async {
     try {
+      String title = 'Google Sheet ($spreadsheetId)';
+      String preamble = '';
+      try {
+        final file = await _drive.getFile(fileId: spreadsheetId, accessToken: accessToken);
+        title = file.name;
+        final header = rows.first.map((cell) => cell?.toString() ?? '').where((c) => c.isNotEmpty).join(', ');
+        preamble = header.isEmpty
+            ? 'This is data from the Google Sheet "${file.name}".\n\n'
+            : 'This is product/inventory data from the Google Sheet "${file.name}". Columns: $header.\n\n';
+      } catch (e) {
+        // Best-effort name lookup only — see this method's doc comment.
+        // Falls back to the opaque-id title and no preamble.
+        Log.warning('GoogleSheetsAdapter: could not fetch sheet display name, continuing with fallback title: $e');
+      }
+
       final capped = rows.take(_maxIngestedRows).toList();
-      final buffer = StringBuffer();
+      final buffer = StringBuffer(preamble);
       for (final row in capped) {
         buffer.writeln(row.map((cell) => cell?.toString() ?? '').join(' | '));
         if (buffer.length >= _maxIngestedChars) break;
@@ -232,7 +260,7 @@ class GoogleSheetsAdapter implements ConnectorAdapter {
 
       await _ingestion.ingestFromConnector(
         workspaceId: workspaceId,
-        title: 'Google Sheet ($spreadsheetId)',
+        title: title,
         text: text,
         sourceRef: 'google_sheets:$spreadsheetId',
       );

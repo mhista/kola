@@ -30,6 +30,12 @@ import 'package:kola_server/src/services/repository/customer_profile_repository.
 import 'package:kola_server/src/services/repository/otp_code_repository.dart';
 import 'package:kola_server/src/services/otp/otp_service.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_template_creation_service.dart';
+import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
+import 'package:kola_server/src/services/repository/calendar_booking_repository.dart';
+import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
+import 'package:kola_server/src/services/connectors/google/calendar_booking_service.dart';
+import 'package:kola_server/src/services/connectors/google/google_oauth_service.dart';
+import 'package:kola_server/src/config/env.dart';
 
 Future<void> main(List<String> args) async {
   final flags = _parseFlags(args);
@@ -45,13 +51,27 @@ Future<void> main(List<String> args) async {
   // each need their own dependency too now, even though this script only
   // ever exercises escalateToHuman; the constructor requires them
   // regardless of which handler a given run actually calls.
+  // paymentTransactions/calendarBookings ('checkRecentTransactions' and
+  // the calendar-native handlers) added later still — wired here the
+  // same way, found 2026-08-24 when `serverpod generate` first surfaced
+  // this script no longer compiling.
   final executor = BuiltinErrandExecutor(
     executionLogs: executionLogs,
     paymentCheckout: PaymentCheckoutService(),
+    paymentTransactions: const PaymentTransactionRepository(),
     supportTickets: const SupportTicketRepository(),
     customerProfiles: const CustomerProfileRepository(),
     otpService: OtpService(otpCodes: const OtpCodeRepository()),
     whatsAppTemplates: WhatsAppTemplateCreationService(),
+    calendarBookings: CalendarBookingService(
+      connectors: const WorkspaceConnectorRepository(),
+      bookings: const CalendarBookingRepository(),
+      oauth: GoogleOAuthService(
+        clientId: Env.googleOAuthClientId,
+        clientSecret: Env.googleOAuthClientSecret,
+        redirectUri: Env.googleOAuthRedirectUri,
+      ),
+    ),
   );
 
   var workspace = flags.containsKey('workspace-id')

@@ -192,6 +192,14 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
   String _chatConnectionString = '';
   String _chatQuerySql = '';
 
+  // Gate 5 — guided builder state, "Describe it" (chat) mode.
+  List<Map<String, dynamic>>? _chatSchemaTables;
+  bool _chatSchemaLoading = false;
+  String? _chatSchemaError;
+  Map<String, dynamic>? _chatWebhookTestResult;
+  bool _chatWebhookTesting = false;
+  String? _chatWebhookTestError;
+
   // Custom / "Build it myself" (dev mode)
   String _devName = '';
   String _devDesc = '';
@@ -204,8 +212,30 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
   String _devConnectionString = '';
   String _devQuerySql = '';
 
+  // Gate 5 — guided builder state, "Build it myself" (dev) mode.
+  List<Map<String, dynamic>>? _devSchemaTables;
+  bool _devSchemaLoading = false;
+  String? _devSchemaError;
+  Map<String, dynamic>? _devWebhookTestResult;
+  bool _devWebhookTesting = false;
+  String? _devWebhookTestError;
+
   bool _saving = false;
   String? _saveError;
+
+  // Gate 5's second half — "map to customers" panel, expandable per row
+  // in the already-saved Errands list (see _errandRow / _mappingPanel).
+  // Only ever one open at a time; null means none.
+  int? _mappingErrandId;
+  bool _mappingLoading = false;
+  String? _mappingLoadError;
+  bool _mappingEnabled = false;
+  String _mappingPhoneColumn = '';
+  String _mappingEmailColumn = '';
+  String _mappingNameColumn = '';
+  bool _mappingSaving = false;
+  String? _mappingSaveError;
+  bool _mappingJustSaved = false;
 
   @override
   void initState() {
@@ -401,6 +431,12 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
     _chatAuthHeaderValue = '';
     _chatConnectionString = '';
     _chatQuerySql = '';
+    _chatSchemaTables = null;
+    _chatSchemaLoading = false;
+    _chatSchemaError = null;
+    _chatWebhookTestResult = null;
+    _chatWebhookTesting = false;
+    _chatWebhookTestError = null;
     _devName = '';
     _devDesc = '';
     _fieldDraft = '';
@@ -411,6 +447,12 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
     _devAuthHeaderValue = '';
     _devConnectionString = '';
     _devQuerySql = '';
+    _devSchemaTables = null;
+    _devSchemaLoading = false;
+    _devSchemaError = null;
+    _devWebhookTestResult = null;
+    _devWebhookTesting = false;
+    _devWebhookTestError = null;
   }
 
   Future<void> _toggleStatus(Errand errand) async {
@@ -444,6 +486,97 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
       setState(() => _loadError = "Couldn't delete that Errand.");
     } finally {
       setState(() => _deletingErrandId = null);
+    }
+  }
+
+  // ── Gate 5's second half — map to customers ─────────────────────────────
+  //
+  // "Someone else's system, mapped to entities." Only meaningful for a
+  // dbCredential Errand — see ErrandEndpoint.setEntityMapping
+  // (kola_server) on why. Expands/collapses in place under the Errand's
+  // row rather than opening a second flow, since there is nothing else
+  // to configure beyond three column names.
+
+  Future<void> _toggleMappingPanel(Errand errand) async {
+    final id = errand.id;
+    if (id == null) return;
+
+    if (_mappingErrandId == id) {
+      setState(() => _mappingErrandId = null);
+      return;
+    }
+
+    setState(() {
+      _mappingErrandId = id;
+      _mappingLoading = true;
+      _mappingLoadError = null;
+      _mappingSaveError = null;
+      _mappingJustSaved = false;
+    });
+
+    try {
+      final json = await component.client.errand.getEntityMapping(
+        component.accessToken,
+        component.workspaceId,
+        id,
+      );
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      setState(() {
+        _mappingEnabled = decoded['enabled'] == true;
+        _mappingPhoneColumn = (decoded['phoneColumn'] as String?) ?? '';
+        _mappingEmailColumn = (decoded['emailColumn'] as String?) ?? '';
+        _mappingNameColumn = (decoded['nameColumn'] as String?) ?? '';
+        _mappingLoading = false;
+      });
+    } catch (_) {
+      setState(() {
+        _mappingLoadError = "Couldn't load this Errand's mapping.";
+        _mappingLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveMapping(Errand errand) async {
+    final id = errand.id;
+    if (id == null) return;
+
+    if (_mappingEnabled && _mappingPhoneColumn.trim().isEmpty && _mappingEmailColumn.trim().isEmpty) {
+      setState(() {
+        _mappingSaveError =
+            'Add at least a phone or email column name — kola needs one to match customers on.';
+      });
+      return;
+    }
+
+    setState(() {
+      _mappingSaving = true;
+      _mappingSaveError = null;
+      _mappingJustSaved = false;
+    });
+
+    final mapping = {
+      'enabled': _mappingEnabled,
+      'phoneColumn': _mappingPhoneColumn.trim(),
+      'emailColumn': _mappingEmailColumn.trim(),
+      'nameColumn': _mappingNameColumn.trim(),
+    };
+
+    try {
+      await component.client.errand.setEntityMapping(
+        component.accessToken,
+        component.workspaceId,
+        id,
+        jsonEncode(mapping),
+      );
+      setState(() {
+        _mappingSaving = false;
+        _mappingJustSaved = true;
+      });
+    } catch (_) {
+      setState(() {
+        _mappingSaving = false;
+        _mappingSaveError = "Couldn't save this mapping. Check the details and try again.";
+      });
     }
   }
 
@@ -971,6 +1104,159 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
     });
   }
 
+  // ── Gate 5 — guided builder actions ─────────────────────────────────────
+  //
+  // Direction doc (Kolaa Rev 5, Part VIII, Gate 5): "Guided REST builder +
+  // read-only Postgres with schema discovery." Both actions below call a
+  // new endpoint BEFORE the Errand is saved — see errand_endpoint.dart's
+  // discoverDbSchema/testWebhookErrand — so a wrong connection string or a
+  // broken URL shows up here, not the first time a real conversation
+  // needs it.
+
+  Future<void> _discoverSchema({required bool isChat}) async {
+    final connectionString = (isChat ? _chatConnectionString : _devConnectionString).trim();
+    if (connectionString.isEmpty) {
+      setState(() {
+        if (isChat) {
+          _chatSchemaError = 'Enter a connection string first.';
+        } else {
+          _devSchemaError = 'Enter a connection string first.';
+        }
+      });
+      return;
+    }
+
+    setState(() {
+      if (isChat) {
+        _chatSchemaLoading = true;
+        _chatSchemaError = null;
+        _chatSchemaTables = null;
+      } else {
+        _devSchemaLoading = true;
+        _devSchemaError = null;
+        _devSchemaTables = null;
+      }
+    });
+
+    try {
+      final resultJson = await component.client.errand.discoverDbSchema(
+        component.accessToken,
+        component.workspaceId,
+        connectionString,
+      );
+      final decoded = jsonDecode(resultJson) as Map<String, dynamic>;
+      final tables = (decoded['tables'] as List).cast<Map<String, dynamic>>();
+      setState(() {
+        if (isChat) {
+          _chatSchemaTables = tables;
+          _chatSchemaLoading = false;
+        } else {
+          _devSchemaTables = tables;
+          _devSchemaLoading = false;
+        }
+      });
+    } catch (_) {
+      setState(() {
+        if (isChat) {
+          _chatSchemaError = "Couldn't read this database's schema — check the connection string.";
+          _chatSchemaLoading = false;
+        } else {
+          _devSchemaError = "Couldn't read this database's schema — check the connection string.";
+          _devSchemaLoading = false;
+        }
+      });
+    }
+  }
+
+  /// Turns a picked table (and optional column, for a WHERE clause) into
+  /// a starter query template — a guess the owner can still edit, not a
+  /// final answer. [columnName] null means "just the table", producing a
+  /// broad preview query; non-null produces the far more common
+  /// "look this customer's row up by X" shape.
+  void _applySchemaPick({
+    required bool isChat,
+    required String tableName,
+    String? columnName,
+  }) {
+    final query = columnName == null
+        ? 'select * from $tableName limit 20'
+        : 'select * from $tableName where $columnName = @$columnName';
+    setState(() {
+      if (isChat) {
+        _chatQuerySql = query;
+      } else {
+        _devQuerySql = query;
+      }
+    });
+  }
+
+  Future<void> _testWebhook({required bool isChat}) async {
+    final url = (isChat ? _chatWebhookUrl : _devWebhookUrl).trim();
+    if (url.isEmpty) {
+      setState(() {
+        if (isChat) {
+          _chatWebhookTestError = 'Enter a URL first.';
+        } else {
+          _devWebhookTestError = 'Enter a URL first.';
+        }
+      });
+      return;
+    }
+
+    final headerName = (isChat ? _chatAuthHeaderName : _devAuthHeaderName).trim();
+    final headerValue = (isChat ? _chatAuthHeaderValue : _devAuthHeaderValue).trim();
+    // Sample payload built from whatever input fields have been declared
+    // so far (the "needed info" tags in chat mode, the typed fields in
+    // dev mode) — same shape a real invocation's input would eventually
+    // be, filled with placeholder values purely to exercise the
+    // connection.
+    final fieldNames = isChat ? _neededInfo : _devFields.map((f) => f.name).toList();
+    final sampleInput = {for (final name in fieldNames) name: 'test'};
+
+    setState(() {
+      if (isChat) {
+        _chatWebhookTesting = true;
+        _chatWebhookTestError = null;
+        _chatWebhookTestResult = null;
+      } else {
+        _devWebhookTesting = true;
+        _devWebhookTestError = null;
+        _devWebhookTestResult = null;
+      }
+    });
+
+    try {
+      final resultJson = await component.client.errand.testWebhookErrand(
+        component.accessToken,
+        component.workspaceId,
+        url,
+        jsonEncode(sampleInput),
+        authHeaderName: headerName.isEmpty ? null : headerName,
+        authHeaderValue: headerValue.isEmpty ? null : headerValue,
+      );
+      final decoded = jsonDecode(resultJson) as Map<String, dynamic>;
+      setState(() {
+        if (isChat) {
+          _chatWebhookTestResult = decoded;
+          _chatWebhookTesting = false;
+        } else {
+          _devWebhookTestResult = decoded;
+          _devWebhookTesting = false;
+        }
+      });
+    } catch (_) {
+      setState(() {
+        if (isChat) {
+          _chatWebhookTestError = "Couldn't reach this webhook.";
+          _chatWebhookTesting = false;
+        } else {
+          _devWebhookTestError = "Couldn't reach this webhook.";
+          _devWebhookTesting = false;
+        }
+      });
+    }
+  }
+
   Component _fulfillOption(String label, String value, {bool disabled = false}) => div(
     events: disabled ? {} : {'click': (_) => setState(() => _fulfillType = value)},
     attributes: {
@@ -1040,6 +1326,73 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
             ),
           ],
         ),
+        _webhookTestSection(isChat: isChat),
+      ],
+    );
+  }
+
+  /// Gate 5 — "test this before you save it" for a webhook Errand. A
+  /// button that fires an unsaved test call (see _testWebhook above),
+  /// plus whatever the last test returned: a plain status line if it
+  /// worked, and a body preview either way so the owner can tell a
+  /// wrong URL from a URL that's reachable but answering the wrong
+  /// thing.
+  Component _webhookTestSection({required bool isChat}) {
+    final testing = isChat ? _chatWebhookTesting : _devWebhookTesting;
+    final error = isChat ? _chatWebhookTestError : _devWebhookTestError;
+    final result = isChat ? _chatWebhookTestResult : _devWebhookTestResult;
+
+    return div(
+      attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
+      [
+        div(
+          attributes: {'style': 'display:flex;align-items:center;gap:10px'},
+          [
+            button(
+              [Component.text(testing ? 'Testing…' : 'Test this webhook')],
+              type: ButtonType.button,
+              disabled: testing,
+              onClick: () => _testWebhook(isChat: isChat),
+              attributes: {
+                'style':
+                    'background:transparent;border:1px solid ${KolaDashboardColors.border};'
+                    'color:${KolaDashboardColors.text};border-radius:100px;padding:7px 14px;'
+                    'font-size:12.5px;font-family:inherit;cursor:pointer;opacity:${testing ? '0.7' : '1'}',
+              },
+            ),
+            if (result != null)
+              span(
+                attributes: {
+                  'style':
+                      'font-size:12px;font-weight:600;'
+                      'color:${result['ok'] == true ? '#7ED9A8' : '#E8A8A8'}',
+                },
+                [
+                  Component.text(
+                    result['ok'] == true
+                        ? 'Reached — HTTP ${result['statusCode']} (${result['latencyMs']}ms)'
+                        : (result['errorMessage'] as String? ?? 'Failed'),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        if (error != null)
+          div(
+            attributes: {'style': 'font-size:12px;color:#E8A8A8'},
+            [Component.text(error)],
+          ),
+        if (result != null && result['bodyPreview'] != null)
+          div(
+            attributes: {
+              'style':
+                  'background:${KolaDashboardColors.bg};border:1px solid ${KolaDashboardColors.border};'
+                  'border-radius:8px;padding:10px;font-size:11.5px;font-family:${KolaDashboardFonts.mono};'
+                  'color:${KolaDashboardColors.mutedSecondary};max-height:120px;overflow:auto;'
+                  'white-space:pre-wrap;word-break:break-all',
+            },
+            [Component.text(result['bodyPreview'] as String)],
+          ),
       ],
     );
   }
@@ -1067,6 +1420,7 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
             attributes: {'style': _inputStyle, 'placeholder': 'postgresql://user:pass@host:5432/db'},
           ),
         ),
+        _schemaDiscoverySection(isChat: isChat),
         _field(
           labelText: 'Query template',
           hint: 'one pre-approved query, e.g. select * from orders where id = @orderId',
@@ -1079,6 +1433,109 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
               'placeholder': 'select status from orders where id = @orderId',
             },
           ),
+        ),
+      ],
+    );
+  }
+
+  /// Gate 5's namesake feature: "Discover schema" reads the database's
+  /// own information_schema (never a row of business data — see
+  /// DbSchemaDiscoveryService's header on the server) and turns the
+  /// result into a table/column picker. Clicking a table drops a
+  /// starter "select * from X limit 20" into the query template above;
+  /// clicking a column under it narrows that to a "where column = @column"
+  /// lookup — either way, a starting point the owner edits rather than
+  /// hand-typing SQL against a schema they're guessing at.
+  Component _schemaDiscoverySection({required bool isChat}) {
+    final loading = isChat ? _chatSchemaLoading : _devSchemaLoading;
+    final error = isChat ? _chatSchemaError : _devSchemaError;
+    final tables = isChat ? _chatSchemaTables : _devSchemaTables;
+
+    return div(
+      attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
+      [
+        div(
+          attributes: {'style': 'display:flex;align-items:center;gap:10px'},
+          [
+            button(
+              [Component.text(loading ? 'Reading schema…' : 'Discover schema')],
+              type: ButtonType.button,
+              disabled: loading,
+              onClick: () => _discoverSchema(isChat: isChat),
+              attributes: {
+                'style':
+                    'background:transparent;border:1px solid ${KolaDashboardColors.border};'
+                    'color:${KolaDashboardColors.text};border-radius:100px;padding:7px 14px;'
+                    'font-size:12.5px;font-family:inherit;cursor:pointer;opacity:${loading ? '0.7' : '1'}',
+              },
+            ),
+            if (tables != null)
+              span(
+                attributes: {'style': 'font-size:12px;color:${KolaDashboardColors.mutedSecondary}'},
+                [Component.text('${tables.length} table${tables.length == 1 ? '' : 's'} found — click one')],
+              ),
+          ],
+        ),
+        if (error != null)
+          div(
+            attributes: {'style': 'font-size:12px;color:#E8A8A8'},
+            [Component.text(error)],
+          ),
+        if (tables != null && tables.isEmpty)
+          div(
+            attributes: {'style': 'font-size:12px;color:${KolaDashboardColors.muted}'},
+            [Component.text('No tables found in the public schema.')],
+          ),
+        if (tables != null && tables.isNotEmpty)
+          div(
+            attributes: {
+              'style':
+                  'display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;'
+                  'background:${KolaDashboardColors.bg};border:1px solid ${KolaDashboardColors.border};'
+                  'border-radius:8px;padding:8px',
+            },
+            [for (final t in tables) _schemaTableRow(isChat: isChat, table: t)],
+          ),
+      ],
+    );
+  }
+
+  Component _schemaTableRow({required bool isChat, required Map<String, dynamic> table}) {
+    final tableName = table['name'] as String;
+    final columns = (table['columns'] as List).cast<Map<String, dynamic>>();
+    return div(
+      attributes: {'style': 'display:flex;flex-direction:column;gap:4px'},
+      [
+        div(
+          events: {'click': (_) => _applySchemaPick(isChat: isChat, tableName: tableName)},
+          attributes: {
+            'style':
+                'cursor:pointer;font-size:12.5px;font-family:${KolaDashboardFonts.mono};'
+                'color:${KolaDashboardColors.text};font-weight:600',
+          },
+          [Component.text(tableName)],
+        ),
+        div(
+          attributes: {'style': 'display:flex;flex-wrap:wrap;gap:5px;padding-left:10px'},
+          [
+            for (final c in columns)
+              span(
+                events: {
+                  'click': (_) => _applySchemaPick(
+                    isChat: isChat,
+                    tableName: tableName,
+                    columnName: c['name'] as String,
+                  ),
+                },
+                attributes: {
+                  'style':
+                      'cursor:pointer;font-size:11px;font-family:${KolaDashboardFonts.mono};'
+                      'color:${KolaDashboardColors.mutedSecondary};background:${KolaDashboardColors.pill};'
+                      'border-radius:6px;padding:2px 7px',
+                },
+                [Component.text('${c['name']}: ${c['dataType']}')],
+              ),
+          ],
         ),
       ],
     );
@@ -1114,7 +1571,12 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
     if (errands.isEmpty) return _emptyState('No Errands yet — create one on the left.');
     return div(
       attributes: {'style': 'display:flex;flex-direction:column'},
-      [for (final e in errands) _errandRow(e)],
+      [
+        for (final e in errands) ...[
+          _errandRow(e),
+          if (_mappingErrandId == e.id) _mappingPanel(e),
+        ],
+      ],
     );
   }
 
@@ -1158,6 +1620,8 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
             ),
           ],
         ),
+        if (errand.source == 'dbCredential')
+          _mappingToggleChip(errand),
         div(
           events: isToggling ? {} : {'click': (_) => _toggleStatus(errand)},
           attributes: {
@@ -1197,6 +1661,203 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
       ],
     );
   }
+
+  /// Pill that opens/closes [_mappingPanel] for a dbCredential Errand —
+  /// same shape as the Live/Disabled status pill just to its right, so
+  /// it reads as one family of row-level controls rather than a
+  /// bolted-on extra.
+  Component _mappingToggleChip(Errand errand) {
+    final isOpen = _mappingErrandId == errand.id;
+    return div(
+      events: {'click': (_) => _toggleMappingPanel(errand)},
+      attributes: {
+        'style':
+            'display:flex;align-items:center;gap:6px;'
+            'background:${isOpen ? KolaDashboardColors.accent : KolaDashboardColors.pill};'
+            'border:1px solid ${isOpen ? KolaDashboardColors.accent : KolaDashboardColors.border};'
+            'border-radius:100px;padding:5px 11px;cursor:pointer;flex:none',
+      },
+      [
+        span(
+          attributes: {
+            'style':
+                'font-size:11.5px;font-weight:600;'
+                'color:${isOpen ? KolaDashboardColors.accentText : KolaDashboardColors.mutedSecondary}',
+          },
+          [Component.text('🔗 Map to customers')],
+        ),
+      ],
+    );
+  }
+
+  /// Expanded under a dbCredential Errand's row when [_mappingErrandId]
+  /// matches it. Same "pill card" treatment as _webhookCredentialFields/
+  /// _databaseCredentialFields above (background: .pill, 12px radius,
+  /// 14px padding) so it reads as the same kind of surface rather than a
+  /// new visual language.
+  Component _mappingPanel(Errand errand) {
+    return div(
+      attributes: {
+        'style':
+            'padding:0 20px 18px;border-bottom:1px solid ${KolaDashboardColors.pill};'
+            'background:${KolaDashboardColors.bg}',
+      },
+      [
+        div(
+          attributes: {
+            'style':
+                'display:flex;flex-direction:column;gap:12px;background:${KolaDashboardColors.pill};'
+                'border:1px solid ${KolaDashboardColors.border};border-radius:12px;padding:14px',
+          },
+          [
+            div(
+              attributes: {'style': 'font-size:12px;color:${KolaDashboardColors.mutedSecondary}'},
+              [
+                Component.text(
+                  "Map this Errand's query results to customers — kola resolves or creates a "
+                  'Customer for each row using the columns below, the same identity matching '
+                  'already used for Paystack and Flutterwave.',
+                ),
+              ],
+            ),
+            if (_mappingLoading)
+              div(
+                attributes: {'style': 'font-size:12.5px;color:${KolaDashboardColors.muted}'},
+                [Component.text('Loading…')],
+              ),
+            if (_mappingLoadError != null)
+              div(
+                attributes: {'style': 'font-size:12px;color:#E8A8A8'},
+                [Component.text(_mappingLoadError!)],
+              ),
+            if (!_mappingLoading && _mappingLoadError == null) ...[
+              _mappingEnabledToggle(),
+              if (_mappingEnabled) ...[
+                div(
+                  attributes: {'style': 'display:flex;gap:10px'},
+                  [
+                    div(
+                      attributes: {'style': 'flex:1'},
+                      [
+                        _field(
+                          labelText: 'Phone column',
+                          hint: 'exact column name from your query results',
+                          child: input<String>(
+                            type: InputType.text,
+                            value: _mappingPhoneColumn,
+                            onInput: (v) => setState(() {
+                              _mappingPhoneColumn = v;
+                              _mappingJustSaved = false;
+                            }),
+                            attributes: {'style': _inputStyle, 'placeholder': 'phone'},
+                          ),
+                        ),
+                      ],
+                    ),
+                    div(
+                      attributes: {'style': 'flex:1'},
+                      [
+                        _field(
+                          labelText: 'Email column',
+                          child: input<String>(
+                            type: InputType.text,
+                            value: _mappingEmailColumn,
+                            onInput: (v) => setState(() {
+                              _mappingEmailColumn = v;
+                              _mappingJustSaved = false;
+                            }),
+                            attributes: {'style': _inputStyle, 'placeholder': 'email'},
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                _field(
+                  labelText: 'Name column (optional)',
+                  child: input<String>(
+                    type: InputType.text,
+                    value: _mappingNameColumn,
+                    onInput: (v) => setState(() {
+                      _mappingNameColumn = v;
+                      _mappingJustSaved = false;
+                    }),
+                    attributes: {'style': _inputStyle, 'placeholder': 'customer_name'},
+                  ),
+                ),
+              ],
+              div(
+                attributes: {'style': 'display:flex;align-items:center;gap:10px'},
+                [
+                  button(
+                    [Component.text(_mappingSaving ? 'Saving…' : 'Save mapping')],
+                    type: ButtonType.button,
+                    disabled: _mappingSaving,
+                    onClick: () => _saveMapping(errand),
+                    attributes: {
+                      'style':
+                          'background:${KolaDashboardColors.accent};color:${KolaDashboardColors.accentText};'
+                          'border:none;border-radius:100px;padding:7px 16px;font-size:12.5px;font-weight:600;'
+                          'font-family:inherit;cursor:pointer;opacity:${_mappingSaving ? '0.7' : '1'}',
+                    },
+                  ),
+                  if (_mappingJustSaved)
+                    span(
+                      attributes: {'style': 'font-size:12px;color:#7ED9A8;font-weight:600'},
+                      [Component.text('Saved')],
+                    ),
+                  if (_mappingSaveError != null)
+                    span(
+                      attributes: {'style': 'font-size:12px;color:#E8A8A8'},
+                      [Component.text(_mappingSaveError!)],
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Custom checkbox — a `button` with `role="checkbox"`, not
+  /// `input<bool>(type: InputType.checkbox)`. This codebase has an
+  /// established, documented reason to avoid that: see
+  /// integrations_page.dart / api_webhooks_page.dart's own comments,
+  /// "InputType.checkbox is a documented landmine in this codebase."
+  /// Screen readers treat this identically given the role and
+  /// aria-checked.
+  Component _mappingEnabledToggle() => button(
+    [
+      span(
+        attributes: {
+          'style':
+              'width:16px;height:16px;border-radius:4px;flex:none;display:flex;align-items:center;'
+              'justify-content:center;font-size:10px;font-weight:700;line-height:1;'
+              'border:1px solid ${_mappingEnabled ? KolaDashboardColors.accent : KolaDashboardColors.border};'
+              'background:${_mappingEnabled ? KolaDashboardColors.accent : 'transparent'};'
+              'color:${KolaDashboardColors.accentText}',
+        },
+        [if (_mappingEnabled) Component.text('✓')],
+      ),
+      span(
+        attributes: {'style': 'font-size:12.5px;color:${KolaDashboardColors.text}'},
+        [Component.text('Link matching rows to customers when this Errand runs')],
+      ),
+    ],
+    type: ButtonType.button,
+    onClick: () => setState(() {
+      _mappingEnabled = !_mappingEnabled;
+      _mappingJustSaved = false;
+    }),
+    attributes: {
+      'role': 'checkbox',
+      'aria-checked': _mappingEnabled ? 'true' : 'false',
+      'style':
+          'display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0;'
+          'cursor:pointer;font-family:inherit;width:fit-content',
+    },
+  );
 
   String _iconFor(Errand errand) {
     if (errand.source == 'builtin') {

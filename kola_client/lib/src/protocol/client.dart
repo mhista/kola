@@ -1009,6 +1009,113 @@ class EndpointErrand extends _i1.EndpointRef {
       'inputJson': inputJson,
     },
   );
+
+  /// Connects to [connectionString] and returns its 'public' schema's
+  /// tables and columns as a JSON string ({'tables': [...]}) — read-only,
+  /// never touches the business's own row data (see
+  /// DbSchemaDiscoveryService's header). Called BEFORE an Errand exists,
+  /// which is why this takes a raw connection string rather than an
+  /// errandId — see [discoverDbSchemaForErrand] for the already-saved
+  /// case.
+  _i2.Future<String> discoverDbSchema(
+    String accessToken,
+    int workspaceId,
+    String connectionString,
+  ) => caller.callServerEndpoint<String>(
+    'errand',
+    'discoverDbSchema',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'connectionString': connectionString,
+    },
+  );
+
+  /// Same as [discoverDbSchema], but re-reads an ALREADY-SAVED
+  /// dbCredential Errand's own database — lets an owner re-check what
+  /// their schema looks like today without pasting the connection
+  /// string in a second time. Decrypts the stored credential the same
+  /// way DbCredentialErrandExecutor does.
+  _i2.Future<String> discoverDbSchemaForErrand(
+    String accessToken,
+    int workspaceId,
+    int errandId,
+  ) => caller.callServerEndpoint<String>(
+    'errand',
+    'discoverDbSchemaForErrand',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'errandId': errandId,
+    },
+  );
+
+  /// Fires one real, UNSAVED, UNLOGGED test request at [webhookUrl] —
+  /// the webhook-fulfillment equivalent of [discoverDbSchema]: a
+  /// connectivity/shape check before the owner commits to saving a
+  /// webhook Errand, not a substitute for ErrandExecutionLog once one
+  /// exists. [sampleInputJson] is a JSON-encoded Map, same shape a real
+  /// invocation's input would eventually be.
+  _i2.Future<String> testWebhookErrand(
+    String accessToken,
+    int workspaceId,
+    String webhookUrl,
+    String sampleInputJson, {
+    String? authHeaderName,
+    String? authHeaderValue,
+  }) => caller.callServerEndpoint<String>(
+    'errand',
+    'testWebhookErrand',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'webhookUrl': webhookUrl,
+      'sampleInputJson': sampleInputJson,
+      'authHeaderName': authHeaderName,
+      'authHeaderValue': authHeaderValue,
+    },
+  );
+
+  /// The saved mapping for [errandId], as a JSON string
+  /// ({'enabled', 'phoneColumn', 'emailColumn', 'nameColumn'}) — or
+  /// '{"enabled": false}' if none has been saved yet, so the dashboard
+  /// has one shape to render regardless.
+  _i2.Future<String> getEntityMapping(
+    String accessToken,
+    int workspaceId,
+    int errandId,
+  ) => caller.callServerEndpoint<String>(
+    'errand',
+    'getEntityMapping',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'errandId': errandId,
+    },
+  );
+
+  /// Saves [mappingJson] as [errandId]'s entity mapping — only valid for
+  /// a 'dbCredential' Errand (see header). Validated here, not just
+  /// trusted: when 'enabled' is true, at least one of phoneColumn/
+  /// emailColumn must be a non-empty string, since
+  /// CustomerIdentityResolver has nothing to match on otherwise (see
+  /// ErrandRowCustomerMapper, which re-checks this same condition rather
+  /// than trusting a stored value alone).
+  _i2.Future<String> setEntityMapping(
+    String accessToken,
+    int workspaceId,
+    int errandId,
+    String mappingJson,
+  ) => caller.callServerEndpoint<String>(
+    'errand',
+    'setEntityMapping',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'errandId': errandId,
+      'mappingJson': mappingJson,
+    },
+  );
 }
 
 /// {@category Endpoint}
@@ -2294,9 +2401,10 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// billing, by the trial state machine, and by admin — never by the
   /// owner editing a form. WorkspaceRepository.update writes whatever
   /// model it is handed, so this reads the CURRENT row and copies only
-  /// the three permitted fields onto it. Passing a client-supplied
-  /// Workspace straight through would let anyone with a session set
-  /// their own plan to enterprise.
+  /// the permitted fields onto it (name, industryTag, ownerName, and —
+  /// Gate 7 — sellsCatalogItems). Passing a client-supplied Workspace
+  /// straight through would let anyone with a session set their own plan
+  /// to enterprise.
   ///
   /// ── NULL MEANS "LEAVE IT" ────────────────────────────────────────
   ///
@@ -2310,6 +2418,7 @@ class EndpointWorkspace extends _i1.EndpointRef {
     String? name,
     String? industryTag,
     String? ownerName,
+    bool? sellsCatalogItems,
   }) => caller.callServerEndpoint<_i33.Workspace>(
     'workspace',
     'updateWorkspace',
@@ -2319,6 +2428,7 @@ class EndpointWorkspace extends _i1.EndpointRef {
       'name': name,
       'industryTag': industryTag,
       'ownerName': ownerName,
+      'sellsCatalogItems': sellsCatalogItems,
     },
   );
 

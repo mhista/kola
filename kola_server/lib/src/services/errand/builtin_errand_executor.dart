@@ -61,6 +61,7 @@ import 'package:kola_server/kola_logger.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/repository/errand_execution_log_repository.dart';
 import 'package:kola_server/src/services/billing/payment_checkout_service.dart';
+import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
 import 'package:kola_server/src/services/repository/support_ticket_repository.dart';
 import 'package:kola_server/src/services/repository/customer_profile_repository.dart';
 import 'package:kola_server/src/services/otp/otp_service.dart';
@@ -87,6 +88,7 @@ class BuiltinErrandExecutor {
   BuiltinErrandExecutor({
     required ErrandExecutionLogRepository executionLogs,
     required PaymentCheckoutService paymentCheckout,
+    required PaymentTransactionRepository paymentTransactions,
     required SupportTicketRepository supportTickets,
     required CustomerProfileRepository customerProfiles,
     required OtpService otpService,
@@ -94,6 +96,7 @@ class BuiltinErrandExecutor {
     required CalendarBookingService calendarBookings,
   }) : _executionLogs = executionLogs,
        _paymentCheckout = paymentCheckout,
+       _paymentTransactions = paymentTransactions,
        _supportTickets = supportTickets,
        _customerProfiles = customerProfiles,
        _otp = otpService,
@@ -102,6 +105,7 @@ class BuiltinErrandExecutor {
 
   final ErrandExecutionLogRepository _executionLogs;
   final PaymentCheckoutService _paymentCheckout;
+  final PaymentTransactionRepository _paymentTransactions;
   final SupportTicketRepository _supportTickets;
   final CustomerProfileRepository _customerProfiles;
   final OtpService _otp;
@@ -111,6 +115,7 @@ class BuiltinErrandExecutor {
   late final Map<String, BuiltinErrandHandler> _handlers = {
     'escalateToHuman': _escalateToHuman,
     'collectPayment': _collectPayment,
+    'checkRecentTransactions': _checkRecentTransactions,
     'createSupportTicket': _createSupportTicket,
     'recordCustomerProfile': _recordCustomerProfile,
     'sendOtp': _sendOtp,
@@ -130,6 +135,7 @@ class BuiltinErrandExecutor {
   static const Set<String> handlerKeys = {
     'escalateToHuman',
     'collectPayment',
+    'checkRecentTransactions',
     'createSupportTicket',
     'recordCustomerProfile',
     'sendOtp',
@@ -147,6 +153,7 @@ class BuiltinErrandExecutor {
   /// explains why rather than just "unknown key".
   static const Set<String> connectorNativeHandlerKeys = {
     'collectPayment',
+    'checkRecentTransactions',
     'bookCalendarEvent',
   };
 
@@ -317,6 +324,78 @@ class BuiltinErrandExecutor {
         'error': e.message,
       };
     }
+  }
+
+  /// Found 2026-08-24 — the read-side [_collectPayment] never had. That
+  /// handler can only INITIATE a new checkout; there was no tool at all
+  /// that could look an existing transaction up, so "check my paystack
+  /// transaction" had no data path and the model (correctly, given its
+  /// tools) said so. This is deliberately read-only and backed by
+  /// [_paymentTransactions] directly — kolaa's own synced/created record
+  /// of a transaction, not a live call back out to Paystack/Flutterwave,
+  /// same "answer from what's already ours" posture as everything else
+  /// in this codebase's memory/retrieval layer.
+  ///
+  /// input optional: 'reference' (string) — a specific transaction to
+  /// look up. Omitted entirely means "show me recent activity", which is
+  /// the more common real phrasing ("check my transactions", "how are
+  /// sales looking") and must not require the model to invent a
+  /// reference it was never given.
+  Future<Map<String, dynamic>> _checkRecentTransactions(
+    Errand errand,
+    Map<String, dynamic> input,
+  ) async {
+    final reference = (input['reference'] as String?)?.trim();
+
+    if (reference != null && reference.isNotEmpty) {
+      final txn = await _paymentTransactions.findByReference(reference);
+      // Scoped even though findByReference has no workspace filter of
+      // its own (reference is globally unique — see that method's doc
+      // comment) — a reference belonging to another workspace must never
+      // be readable through this tool just because the model guessed or
+      // was fed a stray string.
+      if (txn == null || txn.workspaceId != errand.workspaceId) {
+        return {
+          'replyToCustomer': 'No transaction found with reference "$reference".',
+          'found': false,
+        };
+      }
+      Log.info('checkRecentTransactions: found $reference for workspace ${errand.workspaceId}');
+      return {
+        'replyToCustomer': _describeTransaction(txn),
+        'found': true,
+        'transactionId': txn.id,
+        'status': txn.status,
+      };
+    }
+
+    final recent = await _paymentTransactions.listRecentByWorkspace(
+      workspaceId: errand.workspaceId,
+      limit: 5,
+    );
+    if (recent.isEmpty) {
+      return {
+        'replyToCustomer': 'No payment transactions have been recorded for this workspace yet.',
+        'count': 0,
+      };
+    }
+    Log.info('checkRecentTransactions: ${recent.length} recent for workspace ${errand.workspaceId}');
+    return {
+      'replyToCustomer': 'Here are the most recent transactions:\n'
+          '${recent.map(_describeTransaction).join('\n')}',
+      'count': recent.length,
+    };
+  }
+
+  /// One line per transaction, plain enough to read straight back to an
+  /// owner without the model rephrasing it — same "the handler already
+  /// phrased this correctly" posture WorkspaceAnswerService relies on
+  /// for every other builtin (see that file's _executeAction).
+  static String _describeTransaction(PaymentTransaction t) {
+    final amount = (t.amountKobo / 100).toStringAsFixed(2);
+    final when = (t.paidAt ?? t.createdAt).toIso8601String().split('T').first;
+    return '${t.gateway} · ${t.reference} · ${t.currency} $amount · '
+        '${t.status} · ${t.customerEmail} · $when';
   }
 
   /// Task #130 — the buildable slice of Phase 8b's "complaint ticketing

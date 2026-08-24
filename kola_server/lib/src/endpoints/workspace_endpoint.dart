@@ -204,9 +204,10 @@ class WorkspaceEndpoint extends Endpoint {
   /// billing, by the trial state machine, and by admin — never by the
   /// owner editing a form. WorkspaceRepository.update writes whatever
   /// model it is handed, so this reads the CURRENT row and copies only
-  /// the three permitted fields onto it. Passing a client-supplied
-  /// Workspace straight through would let anyone with a session set
-  /// their own plan to enterprise.
+  /// the permitted fields onto it (name, industryTag, ownerName, and —
+  /// Gate 7 — sellsCatalogItems). Passing a client-supplied Workspace
+  /// straight through would let anyone with a session set their own plan
+  /// to enterprise.
   ///
   /// ── NULL MEANS "LEAVE IT" ────────────────────────────────────────
   ///
@@ -221,6 +222,11 @@ class WorkspaceEndpoint extends Endpoint {
     String? name,
     String? industryTag,
     String? ownerName,
+    // Gate 7 (migration 045). A real bool, not the text fields' "empty
+    // string clears it" convention — there is no product need to reset
+    // this back to "never asked" once an owner has answered, so null
+    // simply means "leave it," same as every other optional param here.
+    bool? sellsCatalogItems,
   }) async {
     await requireWorkspaceAccess(
       accessToken: accessToken,
@@ -249,6 +255,9 @@ class WorkspaceEndpoint extends Endpoint {
     if (ownerName != null) {
       final trimmed = ownerName.trim();
       current.ownerName = trimmed.isEmpty ? null : trimmed;
+    }
+    if (sellsCatalogItems != null) {
+      current.sellsCatalogItems = sellsCatalogItems;
     }
 
     return _workspaces.update(current);

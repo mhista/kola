@@ -1,0 +1,55 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Kola — Supabase schema (migration 045 — Gate 7: a workspace that will
+-- never sell products is a complete workspace)
+--
+-- Apply AFTER 044.
+--
+-- Backs docs/Kolaa_Connections_Backbone_Direction_v5.pdf PART II/PART VIII,
+-- Gate 7: "A workspace with zero products is fully functional. No setup
+-- nag, no zero cards, no commerce detectors."
+--
+-- ── WHAT WAS ACTUALLY FOUND (read before assuming Gate 7 was untouched) ──────
+--
+-- The commerce detector (workspace_sweep_service.dart's _detectCommerce)
+-- already self-silences correctly on an empty catalog — an empty product
+-- list produces zero out-of-stock/low-stock/no-price findings, no
+-- separate guard needed. That part of Gate 7 was already right.
+--
+-- Two real violations were found instead: kola_dashboard's
+-- NextStepHint ("Add what you sell") and overview_page.dart's Products
+-- stat card both gate ONLY on Features.commerceCatalog — a release/plan
+-- flag, not a statement about what this particular business sells. Once
+-- that flag is on for everyone (which Gate 6's own notes say it now is),
+-- every workspace — a bank, a clinic, a law firm — sees "Add what you
+-- sell" and a permanent "0" Products card, exactly the failure PART II
+-- names: "a bank connects its ticketing system... and opens a dashboard
+-- telling it that it has 0 products... That is a churned customer in
+-- week one."
+--
+-- ── WHY A BOOLEAN, NOT PART V's FULL FIVE-WAY PROFILE ────────────────────────
+--
+-- PART II sketches "Sells products · sells services · handles support ·
+-- runs campaigns · manages field operations" as a workspace-wide profile
+-- configuring the whole dashboard, setup checklist and detector set. The
+-- two violations actually found and fixable here are both specifically
+-- about the CATALOG surface — nothing today reads a "profile" for
+-- support/campaigns/field-ops, so adding four more values with no reader
+-- anywhere would be exactly the kind of unused, oversized field this
+-- project's own rules warn against ("do not duplicate/invent scope
+-- nothing consumes"). One clear yes/no question — "does this business
+-- sell things people can order from a catalog?" — fixes the concrete bug
+-- honestly. Broader profiling is a real next step, not done here.
+--
+-- ── NULL IS THE SAFE DEFAULT ──────────────────────────────────────────────────
+--
+-- Nullable, no DEFAULT. Null means "never asked" — every existing
+-- workspace keeps EXACTLY today's behavior (the nag/card still show)
+-- until an owner is asked and answers. This migration changes no
+-- workspace's visible behavior by itself; only WorkspaceEndpoint.
+-- updateWorkspace (Dart side) and the two now-conditional dashboard
+-- surfaces do.
+
+alter table workspaces
+    add column if not exists sells_catalog_items boolean;
+
+-- ─────────────────────────────────────────────────────────────────────────────

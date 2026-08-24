@@ -65,6 +65,13 @@ import 'package:kola_server/src/services/repository/customer_merge_proposal_repo
 import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
 import 'package:kola_server/src/services/repository/payment_gateway_credential_repository.dart';
 import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
+import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
+import 'package:kola_server/src/services/repository/calendar_booking_repository.dart';
+import 'package:kola_server/src/services/connectors/google/calendar_booking_service.dart';
+import 'package:kola_server/src/services/connectors/google/google_oauth_service.dart';
+import 'package:kola_server/src/services/errand/errand_row_customer_mapper.dart';
+import 'package:kola_server/src/services/repository/errand_entity_mapping_repository.dart';
+import 'package:kola_server/src/config/env.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 
 Future<void> main(List<String> args) async {
@@ -144,13 +151,38 @@ Future<void> main(List<String> args) async {
   );
 
   const errandExecutionLogs = ErrandExecutionLogRepository();
+  // paymentTransactions/calendarBookings added to BuiltinErrandExecutor's
+  // constructor later still — wired here the same way as the rest of
+  // this script's dependency graph (see header), found 2026-08-24 when
+  // `serverpod generate` first surfaced this script no longer compiling.
+  final calendarBookings = CalendarBookingService(
+    connectors: const WorkspaceConnectorRepository(),
+    bookings: const CalendarBookingRepository(),
+    oauth: GoogleOAuthService(
+      clientId: Env.googleOAuthClientId,
+      clientSecret: Env.googleOAuthClientSecret,
+      redirectUri: Env.googleOAuthRedirectUri,
+    ),
+  );
   final builtinExecutor = BuiltinErrandExecutor(
     executionLogs: errandExecutionLogs,
     paymentCheckout: PaymentCheckoutService(),
+    paymentTransactions: const PaymentTransactionRepository(),
     supportTickets: const SupportTicketRepository(),
     customerProfiles: const CustomerProfileRepository(),
     otpService: OtpService(otpCodes: const OtpCodeRepository()),
     whatsAppTemplates: WhatsAppTemplateCreationService(),
+    calendarBookings: calendarBookings,
+  );
+  // Gate 5's second half — built by hand the same way every other
+  // dependency in this script is (see header). No dbCredential Errand
+  // exists in this script's scenario, so applyIfMapped will always no-op
+  // instantly here — wired anyway because ErrandDispatchService now
+  // requires it unconditionally.
+  final rowCustomerMapper = ErrandRowCustomerMapper(
+    mappings: const ErrandEntityMappingRepository(),
+    identity: customerIdentity,
+    events: eventBus,
   );
   final errandDispatch = ErrandDispatchService(
     builtinExecutor: builtinExecutor,
@@ -163,6 +195,7 @@ Future<void> main(List<String> args) async {
       executionLogs: errandExecutionLogs,
     ),
     events: eventBus,
+    rowCustomerMapper: rowCustomerMapper,
   );
 
   final handler = InboundMessageHandler(

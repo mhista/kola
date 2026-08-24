@@ -135,6 +135,20 @@ const Map<String, Map<String, dynamic>> _builtinParameterSchemas = {
     },
     'required': ['gateway', 'amountKobo', 'customerEmail'],
   },
+  // 'checkRecentTransactions' — Connect Gate, found 2026-08-24. Schema
+  // for builtin_errand_executor.dart's _checkRecentTransactions handler.
+  // No context-injected keys — unlike a customer-facing handler, this
+  // reads errand.workspaceId only, same as collectPayment.
+  'checkRecentTransactions': {
+    'type': 'object',
+    'properties': {
+      'reference': {
+        'type': 'string',
+        'description': 'A specific transaction reference to look up, if the owner mentioned one. Omit this to get the most recent transactions instead.',
+      },
+    },
+    'required': [],
+  },
   'createSupportTicket': {
     'type': 'object',
     'properties': {

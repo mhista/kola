@@ -53,6 +53,9 @@ import 'package:kola_server/src/services/errand/builtin_errand_executor.dart';
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
 import 'package:kola_server/src/services/errand/webhook_errand_credential.dart';
 import 'package:kola_server/src/services/errand/db_credential_errand_credential.dart';
+import 'package:kola_server/src/services/errand/db_schema_discovery_service.dart';
+import 'package:kola_server/src/services/errand/webhook_connection_tester.dart';
+import 'package:kola_server/src/services/repository/errand_entity_mapping_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/security/security_filter.dart';
 import 'package:kola_server/kola_logger.dart';
@@ -70,6 +73,14 @@ class ErrandEndpoint extends Endpoint {
   // switch is now ErrandDispatchService (see _dispatch below), so those
   // two getters were removed as dead code rather than left unused.
   ErrandDispatchService get _dispatch => getIt<ErrandDispatchService>();
+  // Gate 5 — guided Level 3 builder support (schema discovery, webhook
+  // test calls). Neither is an executor in ErrandDispatchService's
+  // sense: both run BEFORE (or independently of) an Errand actually
+  // being saved, so they're wired straight from this endpoint rather
+  // than through the dispatch service.
+  DbSchemaDiscoveryService get _schemaDiscovery => getIt<DbSchemaDiscoveryService>();
+  WebhookConnectionTester get _webhookTester => getIt<WebhookConnectionTester>();
+  ErrandEntityMappingRepository get _entityMappings => getIt<ErrandEntityMappingRepository>();
   SecurityFilter get _security => getIt<SecurityFilter>();
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
   TrialStateMachine get _trialStateMachine => getIt<TrialStateMachine>();
@@ -542,6 +553,220 @@ class ErrandEndpoint extends Endpoint {
     );
 
     return jsonEncode(result);
+  }
+
+  // ── GATE 5 — GUIDED LEVEL 3 BUILDER ────────────────────────────────────
+  //
+  // Direction doc (Kolaa Rev 5, Part VIII, Gate 5): "Level 3 proven —
+  // Guided REST builder + read-only Postgres with schema discovery."
+  // createDbCredentialErrand/createWebhookErrand (above) still ask for
+  // the same raw fields they always did — these three methods don't
+  // change what gets saved, they give the dashboard something to call
+  // BEFORE a business commits to saving anything, so a wrong connection
+  // string or a broken endpoint is a red banner in the builder instead
+  // of a silent failure the first time a real conversation needs it.
+
+  /// Connects to [connectionString] and returns its 'public' schema's
+  /// tables and columns as a JSON string ({'tables': [...]}) — read-only,
+  /// never touches the business's own row data (see
+  /// DbSchemaDiscoveryService's header). Called BEFORE an Errand exists,
+  /// which is why this takes a raw connection string rather than an
+  /// errandId — see [discoverDbSchemaForErrand] for the already-saved
+  /// case.
+  Future<String> discoverDbSchema(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String connectionString,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    if (connectionString.trim().isEmpty) {
+      throw KolaException(message: 'connectionString cannot be empty.');
+    }
+
+    try {
+      final tables = await _schemaDiscovery.discover(connectionString.trim());
+      Log.success(
+        'DB schema discovered',
+        data: {'workspaceId': workspaceId, 'tableCount': tables.length},
+        session: session,
+      );
+      return jsonEncode({'tables': tables.map((t) => t.toJson()).toList()});
+    } on DbSchemaDiscoveryException catch (e) {
+      throw KolaException(message: e.message);
+    }
+  }
+
+  /// Same as [discoverDbSchema], but re-reads an ALREADY-SAVED
+  /// dbCredential Errand's own database — lets an owner re-check what
+  /// their schema looks like today without pasting the connection
+  /// string in a second time. Decrypts the stored credential the same
+  /// way DbCredentialErrandExecutor does.
+  Future<String> discoverDbSchemaForErrand(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int errandId,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final errand = await _errands.findByIdScoped(errandId, workspaceId);
+    if (errand == null) {
+      throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
+    }
+    if (errand.source != 'dbCredential') {
+      throw KolaException(message: 'Errand $errandId is not a database-credential Errand.');
+    }
+
+    final credentialRow = await _credentials.findByErrandId(errandId);
+    if (credentialRow == null) {
+      throw KolaException(
+        message: 'Errand $errandId has no database credential registered yet.',
+      );
+    }
+    final decrypted = ChannelCredentialEncryptionService.decrypt(credentialRow.encryptedCredential);
+    final credential = DbCredentialErrandCredential.decode(decrypted);
+
+    try {
+      final tables = await _schemaDiscovery.discover(credential.connectionString);
+      Log.success(
+        'DB schema discovered',
+        data: {'workspaceId': workspaceId, 'errandId': errandId, 'tableCount': tables.length},
+        session: session,
+      );
+      return jsonEncode({'tables': tables.map((t) => t.toJson()).toList()});
+    } on DbSchemaDiscoveryException catch (e) {
+      throw KolaException(message: e.message);
+    }
+  }
+
+  /// Fires one real, UNSAVED, UNLOGGED test request at [webhookUrl] —
+  /// the webhook-fulfillment equivalent of [discoverDbSchema]: a
+  /// connectivity/shape check before the owner commits to saving a
+  /// webhook Errand, not a substitute for ErrandExecutionLog once one
+  /// exists. [sampleInputJson] is a JSON-encoded Map, same shape a real
+  /// invocation's input would eventually be.
+  Future<String> testWebhookErrand(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String webhookUrl,
+    String sampleInputJson, {
+    String? authHeaderName,
+    String? authHeaderValue,
+  }) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    Map<String, dynamic> sampleInput;
+    try {
+      sampleInput = jsonDecode(sampleInputJson) as Map<String, dynamic>;
+    } catch (e) {
+      throw KolaException(message: 'sampleInputJson is not valid JSON: $e');
+    }
+
+    final result = await _webhookTester.test(
+      url: webhookUrl.trim(),
+      authHeaderName: authHeaderName,
+      authHeaderValue: authHeaderValue,
+      sampleInput: sampleInput,
+    );
+
+    Log.success(
+      'Webhook connection tested',
+      data: {'workspaceId': workspaceId, 'ok': result.ok, 'statusCode': result.statusCode},
+      session: session,
+    );
+
+    return jsonEncode(result.toJson());
+  }
+
+  // ── ENTITY MAPPING — GATE 5'S SECOND HALF ──────────────────────────────
+  //
+  // "Someone else's system, mapped to entities." Only 'dbCredential'
+  // Errands can have a mapping — their result is always the structured
+  // {'rows': [...]} shape ErrandRowCustomerMapper understands; a webhook
+  // Errand's response has no such guaranteed shape (see that file's
+  // header). Both methods return/accept a JSON string, same "flexible
+  // shape lives in a text column" convention as inputSchemaJson — see
+  // migration 044's header on why this is deliberately NOT a Serverpod
+  // model.
+
+  /// The saved mapping for [errandId], as a JSON string
+  /// ({'enabled', 'phoneColumn', 'emailColumn', 'nameColumn'}) — or
+  /// '{"enabled": false}' if none has been saved yet, so the dashboard
+  /// has one shape to render regardless.
+  Future<String> getEntityMapping(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int errandId,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final errand = await _errands.findByIdScoped(errandId, workspaceId);
+    if (errand == null) {
+      throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
+    }
+
+    final row = await _entityMappings.findByErrandId(errandId);
+    return row?.mappingJson ?? jsonEncode({'enabled': false});
+  }
+
+  /// Saves [mappingJson] as [errandId]'s entity mapping — only valid for
+  /// a 'dbCredential' Errand (see header). Validated here, not just
+  /// trusted: when 'enabled' is true, at least one of phoneColumn/
+  /// emailColumn must be a non-empty string, since
+  /// CustomerIdentityResolver has nothing to match on otherwise (see
+  /// ErrandRowCustomerMapper, which re-checks this same condition rather
+  /// than trusting a stored value alone).
+  Future<String> setEntityMapping(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int errandId,
+    String mappingJson,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final errand = await _errands.findByIdScoped(errandId, workspaceId);
+    if (errand == null) {
+      throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
+    }
+    if (errand.source != 'dbCredential') {
+      throw KolaException(
+        message: 'Only a database-credential Errand can be mapped to customers today.',
+      );
+    }
+
+    final Map<String, dynamic> mapping;
+    try {
+      mapping = jsonDecode(mappingJson) as Map<String, dynamic>;
+    } catch (e) {
+      throw KolaException(message: 'mappingJson is not valid JSON: $e');
+    }
+
+    final enabled = mapping['enabled'] == true;
+    if (enabled) {
+      final phone = (mapping['phoneColumn'] as String?)?.trim() ?? '';
+      final email = (mapping['emailColumn'] as String?)?.trim() ?? '';
+      if (phone.isEmpty && email.isEmpty) {
+        throw KolaException(
+          message:               'To map rows to customers, at least a phone or email column name is '
+          'needed — kola has nothing to match customers on otherwise.',
+        );
+      }
+    }
+
+    final saved = await _entityMappings.upsert(errandId: errandId, mappingJson: jsonEncode(mapping));
+
+    Log.success(
+      'Errand entity mapping saved',
+      data: {'workspaceId': workspaceId, 'errandId': errandId, 'enabled': enabled},
+      session: session,
+    );
+
+    return saved.mappingJson;
   }
 
   void _assertValidJson(String value, String fieldName) {

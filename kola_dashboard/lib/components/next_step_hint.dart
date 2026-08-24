@@ -65,6 +65,12 @@ abstract class NextSteps {
     required bool hasConversations,
     required bool commerceEnabled,
     required bool hasProducts,
+    // Gate 7 (migration 045). Null = never asked (today's behavior:
+    // nag still shows once commerceEnabled). false = this business has
+    // said it does not sell catalog items — the nag stops even though
+    // the release flag is on. true does not change anything here; a
+    // catalog business with no products yet should still see the nag.
+    bool? sellsCatalogItems,
     required Set<String> dismissed,
   }) {
     final candidates = <NextStep>[
@@ -89,7 +95,7 @@ abstract class NextSteps {
           route: '/knowledge',
           icon: Icons.book,
         ),
-      if (commerceEnabled && !hasProducts)
+      if (commerceEnabled && !hasProducts && sellsCatalogItems != false)
         const NextStep(
           id: 'add-products',
           title: 'Add what you sell',

@@ -30,6 +30,10 @@ import 'package:kola_server/src/services/repository/errand_execution_log_reposit
 import 'package:kola_server/src/services/errand/builtin_errand_executor.dart';
 import 'package:kola_server/src/services/errand/webhook_errand_executor.dart';
 import 'package:kola_server/src/services/errand/db_credential_errand_executor.dart';
+import 'package:kola_server/src/services/errand/db_schema_discovery_service.dart';
+import 'package:kola_server/src/services/errand/webhook_connection_tester.dart';
+import 'package:kola_server/src/services/errand/errand_row_customer_mapper.dart';
+import 'package:kola_server/src/services/repository/errand_entity_mapping_repository.dart';
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
 import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
@@ -154,6 +158,12 @@ void setupDependencyInjection() {
   getIt.registerLazySingleton<ErrandExecutionLogRepository>(
     () => const ErrandExecutionLogRepository(),
   );
+  // Gate 5's second half (migration 044) — see errand_entity_mapping_
+  // repository.dart's header on why this is deliberately not a
+  // Serverpod-generated model like every repository around it.
+  getIt.registerLazySingleton<ErrandEntityMappingRepository>(
+    () => const ErrandEntityMappingRepository(),
+  );
   // Task #128 — collectPayment (see below for full registration) needs
   // PaymentCheckoutService to exist before BuiltinErrandExecutor's
   // factory closure runs; get_it resolves lazily on first USE, not at
@@ -166,6 +176,10 @@ void setupDependencyInjection() {
     () => BuiltinErrandExecutor(
       executionLogs: getIt<ErrandExecutionLogRepository>(),
       paymentCheckout: getIt<PaymentCheckoutService>(),
+      // 'checkRecentTransactions' handler's dependency, found 2026-08-24
+      // — registered above (line ~589), same lazy-resolution-is-fine
+      // reasoning as every other dependency in this factory closure.
+      paymentTransactions: getIt<PaymentTransactionRepository>(),
       supportTickets: getIt<SupportTicketRepository>(),
       customerProfiles: getIt<CustomerProfileRepository>(),
       otpService: getIt<OtpService>(),
@@ -190,6 +204,30 @@ void setupDependencyInjection() {
     () => DbCredentialErrandExecutor(
       credentials: getIt<ErrandCredentialRepository>(),
       executionLogs: getIt<ErrandExecutionLogRepository>(),
+    ),
+  );
+  // Gate 5 — the guided-builder half of Level 3 (schema discovery for
+  // dbCredential Errands, a test call for webhook Errands). Neither
+  // touches an already-persisted Errand's execution log — see each
+  // file's own header on why they're not just DbCredentialErrandExecutor/
+  // WebhookErrandExecutor reused directly.
+  getIt.registerLazySingleton<DbSchemaDiscoveryService>(
+    () => const DbSchemaDiscoveryService(),
+  );
+  getIt.registerLazySingleton<WebhookConnectionTester>(
+    () => const WebhookConnectionTester(),
+  );
+  // Gate 5's second half — applies a saved errand_entity_mappings row to
+  // a dbCredential Errand's result via the SAME CustomerIdentityResolver
+  // paystack_adapter.dart/flutterwave_adapter.dart/bumpa_adapter.dart
+  // already use (registered above, forward reference to EventBus below
+  // is fine — see this file's own "lazy resolution" note). Consumed by
+  // ErrandDispatchService, registered further down.
+  getIt.registerLazySingleton<ErrandRowCustomerMapper>(
+    () => ErrandRowCustomerMapper(
+      mappings: getIt<ErrandEntityMappingRepository>(),
+      identity: getIt<CustomerIdentityResolver>(),
+      events: getIt<EventBus>(),
     ),
   );
   // ── GATE 2 — EVENT BUS ──────────────────────────────────────────────────
@@ -278,6 +316,7 @@ void setupDependencyInjection() {
       webhookExecutor: getIt<WebhookErrandExecutor>(),
       dbCredentialExecutor: getIt<DbCredentialErrandExecutor>(),
       events: getIt<EventBus>(),
+      rowCustomerMapper: getIt<ErrandRowCustomerMapper>(),
     ),
   );
 

@@ -24,6 +24,7 @@ import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/errand/builtin_errand_executor.dart';
 import 'package:kola_server/src/services/errand/webhook_errand_executor.dart';
 import 'package:kola_server/src/services/errand/db_credential_errand_executor.dart';
+import 'package:kola_server/src/services/errand/errand_row_customer_mapper.dart';
 import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
 
 class ErrandDispatchService {
@@ -32,15 +33,18 @@ class ErrandDispatchService {
     required WebhookErrandExecutor webhookExecutor,
     required DbCredentialErrandExecutor dbCredentialExecutor,
     required EventBus events,
+    required ErrandRowCustomerMapper rowCustomerMapper,
   }) : _builtin = builtinExecutor,
        _webhook = webhookExecutor,
        _dbCredential = dbCredentialExecutor,
-       _events = events;
+       _events = events,
+       _rowCustomerMapper = rowCustomerMapper;
 
   final BuiltinErrandExecutor _builtin;
   final WebhookErrandExecutor _webhook;
   final DbCredentialErrandExecutor _dbCredential;
   final EventBus _events;
+  final ErrandRowCustomerMapper _rowCustomerMapper;
 
   /// Runs [errand] with [input], dispatching to the right executor by
   /// errand.source. Does NOT check errand.status or run the security
@@ -85,6 +89,18 @@ class ErrandDispatchService {
         occurredAt: now,
       );
     }
+
+    // Gate 5's second half — best-effort, AFTER the real result above is
+    // already computed, and never allowed to change or delay what this
+    // method returns to its caller (a conversation, or the dashboard's
+    // "Test this Errand" button) beyond the mapping work itself. No-ops
+    // instantly for the overwhelming majority of Errands, which have no
+    // saved mapping — see ErrandRowCustomerMapper's header.
+    await _rowCustomerMapper.applyIfMapped(
+      workspaceId: errand.workspaceId,
+      errand: errand,
+      executionResult: result,
+    );
 
     return result;
   }

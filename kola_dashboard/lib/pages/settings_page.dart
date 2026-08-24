@@ -100,6 +100,9 @@ class _SettingsPageState extends State<SettingsPage> {
   late String _name = component.workspace.name;
   late String _industry = component.workspace.industryTag ?? '';
   late String _ownerName = component.workspace.ownerName ?? '';
+  // Gate 7 (migration 045). Null = never asked, matches the model's own
+  // default — no chip pre-selected until an owner actually answers.
+  late bool? _sellsCatalogItems = component.workspace.sellsCatalogItems;
   bool _savingWorkspace = false;
   String? _workspaceError;
   String? _workspaceSaved;
@@ -182,6 +185,7 @@ class _SettingsPageState extends State<SettingsPage> {
         name: _name,
         industryTag: _industry,
         ownerName: _ownerName,
+        sellsCatalogItems: _sellsCatalogItems,
       );
       if (!mounted) return;
       component.onWorkspaceUpdated(updated);
@@ -388,6 +392,7 @@ class _SettingsPageState extends State<SettingsPage> {
             placeholder: 'e.g. Ankara fabric and ready-made outfits'),
         _field('Your name', _ownerName, (v) => setState(() => _ownerName = v),
             placeholder: 'The name kolaa greets you with'),
+        _catalogPicker(),
         if (_workspaceError != null) _msg(_workspaceError!, KolaVar.danger),
         if (_workspaceSaved != null) _msg(_workspaceSaved!, KolaVar.successBright),
         _primary(_savingWorkspace ? 'Saving…' : 'Save changes',
@@ -402,6 +407,35 @@ class _SettingsPageState extends State<SettingsPage> {
           for (final w in component.workspaces) _workspaceRow(w),
         ],
       ]);
+
+  /// Gate 7 (migration 045). "Does this business sell things people can
+  /// order from a catalog?" — a real yes/no, not free text like the
+  /// "What you sell" field above it. Left with nothing selected until an
+  /// owner picks one, matching the null-means-never-asked default.
+  Component _catalogPicker() => div(
+        attributes: {'style': 'margin-bottom:14px'},
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.tiny};font-weight:600;'
+                  'color:${KolaVar.mutedStrong};margin-bottom:6px',
+            },
+            [Component.text('Do customers order from a catalog of items?')],
+          ),
+          _choices(
+            const [
+              (id: 'yes', label: 'Yes'),
+              (id: 'no', label: 'No'),
+            ],
+            switch (_sellsCatalogItems) {
+              true => 'yes',
+              false => 'no',
+              null => '',
+            },
+            (id) => setState(() => _sellsCatalogItems = id == 'yes'),
+          ),
+        ],
+      );
 
   Component _workspaceRow(Workspace w) {
     final current = w.id == component.workspace.id;
