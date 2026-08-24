@@ -83,12 +83,19 @@ import '../services/money_format.dart';
 import '../theme.dart';
 
 class _CartLine {
-  _CartLine({required this.product, this.quantity = 1});
+  _CartLine({required this.product, required this.unitPriceMinor, this.quantity = 1});
 
   final Product product;
+
+  /// Set once, at the moment the line is added — from the catalog price
+  /// when the product has one, or from what the cashier typed for an
+  /// "Ask price" item (see `_addToCart`/`_priceEntryModal`). Never
+  /// re-read from `product.priceMinor` after that: a variable-priced
+  /// service can legitimately sell for a different amount next time,
+  /// and this line must keep showing what THIS sale actually charged.
+  final int unitPriceMinor;
   int quantity;
 
-  int get unitPriceMinor => product.priceMinor ?? 0;
   int get lineTotalMinor => unitPriceMinor * quantity;
 }
 
@@ -157,6 +164,13 @@ class _TillPageState extends State<TillPage> {
   bool _showScanner = false;
   String _scanInput = '';
   String? _scanError;
+
+  /// The product a cashier is currently naming a price for. Set only
+  /// for "Ask price" items — see `_addToCart`/`_productTile`'s comment
+  /// on why those can't just be disabled.
+  Product? _pricingProduct;
+  String _priceEntryInput = '';
+  String? _priceEntryError;
 
   bool _charging = false;
   String? _chargeError;
@@ -302,16 +316,49 @@ class _TillPageState extends State<TillPage> {
 
   // ── Cart ───────────────────────────────────────────────────────────
 
-  void _addToCart(Product product) {
-    if (product.priceMinor == null) return;
+  /// [unitPriceMinor] is required, never read off `product` here — most
+  /// calls pass the catalog price straight through, but "Ask price"
+  /// products (`product.priceMinor == null`) route through
+  /// `_priceEntryModal` first and pass what the cashier typed instead.
+  void _addToCart(Product product, int unitPriceMinor) {
     setState(() {
       final existing = _cart.where((l) => l.product.id == product.id).toList();
       if (existing.isNotEmpty) {
         existing.first.quantity++;
       } else {
-        _cart.add(_CartLine(product: product));
+        _cart.add(_CartLine(product: product, unitPriceMinor: unitPriceMinor));
       }
     });
+  }
+
+  // ── "Ask price" entry ─────────────────────────────────────────────
+
+  /// A service like "Custom tailoring" or "Fabric sourcing (per trip)"
+  /// has no fixed catalog price by design (product.spy.yaml's own
+  /// header) — that's real, not missing data, and a till that just
+  /// disables the tile for these means a cashier can never ring up a
+  /// huge slice of a service business's actual catalog. Instead: tap
+  /// opens a one-field prompt for what this sale actually charges, then
+  /// adds at that price. Same modal shape as the barcode scanner.
+  void _openPriceEntry(Product p) => setState(() {
+        _pricingProduct = p;
+        _priceEntryInput = '';
+        _priceEntryError = null;
+      });
+
+  void _closePriceEntry() => setState(() => _pricingProduct = null);
+
+  void _submitPriceEntry() {
+    final digits = _priceEntryInput.replaceAll(RegExp(r'[^0-9]'), '');
+    final naira = int.tryParse(digits) ?? 0;
+    if (naira <= 0) {
+      setState(() => _priceEntryError = 'Enter a price above ₦0.');
+      return;
+    }
+    final product = _pricingProduct;
+    if (product == null) return;
+    _addToCart(product, naira * 100);
+    setState(() => _pricingProduct = null);
   }
 
   void _inc(_CartLine line) => setState(() => line.quantity++);
@@ -434,8 +481,13 @@ class _TillPageState extends State<TillPage> {
       setState(() => _scanError = 'No product matches "$_scanInput".');
       return;
     }
-    _addToCart(matches.first);
+    final product = matches.first;
     setState(() => _showScanner = false);
+    if (product.priceMinor != null) {
+      _addToCart(product, product.priceMinor!);
+    } else {
+      _openPriceEntry(product);
+    }
   }
 
   // ── Build ──────────────────────────────────────────────────────────
@@ -463,6 +515,7 @@ class _TillPageState extends State<TillPage> {
           [if (_view == 'tablet') _tabletBody() else _phoneBody()],
         ),
         if (_showScanner) _scannerModal(),
+        if (_pricingProduct != null) _priceEntryModal(_pricingProduct!),
       ],
     );
   }
@@ -717,18 +770,28 @@ class _TillPageState extends State<TillPage> {
   Component _productTile(Product p) {
     final priced = p.priceMinor != null;
     final qty = _quantityInCart(p);
+    // "Ask price" is a real, common catalog state for a service — not
+    // missing data (product.spy.yaml's own header) — so the tile stays
+    // pressable either way. A priced product adds straight to the cart;
+    // an unpriced one opens a one-field prompt for what THIS sale
+    // charges (see _openPriceEntry). Disabling the tile instead, as the
+    // first pass did, meant a shop that sells services could never ring
+    // up a large share of its own catalog.
     return button(
       attributes: {
         'type': 'button',
-        if (!priced) 'disabled': 'disabled',
         'style': 'position:relative;background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:0;text-align:left;'
-            'cursor:${priced ? 'pointer' : 'default'};font-family:inherit;color:${KolaVar.text};'
+            'border-radius:${KolaRadius.lg};padding:0;text-align:left;cursor:pointer;'
+            'font-family:inherit;color:${KolaVar.text};'
             'overflow:hidden;min-height:132px;display:flex;flex-direction:column',
       },
       events: {
         'click': (_) {
-          if (priced) _addToCart(p);
+          if (priced) {
+            _addToCart(p, p.priceMinor!);
+          } else {
+            _openPriceEntry(p);
+          }
         },
       },
       [
@@ -1475,6 +1538,87 @@ class _TillPageState extends State<TillPage> {
                       'font-size:${KolaType.body};font-family:inherit;cursor:pointer',
                 },
                 events: {'click': (_) => _closeScanner()},
+                [Component.text('Cancel')],
+              ),
+            ],
+          ),
+        ],
+      );
+
+  // ── "Ask price" entry modal ───────────────────────────────────────
+
+  Component _priceEntryModal(Product p) => div(
+        attributes: {
+          'style': 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;'
+              'display:flex;align-items:center;justify-content:center;padding:20px',
+        },
+        events: {'click': (_) => _closePriceEntry()},
+        [
+          div(
+            attributes: {
+              'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+                  'border-radius:${KolaRadius.xl};padding:26px;width:100%;max-width:340px;'
+                  'box-sizing:border-box',
+            },
+            events: {'click': (e) => e.stopPropagation()},
+            [
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.bodyLg};font-weight:600;margin-bottom:4px',
+                },
+                [Component.text(p.name)],
+              ),
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};margin-bottom:14px',
+                },
+                [Component.text('This is an "Ask price" item — enter what to charge for this sale.')],
+              ),
+              input<String>(
+                type: InputType.text,
+                value: _priceEntryInput,
+                onInput: (v) => setState(() => _priceEntryInput = v),
+                attributes: {
+                  'placeholder': '₦0',
+                  'autofocus': 'autofocus',
+                  'style': 'width:100%;background:${KolaVar.bg};border:1px solid ${KolaVar.border};'
+                      'border-radius:${KolaRadius.sm};padding:13px 14px;color:${KolaVar.text};'
+                      'font-family:${KolaFonts.mono};font-size:${KolaType.title};box-sizing:border-box;'
+                      'margin-bottom:10px',
+                },
+                events: {
+                  'keydown': (e) {
+                    final ev = e as web.KeyboardEvent;
+                    if (ev.key == 'Enter') _submitPriceEntry();
+                  },
+                },
+              ),
+              if (_priceEntryError != null)
+                div(
+                  attributes: {
+                    'style': 'font-size:${KolaType.tiny};color:${KolaVar.danger};margin-bottom:10px',
+                  },
+                  [Component.text(_priceEntryError!)],
+                ),
+              button(
+                attributes: {
+                  'type': 'button',
+                  'style': 'width:100%;background:${KolaVar.accentFill};color:${KolaVar.accentText};'
+                      'border:none;border-radius:${KolaRadius.pill};padding:12px;'
+                      'font-size:${KolaType.bodyLg};font-weight:600;font-family:inherit;'
+                      'cursor:pointer;min-height:44px;margin-bottom:8px',
+                },
+                events: {'click': (_) => _submitPriceEntry()},
+                [Component.text('Add to sale')],
+              ),
+              button(
+                attributes: {
+                  'type': 'button',
+                  'style': 'width:100%;background:transparent;border:1px solid ${KolaVar.border};'
+                      'color:${KolaVar.muted};border-radius:${KolaRadius.pill};padding:11px;'
+                      'font-size:${KolaType.body};font-family:inherit;cursor:pointer',
+                },
+                events: {'click': (_) => _closePriceEntry()},
                 [Component.text('Cancel')],
               ),
             ],
