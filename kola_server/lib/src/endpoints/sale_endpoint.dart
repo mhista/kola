@@ -20,6 +20,7 @@ import 'package:kola_server/src/services/repository/sale_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
 import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
+import 'package:kola_server/kola_logger.dart';
 
 class SaleEndpoint extends Endpoint {
   SaleRepository get _sales => getIt<SaleRepository>();
@@ -45,26 +46,44 @@ class SaleEndpoint extends Endpoint {
     String? customerPhone,
     String? customerName,
   }) async {
-    await _require(accessToken, workspaceId);
+    // Entry log — if this line's timestamp is ever missing for a sale
+    // attempt that the browser shows as failed, the request never made
+    // it past Serverpod's own parameter deserialization (i.e. it died
+    // before ringUpSale's body ran at all — see the diagnostic print in
+    // generated/protocol.dart's Protocol.deserialize fallback for that
+    // case). If this line IS present, the failure is real business
+    // logic below, not a wire/serialization problem.
+    Log.info(
+      'ringUpSale called',
+      data: {
+        'workspaceId': workspaceId,
+        'lineCount': lines.length,
+        'paymentMethod': paymentMethod,
+        'clientReference': clientReference,
+      },
+      session: session,
+    );
+    try {
+      await _require(accessToken, workspaceId);
 
-    // Idempotency: the offline till may replay the same queued sale
-    // after a lost response. See sale_repository.dart's header.
-    if (clientReference != null) {
-      final existing = await _sales.findByClientReference(
-        workspaceId: workspaceId,
-        clientReference: clientReference,
-      );
-      if (existing != null) return existing;
-    }
+      // Idempotency: the offline till may replay the same queued sale
+      // after a lost response. See sale_repository.dart's header.
+      if (clientReference != null) {
+        final existing = await _sales.findByClientReference(
+          workspaceId: workspaceId,
+          clientReference: clientReference,
+        );
+        if (existing != null) return existing;
+      }
 
-    if (lines.isEmpty) {
-      throw KolaException(message: 'A sale needs at least one line.');
-    }
+      if (lines.isEmpty) {
+        throw KolaException(message: 'A sale needs at least one line.');
+      }
 
-    final workspace = await _workspaces.findById(workspaceId);
-    if (workspace == null) {
-      throw KolaException(message: 'Workspace $workspaceId not found.');
-    }
+      final workspace = await _workspaces.findById(workspaceId);
+      if (workspace == null) {
+        throw KolaException(message: 'Workspace $workspaceId not found.');
+      }
 
     final subtotalMinor = lines.fold<int>(
       0,
@@ -158,7 +177,21 @@ class SaleEndpoint extends Endpoint {
       );
     }
 
-    return sale;
+      Log.success(
+        'ringUpSale completed',
+        data: {'saleId': sale.id, 'totalMinor': totalMinor},
+        session: session,
+      );
+      return sale;
+    } catch (e, st) {
+      // Whatever the failure is (validation, DB, downstream service),
+      // this guarantees it's timestamped and attributed to ringUpSale
+      // specifically in the container log, instead of only surfacing as
+      // an anonymous "Internal server error" line from Serverpod's own
+      // top-level handler.
+      Log.error('ringUpSale failed', error: e, stackTrace: st, session: session);
+      rethrow;
+    }
   }
 
   Future<List<Sale>> listSales(
