@@ -29,7 +29,6 @@ import '../endpoints/support_ticket_endpoint.dart' as _i16;
 import '../endpoints/waitlist_endpoint.dart' as _i17;
 import '../endpoints/whatsapp_template_endpoint.dart' as _i18;
 import '../endpoints/workspace_endpoint.dart' as _i19;
-import 'package:kola_server/src/generated/sale_line_input.dart' as _i20;
 
 class Endpoints extends _i1.EndpointDispatch {
   @override
@@ -3400,9 +3399,24 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<int>(),
               nullable: false,
             ),
-            'lines': _i1.ParameterDescription(
-              name: 'lines',
-              type: _i1.getType<List<_i20.SaleLineInput>>(),
+            'lineProductIds': _i1.ParameterDescription(
+              name: 'lineProductIds',
+              type: _i1.getType<List<int?>>(),
+              nullable: false,
+            ),
+            'lineNames': _i1.ParameterDescription(
+              name: 'lineNames',
+              type: _i1.getType<List<String>>(),
+              nullable: false,
+            ),
+            'lineUnitPriceMinors': _i1.ParameterDescription(
+              name: 'lineUnitPriceMinors',
+              type: _i1.getType<List<int>>(),
+              nullable: false,
+            ),
+            'lineQuantities': _i1.ParameterDescription(
+              name: 'lineQuantities',
+              type: _i1.getType<List<int>>(),
               nullable: false,
             ),
             'paymentMethod': _i1.ParameterDescription(
@@ -3439,7 +3453,10 @@ class Endpoints extends _i1.EndpointDispatch {
                 session,
                 params['accessToken'],
                 params['workspaceId'],
-                lines: params['lines'],
+                lineProductIds: params['lineProductIds'],
+                lineNames: params['lineNames'],
+                lineUnitPriceMinors: params['lineUnitPriceMinors'],
+                lineQuantities: params['lineQuantities'],
                 paymentMethod: params['paymentMethod'],
                 cashReceivedMinor: params['cashReceivedMinor'],
                 clientReference: params['clientReference'],
