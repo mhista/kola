@@ -3399,24 +3399,9 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<int>(),
               nullable: false,
             ),
-            'lineProductIds': _i1.ParameterDescription(
-              name: 'lineProductIds',
-              type: _i1.getType<List<int?>>(),
-              nullable: false,
-            ),
-            'lineNames': _i1.ParameterDescription(
-              name: 'lineNames',
-              type: _i1.getType<List<String>>(),
-              nullable: false,
-            ),
-            'lineUnitPriceMinors': _i1.ParameterDescription(
-              name: 'lineUnitPriceMinors',
-              type: _i1.getType<List<int>>(),
-              nullable: false,
-            ),
-            'lineQuantities': _i1.ParameterDescription(
-              name: 'lineQuantities',
-              type: _i1.getType<List<int>>(),
+            'linesJson': _i1.ParameterDescription(
+              name: 'linesJson',
+              type: _i1.getType<String>(),
               nullable: false,
             ),
             'paymentMethod': _i1.ParameterDescription(
@@ -3453,10 +3438,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 session,
                 params['accessToken'],
                 params['workspaceId'],
-                lineProductIds: params['lineProductIds'],
-                lineNames: params['lineNames'],
-                lineUnitPriceMinors: params['lineUnitPriceMinors'],
-                lineQuantities: params['lineQuantities'],
+                linesJson: params['linesJson'],
                 paymentMethod: params['paymentMethod'],
                 cashReceivedMinor: params['cashReceivedMinor'],
                 clientReference: params['clientReference'],

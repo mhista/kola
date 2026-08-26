@@ -3709,10 +3709,7 @@ class _SaleEndpoint {
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
-    required List<int?> lineProductIds,
-    required List<String> lineNames,
-    required List<int> lineUnitPriceMinors,
-    required List<int> lineQuantities,
+    required String linesJson,
     required String paymentMethod,
     int? cashReceivedMinor,
     String? clientReference,
@@ -3733,10 +3730,7 @@ class _SaleEndpoint {
           parameters: _i1.testObjectToJson({
             'accessToken': accessToken,
             'workspaceId': workspaceId,
-            'lineProductIds': lineProductIds,
-            'lineNames': lineNames,
-            'lineUnitPriceMinors': lineUnitPriceMinors,
-            'lineQuantities': lineQuantities,
+            'linesJson': linesJson,
             'paymentMethod': paymentMethod,
             'cashReceivedMinor': cashReceivedMinor,
             'clientReference': clientReference,
