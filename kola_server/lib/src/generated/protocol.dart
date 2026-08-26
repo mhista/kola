@@ -720,23 +720,6 @@ class Protocol extends _i1.SerializationManagerServer {
     try {
       return _i2.Protocol().deserialize<T>(data, t);
     } on _i1.DeserializationTypeNotFoundException catch (_) {}
-    // DIAGNOSTIC — temporary, added while tracking down the "No
-    // deserialization found for type List<SaleLineInput>" 500 on
-    // /sale/ringUpSale. Every branch above (including the
-    // List<SaleLineInput> one) is a plain `if (t == SomeType)` — if
-    // none matched, execution falls all the way through to here, one
-    // line before the framework throws its generic "No deserialization
-    // found" error with no further detail. This print runs right
-    // before that, so the container log shows exactly what `t` (and
-    // its runtime identity) was AT THE MOMENT deserialization failed —
-    // safe to delete once the SaleLineInput issue is confirmed fixed,
-    // and harmless (stdout only) if left in.
-    // ignore: avoid_print
-    print(
-      '[Protocol.deserialize] no branch matched — t=$t (${t.runtimeType}), '
-      'data.runtimeType=${data.runtimeType}, '
-      'List<_i74.SaleLineInput> == t? ${t == List<_i74.SaleLineInput>}',
-    );
     return super.deserialize<T>(data, t);
   }
 
