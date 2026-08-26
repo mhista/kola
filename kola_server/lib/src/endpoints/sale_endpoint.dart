@@ -10,6 +10,8 @@
 // endpoint does not introduce a new capability flag, it fills in the
 // one that was already reserved and locked.
 
+import 'dart:convert';
+
 import 'package:serverpod/serverpod.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
@@ -39,41 +41,43 @@ class SaleEndpoint extends Endpoint {
     Session session,
     String accessToken,
     int workspaceId, {
-    // Deliberately NOT `List<SaleLineInput> lines`. Serverpod cannot
-    // deserialize a List<CustomModel> passed as a direct endpoint
-    // PARAMETER (as opposed to a return value, which works fine) — this
-    // is the exact same asymmetry ProductEndpoint.replaceVariants already
-    // works around a few files over, with its own parallel
-    // labels/stocks/priceMinors lists instead of List<ProductVariant>.
-    // See sale_endpoint.dart git history / kola_dashboard's till_page.dart
-    // for the "No deserialization found for type List<SaleLineInput>"
-    // 500 this replaced. Every array here MUST be the same length —
-    // index i across all four is one sale line.
-    required List<int?> lineProductIds,
-    required List<String> lineNames,
-    required List<int> lineUnitPriceMinors,
-    required List<int> lineQuantities,
+    // Deliberately a JSON-encoded String, not `List<SaleLineInput>` and
+    // not even `List<int?>`/`List<String>` split into parallel arrays
+    // (that was the previous attempt — see git history). Confirmed by
+    // reading Serverpod 3.4.x's own serialization.dart: the base
+    // SerializationManager.deserialize only special-cases scalars (int,
+    // String, double, bool, DateTime, etc.) — it has NO built-in handling
+    // for List<T> of any kind. List deserialization always has to route
+    // through this app's own generated Protocol class, and on this
+    // install (kola_server/lib/src/generated/protocol.dart still extends
+    // the now-deprecated SerializationManagerServer — see Serverpod's own
+    // "serverpod-upgrading" notes) that routing is broken: dispatch lands
+    // in the FRAMEWORK's internal protocol.dart instead of this app's,
+    // for every List<...> parameter, custom model or plain int?. A
+    // String is a scalar the base class handles directly, so it sidesteps
+    // the whole broken path. [linesJson] is a JSON array of
+    // {"productId": int?, "name": String, "unitPriceMinor": int,
+    // "quantity": int} objects, one per sale line.
+    required String linesJson,
     required String paymentMethod,
     int? cashReceivedMinor,
     String? clientReference,
     String? customerPhone,
     String? customerName,
   }) async {
-    if (lineNames.length != lineProductIds.length ||
-        lineNames.length != lineUnitPriceMinors.length ||
-        lineNames.length != lineQuantities.length) {
-      throw KolaException(
-        message: 'Sale line arrays must all be the same length.',
-      );
+    final decoded = jsonDecode(linesJson);
+    if (decoded is! List) {
+      throw KolaException(message: 'linesJson must be a JSON array.');
     }
     final lines = [
-      for (var i = 0; i < lineNames.length; i++)
-        SaleLineInput(
-          productId: lineProductIds[i],
-          name: lineNames[i],
-          unitPriceMinor: lineUnitPriceMinors[i],
-          quantity: lineQuantities[i],
-        ),
+      for (final raw in decoded)
+        if (raw is Map)
+          SaleLineInput(
+            productId: raw['productId'] as int?,
+            name: raw['name'] as String,
+            unitPriceMinor: raw['unitPriceMinor'] as int,
+            quantity: raw['quantity'] as int,
+          ),
     ];
 
     // Entry log — if this line's timestamp is ever missing for a sale
