@@ -169,6 +169,28 @@ class Protocol extends _i1.SerializationManagerServer {
   ]) {
     t ??= T;
 
+    // DIAGNOSTIC — temporary, tracing the SaleLineInput 500. Fires on
+    // EVERY deserialize call whose type mentions SaleLineInput, at the
+    // very top, before any branch runs — so even if `t == List<...>`
+    // fails for a reason nothing below can see, this line still shows
+    // what `t` and `T` actually were. This is the only place in the
+    // whole request pipeline with access to the raw values being
+    // compared — middleware and endpoint-level logging both sit
+    // outside this and can only see the final "not found" exception,
+    // never the comparison itself. Safe to delete once resolved; will
+    // be silently wiped by the next `serverpod generate` run since this
+    // whole file is regenerated, so capture the log BEFORE regenerating
+    // again.
+    if (t.toString().contains('SaleLineInput')) {
+      // ignore: avoid_print
+      print(
+        '[PROTOCOL DIAGNOSTIC] t=$t | T=$T | t.runtimeType=${t.runtimeType} | '
+        'data.runtimeType=${data.runtimeType} | '
+        't == List<_i74.SaleLineInput>: ${t == List<_i74.SaleLineInput>} | '
+        't == _i40.SaleLineInput: ${t == _i40.SaleLineInput}',
+      );
+    }
+
     final dataClassName = getClassNameFromObjectJson(data);
     if (dataClassName != null && dataClassName != getClassNameForType(t)) {
       try {

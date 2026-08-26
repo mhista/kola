@@ -282,10 +282,15 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
         try {
           return await innerHandler(request);
         } catch (e, st) {
-          // ignore: avoid_print
-          print(
-            '[DIAGNOSTIC MIDDLEWARE] ${request.method} ${request.url.path} '
-            'failed: $e\n$st',
+          // Log.error (not print) — goes through Talker AND, since no
+          // Serverpod Session exists at this layer yet, still lands in
+          // the container's stdout/Northflank log stream via Talker's
+          // console output, same as every other ❌-tagged line in these
+          // logs.
+          Log.error(
+            'Request failed: ${request.method} ${request.url.path}',
+            error: e,
+            stackTrace: st,
           );
           rethrow;
         }
