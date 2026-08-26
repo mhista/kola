@@ -39,20 +39,48 @@ class SaleEndpoint extends Endpoint {
     Session session,
     String accessToken,
     int workspaceId, {
-    required List<SaleLineInput> lines,
+    // Deliberately NOT `List<SaleLineInput> lines`. Serverpod cannot
+    // deserialize a List<CustomModel> passed as a direct endpoint
+    // PARAMETER (as opposed to a return value, which works fine) — this
+    // is the exact same asymmetry ProductEndpoint.replaceVariants already
+    // works around a few files over, with its own parallel
+    // labels/stocks/priceMinors lists instead of List<ProductVariant>.
+    // See sale_endpoint.dart git history / kola_dashboard's till_page.dart
+    // for the "No deserialization found for type List<SaleLineInput>"
+    // 500 this replaced. Every array here MUST be the same length —
+    // index i across all four is one sale line.
+    required List<int?> lineProductIds,
+    required List<String> lineNames,
+    required List<int> lineUnitPriceMinors,
+    required List<int> lineQuantities,
     required String paymentMethod,
     int? cashReceivedMinor,
     String? clientReference,
     String? customerPhone,
     String? customerName,
   }) async {
+    if (lineNames.length != lineProductIds.length ||
+        lineNames.length != lineUnitPriceMinors.length ||
+        lineNames.length != lineQuantities.length) {
+      throw KolaException(
+        message: 'Sale line arrays must all be the same length.',
+      );
+    }
+    final lines = [
+      for (var i = 0; i < lineNames.length; i++)
+        SaleLineInput(
+          productId: lineProductIds[i],
+          name: lineNames[i],
+          unitPriceMinor: lineUnitPriceMinors[i],
+          quantity: lineQuantities[i],
+        ),
+    ];
+
     // Entry log — if this line's timestamp is ever missing for a sale
     // attempt that the browser shows as failed, the request never made
-    // it past Serverpod's own parameter deserialization (i.e. it died
-    // before ringUpSale's body ran at all — see the diagnostic print in
-    // generated/protocol.dart's Protocol.deserialize fallback for that
-    // case). If this line IS present, the failure is real business
-    // logic below, not a wire/serialization problem.
+    // it past Serverpod's own parameter deserialization. If this line IS
+    // present, the failure is real business logic below, not a wire/
+    // serialization problem.
     Log.info(
       'ringUpSale called',
       data: {
