@@ -267,6 +267,31 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     pod.webServer.addRoute(GoogleOAuthCallbackRoute(), '/oauth/google/callback');
     pod.webServer.addRoute(MicrosoftOAuthCallbackRoute(), '/oauth/microsoft/callback');
 
+    // DIAGNOSTIC — temporary, tracking the "No deserialization found for
+    // type List<SaleLineInput>" 500 on POST /sale/ringUpSale. That
+    // failure happens INSIDE Serverpod's own request-parameter parsing,
+    // before ANY endpoint method body runs — so logging inside
+    // ringUpSale itself (see sale_endpoint.dart) can never see it, and
+    // hand-editing generated/protocol.dart to add a print there gets
+    // silently wiped the next time `serverpod generate` runs. Middleware
+    // sits outside all generated code and wraps every request, so it's
+    // the one place guaranteed to see this exception no matter where in
+    // the pipeline it's thrown. Safe to delete once this is resolved.
+    pod.server.addMiddleware((innerHandler) {
+      return (request) async {
+        try {
+          return await innerHandler(request);
+        } catch (e, st) {
+          // ignore: avoid_print
+          print(
+            '[DIAGNOSTIC MIDDLEWARE] ${request.method} ${request.url.path} '
+            'failed: $e\n$st',
+          );
+          rethrow;
+        }
+      };
+    });
+
     Log.startupSuccess('Starting Serverpod Mini server...');
     await pod.start();
     Log.startupSuccess('Kola server running on port $webPort');
