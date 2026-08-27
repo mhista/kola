@@ -67,6 +67,7 @@ import '../services/file_intake.dart';
 import '../services/money.dart';
 import '../services/error_text.dart';
 import '../services/mini_markdown.dart';
+import '../services/responsive.dart';
 import '../theme.dart';
 
 /// One file the owner dropped, and what became of it.
@@ -103,7 +104,8 @@ class KnowledgePage extends StatefulComponent {
   State<KnowledgePage> createState() => _KnowledgePageState();
 }
 
-class _KnowledgePageState extends State<KnowledgePage> {
+class _KnowledgePageState extends State<KnowledgePage>
+    with ResponsiveViewport<KnowledgePage> {
   // tab: documents · inspector · add
   String _tab = 'documents';
 
@@ -156,7 +158,14 @@ class _KnowledgePageState extends State<KnowledgePage> {
   @override
   void initState() {
     super.initState();
+    initResponsive();
     _load();
+  }
+
+  @override
+  void dispose() {
+    disposeResponsive();
+    super.dispose();
   }
 
   /// First load. Shows the skeleton, because there is genuinely nothing
@@ -577,44 +586,62 @@ class _KnowledgePageState extends State<KnowledgePage> {
     );
   }
 
-  Component _docTable() => div(
-        attributes: {
-          'style': 'border:1px solid ${KolaVar.border};'
-              'border-radius:${KolaRadius.lg};overflow:hidden',
-        },
-        [
+  Component _docTable() {
+    if (isMobile) {
+      return div([
+        if (_visibleDocs.isEmpty)
           div(
             attributes: {
-              'style': 'display:grid;'
-                  'grid-template-columns:minmax(200px,3fr) 1.2fr .7fr .8fr 1.4fr;'
-                  'gap:12px;padding:12px 16px;'
-                  'border-bottom:1px solid ${KolaVar.border};'
-                  'font-size:${KolaType.micro};font-weight:700;'
-                  'letter-spacing:.06em;color:${KolaVar.muted}',
+              'style': 'padding:${KolaSpace.lg};text-align:center;'
+                  'border:1px solid ${KolaVar.border};'
+                  'border-radius:${KolaRadius.lg};'
+                  'font-size:${KolaType.small};color:${KolaVar.muted}',
             },
-            [
-              for (final h in const [
-                'TITLE',
-                'SOURCE',
-                'SECTIONS',
-                'UPDATED',
-                'STATUS',
-              ])
-                div([Component.text(h)]),
-            ],
-          ),
-          if (_visibleDocs.isEmpty)
-            div(
-              attributes: {
-                'style': 'padding:${KolaSpace.lg};text-align:center;'
-                    'font-size:${KolaType.small};color:${KolaVar.muted}',
-              },
-              [Component.text('Nothing matches that filter.')],
-            )
-          else
-            for (final d in _visibleDocs) _docRow(d),
-        ],
-      );
+            [Component.text('Nothing matches that filter.')],
+          )
+        else
+          for (final d in _visibleDocs) _docCard(d),
+      ]);
+    }
+    return div(
+      attributes: {
+        'style': 'border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};overflow:hidden',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'display:grid;'
+                'grid-template-columns:minmax(200px,3fr) 1.2fr .7fr .8fr 1.4fr;'
+                'gap:12px;padding:12px 16px;'
+                'border-bottom:1px solid ${KolaVar.border};'
+                'font-size:${KolaType.micro};font-weight:700;'
+                'letter-spacing:.06em;color:${KolaVar.muted}',
+          },
+          [
+            for (final h in const [
+              'TITLE',
+              'SOURCE',
+              'SECTIONS',
+              'UPDATED',
+              'STATUS',
+            ])
+              div([Component.text(h)]),
+          ],
+        ),
+        if (_visibleDocs.isEmpty)
+          div(
+            attributes: {
+              'style': 'padding:${KolaSpace.lg};text-align:center;'
+                  'font-size:${KolaType.small};color:${KolaVar.muted}',
+            },
+            [Component.text('Nothing matches that filter.')],
+          )
+        else
+          for (final d in _visibleDocs) _docRow(d),
+      ],
+    );
+  }
 
   Component _docRow(KnowledgeDocument d) {
     final status = _designStatus(d);
@@ -670,6 +697,61 @@ class _KnowledgePageState extends State<KnowledgePage> {
               [Component.text(d.errorMessage!)],
             ),
         ]),
+      ],
+    );
+  }
+
+  /// The same row, collapsed to a stacked card. The grid's five columns
+  /// (`minmax(200px,3fr)` alone is wider than a 375px phone) don't have
+  /// a narrower arrangement that keeps them legible — this is a
+  /// different layout, not a squeezed one, same treatment the mobile
+  /// audit gave bot_detail_dev_page.dart's errand table.
+  Component _docCard(KnowledgeDocument d) {
+    final status = _designStatus(d);
+    final failed = status == 'failed';
+    return div(
+      attributes: {
+        'style': 'border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.md};padding:12px 14px;'
+            'margin-bottom:8px;'
+            'border-left:3px solid ${failed ? KolaVar.danger : 'transparent'}',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'display:flex;justify-content:space-between;gap:10px;'
+                'align-items:flex-start;margin-bottom:6px',
+          },
+          [
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.body};font-weight:600;'
+                    'color:${KolaVar.text};word-break:break-word;flex:1',
+              },
+              [Component.text(d.title)],
+            ),
+            _statusBadge(status),
+          ],
+        ),
+        div(
+          attributes: {
+            'style': 'display:flex;flex-wrap:wrap;gap:6px 12px;'
+                'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+          },
+          [
+            span([Component.text(d.sourceRef == null ? 'Pasted text' : 'Uploaded file')]),
+            span([Component.text('${d.chunkCount} section${d.chunkCount == 1 ? '' : 's'}')]),
+            span([Component.text(_shortDate(d.updatedAt))]),
+          ],
+        ),
+        if (failed && d.errorMessage != null)
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.tiny};color:${KolaVar.danger};'
+                  'line-height:1.45;margin-top:6px',
+            },
+            [Component.text(d.errorMessage!)],
+          ),
       ],
     );
   }
@@ -1298,6 +1380,84 @@ class _KnowledgePageState extends State<KnowledgePage> {
                 'happened.'
             : 'Nothing to build from yet — this needs your catalog.');
 
+    final icon_ = div(
+      attributes: {
+        'style': 'width:34px;height:34px;flex:none;'
+            'border-radius:${KolaRadius.md};'
+            'background:${KolaVar.tintSurface(2)};'
+            'color:${KolaVar.tintIcon(2)};display:flex;'
+            'align-items:center;justify-content:center',
+      },
+      [kolaIcon(icon, size: 17)],
+    );
+    final text = div(attributes: {'style': 'flex:1;min-width:0'}, [
+      div(
+        attributes: {
+          'style': 'font-size:${KolaType.body};font-weight:700;'
+              'color:${KolaVar.text}',
+        },
+        [Component.text(label)],
+      ),
+      div(
+        attributes: {
+          'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+              'line-height:1.5;margin-top:2px',
+        },
+        [Component.text(subtitle)],
+      ),
+    ]);
+    final action = button(
+      attributes: {
+        'type': 'button',
+        if (!available || _generating != null) 'disabled': 'disabled',
+        'style': 'padding:9px 15px;border-radius:${KolaRadius.pill};'
+            'border:none;font-family:inherit;'
+            'font-size:${KolaType.small};font-weight:600;'
+            'cursor:${available ? 'pointer' : 'default'};'
+            'background:'
+            '${available ? KolaVar.accentFill : KolaVar.pill};'
+            'color:${available ? KolaVar.accentText : KolaVar.muted};'
+            '${isMobile ? 'width:100%' : 'flex:none'}',
+      },
+      events: {
+        'click': (_) {
+          if (available && _generating == null) _generateFrom(key);
+        },
+      },
+      [
+        Component.text(
+          _generating == key ? 'Building…' : 'Generate knowledge',
+        ),
+      ],
+    );
+
+    // The row and the button used to sit side by side, `align-items:
+    // center` against each other. On a phone the button's fixed content
+    // width (~150px) left barely 170px for label + subtitle, so both
+    // wrapped to several lines while the button sat vertically centred
+    // beside a text block several times its own height — legible, but
+    // not "aligned" in any sense a normal mobile catalog/list uses.
+    // Stacking icon+text above a full-width button, the same shape
+    // knowledge_page.dart's own document table and bot_detail_dev_page's
+    // errand table already adopted for mobile, reads as one coherent
+    // card instead.
+    if (isMobile) {
+      return div(
+        attributes: {
+          'style': 'border:1px solid ${KolaVar.border};'
+              'border-radius:${KolaRadius.md};padding:14px;margin-bottom:8px;'
+              'opacity:${available ? '1' : '0.7'}',
+        },
+        [
+          div(
+            attributes: {'style': 'display:flex;gap:12px;align-items:center;margin-bottom:12px'},
+            [icon_, text],
+          ),
+          action,
+        ],
+      );
+    }
+
     return div(
       attributes: {
         'style': 'display:flex;gap:12px;align-items:center;'
@@ -1305,57 +1465,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
             'border-radius:${KolaRadius.md};margin-bottom:8px;'
             'opacity:${available ? '1' : '0.7'}',
       },
-      [
-        div(
-          attributes: {
-            'style': 'width:34px;height:34px;flex:none;'
-                'border-radius:${KolaRadius.md};'
-                'background:${KolaVar.tintSurface(2)};'
-                'color:${KolaVar.tintIcon(2)};display:flex;'
-                'align-items:center;justify-content:center',
-          },
-          [kolaIcon(icon, size: 17)],
-        ),
-        div(attributes: {'style': 'flex:1;min-width:0'}, [
-          div(
-            attributes: {
-              'style': 'font-size:${KolaType.body};font-weight:700;'
-                  'color:${KolaVar.text}',
-            },
-            [Component.text(label)],
-          ),
-          div(
-            attributes: {
-              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                  'line-height:1.5;margin-top:2px',
-            },
-            [Component.text(subtitle)],
-          ),
-        ]),
-        button(
-          attributes: {
-            'type': 'button',
-            if (!available || _generating != null) 'disabled': 'disabled',
-            'style': 'padding:9px 15px;border-radius:${KolaRadius.pill};'
-                'border:none;flex:none;font-family:inherit;'
-                'font-size:${KolaType.small};font-weight:600;'
-                'cursor:${available ? 'pointer' : 'default'};'
-                'background:'
-                '${available ? KolaVar.accentFill : KolaVar.pill};'
-                'color:${available ? KolaVar.accentText : KolaVar.muted}',
-          },
-          events: {
-            'click': (_) {
-              if (available && _generating == null) _generateFrom(key);
-            },
-          },
-          [
-            Component.text(
-              _generating == key ? 'Building…' : 'Generate knowledge',
-            ),
-          ],
-        ),
-      ],
+      [icon_, text, action],
     );
   }
 

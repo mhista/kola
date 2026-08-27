@@ -161,7 +161,7 @@ class _LoginPageState extends State<LoginPage> {
       attributes: {
         'style':
             "font-family:${KolaDashboardFonts.sans};background:${KolaDashboardColors.bg};"
-            'color:${KolaDashboardColors.text};width:100%;height:100vh;overflow-y:auto;'
+            'color:${KolaDashboardColors.text};width:100%;height:100vh;height:100svh;overflow-y:auto;'
             'display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:24px',
       },
       [

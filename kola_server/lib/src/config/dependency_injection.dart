@@ -57,6 +57,7 @@ import 'package:kola_server/src/services/repository/usage_record_repository.dart
 import 'package:kola_server/src/services/billing/paystack_service.dart';
 import 'package:kola_server/src/services/billing/flutterwave_service.dart';
 import 'package:kola_server/src/services/messaging/channel_health_check_service.dart';
+import 'package:kola_server/src/services/messaging/outbound_message_service.dart';
 import 'package:kola_server/src/services/repository/connector_sync_log_repository.dart';
 import 'package:kola_server/src/services/repository/event_repository.dart';
 import 'package:kola_server/src/services/agents/agent_orchestrator.dart';
@@ -512,6 +513,22 @@ void setupDependencyInjection() {
   // tie together.
   getIt.registerLazySingleton<ConversationRepository>(() => const ConversationRepository());
   getIt.registerLazySingleton<MessageRepository>(() => const MessageRepository());
+  // Gate 8 — POST /v1/messages' business logic. Depends only on
+  // repositories/services already registered above/below this point
+  // (BotRepository, ChannelRepository, CustomerIdentityResolver,
+  // EventBus) — registered here, right after the Conversation/Message
+  // repositories it wraps, so its own dependency list stays readable
+  // top-to-bottom.
+  getIt.registerLazySingleton<OutboundMessageService>(
+    () => OutboundMessageService(
+      bots: getIt<BotRepository>(),
+      channels: getIt<ChannelRepository>(),
+      conversations: getIt<ConversationRepository>(),
+      messages: getIt<MessageRepository>(),
+      customerIdentity: getIt<CustomerIdentityResolver>(),
+      events: getIt<EventBus>(),
+    ),
+  );
   getIt.registerLazySingleton<OwnerNotificationSettingsRepository>(
     () => const OwnerNotificationSettingsRepository(),
   );

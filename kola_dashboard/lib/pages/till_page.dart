@@ -67,6 +67,7 @@
 // snapshot taken right before it clears, never guessed.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:jaspr/jaspr.dart';
@@ -77,7 +78,10 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/kola_icon.dart';
 import '../components/shell/icons.dart';
+import '../components/shell/mobile_chrome.dart';
+import '../services/camera_scanner.dart';
 import '../services/error_text.dart';
+import '../services/feature_gate.dart';
 import '../services/imagekit_url.dart';
 import '../services/money_format.dart';
 import '../theme.dart';
@@ -117,12 +121,18 @@ class TillPage extends StatefulComponent {
     required this.workspaceId,
     required this.workspaceName,
     required this.taxRateBps,
+    required this.gate,
   });
 
   final Client client;
   final String accessToken;
   final int workspaceId;
   final String workspaceName;
+
+  /// Only for the mobile bottom tab bar this page now carries — see
+  /// `_mobileTabBar`'s header on why this page needs one of its own
+  /// rather than being wrapped in AppShell.
+  final FeatureGate gate;
 
   /// The workspace's real VAT rate (basis points). The export hardcodes
   /// "VAT (7.5%)" as a label; this page computes the actual tax the
@@ -164,6 +174,20 @@ class _TillPageState extends State<TillPage> {
   bool _showScanner = false;
   String _scanInput = '';
   String? _scanError;
+
+  // Real camera scanning — see services/camera_scanner.dart's header for
+  // why this is a separate service rather than inline JS interop here.
+  // `_camera` is null whenever the modal is closed; a fresh instance is
+  // created each time it opens, since it holds a live hardware handle.
+  CameraScanner? _camera;
+  Timer? _scanPollTimer;
+  bool _cameraStarting = false;
+  bool _cameraActive = false;
+
+  /// This page's own copy of AppShell's "More" sheet state — see
+  /// `_mobileTabBar`'s header on why this page carries a bottom tab bar
+  /// at all instead of relying on AppShell for it.
+  bool _moreOpen = false;
 
   /// The product a cashier is currently naming a price for. Set only
   /// for "Ask price" items — see `_addToCart`/`_productTile`'s comment
@@ -226,6 +250,8 @@ class _TillPageState extends State<TillPage> {
     if (_resizeListener != null) {
       web.window.removeEventListener('resize', _resizeListener);
     }
+    _scanPollTimer?.cancel();
+    _camera?.stop();
     super.dispose();
   }
 
@@ -255,6 +281,30 @@ class _TillPageState extends State<TillPage> {
         _loadError = ErrorText.of(e);
         _loading = false;
       });
+    }
+  }
+
+  /// Same fetch as `_load`, without the loading-spinner state flips —
+  /// for refreshing stock numbers in the background after a sale, where
+  /// flashing a spinner over a screen the cashier isn't even looking at
+  /// (the receipt is) would just be visual noise. A failure here is
+  /// silent on purpose: the sale already succeeded and is on screen,
+  /// this is only keeping displayed stock current, and the next full
+  /// `_load()` (a real page load) catches up regardless.
+  Future<void> _silentRefreshProducts() async {
+    try {
+      final products = await component.client.product.listProducts(
+        component.accessToken,
+        component.workspaceId,
+        includeArchived: false,
+      );
+      if (!mounted) return;
+      setState(() {
+        _products = [for (final p in products) if (p.status != 'archived') p];
+      });
+      unawaited(_hydrateMedia());
+    } catch (_) {
+      // Deliberately swallowed — see doc comment above.
     }
   }
 
@@ -405,18 +455,23 @@ class _TillPageState extends State<TillPage> {
     });
     try {
       final method = _payMethod!.toLowerCase();
+      // Sent as a JSON-encoded String, not List<SaleLineInput> and not
+      // parallel List<int?>/List<String> arrays either (that was the
+      // previous attempt) — Serverpod can't deserialize ANY List<...> as
+      // a direct endpoint parameter on this install, only scalars (see
+      // sale_endpoint.dart's ringUpSale header for the full story).
       final sale = await component.client.sale.ringUpSale(
         component.accessToken,
         component.workspaceId,
-        lines: [
+        linesJson: jsonEncode([
           for (final l in _cart)
-            SaleLineInput(
-              productId: l.product.id,
-              name: l.product.name,
-              unitPriceMinor: l.unitPriceMinor,
-              quantity: l.quantity,
-            ),
-        ],
+            {
+              'productId': l.product.id,
+              'name': l.product.name,
+              'unitPriceMinor': l.unitPriceMinor,
+              'quantity': l.quantity,
+            },
+        ]),
         paymentMethod: method,
         cashReceivedMinor: method == 'cash' ? _cashReceivedMinor : null,
       );
@@ -433,6 +488,14 @@ class _TillPageState extends State<TillPage> {
         _charging = false;
         _screen = _Screen.receipt;
       });
+      // Stock sync — ringUpSale now decrements each line's product on the
+      // server; this quietly re-fetches so the grid behind this receipt
+      // shows the real remaining count the moment the cashier taps "New
+      // sale," instead of the stale figure from when this screen loaded.
+      // No `_loading` flip here on purpose — the receipt is on screen,
+      // a spinner over the (now-cleared) sell screen behind it would be
+      // visible for nothing.
+      unawaited(_silentRefreshProducts());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -462,27 +525,113 @@ class _TillPageState extends State<TillPage> {
   }
 
   // ── Scanner ────────────────────────────────────────────────────────
+  //
+  // Two independent ways a barcode reaches this screen, both ending at
+  // the same `_resolveScan`: a real camera (see services/camera_scanner
+  // .dart — Chrome/Edge/Android only, native BarcodeDetector API) when
+  // supported, and manual text entry always available underneath it —
+  // typing works everywhere, and is also what a genuine HANDHELD
+  // scanner drives (it emits keystrokes + a trailing Enter into
+  // whatever field is focused, no camera or special wiring needed).
 
-  void _openScanner() => setState(() {
-        _showScanner = true;
-        _scanInput = '';
-        _scanError = null;
+  void _openScanner() {
+    setState(() {
+      _showScanner = true;
+      _scanInput = '';
+      _scanError = null;
+      _cameraStarting = barcodeDetectorSupported;
+      _cameraActive = false;
+    });
+    if (barcodeDetectorSupported) {
+      // The <video> element this needs doesn't exist in the DOM until
+      // the setState above has actually rendered the modal — same
+      // render-then-query pattern as every other post-render DOM lookup
+      // in this codebase (see dom_files.dart's header on why raw DOM
+      // access has to go through a real element, not a guess).
+      Future.delayed(Duration.zero, _startCamera);
+    }
+  }
+
+  Future<void> _startCamera() async {
+    if (!mounted || !_showScanner) return;
+    final found = web.document.getElementById('kola-scanner-video');
+    if (found == null) {
+      setState(() => _cameraStarting = false);
+      return;
+    }
+    // Reinterpret-cast, same pattern as dom_files.dart's own extension
+    // types — `found` and `HTMLVideoElement` wrap the same underlying JS
+    // object, this is not a runtime check that can fail on a real
+    // `<video>` element.
+    final video = found as web.HTMLVideoElement;
+    final camera = CameraScanner();
+    _camera = camera;
+    final started = await camera.start(video);
+    if (!mounted || !_showScanner) {
+      camera.stop();
+      return;
+    }
+    if (!started) {
+      setState(() {
+        _cameraStarting = false;
+        _cameraActive = false;
       });
+      return;
+    }
+    setState(() {
+      _cameraStarting = false;
+      _cameraActive = true;
+    });
+    // Polling, not a continuous loop — BarcodeDetector.detect() is
+    // itself async (it can take real work per call), so a fixed-delay
+    // Timer.periodic never overlaps calls the way a tight while-loop
+    // scheduling the next detect() before the last one resolves could.
+    _scanPollTimer = Timer.periodic(const Duration(milliseconds: 350), (_) async {
+      if (!mounted || !_showScanner || _camera == null) return;
+      final raw = await _camera!.detectOnce(video);
+      if (raw == null || raw.trim().isEmpty) return;
+      if (!mounted || !_showScanner) return;
+      _resolveScan(raw);
+    });
+  }
 
-  void _closeScanner() => setState(() => _showScanner = false);
+  void _closeScanner() {
+    _scanPollTimer?.cancel();
+    _scanPollTimer = null;
+    _camera?.stop();
+    _camera = null;
+    setState(() {
+      _showScanner = false;
+      _cameraStarting = false;
+      _cameraActive = false;
+    });
+  }
 
-  void _submitScan() {
-    final q = _scanInput.trim().toLowerCase();
+  void _submitScan() => _resolveScan(_scanInput);
+
+  /// The one place a scanned/typed value turns into a cart action —
+  /// shared by the camera path and the manual-entry path so they can
+  /// never drift into matching products differently.
+  void _resolveScan(String query) {
+    final q = query.trim().toLowerCase();
     if (q.isEmpty) return;
     final matches = _products.where(
       (p) => (p.sku?.trim().toLowerCase() == q) || p.name.toLowerCase().contains(q),
     );
     if (matches.isEmpty) {
-      setState(() => _scanError = 'No product matches "$_scanInput".');
+      setState(() => _scanError = 'No product matches "$query".');
       return;
     }
     final product = matches.first;
-    setState(() => _showScanner = false);
+    _scanPollTimer?.cancel();
+    _scanPollTimer = null;
+    _camera?.stop();
+    _camera = null;
+    setState(() {
+      _showScanner = false;
+      _cameraActive = false;
+      _cameraStarting = false;
+    });
     if (product.priceMinor != null) {
       _addToCart(product, product.priceMinor!);
     } else {
@@ -504,8 +653,30 @@ class _TillPageState extends State<TillPage> {
     // the button that was sliding down the page as the cart grew.
     return div(
       attributes: {
+        // height:100vh, then height:100svh right after it — deliberately
+        // two declarations of the same property. `vh` on a phone browser
+        // measures the viewport with its address bar COLLAPSED, which is
+        // taller than what's actually visible while the bar is showing
+        // (the normal state on page load). The Charge footer below is a
+        // flex sibling pinned to the bottom of THIS box, so when this
+        // box is taller than the real visible area, the footer is
+        // pushed down past it — which is exactly "the Charge button
+        // isn't visible" with nothing structurally wrong in the layout
+        // itself.
+        //
+        // `svh` (small viewport height), not `dvh`. `dvh` was tried
+        // first and caused a NEW problem: it recomputes live as the
+        // address bar shows/hides, so this whole box resized on every
+        // scroll tick — the visible symptom was the page feeling laggy,
+        // like the browser chrome flickering in and out during a normal
+        // scroll. `svh` is the height with the address bar assumed
+        // SHOWN — a fixed number, computed once, matching the worst
+        // case the original bug needed fixed, with none of `dvh`'s
+        // live-resize jank. A browser that doesn't understand `100svh`
+        // drops that whole declaration and keeps the `100vh` line above
+        // it, so this stays safe everywhere.
         'style': "font-family:${KolaFonts.sans};background:${KolaVar.bg};"
-            'color:${KolaVar.text};height:100vh;box-sizing:border-box;'
+            'color:${KolaVar.text};height:100vh;height:100svh;box-sizing:border-box;'
             'display:flex;flex-direction:column;overflow:hidden',
       },
       [
@@ -514,11 +685,46 @@ class _TillPageState extends State<TillPage> {
           attributes: {'style': 'flex:1;min-height:0;overflow:hidden'},
           [if (_view == 'tablet') _tabletBody() else _phoneBody()],
         ),
+        _mobileTabBar(),
         if (_showScanner) _scannerModal(),
         if (_pricingProduct != null) _priceEntryModal(_pricingProduct!),
+        if (_moreOpen)
+          MobileMoreSheet(
+            gate: component.gate,
+            currentRoute: '/counter',
+            onClose: () => setState(() => _moreOpen = false),
+          ),
       ],
     );
   }
+
+  /// This page's own bottom tab bar, below 1024px — the till is deliberately
+  /// NOT wrapped in AppShell (see this file's header and app.dart's own
+  /// comment on the /counter route: a full-bleed page, no sidebar), so it
+  /// gets none of AppShell's chrome for free. Without this, opening the
+  /// Sales counter from the bottom tab bar on the Overview page dropped a
+  /// mobile user into a page with no way back except the "Dashboard" link
+  /// this page's own header carried — a different, page-specific navigation
+  /// model from every other screen in the app the moment you're on it.
+  ///
+  /// Reuses `MobileTabBar`/`MobileMoreSheet` directly rather than wrapping
+  /// this whole page in `shellFor`: shellFor would also add AppShell's own
+  /// top bar and, on desktop, the sidebar — this page's desktop layout is
+  /// deliberately full-bleed with no sidebar, and adding a second top bar
+  /// above this page's own header (which already carries "Sales Counter ·
+  /// Online" and the Documents link) would just stack two headers. Only the
+  /// bottom bar is missing on mobile; only the bottom bar is added.
+  Component _mobileTabBar() => div(
+        classes: 'kola-shell-mobile',
+        attributes: {'style': 'flex-direction:column'},
+        [
+          MobileTabBar(
+            gate: component.gate,
+            currentRoute: '/counter',
+            onOpenMore: () => setState(() => _moreOpen = true),
+          ),
+        ],
+      );
 
   Component _header() => div(
         attributes: {
@@ -531,14 +737,26 @@ class _TillPageState extends State<TillPage> {
           div(
             attributes: {'style': 'display:flex;align-items:center;gap:12px;min-width:0'},
             [
-              Link(
-                to: '/',
-                attributes: {
-                  'style': 'color:${KolaVar.text};font-weight:600;'
-                      'text-decoration:none;font-size:${KolaType.body};'
-                      'display:inline-flex;align-items:center;gap:3px;flex:none',
-                },
-                children: [kolaIcon(Icons.chevronLeft, size: 12, strokeWidth: 2.5), Component.text('Dashboard')],
+              // Desktop only. Below 1024px this page now carries its own
+              // bottom tab bar (see _mobileTabBar) with a Home icon that
+              // does the same job — keeping this link too would be two
+              // ways to say "go back to the dashboard" stacked in the
+              // same header, one of them redundant the moment the other
+              // exists.
+              div(
+                classes: 'kola-shell-desktop',
+                attributes: {'style': 'flex:none'},
+                [
+                  Link(
+                    to: '/',
+                    attributes: {
+                      'style': 'color:${KolaVar.text};font-weight:600;'
+                          'text-decoration:none;font-size:${KolaType.body};'
+                          'display:inline-flex;align-items:center;gap:3px;flex:none',
+                    },
+                    children: [kolaIcon(Icons.chevronLeft, size: 12, strokeWidth: 2.5), Component.text('Dashboard')],
+                  ),
+                ],
               ),
               div(
                 attributes: {
@@ -1461,32 +1679,59 @@ class _TillPageState extends State<TillPage> {
             [
               div(
                 attributes: {
-                  'style': 'width:100%;aspect-ratio:1;background:${KolaVar.bg};'
+                  'style': 'width:100%;aspect-ratio:1;background:#000;'
                       'border-radius:${KolaRadius.lg};position:relative;overflow:hidden;'
                       'margin-bottom:16px;display:flex;align-items:center;justify-content:center',
                 },
                 [
-                  div(
+                  // Always in the tree so `_startCamera` has a real
+                  // element to attach the stream to by the time it
+                  // queries for it — hidden via opacity, not `if`-removed,
+                  // so it never needs to be found on a later rebuild.
+                  Component.element(
+                    tag: 'video',
                     attributes: {
-                      'style': 'position:absolute;inset:24px;border:2px solid ${KolaVar.accent};'
-                          'border-radius:${KolaRadius.sm}',
+                      'id': 'kola-scanner-video',
+                      'style': 'width:100%;height:100%;object-fit:cover;'
+                          'opacity:${_cameraActive ? '1' : '0'}',
                     },
-                    [],
+                    children: const [],
                   ),
-                  kolaIcon(Icons.barcode, size: 40, strokeWidth: 1.6, extraStyle: 'color:${KolaVar.muted}'),
+                  if (!_cameraActive)
+                    div(
+                      attributes: {'style': 'position:absolute;inset:0;display:flex;align-items:center;'
+                          'justify-content:center'},
+                      [kolaIcon(Icons.barcode, size: 40, strokeWidth: 1.6, extraStyle: 'color:${KolaVar.muted}')],
+                    ),
+                  if (_cameraActive)
+                    div(
+                      attributes: {
+                        'style': 'position:absolute;inset:24px;border:2px solid ${KolaVar.accent};'
+                            'border-radius:${KolaRadius.sm};pointer-events:none',
+                      },
+                      [],
+                    ),
                 ],
               ),
               div(
                 attributes: {
                   'style': 'font-size:${KolaType.bodyLg};color:${KolaVar.mutedStrong};margin-bottom:6px',
                 },
-                [Component.text('No camera scanner is wired up yet')],
+                [
+                  Component.text(
+                    _cameraActive
+                        ? 'Point the camera at a barcode'
+                        : _cameraStarting
+                            ? 'Starting camera…'
+                            : 'No camera scanner on this browser',
+                  ),
+                ],
               ),
               div(
                 attributes: {
                   'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};margin-bottom:14px',
                 },
-                [Component.text('Type or scan a product\'s SKU with a handheld scanner')],
+                [Component.text('Or type or scan a product\'s SKU with a handheld scanner')],
               ),
               input<String>(
                 type: InputType.text,

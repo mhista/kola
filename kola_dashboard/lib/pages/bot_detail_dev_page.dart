@@ -48,6 +48,7 @@ import 'package:kola_client/kola_client.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
 import '../services/error_text.dart';
+import '../services/responsive.dart';
 import '../theme.dart';
 
 class BotDetailDevPage extends StatefulComponent {
@@ -67,7 +68,8 @@ class BotDetailDevPage extends StatefulComponent {
   State<BotDetailDevPage> createState() => _BotDetailDevPageState();
 }
 
-class _BotDetailDevPageState extends State<BotDetailDevPage> {
+class _BotDetailDevPageState extends State<BotDetailDevPage>
+    with ResponsiveViewport<BotDetailDevPage> {
   String _tab = 'Overview';
   int _selectedIdx = -1;
 
@@ -92,7 +94,14 @@ class _BotDetailDevPageState extends State<BotDetailDevPage> {
   @override
   void initState() {
     super.initState();
+    initResponsive();
     _load();
+  }
+
+  @override
+  void dispose() {
+    disposeResponsive();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -359,20 +368,21 @@ class _BotDetailDevPageState extends State<BotDetailDevPage> {
       ]);
     }
     return _card([
-      div(
-        attributes: {
-          'style': 'display:grid;'
-              'grid-template-columns:2fr 1.4fr 1fr 1fr;gap:12px;'
-              'padding-bottom:10px;'
-              'border-bottom:1px solid ${KolaVar.border};'
-              'font-size:${KolaType.micro};font-weight:700;'
-              'letter-spacing:.06em;color:${KolaVar.muted}',
-        },
-        [
-          for (final h in const ['NAME', 'SOURCE', 'SCOPE', 'STATUS'])
-            div([Component.text(h)]),
-        ],
-      ),
+      if (!isMobile)
+        div(
+          attributes: {
+            'style': 'display:grid;'
+                'grid-template-columns:2fr 1.4fr 1fr 1fr;gap:12px;'
+                'padding-bottom:10px;'
+                'border-bottom:1px solid ${KolaVar.border};'
+                'font-size:${KolaType.micro};font-weight:700;'
+                'letter-spacing:.06em;color:${KolaVar.muted}',
+          },
+          [
+            for (final h in const ['NAME', 'SOURCE', 'SCOPE', 'STATUS'])
+              div([Component.text(h)]),
+          ],
+        ),
       for (var i = 0; i < _errands.length; i++) _errandRow(i, _errands[i]),
     ]);
   }
@@ -380,8 +390,26 @@ class _BotDetailDevPageState extends State<BotDetailDevPage> {
   Component _errandRow(int i, Errand e) {
     final open = _selectedIdx == i;
     final live = e.status == 'live' || e.status == 'active';
+    final header = isMobile ? _errandRowMobile(i, e, live) : _errandRowDesktop(i, e, live);
     return div([
-      div(
+      header,
+      if (open)
+        div(
+          attributes: {
+            'style': 'padding:12px 0 16px;'
+                'border-bottom:1px solid ${KolaVar.border}',
+          },
+          [
+            _detailLine('Trigger', e.descriptionForAi),
+            _detailLine('Fulfillment', _fulfillment(e)),
+            _detailLine('Input schema', e.inputSchemaJson),
+            _detailLine('Last called', 'No call log yet'),
+          ],
+        ),
+    ]);
+  }
+
+  Component _errandRowDesktop(int i, Errand e, bool live) => div(
         attributes: {
           'style': 'display:grid;'
               'grid-template-columns:2fr 1.4fr 1fr 1fr;gap:12px;'
@@ -389,7 +417,7 @@ class _BotDetailDevPageState extends State<BotDetailDevPage> {
               'border-bottom:1px solid ${KolaVar.border}',
         },
         events: {
-          'click': (_) => setState(() => _selectedIdx = open ? -1 : i),
+          'click': (_) => setState(() => _selectedIdx = _selectedIdx == i ? -1 : i),
         },
         [
           div(
@@ -421,22 +449,52 @@ class _BotDetailDevPageState extends State<BotDetailDevPage> {
             [Component.text(live ? 'Live' : 'Needs input')],
           ),
         ],
-      ),
-      if (open)
-        div(
-          attributes: {
-            'style': 'padding:12px 0 16px;'
-                'border-bottom:1px solid ${KolaVar.border}',
-          },
-          [
-            _detailLine('Trigger', e.descriptionForAi),
-            _detailLine('Fulfillment', _fulfillment(e)),
-            _detailLine('Input schema', e.inputSchemaJson),
-            _detailLine('Last called', 'No call log yet'),
-          ],
-        ),
-    ]);
-  }
+      );
+
+  /// Same row, stacked. The 4-column grid (name/source/scope/status)
+  /// has no legible narrower form below tablet — this is a card, not a
+  /// squeezed grid, same treatment knowledge_page.dart's document table
+  /// got.
+  Component _errandRowMobile(int i, Errand e, bool live) => div(
+        attributes: {
+          'style': 'padding:12px 0;cursor:pointer;'
+              'border-bottom:1px solid ${KolaVar.border}',
+        },
+        events: {
+          'click': (_) => setState(() => _selectedIdx = _selectedIdx == i ? -1 : i),
+        },
+        [
+          div(
+            attributes: {
+              'style': 'display:flex;justify-content:space-between;'
+                  'align-items:flex-start;gap:10px;margin-bottom:6px',
+            },
+            [
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.body};color:${KolaVar.text};'
+                      'font-weight:600;flex:1;min-width:0;word-break:break-word',
+                },
+                [Component.text(e.name)],
+              ),
+              span(
+                attributes: {
+                  'style': '${(live ? KolaTone.positive : KolaTone.caution).badgeCss};'
+                      'white-space:nowrap',
+                },
+                [Component.text(live ? 'Live' : 'Needs input')],
+              ),
+            ],
+          ),
+          div(
+            attributes: {
+              'style': 'font-family:${KolaFonts.mono};'
+                  'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+            },
+            [Component.text('${e.source} · ${e.permissionScope}')],
+          ),
+        ],
+      );
 
   String _fulfillment(Errand e) {
     if (e.builtinHandlerKey != null) return 'Built-in · ${e.builtinHandlerKey}';

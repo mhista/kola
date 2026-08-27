@@ -27,6 +27,13 @@ fields:
   #   'human'    — a business owner/staff member typed this via
   #                ConversationEndpoint.sendHumanReply, always paired
   #                with direction: 'outbound'
+  #   'api'      — Gate 8: sent by an external caller via the public
+  #                POST /v1/messages endpoint (an API key, not a person
+  #                at the keyboard), always paired with direction:
+  #                'outbound'. Kept distinct from 'human' — the design
+  #                already draws that same "person vs. programmatic
+  #                caller" line for API keys elsewhere (see
+  #                api_key.spy.yaml).
   senderType: String
 
   body: String

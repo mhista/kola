@@ -53,6 +53,7 @@ import 'package:kola_server/src/services/billing/flutterwave_webhook_route.dart'
 import 'package:kola_server/src/services/billing/kola_billing_paystack_webhook_route.dart';
 import 'package:kola_server/src/services/billing/kola_billing_flutterwave_webhook_route.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_webhook_route.dart';
+import 'package:kola_server/src/services/messaging/send_message_route.dart';
 import 'package:kola_server/src/services/notifications/kola_notifier_bot.dart';
 import 'package:kola_server/src/services/billing/trial_sweep_service.dart';
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
@@ -266,6 +267,14 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     // in Google Cloud Console) or Google rejects the callback outright.
     pod.webServer.addRoute(GoogleOAuthCallbackRoute(), '/oauth/google/callback');
     pod.webServer.addRoute(MicrosoftOAuthCallbackRoute(), '/oauth/microsoft/callback');
+
+    // Gate 8 — the public, API-key-authenticated outbound messaging
+    // endpoint. Lives on webServer (not a generated Endpoint) for the
+    // same reason every route above does — see this file's header on
+    // apiServer vs. webServer, and send_message_route.dart's own header
+    // for why THIS route, unlike every webhook above, returns real HTTP
+    // status codes rather than always 200.
+    pod.webServer.addRoute(SendMessageRoute(), '/v1/messages');
 
     // DIAGNOSTIC — temporary, tracking the "No deserialization found for
     // type List<SaleLineInput>" 500 on POST /sale/ringUpSale. That

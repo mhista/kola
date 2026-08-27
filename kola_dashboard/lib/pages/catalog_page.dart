@@ -56,6 +56,7 @@ import '../components/product_editor.dart';
 import '../services/error_text.dart';
 import '../services/imagekit_url.dart';
 import '../services/money.dart';
+import '../services/responsive.dart';
 import '../theme.dart';
 
 class CatalogPage extends StatefulComponent {
@@ -75,7 +76,8 @@ class CatalogPage extends StatefulComponent {
 
 enum _Phase { loading, error, ready }
 
-class _CatalogPageState extends State<CatalogPage> {
+class _CatalogPageState extends State<CatalogPage>
+    with ResponsiveViewport<CatalogPage> {
   _Phase _phase = _Phase.loading;
   String? _error;
 
@@ -125,7 +127,14 @@ class _CatalogPageState extends State<CatalogPage> {
   @override
   void initState() {
     super.initState();
+    initResponsive();
     _load();
+  }
+
+  @override
+  void dispose() {
+    disposeResponsive();
+    super.dispose();
   }
 
   // ── Data ────────────────────────────────────────────────────────────
@@ -663,7 +672,151 @@ class _CatalogPageState extends State<CatalogPage> {
         ],
       );
 
-  Component _row(Product p, int index) {
+  Component _row(Product p, int index) =>
+      isMobile ? _rowMobile(p, index) : _rowDesktop(p, index);
+
+  /// The list row, collapsed to a stacked card.
+  ///
+  /// The desktop row is one flex line: checkbox, thumbnail, name (min
+  /// 160px), price (min 110px), stock (min 80px), a status badge, and an
+  /// Edit button — comfortably 600px+ of minimum content before it ever
+  /// wraps. `flex-wrap:wrap` let it survive a narrow phone without
+  /// overflowing the page, but wrapping six independently-sized flex
+  /// items just breaks the row across an unpredictable number of lines
+  /// in whatever order they happen to run out of space — checkbox and
+  /// thumbnail stranded above a name that wraps mid-word, price and
+  /// stock landing on their own half-empty lines. That is what "not
+  /// properly aligned" looks like: not a crash, just no coherent shape.
+  ///
+  /// A normal mobile catalog row is two lines, not one wrapped one:
+  /// identity up top (thumbnail + name + category), the numbers below it
+  /// (price · stock · status), Edit trailing on its own. Same information,
+  /// same fields, laid out for a column instead of a line.
+  Component _rowMobile(Product p, int index) {
+    final status = _status(p);
+    final id = p.id;
+    final selected = id != null && _selected.contains(id);
+    final variants = id == null ? 0 : (_variantCounts[id] ?? 0);
+
+    return div(
+      attributes: {
+        'style': 'padding:12px 14px;'
+            '${index == 0 ? '' : 'border-top:1px solid ${KolaVar.border};'}'
+            'background:${selected ? KolaVar.pill : 'transparent'}',
+      },
+      [
+        div(
+          attributes: {'style': 'display:flex;align-items:flex-start;gap:10px'},
+          [
+            button(
+              attributes: {
+                'type': 'button',
+                'role': 'checkbox',
+                'aria-checked': selected ? 'true' : 'false',
+                'aria-label': 'Select ${p.name}',
+                'style': 'flex:none;width:18px;height:18px;padding:0;'
+                    'margin-top:2px;cursor:pointer;border-radius:4px;'
+                    'display:flex;align-items:center;justify-content:center;'
+                    'font-size:11px;font-weight:700;line-height:1;'
+                    'border:1px solid ${selected ? KolaVar.accent : KolaVar.border};'
+                    'background:${selected ? KolaVar.accent : 'transparent'};'
+                    'color:${KolaVar.accentText}',
+              },
+              events: {
+                'click': (_) {
+                  if (id == null) return;
+                  setState(() {
+                    final next = {..._selected};
+                    if (next.contains(id)) {
+                      next.remove(id);
+                    } else {
+                      next.add(id);
+                    }
+                    _selected = next;
+                  });
+                },
+              },
+              [Component.text(selected ? '✓' : '')],
+            ),
+            _rowThumb(id == null ? null : _mainImages[id]),
+            div(
+              attributes: {'style': 'flex:1;min-width:0'},
+              [
+                id == null
+                    ? div(
+                        attributes: {
+                          'style': 'font-size:${KolaType.body};font-weight:600;'
+                              'color:${KolaVar.text};word-break:break-word',
+                        },
+                        [Component.text(p.name)],
+                      )
+                    : Link(
+                        to: '/catalog/$id',
+                        attributes: {
+                          'style': 'font-size:${KolaType.body};font-weight:600;'
+                              'color:${KolaVar.text};text-decoration:none;'
+                              'word-break:break-word',
+                        },
+                        children: [Component.text(p.name)],
+                      ),
+                div(
+                  attributes: {
+                    'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                        'margin-top:2px',
+                  },
+                  [
+                    Component.text(
+                      '${_archetypeLabels[p.archetype] ?? p.archetype}'
+                      '${variants > 0 ? ' · $variants variants' : ''}',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        div(
+          attributes: {
+            'style': 'display:flex;align-items:center;gap:10px;'
+                'flex-wrap:wrap;margin-top:8px;padding-left:28px',
+          },
+          [
+            span(
+              attributes: {
+                'style': 'font-size:${KolaType.small};font-weight:600;'
+                    'color:${KolaVar.text}',
+              },
+              [Component.text(_priceLabel(p))],
+            ),
+            span(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+              },
+              [Component.text(_stockLabel(p))],
+            ),
+            div(
+              attributes: {'style': status.tone.badgeCss},
+              [Component.text(status.label)],
+            ),
+            button(
+              attributes: {
+                'type': 'button',
+                'style': 'margin-left:auto;padding:6px 13px;'
+                    'border-radius:${KolaRadius.pill};'
+                    'border:1px solid ${KolaVar.border};background:transparent;'
+                    'color:${KolaVar.text};font-family:inherit;'
+                    'font-size:${KolaType.tiny};font-weight:600;cursor:pointer',
+              },
+              events: {'click': (_) => _openEditor(p)},
+              [Component.text('Edit')],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Component _rowDesktop(Product p, int index) {
     final status = _status(p);
     final id = p.id;
     final selected = id != null && _selected.contains(id);

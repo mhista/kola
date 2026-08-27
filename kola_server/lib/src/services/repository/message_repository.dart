@@ -103,4 +103,27 @@ class MessageRepository {
 
     return _dto.fromRow(response);
   }
+
+  /// Idempotency lookup (Gate 8) — the existing row for a
+  /// (conversationId, externalMessageId) pair, if the caller has already
+  /// sent this exact idempotency key before. Checked BEFORE attempting a
+  /// new send in outbound_message_service.dart, so a retried API call
+  /// carrying the same key never dispatches a second real message to the
+  /// customer — [create]'s upsert already makes the WRITE side of that
+  /// guarantee true; this makes the READ side true as well.
+  Future<Message?> findByConversationAndExternalId({
+    required int conversationId,
+    required String externalMessageId,
+  }) async {
+    _log.fine('findByConversationAndExternalId($conversationId, $externalMessageId)');
+    final response = await supabase
+        .from('messages')
+        .select()
+        .eq('conversation_id', conversationId)
+        .eq('external_message_id', externalMessageId)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return _dto.fromRow(response);
+  }
 }

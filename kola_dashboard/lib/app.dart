@@ -792,6 +792,7 @@ class _DashboardAppState extends State<DashboardApp> {
             workspaceId: _selectedWorkspace!.id!,
             workspaceName: _selectedWorkspace!.name,
             taxRateBps: _selectedWorkspace!.taxRateBps,
+            gate: _gate,
           ),
         ),
         Route(

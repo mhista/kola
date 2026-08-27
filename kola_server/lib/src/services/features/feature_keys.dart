@@ -110,6 +110,11 @@ abstract class FeatureKeys {
   static const channelInstagram = 'channels.instagram';
   static const channelEmail = 'channels.email';
   static const broadcast = 'messaging.broadcast';
+  // Gate 8 — POST /v1/messages, the public single-send outbound API.
+  // Deliberately its own key, separate from [broadcast]: a business can
+  // be allowed to send one message on demand long before bulk/broadcast
+  // sending is something Kola trusts them (or itself) with.
+  static const messagingSend = 'messaging.send';
   static const connectorsCommerce = 'connectors.commerce';
   static const connectorsStorage = 'connectors.storage';
   static const connectorsAccounting = 'connectors.accounting';
@@ -164,7 +169,7 @@ abstract class FeatureKeys {
     agentMarketing,
     automations, automationApprovals, tasks,
     // Group 5
-    channelMessenger, channelInstagram, channelEmail, broadcast,
+    channelMessenger, channelInstagram, channelEmail, broadcast, messagingSend,
     connectorsCommerce, connectorsStorage, connectorsAccounting,
     connectorsCalendar, connectorsCrm,
     // Group 6

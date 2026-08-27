@@ -59,6 +59,9 @@ class PlatformEndpoint extends Endpoint {
     // 039_customer_graph.sql's header for why this is the sales
     // counter's proof that the graph is real.
     'sale_completed',
+    // Gate 8 — outbound_message_service.dart, fired once a message sent
+    // through POST /v1/messages actually reaches the platform adapter.
+    'message_sent',
   ];
 
   // ── Keys ─────────────────────────────────────────────────────────────

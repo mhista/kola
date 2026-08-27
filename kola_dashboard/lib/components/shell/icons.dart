@@ -23,6 +23,8 @@ abstract class Icons {
   static const barcode =
       'M3 7V4h3 M17 4h3v3 M20 17v3h-3 M7 20H4v-3 M7 8v8 M11 8v8 M14 8v2 M14 14v2 M17 8v8';
   static const billing = 'M17 9V7a5 5 0 0 0-10 0v2 M5 9h14v11H5Z';
+  static const printer =
+      'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6Z';
   static const book = 'M4 5c2-1 5-1 8 0v14c-3-1-6-1-8 0Z M20 5c-2-1-5-1-8 0v14c3-1 6-1 8 0Z';
   static const bot = 'M9 3v2 M15 3v2 M9 19v2 M15 19v2 M3 9h2 M3 15h2 M19 9h2 M19 15h2 M6 6h12v12H6Z M9 9h6v6H9Z';
   static const catalog = 'M20 7 12 3 4 7l8 4 8-4Z M4 7v10l8 4 8-4V7 M12 11v10';

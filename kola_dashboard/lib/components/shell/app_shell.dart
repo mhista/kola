@@ -175,7 +175,15 @@ class _AppShellState extends State<AppShell> {
   Component build(BuildContext context) {
     return div(
       attributes: {
-        'style': 'height:100vh;display:flex;flex-direction:column;'
+        // height:100vh then height:100svh — see till_page.dart's own
+        // build() for the full reasoning, including why `svh` and not
+        // `dvh` (dvh recomputes live as the address bar shows/hides,
+        // which reads as scroll jank on a box this central). This is
+        // the one root every shellFor-wrapped page renders inside, so a
+        // phone whose address bar is showing (the normal state on load)
+        // was sizing this box taller than the real visible area,
+        // cropping whatever sits at the bottom of a page's content.
+        'style': 'height:100vh;height:100svh;display:flex;flex-direction:column;'
             'background:${KolaVar.bg};color:${KolaVar.text};overflow:hidden',
       },
       [
@@ -187,7 +195,11 @@ class _AppShellState extends State<AppShell> {
             MobileTopBar(
               workspaceName: component.workspaceName,
               onOpenPalette: () => _openOnly(palette: true),
-              onOpenProfile: () => _openOnly(more: true),
+              // Account menu, not the full destinations list — see
+              // MobileProfileSheet's header. Shares `_profileOpen` with
+              // the desktop sidebar's own profile dropdown, since it is
+              // the same logical menu rendered two ways.
+              onOpenProfile: () => _openOnly(profile: true),
             ),
           ],
         ),
@@ -256,6 +268,12 @@ class _AppShellState extends State<AppShell> {
           MobileMoreSheet(
             gate: component.gate,
             currentRoute: component.currentRoute,
+            onClose: _closeAll,
+          ),
+        if (_profileOpen)
+          MobileProfileSheet(
+            workspaceName: component.workspaceName,
+            workspaceSubtitle: component.workspaceSubtitle,
             onClose: _closeAll,
           ),
       ],

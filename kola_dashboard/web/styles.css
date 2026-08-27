@@ -226,6 +226,14 @@ html, body {
   background: var(--kola-bg);
   color: var(--kola-text);
   font-family: var(--kola-font-sans);
+  /* Without this, a downward swipe at the top of ANY scrollable region —
+   * a bottom sheet included — is read by Android Chrome as a pull-to-
+   * refresh gesture at the document level and reloads the whole page,
+   * regardless of `overflow: hidden` above (that stops the document
+   * itself from scrolling; it does not stop the browser's own
+   * overscroll/PTR gesture recognizer, which listens beneath it). This
+   * is what "swiping down on the More sheet reloads the page" was. */
+  overscroll-behavior-y: none;
 }
 
 /* Tells the browser to render native UI — scrollbars, form controls,

@@ -389,7 +389,12 @@ class _ApiWebhooksPageState extends State<ApiWebhooksPage> {
     ];
     return div(
       attributes: {
-        'style': 'display:grid;grid-template-columns:repeat(3,1fr);'
+        // repeat(3,1fr) crammed three cards into one row no matter the
+        // viewport — each shrinks below its label's width on a 375px
+        // phone. auto-fit lets a card that doesn't fit wrap to its own
+        // row instead of being squeezed, same pattern
+        // bot_detail_dev_page.dart's own stat grid already uses.
+        'style': 'display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));'
             'gap:${KolaSpace.smd};margin-bottom:${KolaSpace.xxl}',
       },
       [

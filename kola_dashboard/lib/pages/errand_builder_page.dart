@@ -586,7 +586,7 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
       attributes: {
         'style':
             "font-family:${KolaDashboardFonts.sans};background:${KolaDashboardColors.bg};"
-            'color:${KolaDashboardColors.text};width:100%;height:100vh;overflow-y:auto;box-sizing:border-box;'
+            'color:${KolaDashboardColors.text};width:100%;height:100vh;height:100svh;overflow-y:auto;box-sizing:border-box;'
             'padding:40px 32px 60px;display:flex;justify-content:center',
       },
       [
@@ -625,8 +625,15 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
             div(
               attributes: {'style': 'display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start'},
               [
-                div(attributes: {'style': 'flex:1;min-width:380px;max-width:480px'}, [_detailsCard()]),
-                div(attributes: {'style': 'flex:1;min-width:340px'}, [_errandsCard()]),
+                // min-width:380px/340px inside a wrapping flex row meant
+                // either card, alone, was already wider than a 375px
+                // phone — the row didn't overflow (it wraps), but each
+                // card did, since `min-width` still floors below its own
+                // container. min() lets the floor give way to the
+                // viewport instead of past it, and stops shrinking once
+                // there's room to.
+                div(attributes: {'style': 'flex:1;min-width:min(380px,100%);max-width:480px;box-sizing:border-box'}, [_detailsCard()]),
+                div(attributes: {'style': 'flex:1;min-width:min(340px,100%);box-sizing:border-box'}, [_errandsCard()]),
               ],
             ),
           ],

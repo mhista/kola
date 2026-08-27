@@ -153,7 +153,7 @@ class MobileTabBar extends StatelessComponent {
       children: [
         kolaIcon(item.icon, size: 18),
         span(
-          attributes: {'style': 'font-size:10.5px;font-weight:600'},
+          attributes: {'style': 'font-size:${KolaType.micro};font-weight:600'},
           [Component.text(item.label)],
         ),
       ],
@@ -175,7 +175,7 @@ class MobileTabBar extends StatelessComponent {
         [
           kolaIcon(Icons.more, size: 18),
           span(
-            attributes: {'style': 'font-size:10.5px;font-weight:600'},
+            attributes: {'style': 'font-size:${KolaType.micro};font-weight:600'},
             [Component.text('More')],
           ),
         ],
@@ -185,6 +185,155 @@ class MobileTabBar extends StatelessComponent {
       'flex:1;display:flex;flex-direction:column;align-items:center;'
       'justify-content:center;gap:3px;text-decoration:none;padding:2px 4px;'
       'color:${active ? KolaVar.accent : KolaVar.muted}';
+}
+
+// ── Account sheet ───────────────────────────────────────────────────────
+
+/// The mobile top bar's avatar button, tapped.
+///
+/// IT USED TO OPEN THE SAME SHEET AS THE BOTTOM BAR'S "MORE" BUTTON —
+/// the full list of every product page. An avatar reads as "my account",
+/// so tapping it and getting Catalog/Knowledge/Agents/etc. instead of
+/// Settings/Billing/Log out is a bait-and-switch: the icon promises one
+/// thing and does another. It was wired that way because the desktop
+/// equivalent — Sidebar's own profile dropdown — only renders inside
+/// `.kola-shell-desktop`, so there was nowhere for a mobile tap to land
+/// until this existed.
+///
+/// Built from [profileEntries] (nav_model.dart), the exact same list
+/// Sidebar's desktop dropdown reads from — one definition, this file's
+/// own stated rule for navigation data, now extended to the account menu
+/// too. `.kola-shell-mobile` on the root, deliberately: unlike
+/// [MobileMoreSheet] (only ever opened by mobile-only triggers, so it
+/// never has a reason to render at desktop width), this sheet's open
+/// state is the SAME `_profileOpen` flag the desktop sidebar's own inline
+/// dropdown uses — without the class, opening the profile menu at
+/// desktop width would show both at once.
+class MobileProfileSheet extends StatelessComponent {
+  const MobileProfileSheet({
+    required this.workspaceName,
+    required this.workspaceSubtitle,
+    required this.onClose,
+  });
+
+  final String workspaceName;
+  final String workspaceSubtitle;
+  final void Function() onClose;
+
+  @override
+  Component build(BuildContext context) {
+    return div(
+      classes: 'kola-shell-mobile',
+      attributes: {
+        'style': 'position:fixed;inset:0;z-index:200;'
+            'background:rgba(0,0,0,0.55);align-items:flex-end',
+        'role': 'dialog',
+        'aria-modal': 'true',
+        'aria-label': 'Account',
+        // Same flag as the desktop sidebar's profile dropdown
+        // (`_profileOpen`), so AppShell's document-level pointerdown
+        // listener — which only arms itself for that flag, see its own
+        // header — must be able to tell a tap inside THIS sheet apart
+        // from an outside click. Without this attribute, every tap on a
+        // row here (Settings, Log out, ...) would register as "outside"
+        // on pointerdown and close the sheet before the click/navigation
+        // underneath it ever fires.
+        'data-kola-overlay': 'profile',
+      },
+      events: {'click': (_) => onClose()},
+      [
+        div(
+          attributes: {
+            'style': 'width:100%;background:${KolaVar.card};'
+                'border-top-left-radius:${KolaRadius.xl};'
+                'border-top-right-radius:${KolaRadius.xl};'
+                'border-top:1px solid ${KolaVar.border};'
+                'padding:10px 10px calc(20px + env(safe-area-inset-bottom, 0px));'
+                // overscroll-behavior:contain, belt-and-braces with the
+                // global rule in styles.css — stops a swipe that runs
+                // past this sheet's own scroll limit from chaining into
+                // the document's overscroll/pull-to-refresh gesture.
+                'max-height:80vh;overflow-y:auto;overscroll-behavior:contain',
+          },
+          events: {'click': (e) => e.stopPropagation()},
+          [
+            div(
+              attributes: {
+                'style': 'width:36px;height:4px;background:${KolaVar.border};'
+                    'border-radius:${KolaRadius.pill};margin:2px auto 14px',
+              },
+              [],
+            ),
+            div(
+              attributes: {
+                'style': 'display:flex;align-items:center;gap:12px;'
+                    'padding:2px 8px 14px;border-bottom:1px solid ${KolaVar.border};'
+                    'margin-bottom:8px',
+              },
+              [
+                div(
+                  attributes: {
+                    'style': 'width:38px;height:38px;flex:none;'
+                        'border-radius:${KolaRadius.circle};'
+                        'background:${KolaVar.tintIcon(0)};color:${KolaVar.accent};'
+                        'display:flex;align-items:center;justify-content:center;'
+                        'font-size:${KolaType.body};font-weight:700',
+                  },
+                  [Component.text(_initial(workspaceName))],
+                ),
+                div(
+                  attributes: {'style': 'flex:1;min-width:0'},
+                  [
+                    div(
+                      attributes: {
+                        'style': 'font-size:${KolaType.bodyLg};font-weight:700;'
+                            'color:${KolaVar.text};overflow:hidden;'
+                            'text-overflow:ellipsis;white-space:nowrap',
+                      },
+                      [Component.text(workspaceName)],
+                    ),
+                    if (workspaceSubtitle.trim().isNotEmpty)
+                      div(
+                        attributes: {
+                          'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                              'overflow:hidden;text-overflow:ellipsis;white-space:nowrap',
+                        },
+                        [Component.text(workspaceSubtitle)],
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            for (final entry in profileEntries)
+              div(
+                events: {'click': (_) => onClose()},
+                [
+                  Link(
+                    to: entry.route,
+                    attributes: {
+                      'class': 'kola-nav-row kola-tab',
+                      'style': 'display:flex;align-items:center;gap:12px;'
+                          'padding:11px 14px;border-radius:${KolaRadius.sm};'
+                          'font-size:${KolaType.ui};text-decoration:none;'
+                          'color:${entry.danger ? KolaVar.danger : KolaVar.text}',
+                    },
+                    children: [
+                      kolaIcon(entry.icon, size: 17, extraStyle: 'flex:none'),
+                      span(attributes: {'style': 'flex:1'}, [Component.text(entry.label)]),
+                    ],
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static String _initial(String name) {
+    final trimmed = name.trim();
+    return trimmed.isEmpty ? '?' : trimmed[0].toUpperCase();
+  }
 }
 
 // ── "More" sheet ──────────────────────────────────────────────────────
@@ -219,7 +368,11 @@ class MobileMoreSheet extends StatelessComponent {
                 'border-top-right-radius:${KolaRadius.xl};'
                 'border-top:1px solid ${KolaVar.border};'
                 'padding:10px 10px calc(20px + env(safe-area-inset-bottom, 0px));'
-                'max-height:80vh;overflow-y:auto',
+                // overscroll-behavior:contain, belt-and-braces with the
+                // global rule in styles.css — stops a swipe that runs
+                // past this sheet's own scroll limit from chaining into
+                // the document's overscroll/pull-to-refresh gesture.
+                'max-height:80vh;overflow-y:auto;overscroll-behavior:contain',
           },
           // Stops a tap inside the sheet from reaching the backdrop and
           // closing it. Without this, tapping a nav row closes the sheet
@@ -242,8 +395,19 @@ class MobileMoreSheet extends StatelessComponent {
     );
   }
 
+  /// Routes already reachable from a persistent bottom tab. Listing them
+  /// again in this sheet is exactly the "why is Sales counter in two
+  /// places" complaint — a thumb-reachable icon AND a row in the sheet
+  /// that icon's own 'More' button opens is a duplicate, not a
+  /// convenience. Home ('/') is included defensively even though it
+  /// never appears in [navGroups] today.
+  static final _bottomTabRoutes = {for (final t in bottomTabs) t.route};
+
   List<Component> _group(NavGroup group) {
-    final items = group.visibleItems(gate);
+    final items = [
+      for (final i in group.visibleItems(gate))
+        if (!_bottomTabRoutes.contains(i.route)) i,
+    ];
     if (items.isEmpty) return const [];
 
     return [

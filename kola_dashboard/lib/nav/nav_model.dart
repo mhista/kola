@@ -252,6 +252,38 @@ const bottomTabs = <NavItem>[
   ),
 ];
 
+/// The account menu — Connectors, Settings, Billing, Switch workspace,
+/// Log out. Shared by the desktop sidebar's profile dropdown and the
+/// mobile top bar's account sheet, per this file's own "one definition,
+/// three surfaces" rule — it used to live as a private list inside
+/// sidebar.dart alone, which meant the mobile top bar's avatar button had
+/// nowhere real to point and was wired to open the full destinations
+/// sheet instead (see mobile_chrome.dart's MobileProfileSheet header for
+/// why that reads as broken: an avatar is an account control, not a
+/// second copy of the nav).
+///
+/// Deliberately NOT part of [navGroups] or [bottomTabs] — these are
+/// account actions, not product destinations, and mixing them into the
+/// page list would put "Log out" next to "Catalog" as if they were the
+/// same kind of thing.
+const profileEntries = <({
+  String label,
+  String icon,
+  String route,
+  bool danger,
+})>[
+  (label: 'Connectors', icon: Icons.plug, route: '/integrations', danger: false),
+  (label: 'Settings', icon: Icons.settings, route: '/settings', danger: false),
+  (label: 'Billing', icon: Icons.billing, route: '/billing', danger: false),
+  (
+    label: 'Switch workspace',
+    icon: Icons.switchWorkspace,
+    route: '/settings',
+    danger: false
+  ),
+  (label: 'Log out', icon: Icons.logOut, route: '/logout', danger: true),
+];
+
 /// Everything the command palette can jump to, flattened.
 ///
 /// Derived rather than hand-listed, so a page added to the sidebar is
