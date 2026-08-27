@@ -69,6 +69,7 @@ import 'package:kola_server/src/services/repository/customer_repository.dart';
 import 'package:kola_server/src/services/repository/customer_identity_signal_repository.dart';
 import 'package:kola_server/src/services/repository/customer_merge_proposal_repository.dart';
 import 'package:kola_server/src/services/repository/sale_repository.dart';
+import 'package:kola_server/src/services/repository/invoice_repository.dart';
 import 'package:kola_server/src/services/repository/calendar_booking_repository.dart';
 import 'package:kola_server/src/services/connectors/google/google_oauth_service.dart';
 import 'package:kola_server/src/services/connectors/google/calendar_booking_service.dart';
@@ -278,6 +279,7 @@ void setupDependencyInjection() {
     ),
   );
   getIt.registerLazySingleton<SaleRepository>(() => const SaleRepository());
+  getIt.registerLazySingleton<InvoiceRepository>(() => const InvoiceRepository());
   getIt.registerLazySingleton<CalendarBookingRepository>(() => const CalendarBookingRepository());
   getIt.registerLazySingleton<CalendarBookingService>(
     () => CalendarBookingService(

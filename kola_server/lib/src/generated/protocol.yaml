@@ -56,6 +56,13 @@ feature:
 finding:
   - listFindings:
   - dismissFinding:
+invoice:
+  - createInvoice:
+  - listInvoices:
+  - getInvoice:
+  - getInvoiceForSale:
+  - updateInvoiceStatus:
+  - recordPayment:
 knowledge:
   - listDocuments:
   - addDocument:
@@ -95,6 +102,8 @@ product:
   - deleteProductMedia:
   - reorderProductMedia:
   - importMediaFromUrl:
+report:
+  - getEndOfDayReport:
 sale:
   - ringUpSale:
   - listSales:

@@ -1,0 +1,57 @@
+##
+## invoice.spy.yaml — the A4 invoice tab on Documents. Backed by
+## migration 047. See that migration's header for why lines are one
+## JSON string column (linesJson) rather than a child table like
+## sale/sale_lines, and why status never includes a stored 'overdue'.
+##
+## NO `table:` LINE — Supabase owns the schema, same as every other
+## model in this codebase.
+##
+
+class: Invoice
+# table: invoices
+fields:
+  id: int?
+
+  workspaceId: int
+  customerId: int?
+  saleId: int?
+
+  reference: String
+
+  ## 'draft' | 'sent' | 'viewed' | 'partly_paid' | 'paid'
+  ## 'overdue' is derived client-side from status + dueAt, never stored —
+  ## see migration 047's header.
+  status: String
+
+  billToName: String
+  billToAddress: String?
+  billToPhone: String?
+
+  ## JSON array of {"name": String, "quantity": int, "unitPriceMinor": int}.
+  linesJson: String
+
+  subtotalMinor: int
+  taxRateBps: int
+  taxMinor: int
+  totalMinor: int
+
+  ## Running-total bookkeeping only — see migration 047's header on why
+  ## crediting this is a manual "mark as paid" today, not an automatic
+  ## webhook reconciliation.
+  paidMinor: int
+
+  currency: String
+  paymentInstructions: String?
+
+  issuedAt: DateTime
+  dueAt: DateTime?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  invoices_workspace_idx:
+    fields: workspaceId
+  invoices_customer_idx:
+    fields: customerId

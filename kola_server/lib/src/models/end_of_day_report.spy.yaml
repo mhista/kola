@@ -1,0 +1,44 @@
+##
+## end_of_day_report.spy.yaml — Documents' report tab. NOT A TABLE — a
+## wire-only OUTPUT type, same convention as sale_line_input.spy.yaml
+## (a plain Dart class in an endpoint file cannot cross the generated
+## client boundary). This is computed fresh from `sales`/`sale_lines`
+## on every call, never persisted — there is nothing here that isn't
+## already derivable from Sale rows, so a second table to keep in sync
+## would be pure risk for no gain.
+##
+## byPaymentMethodJson is a JSON-encoded String, not a Map<String,int> —
+## deliberately, for the SAME reason invoice.spy.yaml's linesJson is a
+## String and not a List<...>: see sale_endpoint.dart's ringUpSale
+## header for the full trace of this Serverpod install's List/Map
+## parameter-deserialization gap. That trace was specifically about
+## endpoint PARAMETERS, not return values (this app already returns
+## List<Sale> etc. successfully) — but Map<String, int> as a field
+## inside a generated model has never been exercised anywhere in this
+## codebase either, and there is no compiler here to confirm it works.
+## Reusing the already-proven "JSON string, decode client-side" shape
+## costs one extra jsonDecode call and removes that unknown entirely.
+##
+## insightText is nullable: "what kola noticed" only exists when there
+## is a prior day to compare against (see report_endpoint.dart) — a
+## shop's very first day of sales has nothing to be compared to, and
+## inventing a comparison would be the same fabrication mistake
+## WorkspaceDto's comments warn against elsewhere.
+##
+
+class: EndOfDayReport
+fields:
+  workspaceId: int
+  reportDate: DateTime
+
+  grossMinor: int
+  transactionCount: int
+
+  refundsMinor: int
+  refundCount: int
+
+  ## JSON: {"cash": 12000, "transfer": 8000, ...} — minor units, one key
+  ## per paymentMethod value seen among completed sales in range.
+  byPaymentMethodJson: String
+
+  insightText: String?

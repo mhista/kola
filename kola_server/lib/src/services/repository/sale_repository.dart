@@ -141,6 +141,25 @@ class SaleRepository {
     return (response as List).map((r) => _saleDto.fromRow(r as Map<String, dynamic>)).toList();
   }
 
+  /// All sales (any status) with `sold_at` in `[from, to)`, for the
+  /// End-of-day report. Half-open on purpose so a caller can chain
+  /// consecutive days (today's `to` is tomorrow's `from`) without a
+  /// sale landing in neither or both buckets.
+  Future<List<Sale>> listByWorkspaceAndRange({
+    required int workspaceId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final response = await supabase
+        .from('sales')
+        .select()
+        .eq('workspace_id', workspaceId)
+        .gte('sold_at', from.toIso8601String())
+        .lt('sold_at', to.toIso8601String())
+        .order('sold_at', ascending: true);
+    return (response as List).map((r) => _saleDto.fromRow(r as Map<String, dynamic>)).toList();
+  }
+
   static String generateReference(DateTime at) =>
       'SALE-${at.microsecondsSinceEpoch.toRadixString(36).toUpperCase()}';
 }

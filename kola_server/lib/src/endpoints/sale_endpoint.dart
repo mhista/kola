@@ -20,6 +20,7 @@ import 'package:kola_server/src/services/features/feature_keys.dart';
 import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/repository/sale_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
+import 'package:kola_server/src/services/repository/product_repository.dart';
 import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
 import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
 import 'package:kola_server/kola_logger.dart';
@@ -27,6 +28,7 @@ import 'package:kola_server/kola_logger.dart';
 class SaleEndpoint extends Endpoint {
   SaleRepository get _sales => getIt<SaleRepository>();
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
+  ProductRepository get _products => getIt<ProductRepository>();
   FeatureFlagService get _features => getIt<FeatureFlagService>();
   CustomerIdentityResolver get _identity => getIt<CustomerIdentityResolver>();
   EventBus get _events => getIt<EventBus>();
@@ -191,6 +193,25 @@ class SaleEndpoint extends Endpoint {
             ),
         ],
       );
+
+      // Stock sync — the missing half of the till. ProductRepository
+      // .adjustStock already existed (written ahead of the sales counter
+      // itself, per its own doc comment: "the sales counter is what will
+      // make it matter") but nothing ever called it from here, so a sale
+      // never touched inventory: a shop with 49 units of a product still
+      // showed 49 after selling one, on the catalog page, the till's own
+      // grid, everywhere — because the number in the database genuinely
+      // never changed. Sequential, not parallel, on purpose: adjustStock
+      // is documented read-then-write (see its own header), so two lines
+      // of the SAME sale hitting the SAME product concurrently could
+      // lose a decrement the same way two simultaneous sales could.
+      // Lines with no `productId` (a hand-typed, non-catalog line) are
+      // skipped — there is nothing to decrement.
+      for (final l in lines) {
+        final productId = l.productId;
+        if (productId == null) continue;
+        await _products.adjustStock(workspaceId, productId, -l.quantity);
+      }
 
       // Gate 2 substrate, Gate 3b proof: this is the event a future
       // Observation/Recommendation reads, and the fingerprint makes a
