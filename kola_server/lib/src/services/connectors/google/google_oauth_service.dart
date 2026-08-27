@@ -61,6 +61,22 @@ class GoogleOAuthService {
   static const scopeDriveMetadataReadonly =
       'https://www.googleapis.com/auth/drive.metadata.readonly';
 
+  /// Gate 11 — the Google Drive KNOWLEDGE connector's own scope, distinct
+  /// from [scopeDriveMetadataReadonly] above: that one only ever lists a
+  /// file's id/name/link (for the Sheets picker), never its content.
+  /// google_drive_adapter.dart needs to actually READ a document's text
+  /// to ingest it, which requires the broader `drive.readonly` grant —
+  /// still read-only (nothing here ever writes to a business's Drive),
+  /// just not metadata-only. A workspace that connected google_sheets
+  /// before this existed has no bearing on google_drive: these are two
+  /// separate ConnectorDefinition entries with two separate stored
+  /// refresh tokens (see connector_endpoint.dart's per-connector OAuth
+  /// state), so there is no "reconnect Sheets to get Drive" concern the
+  /// way there was when drive.metadata.readonly was added after Sheets
+  /// shipped.
+  static const scopeDriveReadonly =
+      'https://www.googleapis.com/auth/drive.readonly';
+
   /// Calendar scope — deliberately `calendar.events`, not the broader
   /// `calendar` scope. `calendar.events` grants read/write on events
   /// only (exactly what booking an appointment needs); the bare

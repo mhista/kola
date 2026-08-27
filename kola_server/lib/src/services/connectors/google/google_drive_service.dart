@@ -27,17 +27,26 @@ class GoogleDriveFile {
     required this.id,
     required this.name,
     this.webViewLink,
+    this.mimeType,
   });
 
   final String id;
   final String name;
   final String? webViewLink;
 
+  /// Gate 11 — only populated when the caller's `fields` query asked for
+  /// it (see [GoogleDriveService.listIngestableFiles]). This is how
+  /// google_drive_adapter.dart tells a native Google Doc (export API)
+  /// from a plain-text file (direct download) apart without a second
+  /// per-file lookup.
+  final String? mimeType;
+
   factory GoogleDriveFile.fromJson(Map<String, dynamic> json) {
     return GoogleDriveFile(
       id: json['id'] as String,
       name: json['name'] as String? ?? 'Untitled spreadsheet',
       webViewLink: json['webViewLink'] as String?,
+      mimeType: json['mimeType'] as String?,
     );
   }
 }
@@ -99,5 +108,84 @@ class GoogleDriveService {
     }
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
     return GoogleDriveFile.fromJson(decoded);
+  }
+
+  /// Gate 11 — every file google_drive_adapter.dart can actually turn
+  /// into knowledge, newest-edited first. Deliberately narrow to the two
+  /// mime types this pass can read as plain text: native Google Docs
+  /// (`application/vnd.google-apps.document`, exportable as text/plain —
+  /// see [exportGoogleDoc]) and real plain-text files (`text/plain`).
+  ///
+  /// PDFs, Word docs, and every other binary format are a REAL, NAMED
+  /// SCOPE CUT, not an oversight: reading them means either a PDF/DOCX
+  /// text-extraction library this codebase does not currently depend on,
+  /// or (for a scanned PDF) OCR — either is its own piece of work,
+  /// deserving its own pass rather than being bolted on here. A business
+  /// whose policy documents live only as PDFs in Drive will see this
+  /// connector list nothing today; that is the honest current behavior,
+  /// not a silent partial success.
+  Future<List<GoogleDriveFile>> listIngestableFiles({required String accessToken}) async {
+    final uri = Uri.parse(_baseUrl).replace(queryParameters: {
+      'q': "(mimeType='application/vnd.google-apps.document' or mimeType='text/plain') "
+          'and trashed=false',
+      'fields': 'files(id,name,webViewLink,mimeType)',
+      'orderBy': 'modifiedTime desc',
+      'pageSize': '1000',
+    });
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $accessToken'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Google Drive list failed (${response.statusCode}): ${response.body}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final files = decoded['files'] as List<dynamic>? ?? const [];
+    return files
+        .map((f) => GoogleDriveFile.fromJson(f as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// A native Google Doc has no downloadable "file bytes" of its own —
+  /// Drive's `files.export` endpoint is how you ask Google to render one
+  /// into a real format, here plain text. Requires [scopeDriveReadonly]
+  /// (google_oauth_service.dart) — [scopeDriveMetadataReadonly] alone
+  /// 403s this call, since exporting content is not metadata.
+  Future<String> exportGoogleDoc({
+    required String fileId,
+    required String accessToken,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/$fileId/export').replace(
+      queryParameters: {'mimeType': 'text/plain'},
+    );
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $accessToken'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Google Doc export failed (${response.statusCode}): ${response.body}');
+    }
+    return response.body;
+  }
+
+  /// A real `text/plain` file's actual bytes — `alt=media`, Drive's
+  /// download-the-content query param (distinct from every other call in
+  /// this file, which asks for JSON metadata). Same [scopeDriveReadonly]
+  /// requirement as [exportGoogleDoc].
+  Future<String> downloadPlainText({
+    required String fileId,
+    required String accessToken,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/$fileId').replace(
+      queryParameters: {'alt': 'media'},
+    );
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $accessToken'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Google Drive file download failed (${response.statusCode}): ${response.body}');
+    }
+    return response.body;
   }
 }

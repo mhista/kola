@@ -61,6 +61,7 @@ import 'package:kola_server/src/services/support/customer_campaign_sweep_service
 import 'package:kola_server/src/services/connectors/connector_sync_sweep_service.dart';
 import 'package:kola_server/src/services/connectors/google/google_oauth_callback_route.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_callback_route.dart';
+import 'package:kola_server/src/services/messaging/broadcast_sweep_service.dart';
 import 'package:kola_server/src/services/memory/embedding_orchestrator.dart';
 import 'package:kola_server/kola_logger.dart';
 import 'package:logging/logging.dart' as logging;
@@ -458,6 +459,26 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
         if (synced > 0) Log.info('Connector sync sweep: $synced credential(s) synced');
       } catch (e) {
         Log.error('Connector sync sweep failed', error: e);
+      }
+    });
+
+    // 9. Gate 9 — the broadcast queue engine's tick. Unlike every sweep
+    //    above (hourly/daily — matched to how often THEIR triggering
+    //    condition can even change), this one runs on
+    //    BroadcastSweepService.tickInterval (15s) because a broadcast's
+    //    pacing (messages per minute) only means something at that
+    //    granularity — see that service's own header. No "run once
+    //    immediately" call here the way the sweeps above have: there is
+    //    nothing to catch up on at boot (a broadcast only starts running
+    //    when BroadcastEndpoint.startBroadcast is called, which can only
+    //    happen after the server is already up), so the first real tick
+    //    firing ~15s after boot is fine.
+    final broadcastSweep = getIt<BroadcastSweepService>();
+    Timer.periodic(BroadcastSweepService.tickInterval, (_) async {
+      try {
+        await broadcastSweep.sweepOnce();
+      } catch (e) {
+        Log.error('Broadcast sweep failed', error: e);
       }
     });
   } catch (e, stackTrace) {

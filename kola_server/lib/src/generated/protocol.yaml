@@ -6,6 +6,15 @@ bot:
   - updateBot:
   - setKnowledgeSeed:
   - setCostSavingContacts:
+broadcast:
+  - createBroadcast:
+  - startBroadcast:
+  - cancelBroadcast:
+  - listBroadcasts:
+  - getBroadcastProgress:
+  - listSuppressions:
+  - addSuppression:
+  - removeSuppression:
 channel:
   - connectTelegramChannel:
   - listChannelsForBot:

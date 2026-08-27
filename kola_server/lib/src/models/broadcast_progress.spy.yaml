@@ -1,0 +1,23 @@
+##
+## broadcast_progress.spy.yaml — Gate 9. NOT A TABLE — a wire-only
+## OUTPUT type, same convention as end_of_day_report.spy.yaml: computed
+## fresh from broadcast_recipients on every call (BroadcastEndpoint
+## .getBroadcastProgress), never persisted. "Live progress — sent,
+## delivered, failed, remaining — because a broadcast that has silently
+## stalled at 12% looks exactly like one still running" (spec). Plain
+## int fields, not a Map<String,int> — see end_of_day_report.spy.yaml's
+## header on why a Map return has never been exercised in this codebase
+## and a named-field model sidesteps that unknown entirely.
+##
+
+class: BroadcastProgress
+fields:
+  broadcastId: int
+  status: String
+  totalRecipients: int
+
+  queued: int
+  sending: int
+  sent: int
+  failed: int
+  skipped: int

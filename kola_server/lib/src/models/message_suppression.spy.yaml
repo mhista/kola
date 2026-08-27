@@ -1,0 +1,46 @@
+##
+## message_suppression.spy.yaml — Gate 9. "A suppression list is an
+## entity, not a filter" (spec) — an explicit table
+## broadcast_sweep_service.dart checks per recipient AT SEND TIME (not
+## when a broadcast's recipient list is built), so someone who opts out
+## while a large broadcast is still in flight stops receiving it from
+## that point on, per the spec's own scenario.
+##
+## v1 SCOPE: this table and a manual add/remove path
+## (MessageSuppressionEndpoint) exist and are checked. What is NOT built
+## yet: an automatic STOP-keyword listener wired into inbound message
+## handling (telegram_bot_registry.dart / whatsapp_bot_registry.dart)
+## that would populate this table on its own when a customer replies
+## "STOP". Every row today is added deliberately (reason = 'manual')
+## until that listener exists — a real, named gap, not a silent one.
+##
+
+class: MessageSuppression
+# table: message_suppressions
+fields:
+  id: int? # Supabase assigns this automatically
+
+  workspaceId: int
+
+  ## 'whatsapp' | 'telegram' — suppression is per-platform, since an
+  ## opt-out on one channel says nothing about another.
+  platform: String
+
+  ## Normalized the same way CustomerIdentityResolver normalizes a phone
+  ## signal (CustomerIdentityResolver.normalizePhone) or a Telegram chat
+  ## id (as a plain string) — so a lookup at send time and a row written
+  ## here always compare like for like regardless of how the raw address
+  ## was formatted when suppression was recorded.
+  addressNormalized: String
+
+  ## 'manual' — added by an owner/operator through the dashboard/API.
+  ## 'stop_keyword' — reserved for the not-yet-built inbound listener
+  ##            described in the class header.
+  reason: String
+
+  createdAt: DateTime
+
+indexes:
+  message_suppression_lookup_idx:
+    fields: workspaceId, platform, addressNormalized
+    unique: true

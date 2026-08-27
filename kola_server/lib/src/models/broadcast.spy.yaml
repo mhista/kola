@@ -1,0 +1,92 @@
+##
+## broadcast.spy.yaml — Gate 9. One broadcast job: one message body sent
+## to many recipients as a resumable, paced, cancellable queue rather
+## than a for-loop. See docs/Kolaa_Connections_Backbone_Direction_v5.pdf
+## Part VI ("Broadcast and send sequencing") for the full spec this
+## implements — "a broadcast is a job, not a loop... Not a for-loop over
+## a list, which loses everything the moment the process restarts."
+##
+## v1 SCOPE (core queue engine, per the build's own gate ordering —
+## Gate 9 depends on Gate 8): free-text body only, same scope cut Gate 8
+## made — no WhatsApp template selection yet, so a broadcast sent
+## outside WhatsApp's 24h customer-service window will fail per-recipient
+## exactly the way a Gate 8 single send does (see
+## outbound_message_service.dart's header). No graph-based audience
+## builder yet — recipients are supplied directly by the caller when the
+## broadcast is created (BroadcastEndpoint.createBroadcast). No dry-run
+## mode, no approval workflow, no delivered/read tracking (this
+## codebase's WhatsApp webhook route already discards status-update
+## payloads — see whatsapp_bot_registry.dart's header — so "delivered"/
+## "read" states would be fiction until that's wired). All of these are
+## real, named gaps against the spec, not silently decided.
+##
+
+class: Broadcast
+# table: broadcasts
+fields:
+  id: int? # Supabase assigns this automatically
+
+  workspaceId: int
+
+  ## 'whatsapp' | 'telegram' — one platform per broadcast. A campaign
+  ## that must reach both sends as two broadcasts; there is no mixed-
+  ## platform job.
+  platform: String
+
+  ## The message body. Free text only in v1 — see class header.
+  text: String
+
+  ## 'draft' — created, recipients loaded, not yet started.
+  ## 'running' — the sweep is actively working through queued recipients.
+  ## 'paused' — not currently used by any endpoint (no pause action
+  ##            exists yet), reserved so the state machine has room for
+  ##            one without a later migration.
+  ## 'cancelled' — no further recipients will be attempted. Whatever
+  ##            already sent, sent — "There is no recall" (spec).
+  ## 'completed' — every recipient reached a terminal state (sent,
+  ##            failed, or skipped).
+  status: String
+
+  ## Messages per minute the sweep will send THIS broadcast at —
+  ## "paced against provider limits... a ceiling to stay beneath, not a
+  ## target to hit" (spec). Deliberately per-broadcast, not a platform-
+  ## wide constant: different businesses' numbers carry different
+  ## WhatsApp quality tiers and therefore different safe ceilings, and
+  ## this codebase has no automated way to read a number's current tier
+  ## yet (spec calls this out as a real, unbuilt check).
+  throughputPerMinute: int
+
+  ## Snapshot count, set once at creation — how many BroadcastRecipient
+  ## rows exist for this job. Denormalized so progress ("12,420 of
+  ## 40,000") never requires a COUNT(*) on the recipients table just to
+  ## render a header.
+  totalRecipients: int
+
+  createdAt: DateTime
+  updatedAt: DateTime
+  startedAt: DateTime?
+  completedAt: DateTime?
+
+  ## Gate 10 (migration 050) — running total of escalated replies tied to
+  ## THIS broadcast (via conversations.broadcast_id), maintained by
+  ## broadcast_reply_digest_service.dart. Monotonic for the life of the
+  ## broadcast — never reset — because the notification text this
+  ## service sends reports a running total ("14 replies have needed a
+  ## human so far"), not a delta since the last notification, which
+  ## would require tracking a second counter for no real benefit.
+  escalatedReplyCount: int
+
+  ## Gate 10 (migration 050) — when the last owner notification about
+  ## this broadcast's replies actually went out. Null until the first
+  ## escalated reply. broadcast_reply_digest_service.dart's cooldown
+  ## check reads this to decide "immediate notify" (first ever, or
+  ## cooldown elapsed) vs. "fold into the running count silently"
+  ## (still within cooldown) — see that service's header for the exact
+  ## rule this implements.
+  lastDigestSentAt: DateTime?
+
+indexes:
+  broadcast_workspace_idx:
+    fields: workspaceId
+  broadcast_status_idx:
+    fields: status

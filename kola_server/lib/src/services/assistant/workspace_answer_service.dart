@@ -68,6 +68,7 @@ import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
 import 'package:kola_server/src/services/ai/ai_provider.dart';
 import 'package:kola_server/src/services/memory/memory_retrieval_service.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
+import 'package:kola_server/src/services/repository/sale_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_answer_turn_repository.dart';
@@ -87,6 +88,7 @@ class WorkspaceAnswerService {
     required AiOrchestrator aiOrchestrator,
     required MemoryRetrievalService memory,
     required ProductRepository products,
+    required SaleRepository sales,
     required WorkspaceRepository workspaces,
     required ConnectorService connectors,
     required ErrandRepository errands,
@@ -97,6 +99,7 @@ class WorkspaceAnswerService {
   })  : _ai = aiOrchestrator,
         _memory = memory,
         _products = products,
+        _sales = sales,
         _workspaces = workspaces,
         _connectors = connectors,
         _errands = errands,
@@ -108,6 +111,20 @@ class WorkspaceAnswerService {
   final AiOrchestrator _ai;
   final MemoryRetrievalService _memory;
   final ProductRepository _products;
+
+  /// THE BUG THIS FIXES: this service used to have zero notion of the
+  /// business's own sales — no field, no digest, nothing. An owner
+  /// asking "what are my sales this week" had no real number anywhere
+  /// in the prompt to point at, so the model reached for the only
+  /// numeric-ish thing it COULD see — [_connectorDigest]'s line for a
+  /// connected Paystack gateway — and answered from that instead, which
+  /// is a different, narrower figure (gateway payments, not till sales)
+  /// than what the Overview dashboard's own "Sales this week" card
+  /// shows. [_salesDigest] below computes the exact same number that
+  /// card computes (completed sales, last 7 rolling days — see
+  /// overview_page.dart's `_salesThisWeekMinor`) so the model has the
+  /// dashboard's own real answer to give, not a proxy for one.
+  final SaleRepository _sales;
 
   /// Connect Gate, subphase 4e — this assistant had ZERO visibility into
   /// what the owner had connected (WhatsApp aside, via the catalog
@@ -283,6 +300,7 @@ class WorkspaceAnswerService {
     );
     final catalog = await _catalogDigest(workspaceId);
     final connectorDigest = await _connectorDigest(workspaceId);
+    final salesDigest = await _salesDigest(workspaceId);
     final actionTools = await _actionTools(workspaceId);
     final recentTurns = await _recentTurnsBlock(workspaceId);
 
@@ -303,8 +321,12 @@ class WorkspaceAnswerService {
     // a way to say it. An owner with zero products/knowledge but a
     // connected calendar asking "book an appointment" must NOT hit this
     // — actionTools.tools.isEmpty is what keeps that case falling
-    // through to the real model call below instead.
-    if (retrieved.matches.isEmpty && catalog.isEmpty && actionTools.tools.isEmpty) {
+    // through to the real model call below instead. salesDigest.isEmpty
+    // is the same guard for an owner who has rung up sales but never
+    // added a product row or a document — "how much did I make this
+    // week" must not be told "I have not been taught anything yet" when
+    // there is a real, computed answer sitting right there.
+    if (retrieved.matches.isEmpty && catalog.isEmpty && actionTools.tools.isEmpty && salesDigest.isEmpty) {
       return _fallback(
         "I have not been taught anything yet, so I cannot answer that from "
         "your own words.\n\n"
@@ -323,6 +345,7 @@ class WorkspaceAnswerService {
           memoryBlock: retrieved.promptBlock,
           catalog: catalog,
           connectors: connectorDigest,
+          sales: salesDigest,
           hasActionTools: actionTools.tools.isNotEmpty,
           recentTurns: recentTurns,
         ),
@@ -480,6 +503,7 @@ class WorkspaceAnswerService {
             memoryBlock: retrieved.promptBlock,
             catalog: catalog,
             connectors: connectorDigest,
+            sales: salesDigest,
             recentTurns: recentTurns,
           ),
           userMessage: trimmed,
@@ -523,6 +547,7 @@ class WorkspaceAnswerService {
     required String memoryBlock,
     required List<_CatalogEntry> catalog,
     required String connectors,
+    required String sales,
     required String recentTurns,
     bool hasActionTools = false,
   }) {
@@ -602,6 +627,29 @@ class WorkspaceAnswerService {
       ..writeln(connectors.trim().isEmpty
           ? 'Nothing is connected yet.'
           : connectors)
+      ..writeln();
+
+    // THE FIX for a real, reported bug: this assistant used to have no
+    // notion of the business's own sales at all, so a question like
+    // "what are my sales this week" had nothing to answer from except
+    // whatever the CONNECTED TOOLS block above happened to say about a
+    // payment gateway — and the model answered from THAT instead, which
+    // is a different number (gateway payments) than what "sales" means
+    // on this dashboard (completed till sales). This block is the real
+    // answer, computed the same way the Overview page's own "Sales this
+    // week" card computes it — said explicitly so the model prefers it
+    // over anything a connector line might also mention.
+    buffer
+      ..writeln()
+      ..writeln('--- YOUR SALES (real numbers computed on this server from '
+          'this dashboard\'s own sales counter — this is what "my sales" '
+          'means here; a connected payment gateway is a DIFFERENT number '
+          'and should only be used if the owner specifically asks about '
+          'that gateway by name) ---')
+      ..writeln(sales.trim().isEmpty
+          ? 'No completed sales recorded yet on this dashboard\'s sales '
+              'counter.'
+          : sales)
       ..writeln();
 
     // Connect Gate, subphase 4f — CONFIRMED WITH THE USER: this
@@ -1063,6 +1111,62 @@ class WorkspaceAnswerService {
       return '';
     }
   }
+
+  /// Real completed-sale totals from THIS dashboard's own sales counter
+  /// — see the field-level comment on [_sales] for the bug this exists
+  /// to fix. Two windows, matching what an owner is actually likely to
+  /// ask ("today" and "this week"):
+  ///
+  ///   - today: UTC calendar day, matching ReportEndpoint's End-of-day
+  ///     report definition.
+  ///   - this week: completed sales in the last 7 ROLLING days (not
+  ///     Mon-Sun) — deliberately matching overview_page.dart's
+  ///     `_salesThisWeekMinor` exactly, so this assistant's answer can
+  ///     never disagree with the number already on screen right next to
+  ///     it.
+  Future<String> _salesDigest(int workspaceId) async {
+    try {
+      final now = DateTime.now().toUtc();
+      final todayStart = DateTime.utc(now.year, now.month, now.day);
+      final weekStart = now.subtract(const Duration(days: 7));
+
+      final weekSales = await _sales.listByWorkspaceAndRange(
+        workspaceId: workspaceId,
+        from: weekStart,
+        to: now,
+      );
+      final completedThisWeek = weekSales.where((s) => s.status == 'completed').toList();
+      if (completedThisWeek.isEmpty) return '';
+
+      final completedToday =
+          completedThisWeek.where((s) => !s.soldAt.isBefore(todayStart)).toList();
+
+      final weekTotal = completedThisWeek.fold<int>(0, (sum, s) => sum + s.totalMinor);
+      final todayTotal = completedToday.fold<int>(0, (sum, s) => sum + s.totalMinor);
+
+      final buffer = StringBuffer()
+        ..writeln(
+          'Today: ${completedToday.length} completed sale(s), '
+          '${_naira(todayTotal)} total.',
+        )
+        ..writeln(
+          'Last 7 days ("this week"): ${completedThisWeek.length} completed '
+          'sale(s), ${_naira(weekTotal)} total.',
+        );
+      return buffer.toString().trim();
+    } catch (e) {
+      // Same "degrade, do not break" posture as every other digest here
+      // — a sales-read failure must not stop the owner getting an
+      // answer about their products or policies.
+      _log.warning('sales digest failed for $workspaceId: $e');
+      return '';
+    }
+  }
+
+  /// Matches ReportEndpoint's own minor-units formatter — same "₦" +
+  /// two-decimal convention used everywhere else money is shown to an
+  /// owner in this codebase.
+  static String _naira(int minor) => '₦${(minor / 100).toStringAsFixed(2)}';
 
   Future<List<_CatalogEntry>> _catalogDigest(int workspaceId) async {
     try {

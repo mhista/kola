@@ -78,3 +78,10 @@ create unique index if not exists invoices_workspace_reference_idx
 create index if not exists invoices_workspace_idx on invoices (workspace_id);
 create index if not exists invoices_customer_idx on invoices (customer_id);
 create index if not exists invoices_sale_idx on invoices (sale_id);
+
+-- RLS enabled, no policies — deny-all to PostgREST, matching every table
+-- in this project since migration 001. The repository layer (Supabase
+-- service-role client) IS the isolation boundary. Missed in this
+-- migration's original apply; added here and backfilled live via
+-- Supabase's own security advisory — see PART IX's non-negotiable rule.
+alter table invoices enable row level security;

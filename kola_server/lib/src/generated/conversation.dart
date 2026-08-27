@@ -24,6 +24,7 @@ abstract class Conversation
     this.displayName,
     required this.status,
     this.customerId,
+    this.broadcastId,
     required this.lastMessageAt,
     required this.createdAt,
     required this.updatedAt,
@@ -39,6 +40,7 @@ abstract class Conversation
     String? displayName,
     required String status,
     int? customerId,
+    int? broadcastId,
     required DateTime lastMessageAt,
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -55,6 +57,7 @@ abstract class Conversation
       displayName: jsonSerialization['displayName'] as String?,
       status: jsonSerialization['status'] as String,
       customerId: jsonSerialization['customerId'] as int?,
+      broadcastId: jsonSerialization['broadcastId'] as int?,
       lastMessageAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['lastMessageAt'],
       ),
@@ -85,6 +88,8 @@ abstract class Conversation
 
   int? customerId;
 
+  int? broadcastId;
+
   DateTime lastMessageAt;
 
   DateTime createdAt;
@@ -104,6 +109,7 @@ abstract class Conversation
     String? displayName,
     String? status,
     int? customerId,
+    int? broadcastId,
     DateTime? lastMessageAt,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -121,6 +127,7 @@ abstract class Conversation
       if (displayName != null) 'displayName': displayName,
       'status': status,
       if (customerId != null) 'customerId': customerId,
+      if (broadcastId != null) 'broadcastId': broadcastId,
       'lastMessageAt': lastMessageAt.toJson(),
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
@@ -140,6 +147,7 @@ abstract class Conversation
       if (displayName != null) 'displayName': displayName,
       'status': status,
       if (customerId != null) 'customerId': customerId,
+      if (broadcastId != null) 'broadcastId': broadcastId,
       'lastMessageAt': lastMessageAt.toJson(),
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
@@ -165,6 +173,7 @@ class _ConversationImpl extends Conversation {
     String? displayName,
     required String status,
     int? customerId,
+    int? broadcastId,
     required DateTime lastMessageAt,
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -178,6 +187,7 @@ class _ConversationImpl extends Conversation {
          displayName: displayName,
          status: status,
          customerId: customerId,
+         broadcastId: broadcastId,
          lastMessageAt: lastMessageAt,
          createdAt: createdAt,
          updatedAt: updatedAt,
@@ -197,6 +207,7 @@ class _ConversationImpl extends Conversation {
     Object? displayName = _Undefined,
     String? status,
     Object? customerId = _Undefined,
+    Object? broadcastId = _Undefined,
     DateTime? lastMessageAt,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -211,6 +222,7 @@ class _ConversationImpl extends Conversation {
       displayName: displayName is String? ? displayName : this.displayName,
       status: status ?? this.status,
       customerId: customerId is int? ? customerId : this.customerId,
+      broadcastId: broadcastId is int? ? broadcastId : this.broadcastId,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

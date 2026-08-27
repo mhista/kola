@@ -82,6 +82,7 @@ import 'package:kola_server/src/services/errand/errand_tool_registry.dart';
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
 import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
 import 'package:kola_server/src/services/notifications/owner_notification_dispatcher.dart';
+import 'package:kola_server/src/services/notifications/broadcast_reply_digest_service.dart';
 import 'package:kola_server/src/services/media/inbound_media_service.dart';
 import 'package:kola_server/src/services/security/security_filter.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
@@ -100,6 +101,7 @@ class InboundMessageHandler {
     required BotKnowledgeService knowledgeService,
     required ErrandDispatchService errandDispatch,
     required OwnerNotificationDispatcher notificationDispatcher,
+    required BroadcastReplyDigestService broadcastReplyDigest,
     required InboundMediaService inboundMedia,
     required EventBus events,
     required CustomerIdentityResolver customerIdentity,
@@ -115,6 +117,7 @@ class InboundMessageHandler {
        _knowledge = knowledgeService,
        _errandDispatch = errandDispatch,
        _notifications = notificationDispatcher,
+       _broadcastReplyDigest = broadcastReplyDigest,
        _inboundMedia = inboundMedia,
        _events = events,
        _customerIdentity = customerIdentity,
@@ -131,6 +134,13 @@ class InboundMessageHandler {
   final BotKnowledgeService _knowledge;
   final ErrandDispatchService _errandDispatch;
   final OwnerNotificationDispatcher _notifications;
+
+  /// Gate 10 — reply-absorption. Called INSTEAD OF _notifications
+  /// .notifyEscalation whenever the escalating conversation is tagged
+  /// with a broadcastId (see conversation.spy.yaml's field and this
+  /// service's own header for why a broadcast reply needs different
+  /// notification behavior than an organic escalation).
+  final BroadcastReplyDigestService _broadcastReplyDigest;
 
   /// Connect Gate, subphase 4b — connector-native capabilities
   /// (collectPayment, bookCalendarEvent, ...) as synthetic, never-
@@ -560,14 +570,32 @@ class InboundMessageHandler {
       // Fire-and-log, not fire-and-forget-silently: a notification
       // failure must never block the customer's reply from going out —
       // it already has, above — but it's worth knowing about.
-      try {
-        await _notifications.notifyEscalation(
+      //
+      // Gate 10 — a broadcast-tagged conversation routes through the
+      // digest service instead of the plain per-conversation notifier,
+      // so a reply wave from one broadcast coalesces into at most one
+      // notification per cooldown window rather than flooding the owner
+      // with one per escalated reply. See conversation.broadcastId's own
+      // doc comment for how a conversation gets tagged, and
+      // broadcast_reply_digest_service.dart's header for the exact rule.
+      // BroadcastReplyDigestService already swallows/logs its own
+      // errors, matching this same "never block the customer" contract.
+      if (conversation.broadcastId != null) {
+        await _broadcastReplyDigest.handleEscalation(
           workspaceId: workspaceId,
+          broadcastId: conversation.broadcastId!,
           customerDisplayName: displayName ?? externalUserId,
-          escalationReason: inboundText,
         );
-      } catch (e) {
-        Log.error('InboundMessageHandler: owner notification dispatch failed for conversation $conversationId', error: e);
+      } else {
+        try {
+          await _notifications.notifyEscalation(
+            workspaceId: workspaceId,
+            customerDisplayName: displayName ?? externalUserId,
+            escalationReason: inboundText,
+          );
+        } catch (e) {
+          Log.error('InboundMessageHandler: owner notification dispatch failed for conversation $conversationId', error: e);
+        }
       }
     }
 

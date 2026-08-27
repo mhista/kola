@@ -192,6 +192,22 @@ class ConversationRepository {
         .eq('id', conversationId);
   }
 
+  /// Gate 10 (migration 050) — set by outbound_message_service.dart at
+  /// the moment a broadcast message is sent to this conversation's
+  /// customer. Unlike [setCustomer], this DOES overwrite an existing
+  /// value — see conversation.spy.yaml's broadcastId field for why "most
+  /// recent broadcast" is the more useful signal than "first ever".
+  Future<void> setBroadcast(int conversationId, int broadcastId) async {
+    _log.info('setBroadcast conversationId=$conversationId broadcastId=$broadcastId');
+    await supabase
+        .from('conversations')
+        .update({
+          'broadcast_id': broadcastId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', conversationId);
+  }
+
   /// Bumps lastMessageAt — called every time a Message is stored (either
   /// direction) so the inbox's "most recently active" ordering stays
   /// accurate without a join/aggregate over messages on every list call.

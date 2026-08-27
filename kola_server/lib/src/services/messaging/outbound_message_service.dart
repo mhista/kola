@@ -76,6 +76,15 @@ class OutboundMessageService {
     required String to,
     required String text,
     String? idempotencyKey,
+
+    // Gate 10 (migration 050) — passed only by broadcast_sweep_
+    // service.dart's per-recipient send. Tags the found-or-created
+    // conversation with which broadcast this send belongs to, so a
+    // later reply on the same thread carries that context all the way
+    // into inbound_message_handler.dart without a lookup at reply time.
+    // Null for every plain Gate 8 single send — those aren't part of a
+    // broadcast and must never tag a conversation as if they were.
+    int? broadcastId,
   }) async {
     if (!supportedPlatforms.contains(platform)) {
       return OutboundSendResult.failure(
@@ -118,6 +127,14 @@ class OutboundMessageService {
     final conversationId = conversation.id;
     if (conversationId == null) {
       return OutboundSendResult.failure('Failed to resolve a conversation for this recipient.');
+    }
+
+    // Gate 10 — see the [broadcastId] parameter's own doc comment. Tagged
+    // unconditionally (not "only if null") whenever this send is part of
+    // a broadcast — an organic conversation that later gets swept into a
+    // broadcast is a real, useful thing to know about the thread.
+    if (broadcastId != null) {
+      await _conversations.setBroadcast(conversationId, broadcastId);
     }
 
     // Idempotency (caller-supplied, optional): namespaced so it can never

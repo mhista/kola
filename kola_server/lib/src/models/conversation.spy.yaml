@@ -74,6 +74,20 @@ fields:
   # customer timeline as their Paystack payments and till sales.
   customerId: int?
 
+  # Gate 10 (migration 050) — Foreign key -> broadcasts.id. Set by
+  # outbound_message_service.dart's send() at the moment a broadcast
+  # message goes OUT to this customer (broadcast_sweep_service.dart
+  # reuses that same send() path — see its header). Null for every
+  # conversation that started organically. This is the one piece of
+  # state that lets inbound_message_handler.dart recognise "this reply
+  # is because of a broadcast" without any lookup at reply time — see
+  # broadcast_reply_digest_service.dart for what that recognition is
+  # used for (coalescing notifications instead of one per reply).
+  # Overwritten (not left at the first value) on a later broadcast to
+  # the same customer, since "the broadcast this reply is most likely
+  # about" is the most recent one they were sent, not the first ever.
+  broadcastId: int?
+
   lastMessageAt: DateTime
 
   createdAt: DateTime
@@ -87,3 +101,5 @@ indexes:
     unique: true
   conversation_status_idx:
     fields: status
+  conversation_broadcast_idx:
+    fields: broadcastId

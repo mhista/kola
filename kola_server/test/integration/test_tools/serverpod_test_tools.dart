@@ -15,41 +15,45 @@ import 'package:serverpod_test/serverpod_test.dart' as _i1;
 import 'package:serverpod/serverpod.dart' as _i2;
 import 'dart:async' as _i3;
 import 'package:kola_server/src/generated/bot.dart' as _i4;
-import 'package:kola_server/src/generated/channel.dart' as _i5;
-import 'package:kola_server/src/generated/connector_status.dart' as _i6;
-import 'package:kola_server/src/generated/google_drive_spreadsheet.dart' as _i7;
-import 'package:kola_server/src/generated/calendar_booking.dart' as _i8;
-import 'package:kola_server/src/generated/conversation.dart' as _i9;
-import 'package:kola_server/src/generated/message.dart' as _i10;
-import 'package:kola_server/src/generated/customer.dart' as _i11;
-import 'package:kola_server/src/generated/customer_detail.dart' as _i12;
-import 'package:kola_server/src/generated/customer_merge_proposal.dart' as _i13;
-import 'package:kola_server/src/generated/errand.dart' as _i14;
-import 'package:kola_server/src/generated/workspace_finding.dart' as _i15;
-import 'package:kola_server/src/generated/invoice.dart' as _i16;
-import 'package:kola_server/src/generated/knowledge_document.dart' as _i17;
-import 'package:kola_server/src/generated/knowledge_search_hit.dart' as _i18;
-import 'package:kola_server/src/generated/workspace_answer.dart' as _i19;
+import 'package:kola_server/src/generated/broadcast.dart' as _i5;
+import 'package:kola_server/src/generated/broadcast_progress.dart' as _i6;
+import 'package:kola_server/src/generated/message_suppression.dart' as _i7;
+import 'package:kola_server/src/generated/channel.dart' as _i8;
+import 'package:kola_server/src/generated/connector_status.dart' as _i9;
+import 'package:kola_server/src/generated/google_drive_spreadsheet.dart'
+    as _i10;
+import 'package:kola_server/src/generated/calendar_booking.dart' as _i11;
+import 'package:kola_server/src/generated/conversation.dart' as _i12;
+import 'package:kola_server/src/generated/message.dart' as _i13;
+import 'package:kola_server/src/generated/customer.dart' as _i14;
+import 'package:kola_server/src/generated/customer_detail.dart' as _i15;
+import 'package:kola_server/src/generated/customer_merge_proposal.dart' as _i16;
+import 'package:kola_server/src/generated/errand.dart' as _i17;
+import 'package:kola_server/src/generated/workspace_finding.dart' as _i18;
+import 'package:kola_server/src/generated/invoice.dart' as _i19;
+import 'package:kola_server/src/generated/knowledge_document.dart' as _i20;
+import 'package:kola_server/src/generated/knowledge_search_hit.dart' as _i21;
+import 'package:kola_server/src/generated/workspace_answer.dart' as _i22;
 import 'package:kola_server/src/generated/owner_notification_settings.dart'
-    as _i20;
+    as _i23;
 import 'package:kola_server/src/generated/payment_gateway_credential.dart'
-    as _i21;
-import 'package:kola_server/src/generated/payment_transaction.dart' as _i22;
-import 'package:kola_server/src/generated/api_key.dart' as _i23;
-import 'package:kola_server/src/generated/created_api_key.dart' as _i24;
-import 'package:kola_server/src/generated/webhook_endpoint.dart' as _i25;
-import 'package:kola_server/src/generated/product.dart' as _i26;
-import 'package:kola_server/src/generated/product_variant.dart' as _i27;
-import 'package:kola_server/src/generated/product_media.dart' as _i28;
-import 'package:kola_server/src/generated/end_of_day_report.dart' as _i29;
-import 'package:kola_server/src/generated/sale.dart' as _i30;
-import 'package:kola_server/src/generated/sale_line.dart' as _i31;
-import 'package:kola_server/src/generated/support_ticket.dart' as _i32;
-import 'package:kola_server/src/generated/waitlist_signup.dart' as _i33;
+    as _i24;
+import 'package:kola_server/src/generated/payment_transaction.dart' as _i25;
+import 'package:kola_server/src/generated/api_key.dart' as _i26;
+import 'package:kola_server/src/generated/created_api_key.dart' as _i27;
+import 'package:kola_server/src/generated/webhook_endpoint.dart' as _i28;
+import 'package:kola_server/src/generated/product.dart' as _i29;
+import 'package:kola_server/src/generated/product_variant.dart' as _i30;
+import 'package:kola_server/src/generated/product_media.dart' as _i31;
+import 'package:kola_server/src/generated/end_of_day_report.dart' as _i32;
+import 'package:kola_server/src/generated/sale.dart' as _i33;
+import 'package:kola_server/src/generated/sale_line.dart' as _i34;
+import 'package:kola_server/src/generated/support_ticket.dart' as _i35;
+import 'package:kola_server/src/generated/waitlist_signup.dart' as _i36;
 import 'package:kola_server/src/generated/whatsapp_message_template.dart'
-    as _i34;
-import 'package:kola_server/src/generated/workspace.dart' as _i35;
-import 'package:kola_server/src/generated/kola_billing_checkout.dart' as _i36;
+    as _i37;
+import 'package:kola_server/src/generated/workspace.dart' as _i38;
+import 'package:kola_server/src/generated/kola_billing_checkout.dart' as _i39;
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/generated/endpoints.dart';
 export 'package:serverpod_test/serverpod_test_public_exports.dart';
@@ -143,6 +147,8 @@ void withServerpod(
 class TestEndpoints {
   late final _BotEndpoint bot;
 
+  late final _BroadcastEndpoint broadcast;
+
   late final _ChannelEndpoint channel;
 
   late final _ConnectorEndpoint connector;
@@ -190,6 +196,10 @@ class _InternalTestEndpoints extends TestEndpoints
     _i2.EndpointDispatch endpoints,
   ) {
     bot = _BotEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    broadcast = _BroadcastEndpoint(
       endpoints,
       serializationManager,
     );
@@ -552,6 +562,319 @@ class _BotEndpoint {
   }
 }
 
+class _BroadcastEndpoint {
+  _BroadcastEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<_i5.Broadcast> createBroadcast(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    String platform,
+    String text,
+    String recipientsJson,
+    int? throughputPerMinute,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'broadcast',
+            method: 'createBroadcast',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'broadcast',
+          methodName: 'createBroadcast',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'platform': platform,
+            'text': text,
+            'recipientsJson': recipientsJson,
+            'throughputPerMinute': throughputPerMinute,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i5.Broadcast>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<_i5.Broadcast> startBroadcast(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    int broadcastId,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'broadcast',
+            method: 'startBroadcast',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'broadcast',
+          methodName: 'startBroadcast',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'broadcastId': broadcastId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i5.Broadcast>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<_i5.Broadcast> cancelBroadcast(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    int broadcastId,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'broadcast',
+            method: 'cancelBroadcast',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'broadcast',
+          methodName: 'cancelBroadcast',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'broadcastId': broadcastId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i5.Broadcast>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<List<_i5.Broadcast>> listBroadcasts(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'broadcast',
+            method: 'listBroadcasts',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'broadcast',
+          methodName: 'listBroadcasts',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<List<_i5.Broadcast>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<_i6.BroadcastProgress> getBroadcastProgress(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    int broadcastId,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'broadcast',
+            method: 'getBroadcastProgress',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'broadcast',
+          methodName: 'getBroadcastProgress',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'broadcastId': broadcastId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i6.BroadcastProgress>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<List<_i7.MessageSuppression>> listSuppressions(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'broadcast',
+            method: 'listSuppressions',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'broadcast',
+          methodName: 'listSuppressions',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<List<_i7.MessageSuppression>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<_i7.MessageSuppression> addSuppression(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    String platform,
+    String address,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'broadcast',
+            method: 'addSuppression',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'broadcast',
+          methodName: 'addSuppression',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'platform': platform,
+            'address': address,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i7.MessageSuppression>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<void> removeSuppression(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    String platform,
+    String address,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'broadcast',
+            method: 'removeSuppression',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'broadcast',
+          methodName: 'removeSuppression',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'platform': platform,
+            'address': address,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<void>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
 class _ChannelEndpoint {
   _ChannelEndpoint(
     this._endpointDispatch,
@@ -562,7 +885,7 @@ class _ChannelEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i5.Channel> connectTelegramChannel(
+  _i3.Future<_i8.Channel> connectTelegramChannel(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -593,7 +916,7 @@ class _ChannelEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i5.Channel>);
+                as _i3.Future<_i8.Channel>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -601,7 +924,7 @@ class _ChannelEndpoint {
     });
   }
 
-  _i3.Future<List<_i5.Channel>> listChannelsForBot(
+  _i3.Future<List<_i8.Channel>> listChannelsForBot(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -630,7 +953,7 @@ class _ChannelEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i5.Channel>>);
+                as _i3.Future<List<_i8.Channel>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -638,7 +961,7 @@ class _ChannelEndpoint {
     });
   }
 
-  _i3.Future<_i5.Channel> connectWhatsAppChannelManual(
+  _i3.Future<_i8.Channel> connectWhatsAppChannelManual(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -677,7 +1000,7 @@ class _ChannelEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i5.Channel>);
+                as _i3.Future<_i8.Channel>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -696,7 +1019,7 @@ class _ConnectorEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i6.ConnectorStatus>> listConnectors(
+  _i3.Future<List<_i9.ConnectorStatus>> listConnectors(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -723,7 +1046,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i6.ConnectorStatus>>);
+                as _i3.Future<List<_i9.ConnectorStatus>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -731,7 +1054,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<_i6.ConnectorStatus> connectConnector(
+  _i3.Future<_i9.ConnectorStatus> connectConnector(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -762,7 +1085,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.ConnectorStatus>);
+                as _i3.Future<_i9.ConnectorStatus>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -807,7 +1130,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<List<_i7.GoogleDriveSpreadsheet>> listGoogleSheets(
+  _i3.Future<List<_i10.GoogleDriveSpreadsheet>> listGoogleSheets(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -836,7 +1159,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i7.GoogleDriveSpreadsheet>>);
+                as _i3.Future<List<_i10.GoogleDriveSpreadsheet>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -844,7 +1167,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<_i6.ConnectorStatus> setGoogleSheetTargets(
+  _i3.Future<_i9.ConnectorStatus> setGoogleSheetTargets(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -875,7 +1198,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.ConnectorStatus>);
+                as _i3.Future<_i9.ConnectorStatus>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -883,7 +1206,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<_i6.ConnectorStatus> setGoogleSheetTarget(
+  _i3.Future<_i9.ConnectorStatus> setGoogleSheetTarget(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -914,7 +1237,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.ConnectorStatus>);
+                as _i3.Future<_i9.ConnectorStatus>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -959,7 +1282,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<_i6.ConnectorStatus> setExcelFileTarget(
+  _i3.Future<_i9.ConnectorStatus> setExcelFileTarget(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -990,7 +1313,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.ConnectorStatus>);
+                as _i3.Future<_i9.ConnectorStatus>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -998,7 +1321,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<_i6.ConnectorStatus> setCalendarBookingMode(
+  _i3.Future<_i9.ConnectorStatus> setCalendarBookingMode(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1027,7 +1350,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.ConnectorStatus>);
+                as _i3.Future<_i9.ConnectorStatus>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1035,7 +1358,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<List<_i8.CalendarBooking>> listPendingBookings(
+  _i3.Future<List<_i11.CalendarBooking>> listPendingBookings(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1062,7 +1385,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i8.CalendarBooking>>);
+                as _i3.Future<List<_i11.CalendarBooking>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1070,7 +1393,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<_i8.CalendarBooking> approveBooking(
+  _i3.Future<_i11.CalendarBooking> approveBooking(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1099,7 +1422,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i8.CalendarBooking>);
+                as _i3.Future<_i11.CalendarBooking>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1107,7 +1430,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<_i8.CalendarBooking> rejectBooking(
+  _i3.Future<_i11.CalendarBooking> rejectBooking(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1136,7 +1459,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i8.CalendarBooking>);
+                as _i3.Future<_i11.CalendarBooking>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1144,7 +1467,7 @@ class _ConnectorEndpoint {
     });
   }
 
-  _i3.Future<_i6.ConnectorStatus> disconnectConnector(
+  _i3.Future<_i9.ConnectorStatus> disconnectConnector(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1173,7 +1496,7 @@ class _ConnectorEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.ConnectorStatus>);
+                as _i3.Future<_i9.ConnectorStatus>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1192,7 +1515,7 @@ class _ConversationEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i9.Conversation>> listEscalated(
+  _i3.Future<List<_i12.Conversation>> listEscalated(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1219,7 +1542,7 @@ class _ConversationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i9.Conversation>>);
+                as _i3.Future<List<_i12.Conversation>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1227,7 +1550,7 @@ class _ConversationEndpoint {
     });
   }
 
-  _i3.Future<List<_i9.Conversation>> listAll(
+  _i3.Future<List<_i12.Conversation>> listAll(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1254,7 +1577,7 @@ class _ConversationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i9.Conversation>>);
+                as _i3.Future<List<_i12.Conversation>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1262,7 +1585,7 @@ class _ConversationEndpoint {
     });
   }
 
-  _i3.Future<List<_i10.Message>> getMessages(
+  _i3.Future<List<_i13.Message>> getMessages(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1291,7 +1614,7 @@ class _ConversationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i10.Message>>);
+                as _i3.Future<List<_i13.Message>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1299,7 +1622,7 @@ class _ConversationEndpoint {
     });
   }
 
-  _i3.Future<_i10.Message> sendHumanReply(
+  _i3.Future<_i13.Message> sendHumanReply(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1330,7 +1653,7 @@ class _ConversationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i10.Message>);
+                as _i3.Future<_i13.Message>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1338,7 +1661,7 @@ class _ConversationEndpoint {
     });
   }
 
-  _i3.Future<_i9.Conversation> closeConversation(
+  _i3.Future<_i12.Conversation> closeConversation(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1367,7 +1690,7 @@ class _ConversationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i9.Conversation>);
+                as _i3.Future<_i12.Conversation>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1386,7 +1709,7 @@ class _CustomerEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i11.Customer>> listCustomers(
+  _i3.Future<List<_i14.Customer>> listCustomers(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -1417,7 +1740,7 @@ class _CustomerEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i11.Customer>>);
+                as _i3.Future<List<_i14.Customer>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1425,7 +1748,7 @@ class _CustomerEndpoint {
     });
   }
 
-  _i3.Future<_i12.CustomerDetail> getCustomerDetail(
+  _i3.Future<_i15.CustomerDetail> getCustomerDetail(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1454,7 +1777,7 @@ class _CustomerEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i12.CustomerDetail>);
+                as _i3.Future<_i15.CustomerDetail>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1462,7 +1785,7 @@ class _CustomerEndpoint {
     });
   }
 
-  _i3.Future<List<_i13.CustomerMergeProposal>> listMergeProposals(
+  _i3.Future<List<_i16.CustomerMergeProposal>> listMergeProposals(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1489,7 +1812,7 @@ class _CustomerEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i13.CustomerMergeProposal>>);
+                as _i3.Future<List<_i16.CustomerMergeProposal>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1547,7 +1870,7 @@ class _ErrandEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i14.Errand> createBuiltinErrand(
+  _i3.Future<_i17.Errand> createBuiltinErrand(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1588,7 +1911,7 @@ class _ErrandEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i14.Errand>);
+                as _i3.Future<_i17.Errand>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1596,7 +1919,7 @@ class _ErrandEndpoint {
     });
   }
 
-  _i3.Future<List<_i14.Errand>> listErrandsForWorkspace(
+  _i3.Future<List<_i17.Errand>> listErrandsForWorkspace(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1623,7 +1946,7 @@ class _ErrandEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i14.Errand>>);
+                as _i3.Future<List<_i17.Errand>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1631,7 +1954,7 @@ class _ErrandEndpoint {
     });
   }
 
-  _i3.Future<_i14.Errand> getErrand(
+  _i3.Future<_i17.Errand> getErrand(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1660,7 +1983,7 @@ class _ErrandEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i14.Errand>);
+                as _i3.Future<_i17.Errand>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1668,7 +1991,7 @@ class _ErrandEndpoint {
     });
   }
 
-  _i3.Future<_i14.Errand> setErrandStatus(
+  _i3.Future<_i17.Errand> setErrandStatus(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1699,7 +2022,7 @@ class _ErrandEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i14.Errand>);
+                as _i3.Future<_i17.Errand>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1783,7 +2106,7 @@ class _ErrandEndpoint {
     });
   }
 
-  _i3.Future<_i14.Errand> createWebhookErrand(
+  _i3.Future<_i17.Errand> createWebhookErrand(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1828,7 +2151,7 @@ class _ErrandEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i14.Errand>);
+                as _i3.Future<_i17.Errand>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1836,7 +2159,7 @@ class _ErrandEndpoint {
     });
   }
 
-  _i3.Future<_i14.Errand> createDbCredentialErrand(
+  _i3.Future<_i17.Errand> createDbCredentialErrand(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -1879,7 +2202,7 @@ class _ErrandEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i14.Errand>);
+                as _i3.Future<_i17.Errand>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2213,7 +2536,7 @@ class _FindingEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i15.WorkspaceFinding>> listFindings(
+  _i3.Future<List<_i18.WorkspaceFinding>> listFindings(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2240,7 +2563,7 @@ class _FindingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i15.WorkspaceFinding>>);
+                as _i3.Future<List<_i18.WorkspaceFinding>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2296,7 +2619,7 @@ class _InvoiceEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i16.Invoice> createInvoice(
+  _i3.Future<_i19.Invoice> createInvoice(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2343,7 +2666,7 @@ class _InvoiceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i16.Invoice>);
+                as _i3.Future<_i19.Invoice>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2351,7 +2674,7 @@ class _InvoiceEndpoint {
     });
   }
 
-  _i3.Future<List<_i16.Invoice>> listInvoices(
+  _i3.Future<List<_i19.Invoice>> listInvoices(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -2382,7 +2705,7 @@ class _InvoiceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i16.Invoice>>);
+                as _i3.Future<List<_i19.Invoice>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2390,7 +2713,7 @@ class _InvoiceEndpoint {
     });
   }
 
-  _i3.Future<_i16.Invoice?> getInvoice(
+  _i3.Future<_i19.Invoice?> getInvoice(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2419,7 +2742,7 @@ class _InvoiceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i16.Invoice?>);
+                as _i3.Future<_i19.Invoice?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2427,7 +2750,7 @@ class _InvoiceEndpoint {
     });
   }
 
-  _i3.Future<_i16.Invoice?> getInvoiceForSale(
+  _i3.Future<_i19.Invoice?> getInvoiceForSale(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2456,7 +2779,7 @@ class _InvoiceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i16.Invoice?>);
+                as _i3.Future<_i19.Invoice?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2464,7 +2787,7 @@ class _InvoiceEndpoint {
     });
   }
 
-  _i3.Future<_i16.Invoice> updateInvoiceStatus(
+  _i3.Future<_i19.Invoice> updateInvoiceStatus(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2495,7 +2818,7 @@ class _InvoiceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i16.Invoice>);
+                as _i3.Future<_i19.Invoice>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2503,7 +2826,7 @@ class _InvoiceEndpoint {
     });
   }
 
-  _i3.Future<_i16.Invoice> recordPayment(
+  _i3.Future<_i19.Invoice> recordPayment(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2534,7 +2857,7 @@ class _InvoiceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i16.Invoice>);
+                as _i3.Future<_i19.Invoice>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2553,7 +2876,7 @@ class _KnowledgeEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i17.KnowledgeDocument>> listDocuments(
+  _i3.Future<List<_i20.KnowledgeDocument>> listDocuments(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2580,7 +2903,7 @@ class _KnowledgeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i17.KnowledgeDocument>>);
+                as _i3.Future<List<_i20.KnowledgeDocument>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2588,7 +2911,7 @@ class _KnowledgeEndpoint {
     });
   }
 
-  _i3.Future<_i17.KnowledgeDocument> addDocument(
+  _i3.Future<_i20.KnowledgeDocument> addDocument(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2621,7 +2944,7 @@ class _KnowledgeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i17.KnowledgeDocument>);
+                as _i3.Future<_i20.KnowledgeDocument>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2666,7 +2989,7 @@ class _KnowledgeEndpoint {
     });
   }
 
-  _i3.Future<_i17.KnowledgeDocument> updateDocument(
+  _i3.Future<_i20.KnowledgeDocument> updateDocument(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2699,7 +3022,7 @@ class _KnowledgeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i17.KnowledgeDocument>);
+                as _i3.Future<_i20.KnowledgeDocument>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2707,7 +3030,7 @@ class _KnowledgeEndpoint {
     });
   }
 
-  _i3.Future<List<_i18.KnowledgeSearchHit>> searchMemory(
+  _i3.Future<List<_i21.KnowledgeSearchHit>> searchMemory(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2736,7 +3059,7 @@ class _KnowledgeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i18.KnowledgeSearchHit>>);
+                as _i3.Future<List<_i21.KnowledgeSearchHit>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2744,7 +3067,7 @@ class _KnowledgeEndpoint {
     });
   }
 
-  _i3.Future<_i19.WorkspaceAnswer> askWorkspace(
+  _i3.Future<_i22.WorkspaceAnswer> askWorkspace(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2773,7 +3096,7 @@ class _KnowledgeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i19.WorkspaceAnswer>);
+                as _i3.Future<_i22.WorkspaceAnswer>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2781,7 +3104,7 @@ class _KnowledgeEndpoint {
     });
   }
 
-  _i3.Future<_i17.KnowledgeDocument> addDocumentFromFile(
+  _i3.Future<_i20.KnowledgeDocument> addDocumentFromFile(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2814,7 +3137,7 @@ class _KnowledgeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i17.KnowledgeDocument>);
+                as _i3.Future<_i20.KnowledgeDocument>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2833,7 +3156,7 @@ class _OwnerNotificationEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i20.OwnerNotificationSettings?> getSettings(
+  _i3.Future<_i23.OwnerNotificationSettings?> getSettings(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2860,7 +3183,7 @@ class _OwnerNotificationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i20.OwnerNotificationSettings?>);
+                as _i3.Future<_i23.OwnerNotificationSettings?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2868,7 +3191,7 @@ class _OwnerNotificationEndpoint {
     });
   }
 
-  _i3.Future<_i20.OwnerNotificationSettings> updateSettings(
+  _i3.Future<_i23.OwnerNotificationSettings> updateSettings(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -2915,7 +3238,7 @@ class _OwnerNotificationEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i20.OwnerNotificationSettings>);
+                as _i3.Future<_i23.OwnerNotificationSettings>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2934,7 +3257,7 @@ class _PaymentEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i21.PaymentGatewayCredential> connectGateway(
+  _i3.Future<_i24.PaymentGatewayCredential> connectGateway(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -2967,7 +3290,7 @@ class _PaymentEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i21.PaymentGatewayCredential>);
+                as _i3.Future<_i24.PaymentGatewayCredential>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -2975,7 +3298,7 @@ class _PaymentEndpoint {
     });
   }
 
-  _i3.Future<List<_i21.PaymentGatewayCredential>> listConnectedGateways(
+  _i3.Future<List<_i24.PaymentGatewayCredential>> listConnectedGateways(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3002,7 +3325,7 @@ class _PaymentEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i21.PaymentGatewayCredential>>);
+                as _i3.Future<List<_i24.PaymentGatewayCredential>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3010,7 +3333,7 @@ class _PaymentEndpoint {
     });
   }
 
-  _i3.Future<_i22.PaymentTransaction> initializeCheckout(
+  _i3.Future<_i25.PaymentTransaction> initializeCheckout(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3053,7 +3376,7 @@ class _PaymentEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i22.PaymentTransaction>);
+                as _i3.Future<_i25.PaymentTransaction>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3061,7 +3384,7 @@ class _PaymentEndpoint {
     });
   }
 
-  _i3.Future<_i22.PaymentTransaction?> getTransaction(
+  _i3.Future<_i25.PaymentTransaction?> getTransaction(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3090,7 +3413,7 @@ class _PaymentEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i22.PaymentTransaction?>);
+                as _i3.Future<_i25.PaymentTransaction?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3098,7 +3421,7 @@ class _PaymentEndpoint {
     });
   }
 
-  _i3.Future<_i22.PaymentTransaction> releaseHold(
+  _i3.Future<_i25.PaymentTransaction> releaseHold(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3127,7 +3450,7 @@ class _PaymentEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i22.PaymentTransaction>);
+                as _i3.Future<_i25.PaymentTransaction>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3146,7 +3469,7 @@ class _PlatformEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i23.ApiKey>> listApiKeys(
+  _i3.Future<List<_i26.ApiKey>> listApiKeys(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3173,7 +3496,7 @@ class _PlatformEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i23.ApiKey>>);
+                as _i3.Future<List<_i26.ApiKey>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3181,7 +3504,7 @@ class _PlatformEndpoint {
     });
   }
 
-  _i3.Future<_i24.CreatedApiKey> createApiKey(
+  _i3.Future<_i27.CreatedApiKey> createApiKey(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3212,7 +3535,7 @@ class _PlatformEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i24.CreatedApiKey>);
+                as _i3.Future<_i27.CreatedApiKey>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3257,7 +3580,7 @@ class _PlatformEndpoint {
     });
   }
 
-  _i3.Future<List<_i25.WebhookEndpoint>> listWebhookEndpoints(
+  _i3.Future<List<_i28.WebhookEndpoint>> listWebhookEndpoints(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3284,7 +3607,7 @@ class _PlatformEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i25.WebhookEndpoint>>);
+                as _i3.Future<List<_i28.WebhookEndpoint>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3292,7 +3615,7 @@ class _PlatformEndpoint {
     });
   }
 
-  _i3.Future<_i25.WebhookEndpoint> saveWebhookEndpoint(
+  _i3.Future<_i28.WebhookEndpoint> saveWebhookEndpoint(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3323,7 +3646,7 @@ class _PlatformEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i25.WebhookEndpoint>);
+                as _i3.Future<_i28.WebhookEndpoint>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3379,7 +3702,7 @@ class _ProductEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i26.Product>> listProducts(
+  _i3.Future<List<_i29.Product>> listProducts(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -3408,7 +3731,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i26.Product>>);
+                as _i3.Future<List<_i29.Product>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3416,7 +3739,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<_i26.Product?> getProduct(
+  _i3.Future<_i29.Product?> getProduct(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3445,7 +3768,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i26.Product?>);
+                as _i3.Future<_i29.Product?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3453,7 +3776,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<List<_i27.ProductVariant>> listVariants(
+  _i3.Future<List<_i30.ProductVariant>> listVariants(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3482,7 +3805,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i27.ProductVariant>>);
+                as _i3.Future<List<_i30.ProductVariant>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3490,7 +3813,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<_i26.Product> createProduct(
+  _i3.Future<_i29.Product> createProduct(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3539,7 +3862,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i26.Product>);
+                as _i3.Future<_i29.Product>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3547,7 +3870,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<_i26.Product> updateProduct(
+  _i3.Future<_i29.Product> updateProduct(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3602,7 +3925,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i26.Product>);
+                as _i3.Future<_i29.Product>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3647,7 +3970,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<List<_i27.ProductVariant>> replaceVariants(
+  _i3.Future<List<_i30.ProductVariant>> replaceVariants(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3682,7 +4005,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i27.ProductVariant>>);
+                as _i3.Future<List<_i30.ProductVariant>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3725,7 +4048,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<List<_i28.ProductMedia>> listMedia(
+  _i3.Future<List<_i31.ProductMedia>> listMedia(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3754,7 +4077,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i28.ProductMedia>>);
+                as _i3.Future<List<_i31.ProductMedia>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3762,7 +4085,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<List<_i28.ProductMedia>> listMediaForProducts(
+  _i3.Future<List<_i31.ProductMedia>> listMediaForProducts(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3791,7 +4114,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i28.ProductMedia>>);
+                as _i3.Future<List<_i31.ProductMedia>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3799,7 +4122,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<_i28.ProductMedia> addProductMedia(
+  _i3.Future<_i31.ProductMedia> addProductMedia(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3840,7 +4163,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i28.ProductMedia>);
+                as _i3.Future<_i31.ProductMedia>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3926,7 +4249,7 @@ class _ProductEndpoint {
     });
   }
 
-  _i3.Future<_i28.ProductMedia?> importMediaFromUrl(
+  _i3.Future<_i31.ProductMedia?> importMediaFromUrl(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -3957,7 +4280,7 @@ class _ProductEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i28.ProductMedia?>);
+                as _i3.Future<_i31.ProductMedia?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -3976,7 +4299,7 @@ class _ReportEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i29.EndOfDayReport> getEndOfDayReport(
+  _i3.Future<_i32.EndOfDayReport> getEndOfDayReport(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -4005,7 +4328,7 @@ class _ReportEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i29.EndOfDayReport>);
+                as _i3.Future<_i32.EndOfDayReport>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4024,7 +4347,7 @@ class _SaleEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i30.Sale> ringUpSale(
+  _i3.Future<_i33.Sale> ringUpSale(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -4063,7 +4386,7 @@ class _SaleEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i30.Sale>);
+                as _i3.Future<_i33.Sale>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4071,7 +4394,7 @@ class _SaleEndpoint {
     });
   }
 
-  _i3.Future<List<_i30.Sale>> listSales(
+  _i3.Future<List<_i33.Sale>> listSales(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -4102,7 +4425,7 @@ class _SaleEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i30.Sale>>);
+                as _i3.Future<List<_i33.Sale>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4110,7 +4433,7 @@ class _SaleEndpoint {
     });
   }
 
-  _i3.Future<List<_i31.SaleLine>> getSaleLines(
+  _i3.Future<List<_i34.SaleLine>> getSaleLines(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -4139,7 +4462,7 @@ class _SaleEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i31.SaleLine>>);
+                as _i3.Future<List<_i34.SaleLine>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4158,7 +4481,7 @@ class _SupportTicketEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i32.SupportTicket>> list(
+  _i3.Future<List<_i35.SupportTicket>> list(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -4187,7 +4510,7 @@ class _SupportTicketEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i32.SupportTicket>>);
+                as _i3.Future<List<_i35.SupportTicket>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4195,7 +4518,7 @@ class _SupportTicketEndpoint {
     });
   }
 
-  _i3.Future<_i32.SupportTicket> setStatus(
+  _i3.Future<_i35.SupportTicket> setStatus(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -4226,7 +4549,7 @@ class _SupportTicketEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i32.SupportTicket>);
+                as _i3.Future<_i35.SupportTicket>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4245,7 +4568,7 @@ class _WaitlistEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i33.WaitlistSignup> joinWaitlist(
+  _i3.Future<_i36.WaitlistSignup> joinWaitlist(
     _i1.TestSessionBuilder sessionBuilder,
     String email,
     String source, {
@@ -4278,7 +4601,7 @@ class _WaitlistEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i33.WaitlistSignup>);
+                as _i3.Future<_i36.WaitlistSignup>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4297,7 +4620,7 @@ class _WhatsAppTemplateEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i34.WhatsAppMessageTemplate> createTemplate(
+  _i3.Future<_i37.WhatsAppMessageTemplate> createTemplate(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -4336,7 +4659,7 @@ class _WhatsAppTemplateEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i34.WhatsAppMessageTemplate>);
+                as _i3.Future<_i37.WhatsAppMessageTemplate>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4344,7 +4667,7 @@ class _WhatsAppTemplateEndpoint {
     });
   }
 
-  _i3.Future<_i34.WhatsAppMessageTemplate> createProductListTemplate(
+  _i3.Future<_i37.WhatsAppMessageTemplate> createProductListTemplate(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -4379,7 +4702,7 @@ class _WhatsAppTemplateEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i34.WhatsAppMessageTemplate>);
+                as _i3.Future<_i37.WhatsAppMessageTemplate>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4387,7 +4710,7 @@ class _WhatsAppTemplateEndpoint {
     });
   }
 
-  _i3.Future<List<_i34.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
+  _i3.Future<List<_i37.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -4414,7 +4737,7 @@ class _WhatsAppTemplateEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i34.WhatsAppMessageTemplate>>);
+                as _i3.Future<List<_i37.WhatsAppMessageTemplate>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4422,7 +4745,7 @@ class _WhatsAppTemplateEndpoint {
     });
   }
 
-  _i3.Future<_i34.WhatsAppMessageTemplate> refreshTemplateStatus(
+  _i3.Future<_i37.WhatsAppMessageTemplate> refreshTemplateStatus(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -4451,7 +4774,7 @@ class _WhatsAppTemplateEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i34.WhatsAppMessageTemplate>);
+                as _i3.Future<_i37.WhatsAppMessageTemplate>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4470,7 +4793,7 @@ class _WorkspaceEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i35.Workspace> createWorkspace(
+  _i3.Future<_i38.Workspace> createWorkspace(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     String name,
@@ -4503,7 +4826,7 @@ class _WorkspaceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i35.Workspace>);
+                as _i3.Future<_i38.Workspace>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4511,7 +4834,7 @@ class _WorkspaceEndpoint {
     });
   }
 
-  _i3.Future<List<_i35.Workspace>> listMyWorkspaces(
+  _i3.Future<List<_i38.Workspace>> listMyWorkspaces(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
   ) async {
@@ -4534,7 +4857,7 @@ class _WorkspaceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i35.Workspace>>);
+                as _i3.Future<List<_i38.Workspace>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4542,7 +4865,7 @@ class _WorkspaceEndpoint {
     });
   }
 
-  _i3.Future<_i35.Workspace> getWorkspace(
+  _i3.Future<_i38.Workspace> getWorkspace(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -4569,7 +4892,7 @@ class _WorkspaceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i35.Workspace>);
+                as _i3.Future<_i38.Workspace>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4577,7 +4900,7 @@ class _WorkspaceEndpoint {
     });
   }
 
-  _i3.Future<_i35.Workspace> updateWorkspace(
+  _i3.Future<_i38.Workspace> updateWorkspace(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId, {
@@ -4612,7 +4935,7 @@ class _WorkspaceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i35.Workspace>);
+                as _i3.Future<_i38.Workspace>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -4655,7 +4978,7 @@ class _WorkspaceEndpoint {
     });
   }
 
-  _i3.Future<_i36.KolaBillingCheckout> initiateUpgrade(
+  _i3.Future<_i39.KolaBillingCheckout> initiateUpgrade(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,
     int workspaceId,
@@ -4686,7 +5009,7 @@ class _WorkspaceEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i36.KolaBillingCheckout>);
+                as _i3.Future<_i39.KolaBillingCheckout>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

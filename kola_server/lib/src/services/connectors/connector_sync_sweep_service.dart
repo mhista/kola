@@ -41,6 +41,7 @@ import 'package:kola_server/src/services/connectors/flutterwave_adapter.dart';
 import 'package:kola_server/src/services/connectors/google/google_oauth_service.dart';
 import 'package:kola_server/src/services/connectors/google/google_sheets_adapter.dart';
 import 'package:kola_server/src/services/connectors/google/google_sheets_config.dart';
+import 'package:kola_server/src/services/connectors/google/google_drive_adapter.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_service.dart';
 import 'package:kola_server/src/services/connectors/microsoft/onedrive_excel_adapter.dart';
 import 'package:kola_server/src/services/connectors/bumpa/bumpa_service.dart';
@@ -81,6 +82,7 @@ class ConnectorSyncSweepService {
       ),
     );
     succeeded += await _sweepGoogleSheets();
+    succeeded += await _sweepGoogleDrive();
     succeeded += await _sweepOneDriveExcel();
     succeeded += await _sweepBumpa();
     return succeeded;
@@ -205,6 +207,86 @@ class ConnectorSyncSweepService {
         if (anySucceeded) succeeded++;
       } catch (e) {
         Log.error('ConnectorSyncSweepService: Google Sheets sync failed for workspace $workspaceId', error: e);
+      }
+    }
+
+    return succeeded;
+  }
+
+  /// Gate 11 — google_drive's own sweep. Simpler than
+  /// [_sweepGoogleSheets]: no per-target loop (GoogleDriveAdapter syncs
+  /// every eligible file it can see in one call — see that adapter's own
+  /// header on why there's no picker step to loop over), so this is
+  /// closer in shape to [_sweepOneDriveExcel] with a config that's just
+  /// {refreshToken}, no target ids at all.
+  Future<int> _sweepGoogleDrive() async {
+    final connectors = await _genericConnectors.listAllByKey('google_drive');
+    if (connectors.isEmpty) return 0;
+
+    Log.info('ConnectorSyncSweepService: syncing ${connectors.length} Google Drive connection(s)...');
+    var succeeded = 0;
+    final oauth = GoogleOAuthService(
+      clientId: Env.googleOAuthClientId,
+      clientSecret: Env.googleOAuthClientSecret,
+      redirectUri: Env.googleOAuthRedirectUri,
+    );
+
+    for (final connector in connectors) {
+      final workspaceId = connector.workspaceId;
+      if (connector.encryptedConfig == null) continue;
+
+      try {
+        final config = jsonDecode(
+          ChannelCredentialEncryptionService.decrypt(connector.encryptedConfig!),
+        ) as Map<String, dynamic>;
+        final refreshToken = config['refreshToken'] as String?;
+        if (refreshToken == null) continue; // shouldn't happen — set at connect time
+
+        final adapter = GoogleDriveAdapter(
+          workspaceId: workspaceId,
+          refreshToken: refreshToken,
+          oauth: oauth,
+        );
+
+        final result = await ConnectorRetry.run<SyncResult>(
+          () => adapter.sync(),
+          deadLetter: _syncLog,
+          workspaceId: workspaceId,
+          connectorKey: 'google_drive',
+          store: 'generic',
+          kind: 'sync',
+        );
+
+        await _genericConnectors.recordSyncRun(
+          workspaceId: workspaceId,
+          connectorKey: 'google_drive',
+          cursor: result.nextCursor.isEmpty ? connector.syncCursor : result.nextCursor.value as String?,
+          syncedAt: DateTime.now(),
+          recordsSeen: result.recordsSeen,
+          recordsChanged: result.recordsChanged,
+          errorCount: result.errors.length,
+        );
+
+        await _syncLog.record(
+          workspaceId: workspaceId,
+          connectorKey: 'google_drive',
+          store: 'generic',
+          kind: 'sync',
+          success: !result.hadErrors,
+          recordsSeen: result.recordsSeen,
+          recordsChanged: result.recordsChanged,
+          errorMessage: result.hadErrors ? result.errors.join('; ') : null,
+        );
+
+        if (result.recordsChanged > 0) {
+          Log.info(
+            'ConnectorSyncSweepService: workspace $workspaceId Google Drive — '
+            '${result.recordsSeen} seen, ${result.recordsChanged} changed',
+          );
+        }
+        succeeded++;
+      } catch (e) {
+        Log.error('ConnectorSyncSweepService: Google Drive sync failed for workspace $workspaceId', error: e);
       }
     }
 

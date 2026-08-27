@@ -48,6 +48,7 @@ import 'package:kola_server/src/services/repository/owner_notification_settings_
 import 'package:kola_server/src/services/repository/owner_notification_send_repository.dart';
 import 'package:kola_server/src/services/notifications/notification_rate_limiter.dart';
 import 'package:kola_server/src/services/notifications/owner_notification_dispatcher.dart';
+import 'package:kola_server/src/services/notifications/broadcast_reply_digest_service.dart';
 import 'package:kola_server/src/services/conversations/inbound_message_handler.dart';
 import 'package:kola_server/src/services/security/security_filter.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
@@ -58,6 +59,10 @@ import 'package:kola_server/src/services/billing/paystack_service.dart';
 import 'package:kola_server/src/services/billing/flutterwave_service.dart';
 import 'package:kola_server/src/services/messaging/channel_health_check_service.dart';
 import 'package:kola_server/src/services/messaging/outbound_message_service.dart';
+import 'package:kola_server/src/services/messaging/broadcast_sweep_service.dart';
+import 'package:kola_server/src/services/repository/broadcast_repository.dart';
+import 'package:kola_server/src/services/repository/broadcast_recipient_repository.dart';
+import 'package:kola_server/src/services/repository/message_suppression_repository.dart';
 import 'package:kola_server/src/services/repository/connector_sync_log_repository.dart';
 import 'package:kola_server/src/services/repository/event_repository.dart';
 import 'package:kola_server/src/services/agents/agent_orchestrator.dart';
@@ -467,6 +472,10 @@ void setupDependencyInjection() {
       aiOrchestrator: getIt<AiOrchestrator>(),
       memory: getIt<MemoryRetrievalService>(),
       products: getIt<ProductRepository>(),
+      // Fix for the "answered from Paystack instead of my own sales"
+      // bug — see WorkspaceAnswerService's _sales field comment.
+      // Already registered above (SaleRepository).
+      sales: getIt<SaleRepository>(),
       // Connect Gate, subphase 4e — connector-status awareness for the
       // owner dashboard's "Ask kola" box. Both already registered
       // elsewhere in this function.
@@ -529,6 +538,23 @@ void setupDependencyInjection() {
       events: getIt<EventBus>(),
     ),
   );
+
+  // Gate 9 — the broadcast queue engine. BroadcastSweepService reuses
+  // OutboundMessageService (registered just above) for the actual
+  // per-recipient send/persist/event-emit — see that service's header
+  // on why that reuse is also what makes a broadcast send idempotent
+  // across a crash-and-resume.
+  getIt.registerLazySingleton<BroadcastRepository>(() => const BroadcastRepository());
+  getIt.registerLazySingleton<BroadcastRecipientRepository>(() => const BroadcastRecipientRepository());
+  getIt.registerLazySingleton<MessageSuppressionRepository>(() => const MessageSuppressionRepository());
+  getIt.registerLazySingleton<BroadcastSweepService>(
+    () => BroadcastSweepService(
+      broadcasts: getIt<BroadcastRepository>(),
+      recipients: getIt<BroadcastRecipientRepository>(),
+      suppressions: getIt<MessageSuppressionRepository>(),
+      outbound: getIt<OutboundMessageService>(),
+    ),
+  );
   getIt.registerLazySingleton<OwnerNotificationSettingsRepository>(
     () => const OwnerNotificationSettingsRepository(),
   );
@@ -543,6 +569,14 @@ void setupDependencyInjection() {
       settingsRepo: getIt<OwnerNotificationSettingsRepository>(),
       workspaces: getIt<WorkspaceRepository>(),
       rateLimiter: getIt<NotificationRateLimiter>(),
+    ),
+  );
+  // Gate 10 (reply-absorption) — coalesces escalation notifications for
+  // conversations tagged with a broadcastId. See that service's header.
+  getIt.registerLazySingleton<BroadcastReplyDigestService>(
+    () => BroadcastReplyDigestService(
+      broadcasts: getIt<BroadcastRepository>(),
+      notifications: getIt<OwnerNotificationDispatcher>(),
     ),
   );
   // Phase 3d — pattern-based security filter (SRS.md §10), the seam the
@@ -566,6 +600,10 @@ void setupDependencyInjection() {
       inboundMedia: getIt<InboundMediaService>(),
       errandDispatch: getIt<ErrandDispatchService>(),
       notificationDispatcher: getIt<OwnerNotificationDispatcher>(),
+      // Gate 10 (reply-absorption) — routes a broadcast-tagged
+      // conversation's escalation through the digest instead of a plain
+      // per-conversation notification.
+      broadcastReplyDigest: getIt<BroadcastReplyDigestService>(),
       securityFilter: getIt<SecurityFilter>(),
       trialStateMachine: getIt<TrialStateMachine>(),
       // Gate 2 — emits 'new_conversation'. See inbound_message_handler

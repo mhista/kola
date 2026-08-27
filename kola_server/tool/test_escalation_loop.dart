@@ -32,6 +32,8 @@ import 'package:kola_server/src/services/repository/conversation_repository.dart
 import 'package:kola_server/src/services/repository/message_repository.dart';
 import 'package:kola_server/src/services/repository/owner_notification_settings_repository.dart';
 import 'package:kola_server/src/services/repository/owner_notification_send_repository.dart';
+import 'package:kola_server/src/services/repository/broadcast_repository.dart';
+import 'package:kola_server/src/services/notifications/broadcast_reply_digest_service.dart';
 import 'package:kola_server/src/services/repository/usage_record_repository.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/errand_execution_log_repository.dart';
@@ -217,6 +219,18 @@ Future<void> main(List<String> args) async {
       settingsRepo: const OwnerNotificationSettingsRepository(),
       workspaces: workspaces,
       rateLimiter: NotificationRateLimiter(sends: const OwnerNotificationSendRepository()),
+    ),
+    // Gate 10 — required dependency, never exercised by this script
+    // (this workspace's conversations are never broadcast-tagged), same
+    // "constructed rather than made nullable just for a test script"
+    // spirit as the other required-but-unused deps below.
+    broadcastReplyDigest: BroadcastReplyDigestService(
+      broadcasts: const BroadcastRepository(),
+      notifications: OwnerNotificationDispatcher(
+        settingsRepo: const OwnerNotificationSettingsRepository(),
+        workspaces: workspaces,
+        rateLimiter: NotificationRateLimiter(sends: const OwnerNotificationSendRepository()),
+      ),
     ),
     events: eventBus,
     customerIdentity: customerIdentity,

@@ -717,7 +717,11 @@ class ConnectorEndpoint extends Endpoint {
             GoogleOAuthService.scopeDriveMetadataReadonly,
           ],
         'google_calendar' => const [GoogleOAuthService.scopeCalendarEvents],
-        _ => null, // google_drive joins this once its adapter exists
+        // Gate 11 — see google_oauth_service.dart's scopeDriveReadonly
+        // doc comment on why this is a broader, SEPARATE grant from
+        // google_sheets' own drive.metadata.readonly, not a reuse of it.
+        'google_drive' => const [GoogleOAuthService.scopeDriveReadonly],
+        _ => null,
       };
 
   /// Which Microsoft Graph scope a connector's OAuth grant should

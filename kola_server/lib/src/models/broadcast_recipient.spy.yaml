@@ -1,0 +1,90 @@
+##
+## broadcast_recipient.spy.yaml — Gate 9. One row per recipient of one
+## Broadcast — the "durable per-recipient state" the spec requires
+## instead of an in-memory list a crash would lose. THIS TABLE, not the
+## Broadcast row, is what makes a broadcast resumable: broadcast_sweep_
+## service.dart always re-derives what's left to do by querying for
+## state = 'queued' rows, never from anything held in process memory.
+##
+
+class: BroadcastRecipient
+# table: broadcast_recipients
+fields:
+  id: int? # Supabase assigns this automatically
+
+  ## Foreign key -> broadcasts.id
+  broadcastId: int
+
+  ## Denormalized from Broadcast.workspaceId — same "every isolation-
+  ## enforcing query filters directly, not via a join" reasoning as
+  ## Conversation.workspaceId (see conversation.spy.yaml).
+  workspaceId: int
+
+  ## The recipient address — WhatsApp phone number or Telegram chat id,
+  ## same String-typed shape IMessagingService.sendText already expects.
+  to: String
+
+  ## Set once resolved (same CustomerIdentityResolver path Gate 8 uses,
+  ## via OutboundMessageService.send) — null only in the brief window
+  ## before a recipient's first send attempt runs.
+  customerId: int?
+
+  ## Reserved for per-recipient template variables ("Recipient..., the
+  ## event or intent, variables..." — spec). JSON-encoded map, unused by
+  ## the v1 free-text sender (broadcast_sweep_service.dart sends
+  ## Broadcast.text verbatim to every recipient today) — the column
+  ## exists now so a future per-recipient personalization pass doesn't
+  ## need a migration to add it.
+  variablesJson: String?
+
+  ## 'queued' — not yet attempted.
+  ## 'sending' — claimed by the current sweep tick, attempt in flight.
+  ##             Exists so two overlapping sweep ticks (should not
+  ##             happen with a single server instance, but costs nothing
+  ##             to guard) never double-send the same row.
+  ## 'sent' — the adapter call returned success. Terminal.
+  ## 'failed' — retries exhausted (see attemptCount). Terminal.
+  ## 'skipped' — suppressed at send time (message_suppressions matched)
+  ##             or the broadcast was cancelled before this row's turn.
+  ##             Terminal.
+  state: String
+
+  ## How many send attempts this row has had. broadcast_sweep_service
+  ## .dart retries a failure up to a fixed cap (see that file) before
+  ## marking 'failed' — this is what that cap counts against, and what
+  ## makes a resumed-after-crash broadcast not re-send a row that
+  ## already reached 'sent' (checked by state, not by this count, but
+  ## kept alongside it since both describe the same attempt history).
+  attemptCount: int
+
+  ## The most recent MessagingResult.errorMessage, if any. Overwritten
+  ## on each retry — only the latest failure reason is kept, since
+  ## that's what an owner needs to see on a still-failing row.
+  lastError: String?
+
+  ## Foreign key -> messages.id, set only once state = 'sent'. This is
+  ## what puts a broadcast send on the same Conversation/Message trail
+  ## as every other outbound message — OutboundMessageService.send
+  ## (reused as-is by broadcast_sweep_service.dart) is what actually
+  ## creates that Message row.
+  messageId: int?
+
+  lastAttemptedAt: DateTime?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  broadcast_recipient_broadcast_idx:
+    fields: broadcastId
+  ## Dedupe WITHIN one broadcast — "Someone in two audiences receives
+  ## one message" (spec) is about cross-broadcast targeting an audience
+  ## builder would need to enforce (not built in v1 — see broadcast
+  ## .spy.yaml's header); this index only guarantees the narrower, still
+  ## real guarantee that createBroadcast can't itself enqueue the same
+  ## address twice inside a single job.
+  broadcast_recipient_broadcast_to_idx:
+    fields: broadcastId, to
+    unique: true
+  broadcast_recipient_state_idx:
+    fields: state

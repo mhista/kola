@@ -22,7 +22,28 @@ const _dto = WorkspaceFindingDto();
 class WorkspaceFindingRepository {
   const WorkspaceFindingRepository();
 
-  /// Open findings: neither resolved nor dismissed.
+  /// A dismissal used to be permanent — see git history's original
+  /// comment here: "A previously DISMISSED one stays dismissed." That
+  /// was a real design choice, and it produced a real bug: an owner
+  /// dismisses "8 products running low" once, the exact same products
+  /// are STILL low three weeks later, and the Overview keeps saying
+  /// "Nothing needs you right now" forever — the section reads as
+  /// broken/disappeared, because from the owner's side it effectively
+  /// is. Reported directly by a real user: "recommendations stopped
+  /// showing up entirely... that's not supposed to be the case."
+  ///
+  /// [dismissCooldown] is the fix: "I saw this, stop telling me" is
+  /// honoured for a bounded window, not forever. After the cooldown
+  /// elapses, a finding whose underlying condition is STILL being
+  /// actively detected (last_seen_at recent — see reconcile) is treated
+  /// as open again, the same way a resolved-then-recurring finding
+  /// already was. Dismissing it again (WorkspaceFindingRepository
+  /// .dismiss) restarts the window from that moment.
+  static const dismissCooldown = Duration(days: 7);
+
+  /// Open findings: not resolved, and either never dismissed or
+  /// dismissed longer ago than [dismissCooldown] — see that field's
+  /// header for why this is no longer a hard permanent exclusion.
   ///
   /// Ordered worst-first, then OLDEST-first within a severity. The
   /// oldest tie-break is deliberate — among equally urgent things, the
@@ -30,6 +51,7 @@ class WorkspaceFindingRepository {
   /// forgotten.
   Future<List<WorkspaceFinding>> listOpen(int workspaceId) async {
     _log.fine('listOpen($workspaceId)');
+    final cutoff = DateTime.now().toUtc().subtract(dismissCooldown).toIso8601String();
     final response = await supabase
         .from('workspace_findings')
         .select()
@@ -42,7 +64,12 @@ class WorkspaceFindingRepository {
         // the existing precedent rather than rediscovering the rename at
         // runtime.
         .filter('resolved_at', 'is', null)
-        .filter('dismissed_at', 'is', null)
+        // Raw PostgREST `or` filter string, not two chained calls — a
+        // second `.filter`/`.eq` call ANDs with everything before it,
+        // and this needs OR: "never dismissed" OR "dismissed a while
+        // ago". `.is.null` and `.lt.<iso8601>` are the same operator
+        // spellings used elsewhere in this file via `.filter`.
+        .or('dismissed_at.is.null,dismissed_at.lt.$cutoff')
         .order('severity', ascending: true)
         .order('first_seen_at', ascending: true);
 
@@ -126,17 +153,25 @@ class WorkspaceFindingRepository {
 
     // Resolve anything no longer detected.
     //
-    // Scoped to rows that are currently OPEN and not dismissed: touching
-    // a dismissed row would revive it as "resolved", which is a different
-    // and misleading state — the owner did not fix it, they chose to
-    // ignore it.
+    // Scoped to rows that are currently OPEN and either never dismissed
+    // or dismissed past [WorkspaceFindingRepository.dismissCooldown] —
+    // touching a STILL-suppressed dismissed row would revive it as
+    // "resolved", which is a different and misleading state (the owner
+    // did not fix it, they chose to ignore it). But once the cooldown
+    // has elapsed, [listOpen] already treats the row as open again — if
+    // the sweep also finds the underlying condition is genuinely gone,
+    // marking it resolved here is what stops a fixed problem from
+    // sitting in "Needs your attention" forever just because it was
+    // dismissed once, weeks ago, before it was actually fixed.
+    final dismissCutoff =
+        now.subtract(WorkspaceFindingRepository.dismissCooldown).toIso8601String();
     final fingerprints = [for (final d in detected) d.fingerprint];
     var stale = supabase
         .from('workspace_findings')
         .update({'resolved_at': iso, 'updated_at': iso})
         .eq('workspace_id', workspaceId)
         .filter('resolved_at', 'is', null)
-        .filter('dismissed_at', 'is', null);
+        .or('dismissed_at.is.null,dismissed_at.lt.$dismissCutoff');
     if (fingerprints.isNotEmpty) {
       // Everything the sweep did NOT just report.
       //
