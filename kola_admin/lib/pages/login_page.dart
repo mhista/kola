@@ -70,14 +70,14 @@ class _LoginPageState extends State<LoginPage> {
   static const _inputStyle =
       'width:100%;box-sizing:border-box;background:${AdminColors.bg};'
       'border:1px solid ${AdminColors.border};border-radius:8px;padding:10px 12px;'
-      'color:${AdminColors.text};font-family:${AdminFonts.mono};font-size:14px;outline:none';
+      "color:${AdminColors.text};font-family:${AdminFonts.body};font-size:14px;outline:none";
 
   @override
   Component build(BuildContext context) {
     return div(
       attributes: {
         'style':
-            'font-family:${AdminFonts.sans};background:${AdminColors.bg};color:${AdminColors.text};'
+            "font-family:${AdminFonts.body};background:${AdminColors.bg};color:${AdminColors.text};"
             'width:100%;height:100vh;height:100svh;overflow-y:auto;display:flex;'
             'align-items:center;justify-content:center;box-sizing:border-box;padding:24px',
       },
@@ -90,14 +90,24 @@ class _LoginPageState extends State<LoginPage> {
           },
           [
             div(
-              attributes: {
-                'style': 'font-family:${AdminFonts.mono};font-size:13px;'
-                    'letter-spacing:0.08em;color:${AdminColors.muted};text-transform:uppercase;margin-bottom:4px',
-              },
-              [Component.text('kola / control plane')],
+              attributes: {'style': 'display:flex;align-items:center;gap:8px;margin-bottom:22px'},
+              [
+                div(
+                  attributes: {
+                    'style': 'width:16px;height:16px;border-radius:4px;background:${AdminColors.accent};flex:none',
+                  },
+                  [],
+                ),
+                span(
+                  [Component.text('kola_admin')],
+                  attributes: {
+                    'style': "font-family:${AdminFonts.display};font-size:15px;font-weight:700;color:${AdminColors.heading}",
+                  },
+                ),
+              ],
             ),
             div(
-              attributes: {'style': 'font-size:20px;font-weight:600;margin-bottom:20px'},
+              attributes: {'style': 'font-size:19px;font-weight:700;font-family:${AdminFonts.display};color:${AdminColors.heading};margin-bottom:20px'},
               [Component.text('Admin sign-in')],
             ),
             if (_error != null)

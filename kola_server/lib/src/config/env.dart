@@ -453,12 +453,24 @@ abstract class Env {
   // admin session must never be verifiable with the same key a customer
   // session is, or a bug conflating the two auth models becomes a
   // platform-wide compromise instead of a workspace-scoped one (see
-  // admin_auth_service.dart's header). Same Platform.environment-only
-  // pattern as instagramWebhookVerifyToken/the four OAuth provider
-  // blocks above — no real secret exists yet for build_runner to
-  // obfuscate, and no toolchain here to run it either way. Not required
-  // for the customer-facing server to start; kola_admin's auth simply
-  // does not work until this is set.
-  static final String adminJwtSecret =
-      Platform.environment['ADMIN_JWT_SECRET'] ?? '';
+  // admin_auth_service.dart's header).
+  //
+  // UPGRADED FROM A BARE Platform.environment READ to a real @EnviedField,
+  // same shape as supabaseJwtSecret above — the original Platform.environment-
+  // only version (matching instagramWebhookVerifyToken/the OAuth provider
+  // blocks) existed only because no Dart toolchain was reachable to run
+  // build_runner at the time. That constraint no longer holds, so this
+  // now goes through the same obfuscated-at-build-time path as every other
+  // real secret: reads .env via envied when build_runner has been run,
+  // falls back to a live Platform.environment var otherwise (e.g. before
+  // build_runner has ever been run, or when a deploy target injects the
+  // var directly without baking it in).
+  @EnviedField(
+    varName: 'ADMIN_JWT_SECRET',
+    obfuscate: true,
+    defaultValue: '',
+  )
+  static final String adminJwtSecret = _Env.adminJwtSecret.isNotEmpty
+      ? _Env.adminJwtSecret
+      : Platform.environment['ADMIN_JWT_SECRET'] ?? '';
 }

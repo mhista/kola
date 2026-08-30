@@ -8,12 +8,23 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #0B0D10;
+  background: #0C0C0D;
 }
 
 body {
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
+
+/* Exact scrollbar/placeholder/link rules from the design spec's
+   <helmet><style> block (Kola Admin Release Control.dc.html). */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2C2C2E; border-radius: 100px; border: 2px solid #0C0C0D; }
+::-webkit-scrollbar-thumb:hover { background: #3A3A3D; }
+html { scrollbar-color: #2C2C2E #0C0C0D; scrollbar-width: thin; }
+a { color: #5B9BD1; }
+a:hover { color: #7CB0E9; }
+::placeholder { color: #5A5754; }
 
 button {
   font-family: inherit;
