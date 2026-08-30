@@ -467,6 +467,35 @@ class EndpointAdminFeature extends _i1.EndpointRef {
 }
 
 /// {@category Endpoint}
+class EndpointAdminOverview extends _i1.EndpointRef {
+  EndpointAdminOverview(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'adminOverview';
+
+  /// "key|value" lines: workspace counts by status, open ticket count,
+  /// sweep job pass/fail counts since last restart, AI providers
+  /// configured, embedding availability. One call, everything the
+  /// landing page needs.
+  _i2.Future<List<String>> getSummary(String adminToken) =>
+      caller.callServerEndpoint<List<String>>(
+        'adminOverview',
+        'getSummary',
+        {'adminToken': adminToken},
+      );
+
+  /// The 5 most recent audit log entries, same formatted-line shape as
+  /// AdminAuditLogEndpoint.listRecent, just pre-limited for a compact
+  /// landing-page widget rather than the full log page.
+  _i2.Future<List<String>> getRecentActivity(String adminToken) =>
+      caller.callServerEndpoint<List<String>>(
+        'adminOverview',
+        'getRecentActivity',
+        {'adminToken': adminToken},
+      );
+}
+
+/// {@category Endpoint}
 class EndpointAdminPlatform extends _i1.EndpointRef {
   EndpointAdminPlatform(_i1.EndpointCaller caller) : super(caller);
 
@@ -3604,6 +3633,7 @@ class Client extends _i1.ServerpodClientShared {
     adminAuth = EndpointAdminAuth(this);
     adminDiagnostics = EndpointAdminDiagnostics(this);
     adminFeature = EndpointAdminFeature(this);
+    adminOverview = EndpointAdminOverview(this);
     adminPlatform = EndpointAdminPlatform(this);
     adminSupport = EndpointAdminSupport(this);
     adminWorkspace = EndpointAdminWorkspace(this);
@@ -3641,6 +3671,8 @@ class Client extends _i1.ServerpodClientShared {
   late final EndpointAdminDiagnostics adminDiagnostics;
 
   late final EndpointAdminFeature adminFeature;
+
+  late final EndpointAdminOverview adminOverview;
 
   late final EndpointAdminPlatform adminPlatform;
 
@@ -3698,6 +3730,7 @@ class Client extends _i1.ServerpodClientShared {
     'adminAuth': adminAuth,
     'adminDiagnostics': adminDiagnostics,
     'adminFeature': adminFeature,
+    'adminOverview': adminOverview,
     'adminPlatform': adminPlatform,
     'adminSupport': adminSupport,
     'adminWorkspace': adminWorkspace,

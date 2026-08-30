@@ -9,6 +9,7 @@ import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/admin_shell.dart';
+import '../services/admin_error.dart';
 import '../theme.dart';
 
 class AdminAccountsPage extends StatefulComponent {
@@ -54,10 +55,14 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (isAdminSessionError(e)) {
+        component.onSignOut();
+        return;
+      }
       setState(() {
-        _error = e.toString().contains('admin_access_denied')
+        _error = isAdminAccessDenied(e)
             ? "Your admin level doesn't permit viewing admin accounts — Owner only."
-            : 'Something went wrong: $e';
+            : describeAdminError(e);
         _loading = false;
       });
     }
@@ -81,8 +86,12 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
+      if (isAdminSessionError(e)) {
+        component.onSignOut();
+        return;
+      }
       setState(() {
-        _banner = 'Failed: $e';
+        _banner = 'Failed: ${describeAdminError(e)}';
         _bannerIsError = true;
         _busy = false;
       });

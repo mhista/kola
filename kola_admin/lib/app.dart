@@ -43,6 +43,7 @@ import 'pages/platform_health_page.dart';
 import 'pages/support_queue_page.dart';
 import 'pages/audit_log_page.dart';
 import 'pages/admin_accounts_page.dart';
+import 'pages/overview_page.dart';
 
 class AdminApp extends StatefulComponent {
   const AdminApp();
@@ -158,6 +159,14 @@ class _AdminAppState extends State<AdminApp> {
         Route(
           path: '/',
           builder: (context, state) => ReleaseControlPage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/overview',
+          builder: (context, state) => OverviewPage(
             client: _client,
             adminToken: _adminToken ?? '',
             onSignOut: _handleSignOut,

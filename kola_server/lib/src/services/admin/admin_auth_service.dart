@@ -81,10 +81,53 @@ class AdminAuthService {
 
   static const _sessionLifetime = Duration(hours: 4);
 
+  // ── BRUTE-FORCE LOCKOUT (added as a robustness pass after the initial
+  // build — there was previously NO limit on login attempts at all) ──
+  //
+  // In-memory, process-static, same honest single-instance caveat as
+  // SecurityFilter's rate limiter (see that file's header) and this
+  // pass's PlatformHealthRegistry — a real fix if Kola ever runs more
+  // than one server instance is a persisted table, not a bigger map.
+  // Restarting the server also resets every counter; that is an
+  // accepted tradeoff for "zero new infrastructure," not an oversight.
+  //
+  // Keyed by the ATTEMPTED email, not the resolved account, and
+  // incremented on every failure whether or not the account exists —
+  // otherwise an attacker could distinguish "real account, wrong
+  // password" from "no such account" by which one locks out, exactly
+  // the user-enumeration leak [login]'s constant-effort dummy-hash
+  // branch already goes out of its way to avoid.
+  static final Map<String, List<DateTime>> _failedAttempts = {};
+  static const _maxAttempts = 5;
+  static const _lockoutWindow = Duration(minutes: 15);
+
+  bool _isLockedOut(String key) {
+    final now = DateTime.now();
+    final attempts = _failedAttempts[key];
+    if (attempts == null) return false;
+    attempts.removeWhere((t) => now.difference(t) > _lockoutWindow);
+    if (attempts.isEmpty) _failedAttempts.remove(key);
+    return attempts.length >= _maxAttempts;
+  }
+
+  void _recordFailure(String key) {
+    _failedAttempts.putIfAbsent(key, () => []).add(DateTime.now());
+  }
+
+  void _recordSuccess(String key) => _failedAttempts.remove(key);
+
   /// Verifies [email]/[password] and returns a signed session token.
   /// Same "generic failure message" posture Supabase Auth itself uses —
   /// bad email and bad password both fail identically here.
   Future<String> login({required String email, required String password}) async {
+    final key = email.trim().toLowerCase();
+
+    if (_isLockedOut(key)) {
+      throw const AdminAuthException(
+        'Too many failed sign-in attempts. Try again in a few minutes.',
+      );
+    }
+
     final user = await _users.findByEmail(email);
     if (user == null || !user.active) {
       // Constant-effort even on a miss: hash against a dummy value so a
@@ -96,10 +139,12 @@ class AdminAuthService {
         password,
         '210000:AAAAAAAAAAAAAAAAAAAAAA==:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
       );
+      _recordFailure(key);
       throw const AdminAuthException('Invalid email or password.');
     }
 
     if (!await AdminPasswordHasher.verify(password, user.passwordHash)) {
+      _recordFailure(key);
       throw const AdminAuthException('Invalid email or password.');
     }
 
@@ -110,6 +155,7 @@ class AdminAuthService {
       );
     }
 
+    _recordSuccess(key);
     unawaited(_users.touchLastSeen(user.id));
 
     final jwt = JWT({

@@ -13,6 +13,7 @@ import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/admin_shell.dart';
+import '../services/admin_error.dart';
 import '../theme.dart';
 
 class CustomerServicePage extends StatefulComponent {
@@ -68,8 +69,12 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (isAdminSessionError(e)) {
+        component.onSignOut();
+        return;
+      }
       setState(() {
-        _error = 'Something went wrong: $e';
+        _error = describeAdminError(e);
         _loading = false;
       });
     }
@@ -94,8 +99,12 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       await _run();
     } catch (e) {
       if (!mounted) return;
+      if (isAdminSessionError(e)) {
+        component.onSignOut();
+        return;
+      }
       setState(() {
-        _banner = 'Re-index failed: $e';
+        _banner = 'Re-index failed: ${describeAdminError(e)}';
         _bannerIsError = true;
         _busy = false;
       });

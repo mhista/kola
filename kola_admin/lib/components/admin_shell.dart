@@ -10,13 +10,11 @@
 // shape (translated to route names here since this is Dart, not the
 // mockup's static HTML export).
 //
-// HONESTY ABOUT WHAT'S REAL: every nav item except "Overview" is now a
-// real route (steps 5-7 plus the three deferred "own page" items were
-// all built in this pass — see docs/ADMIN_CONTROL_PLANE_STATUS.md for
-// what each surface does and does not cover honestly). "Overview" is
-// still inert — no dashboard-summary page exists yet — and renders
-// dimmed, same "not built yet" via [onUnbuiltNav] as before rather than
-// 404ing or silently doing nothing.
+// HONESTY ABOUT WHAT'S REAL: every nav item, including "Overview", is
+// now a real route — see docs/ADMIN_CONTROL_PLANE_STATUS.md for what
+// each surface does and does not cover honestly. [onUnbuiltNav] is kept
+// as a mechanism (rather than removed) in case a future nav item is
+// added before its page is ready — no item currently uses it.
 //
 // NAVIGATION: a nav item with a real [AdminNavItem.route] renders as a
 // jaspr_router [Link] — this project's established declarative-
@@ -41,7 +39,7 @@ class AdminNavItem {
 }
 
 const List<AdminNavItem> kAdminNavItems = [
-  AdminNavItem('Overview'),
+  AdminNavItem('Overview', route: '/overview'),
   AdminNavItem('Workspaces', route: '/workspaces'),
   AdminNavItem('Release control', route: '/'),
   AdminNavItem('Customer service', route: '/customer-service'),

@@ -15,6 +15,7 @@ import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/admin_shell.dart';
+import '../services/admin_error.dart';
 import '../theme.dart';
 
 class AnnouncementsPage extends StatefulComponent {
@@ -63,9 +64,13 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (isAdminSessionError(e)) {
+        component.onSignOut();
+        return;
+      }
       setState(() {
         _previewLoading = false;
-        _banner = 'Preview failed: $e';
+        _banner = 'Preview failed: ${describeAdminError(e)}';
         _bannerIsError = true;
       });
     }
@@ -107,9 +112,13 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (isAdminSessionError(e)) {
+        component.onSignOut();
+        return;
+      }
       setState(() {
         _sending = false;
-        _banner = 'Send failed: $e';
+        _banner = 'Send failed: ${describeAdminError(e)}';
         _bannerIsError = true;
       });
     }

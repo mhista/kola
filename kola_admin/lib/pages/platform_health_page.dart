@@ -11,6 +11,7 @@ import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/admin_shell.dart';
+import '../services/admin_error.dart';
 import '../theme.dart';
 
 class PlatformHealthPage extends StatefulComponent {
@@ -59,8 +60,12 @@ class _PlatformHealthPageState extends State<PlatformHealthPage> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (isAdminSessionError(e)) {
+        component.onSignOut();
+        return;
+      }
       setState(() {
-        _error = 'Something went wrong: $e';
+        _error = describeAdminError(e);
         _loading = false;
       });
     }

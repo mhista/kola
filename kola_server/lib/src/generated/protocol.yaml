@@ -25,6 +25,9 @@ adminFeature:
   - setOverride:
   - removeOverride:
   - listOverridesForFeature:
+adminOverview:
+  - getSummary:
+  - getRecentActivity:
 adminPlatform:
   - listSweepJobStatuses:
   - listAiProviderStatus:

@@ -160,6 +160,8 @@ class TestEndpoints {
 
   late final _AdminFeatureEndpoint adminFeature;
 
+  late final _AdminOverviewEndpoint adminOverview;
+
   late final _AdminPlatformEndpoint adminPlatform;
 
   late final _AdminSupportEndpoint adminSupport;
@@ -237,6 +239,10 @@ class _InternalTestEndpoints extends TestEndpoints
       serializationManager,
     );
     adminFeature = _AdminFeatureEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    adminOverview = _AdminOverviewEndpoint(
       endpoints,
       serializationManager,
     );
@@ -1154,6 +1160,79 @@ class _AdminFeatureEndpoint {
                   _localCallContext.arguments,
                 )
                 as _i3.Future<List<_i7.WorkspaceFeatureOverride>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
+class _AdminOverviewEndpoint {
+  _AdminOverviewEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<List<String>> getSummary(
+    _i1.TestSessionBuilder sessionBuilder,
+    String adminToken,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'adminOverview',
+            method: 'getSummary',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'adminOverview',
+          methodName: 'getSummary',
+          parameters: _i1.testObjectToJson({'adminToken': adminToken}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<List<String>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _i3.Future<List<String>> getRecentActivity(
+    _i1.TestSessionBuilder sessionBuilder,
+    String adminToken,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'adminOverview',
+            method: 'getRecentActivity',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'adminOverview',
+          methodName: 'getRecentActivity',
+          parameters: _i1.testObjectToJson({'adminToken': adminToken}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<List<String>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
