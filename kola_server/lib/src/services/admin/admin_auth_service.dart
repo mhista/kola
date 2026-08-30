@@ -92,14 +92,14 @@ class AdminAuthService {
       // password" isn't observable. The dummy hash is a fixed,
       // non-secret PBKDF2 output — its only job is to make this branch
       // cost roughly the same as the real one below.
-      AdminPasswordHasher.verify(
+      await AdminPasswordHasher.verify(
         password,
         '210000:AAAAAAAAAAAAAAAAAAAAAA==:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
       );
       throw const AdminAuthException('Invalid email or password.');
     }
 
-    if (!AdminPasswordHasher.verify(password, user.passwordHash)) {
+    if (!await AdminPasswordHasher.verify(password, user.passwordHash)) {
       throw const AdminAuthException('Invalid email or password.');
     }
 
@@ -201,7 +201,7 @@ class AdminAuthService {
     if (user == null || !user.active) {
       throw const AdminAuthException('This admin account is no longer active.');
     }
-    if (!AdminPasswordHasher.verify(currentPassword, user.passwordHash)) {
+    if (!await AdminPasswordHasher.verify(currentPassword, user.passwordHash)) {
       throw const AdminAuthException('Current password is incorrect.');
     }
     if (newPassword.length < 12) {
@@ -211,7 +211,7 @@ class AdminAuthService {
       throw const AdminAuthException('New password must be different from the current one.');
     }
 
-    final newHash = AdminPasswordHasher.hash(newPassword);
+    final newHash = await AdminPasswordHasher.hash(newPassword);
     await _users.updatePassword(user.id, newHash);
   }
 }
