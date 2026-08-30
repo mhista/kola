@@ -41,13 +41,27 @@ class _LoginPageState extends State<LoginPage> {
       component.onLoggedIn(token);
     } catch (e) {
       if (!mounted) return;
-      // Deliberately generic — AdminAuthService.login() already collapses
-      // "no such account" and "wrong password" into one message
-      // server-side for exactly the reason a login form shouldn't
-      // distinguish them, and a raw exception string here would leak
-      // whatever KolaException wraps underneath.
+      // AdminAuthService.login() already collapses "no such account" and
+      // "wrong password" into one message server-side, on purpose — a
+      // login form shouldn't distinguish them, and that message
+      // ('Invalid email or password.') is safe to show verbatim.
+      //
+      // Anything else here is NOT a credentials problem and showing the
+      // same generic copy for it hides a real, diagnosable failure — e.g.
+      // 'Endpoint not found' (kola_server hasn't been redeployed with the
+      // admin endpoints yet — see kola_server/deploy.sh's header: pushing
+      // to git does NOT redeploy it), or a network/CORS failure reaching
+      // KOLA_SERVER_URL entirely. Surface those distinctly so the next
+      // person hitting this doesn't have to open devtools to find out
+      // it's a deploy gap, not a typo'd password.
+      final message = e.toString();
+      final isCredentialsError = message.contains('Invalid email or password');
       setState(() {
-        _error = 'Sign-in failed. Check the email and password and try again.';
+        _error = isCredentialsError
+            ? 'Sign-in failed. Check the email and password and try again.'
+            : 'Could not reach the admin server ($message). Check that '
+                'KOLA_SERVER_URL is correct and that kola_server has been '
+                'redeployed with the admin endpoints.';
         _loading = false;
       });
     }
