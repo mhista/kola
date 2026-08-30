@@ -1,0 +1,154 @@
+// login_page.dart — the only entry point into kola_admin. Deliberately
+// no sign-up UI: matches admin_auth_endpoint.dart's own design (no
+// signup method exists server-side — see that file's header). The
+// first admin account is created by direct database insert; this page
+// can never create one.
+
+import 'package:jaspr/jaspr.dart';
+import 'package:jaspr/dom.dart';
+import 'package:kola_client/kola_client.dart';
+
+import '../theme.dart';
+
+class LoginPage extends StatefulComponent {
+  const LoginPage({required this.client, required this.onLoggedIn});
+
+  final Client client;
+  final void Function(String adminToken) onLoggedIn;
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  String _email = '';
+  String _password = '';
+  bool _loading = false;
+  String? _error;
+
+  Future<void> _submit() async {
+    if (_email.trim().isEmpty || _password.isEmpty) {
+      setState(() => _error = 'Enter an email and password.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final token = await component.client.adminAuth.login(_email.trim(), _password);
+      if (!mounted) return;
+      component.onLoggedIn(token);
+    } catch (e) {
+      if (!mounted) return;
+      // Deliberately generic — AdminAuthService.login() already collapses
+      // "no such account" and "wrong password" into one message
+      // server-side for exactly the reason a login form shouldn't
+      // distinguish them, and a raw exception string here would leak
+      // whatever KolaException wraps underneath.
+      setState(() {
+        _error = 'Sign-in failed. Check the email and password and try again.';
+        _loading = false;
+      });
+    }
+  }
+
+  static const _inputStyle =
+      'width:100%;box-sizing:border-box;background:${AdminColors.bg};'
+      'border:1px solid ${AdminColors.border};border-radius:8px;padding:10px 12px;'
+      'color:${AdminColors.text};font-family:${AdminFonts.mono};font-size:14px;outline:none';
+
+  @override
+  Component build(BuildContext context) {
+    return div(
+      attributes: {
+        'style':
+            'font-family:${AdminFonts.sans};background:${AdminColors.bg};color:${AdminColors.text};'
+            'width:100%;height:100vh;height:100svh;overflow-y:auto;display:flex;'
+            'align-items:center;justify-content:center;box-sizing:border-box;padding:24px',
+      },
+      [
+        div(
+          attributes: {
+            'style':
+                'width:100%;max-width:360px;background:${AdminColors.card};'
+                'border:1px solid ${AdminColors.border};border-radius:12px;padding:28px;box-sizing:border-box',
+          },
+          [
+            div(
+              attributes: {
+                'style': 'font-family:${AdminFonts.mono};font-size:13px;'
+                    'letter-spacing:0.08em;color:${AdminColors.muted};text-transform:uppercase;margin-bottom:4px',
+              },
+              [Component.text('kola / control plane')],
+            ),
+            div(
+              attributes: {'style': 'font-size:20px;font-weight:600;margin-bottom:20px'},
+              [Component.text('Admin sign-in')],
+            ),
+            if (_error != null)
+              div(
+                attributes: {
+                  'style': 'background:${AdminColors.dangerBg};border:1px solid ${AdminColors.dangerBorder};'
+                      'color:${AdminColors.danger};border-radius:8px;padding:10px 12px;'
+                      'font-size:13px;margin-bottom:16px',
+                },
+                [Component.text(_error!)],
+              ),
+            div(
+              attributes: {'style': 'margin-bottom:14px'},
+              [
+                div(
+                  attributes: {'style': 'font-size:12px;color:${AdminColors.muted};margin-bottom:6px'},
+                  [Component.text('Email')],
+                ),
+                input<String>(
+                  type: InputType.email,
+                  value: _email,
+                  onInput: (v) => setState(() => _email = v),
+                  attributes: {'style': _inputStyle, 'placeholder': 'you@kola.internal'},
+                ),
+              ],
+            ),
+            div(
+              attributes: {'style': 'margin-bottom:18px'},
+              [
+                div(
+                  attributes: {'style': 'font-size:12px;color:${AdminColors.muted};margin-bottom:6px'},
+                  [Component.text('Password')],
+                ),
+                input<String>(
+                  type: InputType.password,
+                  value: _password,
+                  onInput: (v) => setState(() => _password = v),
+                  attributes: {'style': _inputStyle, 'placeholder': '••••••••'},
+                ),
+              ],
+            ),
+            button(
+              [Component.text(_loading ? 'Signing in…' : 'Sign in')],
+              type: ButtonType.submit,
+              disabled: _loading,
+              onClick: _submit,
+              attributes: {
+                'style':
+                    'width:100%;background:${AdminColors.accent};color:${AdminColors.accentText};'
+                    'border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;'
+                    'cursor:pointer;opacity:${_loading ? '0.7' : '1'}',
+              },
+            ),
+            div(
+              attributes: {'style': 'font-size:11.5px;color:${AdminColors.muted};margin-top:16px;line-height:1.5'},
+              [
+                Component.text(
+                  'No self-service sign-up. Accounts are provisioned directly '
+                  'against the database — ask an existing Owner-level admin.',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}

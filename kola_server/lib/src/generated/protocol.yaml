@@ -1,3 +1,14 @@
+adminAuth:
+  - login:
+adminFeature:
+  - listFlags:
+  - listMissingFeatureKeys:
+  - listOrphanedFeatureKeys:
+  - setFeatureState:
+  - releaseWave:
+  - setOverride:
+  - removeOverride:
+  - listOverridesForFeature:
 bot:
   - createBot:
   - createBotFromDescription:

@@ -12,46 +12,219 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:serverpod_client/serverpod_client.dart' as _i1;
 import 'dart:async' as _i2;
-import 'package:kola_client/src/protocol/bot.dart' as _i3;
-import 'package:kola_client/src/protocol/broadcast.dart' as _i4;
-import 'package:kola_client/src/protocol/broadcast_progress.dart' as _i5;
-import 'package:kola_client/src/protocol/message_suppression.dart' as _i6;
-import 'package:kola_client/src/protocol/channel.dart' as _i7;
-import 'package:kola_client/src/protocol/connector_status.dart' as _i8;
-import 'package:kola_client/src/protocol/google_drive_spreadsheet.dart' as _i9;
-import 'package:kola_client/src/protocol/calendar_booking.dart' as _i10;
-import 'package:kola_client/src/protocol/conversation.dart' as _i11;
-import 'package:kola_client/src/protocol/message.dart' as _i12;
-import 'package:kola_client/src/protocol/customer.dart' as _i13;
-import 'package:kola_client/src/protocol/customer_detail.dart' as _i14;
-import 'package:kola_client/src/protocol/customer_merge_proposal.dart' as _i15;
-import 'package:kola_client/src/protocol/errand.dart' as _i16;
-import 'package:kola_client/src/protocol/workspace_finding.dart' as _i17;
-import 'package:kola_client/src/protocol/invoice.dart' as _i18;
-import 'package:kola_client/src/protocol/knowledge_document.dart' as _i19;
-import 'package:kola_client/src/protocol/knowledge_search_hit.dart' as _i20;
-import 'package:kola_client/src/protocol/workspace_answer.dart' as _i21;
+import 'package:kola_client/src/protocol/feature_flag.dart' as _i3;
+import 'package:kola_client/src/protocol/workspace_feature_override.dart'
+    as _i4;
+import 'package:kola_client/src/protocol/bot.dart' as _i5;
+import 'package:kola_client/src/protocol/broadcast.dart' as _i6;
+import 'package:kola_client/src/protocol/broadcast_progress.dart' as _i7;
+import 'package:kola_client/src/protocol/message_suppression.dart' as _i8;
+import 'package:kola_client/src/protocol/channel.dart' as _i9;
+import 'package:kola_client/src/protocol/connector_status.dart' as _i10;
+import 'package:kola_client/src/protocol/google_drive_spreadsheet.dart' as _i11;
+import 'package:kola_client/src/protocol/calendar_booking.dart' as _i12;
+import 'package:kola_client/src/protocol/conversation.dart' as _i13;
+import 'package:kola_client/src/protocol/message.dart' as _i14;
+import 'package:kola_client/src/protocol/customer.dart' as _i15;
+import 'package:kola_client/src/protocol/customer_detail.dart' as _i16;
+import 'package:kola_client/src/protocol/customer_merge_proposal.dart' as _i17;
+import 'package:kola_client/src/protocol/errand.dart' as _i18;
+import 'package:kola_client/src/protocol/workspace_finding.dart' as _i19;
+import 'package:kola_client/src/protocol/invoice.dart' as _i20;
+import 'package:kola_client/src/protocol/knowledge_document.dart' as _i21;
+import 'package:kola_client/src/protocol/knowledge_search_hit.dart' as _i22;
+import 'package:kola_client/src/protocol/workspace_answer.dart' as _i23;
 import 'package:kola_client/src/protocol/owner_notification_settings.dart'
-    as _i22;
+    as _i24;
 import 'package:kola_client/src/protocol/payment_gateway_credential.dart'
-    as _i23;
-import 'package:kola_client/src/protocol/payment_transaction.dart' as _i24;
-import 'package:kola_client/src/protocol/api_key.dart' as _i25;
-import 'package:kola_client/src/protocol/created_api_key.dart' as _i26;
-import 'package:kola_client/src/protocol/webhook_endpoint.dart' as _i27;
-import 'package:kola_client/src/protocol/product.dart' as _i28;
-import 'package:kola_client/src/protocol/product_variant.dart' as _i29;
-import 'package:kola_client/src/protocol/product_media.dart' as _i30;
-import 'package:kola_client/src/protocol/end_of_day_report.dart' as _i31;
-import 'package:kola_client/src/protocol/sale.dart' as _i32;
-import 'package:kola_client/src/protocol/sale_line.dart' as _i33;
-import 'package:kola_client/src/protocol/support_ticket.dart' as _i34;
-import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i35;
+    as _i25;
+import 'package:kola_client/src/protocol/payment_transaction.dart' as _i26;
+import 'package:kola_client/src/protocol/api_key.dart' as _i27;
+import 'package:kola_client/src/protocol/created_api_key.dart' as _i28;
+import 'package:kola_client/src/protocol/webhook_endpoint.dart' as _i29;
+import 'package:kola_client/src/protocol/product.dart' as _i30;
+import 'package:kola_client/src/protocol/product_variant.dart' as _i31;
+import 'package:kola_client/src/protocol/product_media.dart' as _i32;
+import 'package:kola_client/src/protocol/end_of_day_report.dart' as _i33;
+import 'package:kola_client/src/protocol/sale.dart' as _i34;
+import 'package:kola_client/src/protocol/sale_line.dart' as _i35;
+import 'package:kola_client/src/protocol/support_ticket.dart' as _i36;
+import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i37;
 import 'package:kola_client/src/protocol/whatsapp_message_template.dart'
-    as _i36;
-import 'package:kola_client/src/protocol/workspace.dart' as _i37;
-import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i38;
-import 'protocol.dart' as _i39;
+    as _i38;
+import 'package:kola_client/src/protocol/workspace.dart' as _i39;
+import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i40;
+import 'protocol.dart' as _i41;
+
+/// {@category Endpoint}
+class EndpointAdminAuth extends _i1.EndpointRef {
+  EndpointAdminAuth(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'adminAuth';
+
+  /// Verifies [email]/[password] and returns a signed admin session
+  /// token (4-hour lifetime — see AdminAuthService's header) for use as
+  /// the `adminToken` parameter on every other admin endpoint method.
+  ///
+  /// Throws [KolaException] with code 'admin_login_failed' on any
+  /// failure — deliberately one generic message regardless of whether
+  /// the email doesn't exist, the password is wrong, or the account is
+  /// deactivated. See AdminAuthService.login's header on why.
+  _i2.Future<String> login(
+    String email,
+    String password,
+  ) => caller.callServerEndpoint<String>(
+    'adminAuth',
+    'login',
+    {
+      'email': email,
+      'password': password,
+    },
+  );
+}
+
+/// {@category Endpoint}
+class EndpointAdminFeature extends _i1.EndpointRef {
+  EndpointAdminFeature(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'adminFeature';
+
+  /// Every flag, raw platform state — NOT resolved per-workspace (that's
+  /// FeatureFlagService.isEnabled's job, for the customer-facing side).
+  /// Support level and above: read-only, safe for anyone with admin
+  /// access at all.
+  _i2.Future<List<_i3.FeatureFlag>> listFlags(String adminToken) =>
+      caller.callServerEndpoint<List<_i3.FeatureFlag>>(
+        'adminFeature',
+        'listFlags',
+        {'adminToken': adminToken},
+      );
+
+  /// The reconciliation banner's two halves — see FeatureFlagService
+  /// .reconcile()'s own doc comment on why drift in either direction
+  /// matters. Split into two methods rather than one record-returning
+  /// method: Serverpod's RPC layer serializes declared model types and
+  /// primitives cleanly; a bare Dart record is neither, so this avoids
+  /// needing a new wire type for a two-list result.
+  _i2.Future<List<String>> listMissingFeatureKeys(String adminToken) =>
+      caller.callServerEndpoint<List<String>>(
+        'adminFeature',
+        'listMissingFeatureKeys',
+        {'adminToken': adminToken},
+      );
+
+  _i2.Future<List<String>> listOrphanedFeatureKeys(String adminToken) =>
+      caller.callServerEndpoint<List<String>>(
+        'adminFeature',
+        'listOrphanedFeatureKeys',
+        {'adminToken': adminToken},
+      );
+
+  /// Moves one feature between states. `released` requires Owner; every
+  /// other transition — including the kill switch, any state → `locked`
+  /// — requires only Operator, per ADMIN_APP_SPEC.md §2/§3.1: "the
+  /// ability to stop something breaking must never be gated behind
+  /// finding a specific person at 2am."
+  ///
+  /// [note] is required for the audit trail, same "no unexplained
+  /// change" posture WorkspaceFeatureOverride.note already enforces at
+  /// the schema level for overrides — this table has no such column, so
+  /// the check is here instead.
+  _i2.Future<_i3.FeatureFlag> setFeatureState(
+    String adminToken,
+    String key,
+    String newState,
+    String note,
+  ) => caller.callServerEndpoint<_i3.FeatureFlag>(
+    'adminFeature',
+    'setFeatureState',
+    {
+      'adminToken': adminToken,
+      'key': key,
+      'newState': newState,
+      'note': note,
+    },
+  );
+
+  /// Flips every not-yet-released, not-externally-gated flag in [wave]
+  /// (e.g. 'R2') to `released`, in one audited action — "with a
+  /// confirmation listing every feature it contains" is the dashboard's
+  /// job (§3.1); this method is what it calls after that confirmation.
+  /// Owner-only, same as any individual `released` transition, since a
+  /// wave release affects every customer at once same as one flag does
+  /// — just more of them in one motion.
+  _i2.Future<List<_i3.FeatureFlag>> releaseWave(
+    String adminToken,
+    String wave,
+    String note,
+  ) => caller.callServerEndpoint<List<_i3.FeatureFlag>>(
+    'adminFeature',
+    'releaseWave',
+    {
+      'adminToken': adminToken,
+      'wave': wave,
+      'note': note,
+    },
+  );
+
+  /// Grants (enabled=true, the beta/design-partner mechanism) or revokes
+  /// access (enabled=false, the per-workspace kill switch) for one
+  /// workspace on one feature. Operator level — this is exactly the
+  /// "grant/revoke beta overrides" capability ADMIN_APP_SPEC.md §2's
+  /// table lists for Operator, not Owner.
+  _i2.Future<_i4.WorkspaceFeatureOverride> setOverride(
+    String adminToken,
+    int workspaceId,
+    String featureKey,
+    bool enabled,
+    String note,
+  ) => caller.callServerEndpoint<_i4.WorkspaceFeatureOverride>(
+    'adminFeature',
+    'setOverride',
+    {
+      'adminToken': adminToken,
+      'workspaceId': workspaceId,
+      'featureKey': featureKey,
+      'enabled': enabled,
+      'note': note,
+    },
+  );
+
+  /// Removes an override entirely, returning the workspace to whatever
+  /// the platform-wide state says — distinct from setOverride(enabled:
+  /// false), which is an active decision to keep a feature off for this
+  /// workspace even after general release. See
+  /// WorkspaceFeatureOverrideRepository.remove's own doc comment.
+  _i2.Future<void> removeOverride(
+    String adminToken,
+    int workspaceId,
+    String featureKey,
+  ) => caller.callServerEndpoint<void>(
+    'adminFeature',
+    'removeOverride',
+    {
+      'adminToken': adminToken,
+      'workspaceId': workspaceId,
+      'featureKey': featureKey,
+    },
+  );
+
+  /// "Who is in this beta?" — every workspace with an override for one
+  /// feature. Support level: read-only.
+  _i2.Future<List<_i4.WorkspaceFeatureOverride>> listOverridesForFeature(
+    String adminToken,
+    String featureKey,
+  ) => caller.callServerEndpoint<List<_i4.WorkspaceFeatureOverride>>(
+    'adminFeature',
+    'listOverridesForFeature',
+    {
+      'adminToken': adminToken,
+      'featureKey': featureKey,
+    },
+  );
+}
 
 /// {@category Endpoint}
 class EndpointBot extends _i1.EndpointRef {
@@ -66,12 +239,12 @@ class EndpointBot extends _i1.EndpointRef {
   /// WorkspaceEndpoint.createWorkspace — the resulting Bot.id is what
   /// every ChannelEndpoint method needs to connect a Telegram or
   /// WhatsApp channel to it.
-  _i2.Future<_i3.Bot> createBot(
+  _i2.Future<_i5.Bot> createBot(
     String accessToken,
     int workspaceId,
     String name,
     String archetype,
-  ) => caller.callServerEndpoint<_i3.Bot>(
+  ) => caller.callServerEndpoint<_i5.Bot>(
     'bot',
     'createBot',
     {
@@ -101,11 +274,11 @@ class EndpointBot extends _i1.EndpointRef {
   /// still not started. This is the specific, concretely-scoped gap the
   /// composer already implied by sitting right above a "Create a new
   /// bot" quick action: describe it once here, get a real Bot back.
-  _i2.Future<_i3.Bot> createBotFromDescription(
+  _i2.Future<_i5.Bot> createBotFromDescription(
     String accessToken,
     int workspaceId,
     String description,
-  ) => caller.callServerEndpoint<_i3.Bot>(
+  ) => caller.callServerEndpoint<_i5.Bot>(
     'bot',
     'createBotFromDescription',
     {
@@ -118,10 +291,10 @@ class EndpointBot extends _i1.EndpointRef {
   /// Every bot belonging to a workspace — the dashboard's bot list/
   /// switcher, and the prerequisite lookup before a Channels page can
   /// call ChannelEndpoint.listChannelsForBot for any one of them.
-  _i2.Future<List<_i3.Bot>> listBotsForWorkspace(
+  _i2.Future<List<_i5.Bot>> listBotsForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i3.Bot>>(
+  ) => caller.callServerEndpoint<List<_i5.Bot>>(
     'bot',
     'listBotsForWorkspace',
     {
@@ -133,11 +306,11 @@ class EndpointBot extends _i1.EndpointRef {
   /// Fetch one bot by id — access-checked via its workspace, same
   /// "never leak existence to a non-member" posture as
   /// WorkspaceEndpoint.getWorkspace and BotRepository.findByIdScoped.
-  _i2.Future<_i3.Bot> getBot(
+  _i2.Future<_i5.Bot> getBot(
     String accessToken,
     int workspaceId,
     int botId,
-  ) => caller.callServerEndpoint<_i3.Bot>(
+  ) => caller.callServerEndpoint<_i5.Bot>(
     'bot',
     'getBot',
     {
@@ -153,13 +326,13 @@ class EndpointBot extends _i1.EndpointRef {
   /// ChannelEndpoint, a workspace pausing on trial expiry), not a
   /// free-form field an owner edits directly. See
   /// bot_repository.dart's setStatus for where that actually happens.
-  _i2.Future<_i3.Bot> updateBot(
+  _i2.Future<_i5.Bot> updateBot(
     String accessToken,
     int workspaceId,
     int botId,
     String name,
     String archetype,
-  ) => caller.callServerEndpoint<_i3.Bot>(
+  ) => caller.callServerEndpoint<_i5.Bot>(
     'bot',
     'updateBot',
     {
@@ -183,12 +356,12 @@ class EndpointBot extends _i1.EndpointRef {
   /// see that constant's own comment on why, unlike the message/Errand
   /// caps, this particular number is a placeholder, not a confirmed
   /// product decision.
-  _i2.Future<_i3.Bot> setKnowledgeSeed(
+  _i2.Future<_i5.Bot> setKnowledgeSeed(
     String accessToken,
     int workspaceId,
     int botId,
     String knowledgeSeed,
-  ) => caller.callServerEndpoint<_i3.Bot>(
+  ) => caller.callServerEndpoint<_i5.Bot>(
     'bot',
     'setKnowledgeSeed',
     {
@@ -205,13 +378,13 @@ class EndpointBot extends _i1.EndpointRef {
   /// here. Kept as its own method for the same reason [setKnowledgeSeed]
   /// is: a distinct, purposeful action, not a generic field edit folded
   /// into [updateBot].
-  _i2.Future<_i3.Bot> setCostSavingContacts(
+  _i2.Future<_i5.Bot> setCostSavingContacts(
     String accessToken,
     int workspaceId,
     int botId,
     String telegramLink,
     String alternateWhatsapp,
-  ) => caller.callServerEndpoint<_i3.Bot>(
+  ) => caller.callServerEndpoint<_i5.Bot>(
     'bot',
     'setCostSavingContacts',
     {
@@ -238,14 +411,14 @@ class EndpointBroadcast extends _i1.EndpointRef {
   /// later, so totalRecipients reflects who could actually be reached —
   /// live suppression added AFTER this call is still re-checked at send
   /// time by broadcast_sweep_service.dart, per spec.
-  _i2.Future<_i4.Broadcast> createBroadcast(
+  _i2.Future<_i6.Broadcast> createBroadcast(
     String accessToken,
     int workspaceId,
     String platform,
     String text,
     String recipientsJson,
     int? throughputPerMinute,
-  ) => caller.callServerEndpoint<_i4.Broadcast>(
+  ) => caller.callServerEndpoint<_i6.Broadcast>(
     'broadcast',
     'createBroadcast',
     {
@@ -261,11 +434,11 @@ class EndpointBroadcast extends _i1.EndpointRef {
   /// draft -> running. broadcast_sweep_service.dart's next tick (every
   /// [BroadcastSweepService.tickInterval]) picks it up from here — this
   /// method does not send anything itself.
-  _i2.Future<_i4.Broadcast> startBroadcast(
+  _i2.Future<_i6.Broadcast> startBroadcast(
     String accessToken,
     int workspaceId,
     int broadcastId,
-  ) => caller.callServerEndpoint<_i4.Broadcast>(
+  ) => caller.callServerEndpoint<_i6.Broadcast>(
     'broadcast',
     'startBroadcast',
     {
@@ -279,11 +452,11 @@ class EndpointBroadcast extends _i1.EndpointRef {
   /// sent; only 'queued' rows are affected, and they simply never get
   /// attempted (broadcast_sweep_service.dart only ever works
   /// 'running' broadcasts).
-  _i2.Future<_i4.Broadcast> cancelBroadcast(
+  _i2.Future<_i6.Broadcast> cancelBroadcast(
     String accessToken,
     int workspaceId,
     int broadcastId,
-  ) => caller.callServerEndpoint<_i4.Broadcast>(
+  ) => caller.callServerEndpoint<_i6.Broadcast>(
     'broadcast',
     'cancelBroadcast',
     {
@@ -293,10 +466,10 @@ class EndpointBroadcast extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i4.Broadcast>> listBroadcasts(
+  _i2.Future<List<_i6.Broadcast>> listBroadcasts(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i4.Broadcast>>(
+  ) => caller.callServerEndpoint<List<_i6.Broadcast>>(
     'broadcast',
     'listBroadcasts',
     {
@@ -308,11 +481,11 @@ class EndpointBroadcast extends _i1.EndpointRef {
   /// "Live progress — sent, delivered, failed, remaining" (spec, minus
   /// delivered/read — see broadcast.spy.yaml's header on why those
   /// aren't tracked yet).
-  _i2.Future<_i5.BroadcastProgress> getBroadcastProgress(
+  _i2.Future<_i7.BroadcastProgress> getBroadcastProgress(
     String accessToken,
     int workspaceId,
     int broadcastId,
-  ) => caller.callServerEndpoint<_i5.BroadcastProgress>(
+  ) => caller.callServerEndpoint<_i7.BroadcastProgress>(
     'broadcast',
     'getBroadcastProgress',
     {
@@ -322,10 +495,10 @@ class EndpointBroadcast extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i6.MessageSuppression>> listSuppressions(
+  _i2.Future<List<_i8.MessageSuppression>> listSuppressions(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i6.MessageSuppression>>(
+  ) => caller.callServerEndpoint<List<_i8.MessageSuppression>>(
     'broadcast',
     'listSuppressions',
     {
@@ -334,12 +507,12 @@ class EndpointBroadcast extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i6.MessageSuppression> addSuppression(
+  _i2.Future<_i8.MessageSuppression> addSuppression(
     String accessToken,
     int workspaceId,
     String platform,
     String address,
-  ) => caller.callServerEndpoint<_i6.MessageSuppression>(
+  ) => caller.callServerEndpoint<_i8.MessageSuppression>(
     'broadcast',
     'addSuppression',
     {
@@ -384,12 +557,12 @@ class EndpointChannel extends _i1.EndpointRef {
   /// the one bot a small business runs isn't a sensitive-enough action to
   /// gate by role at this phase. Revisit once the 'staff'/'developer'
   /// role split actually needs enforcing here (SRS.md §5).
-  _i2.Future<_i7.Channel> connectTelegramChannel(
+  _i2.Future<_i9.Channel> connectTelegramChannel(
     String accessToken,
     int workspaceId,
     int botId,
     String botToken,
-  ) => caller.callServerEndpoint<_i7.Channel>(
+  ) => caller.callServerEndpoint<_i9.Channel>(
     'channel',
     'connectTelegramChannel',
     {
@@ -404,11 +577,11 @@ class EndpointChannel extends _i1.EndpointRef {
   /// dashboard's "Channels" page. Deliberately takes botId (not
   /// workspaceId alone) since Channel.botId is the actual foreign key;
   /// findByIdScoped on the bot is what proves workspace ownership.
-  _i2.Future<List<_i7.Channel>> listChannelsForBot(
+  _i2.Future<List<_i9.Channel>> listChannelsForBot(
     String accessToken,
     int workspaceId,
     int botId,
-  ) => caller.callServerEndpoint<List<_i7.Channel>>(
+  ) => caller.callServerEndpoint<List<_i9.Channel>>(
     'channel',
     'listChannelsForBot',
     {
@@ -453,7 +626,7 @@ class EndpointChannel extends _i1.EndpointRef {
   /// below has what it needs without asking the business to dig it up
   /// twice. Both live in the same App Dashboard → Settings → Basic page
   /// docs/WHATSAPP_MANUAL_SETUP.md's Step 5a walks through.
-  _i2.Future<_i7.Channel> connectWhatsAppChannelManual(
+  _i2.Future<_i9.Channel> connectWhatsAppChannelManual(
     String accessToken,
     int workspaceId,
     int botId,
@@ -462,7 +635,7 @@ class EndpointChannel extends _i1.EndpointRef {
     String wabaId,
     String whatsappAppId,
     String whatsappAppSecret,
-  ) => caller.callServerEndpoint<_i7.Channel>(
+  ) => caller.callServerEndpoint<_i9.Channel>(
     'channel',
     'connectWhatsAppChannelManual',
     {
@@ -500,14 +673,14 @@ class EndpointChannel extends _i1.EndpointRef {
   /// the connection (sending still works; see instagram_service.dart's
   /// own doc on that method) — only logged, same soft-fail posture as
   /// WhatsApp's debug_token check above.
-  _i2.Future<_i7.Channel> connectInstagramChannelManual(
+  _i2.Future<_i9.Channel> connectInstagramChannelManual(
     String accessToken,
     int workspaceId,
     int botId,
     String instagramAccessToken,
     String igUserId,
     String instagramAppSecret,
-  ) => caller.callServerEndpoint<_i7.Channel>(
+  ) => caller.callServerEndpoint<_i9.Channel>(
     'channel',
     'connectInstagramChannelManual',
     {
@@ -539,10 +712,10 @@ class EndpointConnector extends _i1.EndpointRef {
   /// absence-not-false rule rather than an oversight. The exception is
   /// narrow: connector names only. No flag key, no state, nothing about
   /// the rest of the roadmap.
-  _i2.Future<List<_i8.ConnectorStatus>> listConnectors(
+  _i2.Future<List<_i10.ConnectorStatus>> listConnectors(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i8.ConnectorStatus>>(
+  ) => caller.callServerEndpoint<List<_i10.ConnectorStatus>>(
     'connector',
     'listConnectors',
     {
@@ -558,12 +731,12 @@ class EndpointConnector extends _i1.EndpointRef {
   /// the connector's own definition is DROPPED rather than stored —
   /// a caller cannot invent fields, so the encrypted blob's shape stays
   /// the one the catalog describes.
-  _i2.Future<_i8.ConnectorStatus> connectConnector(
+  _i2.Future<_i10.ConnectorStatus> connectConnector(
     String accessToken,
     int workspaceId,
     String connectorKey,
     Map<String, String> values,
-  ) => caller.callServerEndpoint<_i8.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i10.ConnectorStatus>(
     'connector',
     'connectConnector',
     {
@@ -608,11 +781,11 @@ class EndpointConnector extends _i1.EndpointRef {
   /// stored refresh token has no Drive grant, so Google will 403 this
   /// call until they reconnect. See this file's header on why that's
   /// surfaced as a clear "reconnect" message, not a raw API error.
-  _i2.Future<List<_i9.GoogleDriveSpreadsheet>> listGoogleSheets(
+  _i2.Future<List<_i11.GoogleDriveSpreadsheet>> listGoogleSheets(
     String accessToken,
     int workspaceId,
     String connectorKey,
-  ) => caller.callServerEndpoint<List<_i9.GoogleDriveSpreadsheet>>(
+  ) => caller.callServerEndpoint<List<_i11.GoogleDriveSpreadsheet>>(
     'connector',
     'listGoogleSheets',
     {
@@ -628,12 +801,12 @@ class EndpointConnector extends _i1.EndpointRef {
   /// from [listGoogleSheets]. An empty list is valid: it means "sync
   /// nothing", not an error — same as never having picked a sheet at all
   /// under the old single-target flow.
-  _i2.Future<_i8.ConnectorStatus> setGoogleSheetTargets(
+  _i2.Future<_i10.ConnectorStatus> setGoogleSheetTargets(
     String accessToken,
     int workspaceId,
     String connectorKey,
     List<String> spreadsheetIds,
-  ) => caller.callServerEndpoint<_i8.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i10.ConnectorStatus>(
     'connector',
     'setGoogleSheetTargets',
     {
@@ -649,12 +822,12 @@ class EndpointConnector extends _i1.EndpointRef {
   /// ADDS [sheetUrl] to whatever's already selected rather than
   /// replacing it, since a paste box has no way to express "and keep the
   /// others too" the way the picker's checkbox list does.
-  _i2.Future<_i8.ConnectorStatus> setGoogleSheetTarget(
+  _i2.Future<_i10.ConnectorStatus> setGoogleSheetTarget(
     String accessToken,
     int workspaceId,
     String connectorKey,
     String sheetUrl,
-  ) => caller.callServerEndpoint<_i8.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i10.ConnectorStatus>(
     'connector',
     'setGoogleSheetTarget',
     {
@@ -747,12 +920,12 @@ class EndpointConnector extends _i1.EndpointRef {
   /// stored — see that method's header. Doing this here rather than at
   /// sync time means a bad link fails LOUD, in front of the owner who
   /// just pasted it, not silently on the next unattended sweep run.
-  _i2.Future<_i8.ConnectorStatus> setExcelFileTarget(
+  _i2.Future<_i10.ConnectorStatus> setExcelFileTarget(
     String accessToken,
     int workspaceId,
     String connectorKey,
     String fileUrl,
-  ) => caller.callServerEndpoint<_i8.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i10.ConnectorStatus>(
     'connector',
     'setExcelFileTarget',
     {
@@ -773,11 +946,11 @@ class EndpointConnector extends _i1.EndpointRef {
   /// UNSET value (a connection made before this setting existed, or one
   /// never touched) as 'draft' — the safer default, never 'immediate'
   /// by omission.
-  _i2.Future<_i8.ConnectorStatus> setCalendarBookingMode(
+  _i2.Future<_i10.ConnectorStatus> setCalendarBookingMode(
     String accessToken,
     int workspaceId,
     String bookingMode,
-  ) => caller.callServerEndpoint<_i8.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i10.ConnectorStatus>(
     'connector',
     'setCalendarBookingMode',
     {
@@ -791,10 +964,10 @@ class EndpointConnector extends _i1.EndpointRef {
   /// still needs an owner's yes/no. Draft-mode bookings only — a
   /// workspace running in immediate mode never accumulates any of these,
   /// since bookCalendarEvent skips straight to Google for them.
-  _i2.Future<List<_i10.CalendarBooking>> listPendingBookings(
+  _i2.Future<List<_i12.CalendarBooking>> listPendingBookings(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i10.CalendarBooking>>(
+  ) => caller.callServerEndpoint<List<_i12.CalendarBooking>>(
     'connector',
     'listPendingBookings',
     {
@@ -809,11 +982,11 @@ class EndpointConnector extends _i1.EndpointRef {
   /// booking is left sitting at 'approved' rather than silently reverted
   /// — visibly stuck, matching migration 042's own reasoning for why
   /// 'approved' and 'booked' are distinct states, not one.
-  _i2.Future<_i10.CalendarBooking> approveBooking(
+  _i2.Future<_i12.CalendarBooking> approveBooking(
     String accessToken,
     int workspaceId,
     int bookingId,
-  ) => caller.callServerEndpoint<_i10.CalendarBooking>(
+  ) => caller.callServerEndpoint<_i12.CalendarBooking>(
     'connector',
     'approveBooking',
     {
@@ -823,11 +996,11 @@ class EndpointConnector extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i10.CalendarBooking> rejectBooking(
+  _i2.Future<_i12.CalendarBooking> rejectBooking(
     String accessToken,
     int workspaceId,
     int bookingId,
-  ) => caller.callServerEndpoint<_i10.CalendarBooking>(
+  ) => caller.callServerEndpoint<_i12.CalendarBooking>(
     'connector',
     'rejectBooking',
     {
@@ -840,11 +1013,11 @@ class EndpointConnector extends _i1.EndpointRef {
   /// Disconnects, clearing the stored credential but keeping the row —
   /// 'disconnected' and "never connected" are different states, and the
   /// row is the only record that this business ever had it working.
-  _i2.Future<_i8.ConnectorStatus> disconnectConnector(
+  _i2.Future<_i10.ConnectorStatus> disconnectConnector(
     String accessToken,
     int workspaceId,
     String connectorKey,
-  ) => caller.callServerEndpoint<_i8.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i10.ConnectorStatus>(
     'connector',
     'disconnectConnector',
     {
@@ -864,10 +1037,10 @@ class EndpointConversation extends _i1.EndpointRef {
 
   /// Every escalated conversation for a workspace, most recently active
   /// first — the inbox's main queue.
-  _i2.Future<List<_i11.Conversation>> listEscalated(
+  _i2.Future<List<_i13.Conversation>> listEscalated(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i11.Conversation>>(
+  ) => caller.callServerEndpoint<List<_i13.Conversation>>(
     'conversation',
     'listEscalated',
     {
@@ -878,10 +1051,10 @@ class EndpointConversation extends _i1.EndpointRef {
 
   /// Every conversation for a workspace regardless of status — for a
   /// future "all conversations" view beyond just the escalated queue.
-  _i2.Future<List<_i11.Conversation>> listAll(
+  _i2.Future<List<_i13.Conversation>> listAll(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i11.Conversation>>(
+  ) => caller.callServerEndpoint<List<_i13.Conversation>>(
     'conversation',
     'listAll',
     {
@@ -891,11 +1064,11 @@ class EndpointConversation extends _i1.EndpointRef {
   );
 
   /// The full message thread for one conversation, oldest first.
-  _i2.Future<List<_i12.Message>> getMessages(
+  _i2.Future<List<_i14.Message>> getMessages(
     String accessToken,
     int workspaceId,
     int conversationId,
-  ) => caller.callServerEndpoint<List<_i12.Message>>(
+  ) => caller.callServerEndpoint<List<_i14.Message>>(
     'conversation',
     'getMessages',
     {
@@ -913,12 +1086,12 @@ class EndpointConversation extends _i1.EndpointRef {
   /// stays 'escalated' until the human explicitly closes it (see
   /// [closeConversation]), since one reply doesn't necessarily resolve
   /// things.
-  _i2.Future<_i12.Message> sendHumanReply(
+  _i2.Future<_i14.Message> sendHumanReply(
     String accessToken,
     int workspaceId,
     int conversationId,
     String body,
-  ) => caller.callServerEndpoint<_i12.Message>(
+  ) => caller.callServerEndpoint<_i14.Message>(
     'conversation',
     'sendHumanReply',
     {
@@ -932,11 +1105,11 @@ class EndpointConversation extends _i1.EndpointRef {
   /// Marks a conversation resolved — status flips to 'closed', so the
   /// bot resumes auto-replying if the customer messages again (see
   /// ConversationRepository.findOrCreate's reopen-on-new-message logic).
-  _i2.Future<_i11.Conversation> closeConversation(
+  _i2.Future<_i13.Conversation> closeConversation(
     String accessToken,
     int workspaceId,
     int conversationId,
-  ) => caller.callServerEndpoint<_i11.Conversation>(
+  ) => caller.callServerEndpoint<_i13.Conversation>(
     'conversation',
     'closeConversation',
     {
@@ -954,12 +1127,12 @@ class EndpointCustomer extends _i1.EndpointRef {
   @override
   String get name => 'customer';
 
-  _i2.Future<List<_i13.Customer>> listCustomers(
+  _i2.Future<List<_i15.Customer>> listCustomers(
     String accessToken,
     int workspaceId, {
     required int limit,
     required int offset,
-  }) => caller.callServerEndpoint<List<_i13.Customer>>(
+  }) => caller.callServerEndpoint<List<_i15.Customer>>(
     'customer',
     'listCustomers',
     {
@@ -972,11 +1145,11 @@ class EndpointCustomer extends _i1.EndpointRef {
 
   /// The Gate 3b proof surface: everything this customer has ever done,
   /// across every source, in one place — see CustomerDetail's header.
-  _i2.Future<_i14.CustomerDetail> getCustomerDetail(
+  _i2.Future<_i16.CustomerDetail> getCustomerDetail(
     String accessToken,
     int workspaceId,
     int customerId,
-  ) => caller.callServerEndpoint<_i14.CustomerDetail>(
+  ) => caller.callServerEndpoint<_i16.CustomerDetail>(
     'customer',
     'getCustomerDetail',
     {
@@ -988,10 +1161,10 @@ class EndpointCustomer extends _i1.EndpointRef {
 
   /// The merge-review queue — PART V: "Merges are proposals, not
   /// facts... the owner confirms."
-  _i2.Future<List<_i15.CustomerMergeProposal>> listMergeProposals(
+  _i2.Future<List<_i17.CustomerMergeProposal>> listMergeProposals(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i15.CustomerMergeProposal>>(
+  ) => caller.callServerEndpoint<List<_i17.CustomerMergeProposal>>(
     'customer',
     'listMergeProposals',
     {
@@ -1037,7 +1210,7 @@ class EndpointErrand extends _i1.EndpointRef {
   /// 'escalateToHuman') — validated against Meta... no, against that
   /// registry directly, so a typo'd key fails here with a clear message
   /// instead of at first invocation.
-  _i2.Future<_i16.Errand> createBuiltinErrand(
+  _i2.Future<_i18.Errand> createBuiltinErrand(
     String accessToken,
     int workspaceId,
     String name,
@@ -1047,7 +1220,7 @@ class EndpointErrand extends _i1.EndpointRef {
     required String permissionScope,
     required String inputSchemaJson,
     required String sensitiveInputKeysJson,
-  }) => caller.callServerEndpoint<_i16.Errand>(
+  }) => caller.callServerEndpoint<_i18.Errand>(
     'errand',
     'createBuiltinErrand',
     {
@@ -1064,10 +1237,10 @@ class EndpointErrand extends _i1.EndpointRef {
   );
 
   /// Every Errand belonging to a workspace, regardless of status.
-  _i2.Future<List<_i16.Errand>> listErrandsForWorkspace(
+  _i2.Future<List<_i18.Errand>> listErrandsForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i16.Errand>>(
+  ) => caller.callServerEndpoint<List<_i18.Errand>>(
     'errand',
     'listErrandsForWorkspace',
     {
@@ -1078,11 +1251,11 @@ class EndpointErrand extends _i1.EndpointRef {
 
   /// Fetch one Errand by id — access-checked via its workspace, same
   /// posture as BotEndpoint.getBot.
-  _i2.Future<_i16.Errand> getErrand(
+  _i2.Future<_i18.Errand> getErrand(
     String accessToken,
     int workspaceId,
     int errandId,
-  ) => caller.callServerEndpoint<_i16.Errand>(
+  ) => caller.callServerEndpoint<_i18.Errand>(
     'errand',
     'getErrand',
     {
@@ -1093,12 +1266,12 @@ class EndpointErrand extends _i1.EndpointRef {
   );
 
   /// Toggle an Errand active/disabled without deleting its history/logs.
-  _i2.Future<_i16.Errand> setErrandStatus(
+  _i2.Future<_i18.Errand> setErrandStatus(
     String accessToken,
     int workspaceId,
     int errandId,
     String status,
-  ) => caller.callServerEndpoint<_i16.Errand>(
+  ) => caller.callServerEndpoint<_i18.Errand>(
     'errand',
     'setErrandStatus',
     {
@@ -1166,7 +1339,7 @@ class EndpointErrand extends _i1.EndpointRef {
   /// local dev/testing against plain http is a real, legitimate case).
   /// [authHeaderName]/[authHeaderValue] are optional and sent together
   /// or not at all — see webhook_errand_credential.dart.
-  _i2.Future<_i16.Errand> createWebhookErrand(
+  _i2.Future<_i18.Errand> createWebhookErrand(
     String accessToken,
     int workspaceId,
     String name,
@@ -1178,7 +1351,7 @@ class EndpointErrand extends _i1.EndpointRef {
     required String permissionScope,
     required String inputSchemaJson,
     required String sensitiveInputKeysJson,
-  }) => caller.callServerEndpoint<_i16.Errand>(
+  }) => caller.callServerEndpoint<_i18.Errand>(
     'errand',
     'createWebhookErrand',
     {
@@ -1205,7 +1378,7 @@ class EndpointErrand extends _i1.EndpointRef {
   /// here at registration time AND again at execution time by
   /// DbCredentialErrandExecutor (defense in depth against the template
   /// being edited later without a matching permission upgrade).
-  _i2.Future<_i16.Errand> createDbCredentialErrand(
+  _i2.Future<_i18.Errand> createDbCredentialErrand(
     String accessToken,
     int workspaceId,
     String name,
@@ -1216,7 +1389,7 @@ class EndpointErrand extends _i1.EndpointRef {
     required String permissionScope,
     required String inputSchemaJson,
     required String sensitiveInputKeysJson,
-  }) => caller.callServerEndpoint<_i16.Errand>(
+  }) => caller.callServerEndpoint<_i18.Errand>(
     'errand',
     'createDbCredentialErrand',
     {
@@ -1421,10 +1594,10 @@ class EndpointFinding extends _i1.EndpointRef {
   /// Never throws for a workspace with nothing wrong — an empty list is
   /// the correct and common answer, and the dashboard renders it as
   /// "all clear" rather than as a failure.
-  _i2.Future<List<_i17.WorkspaceFinding>> listFindings(
+  _i2.Future<List<_i19.WorkspaceFinding>> listFindings(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i17.WorkspaceFinding>>(
+  ) => caller.callServerEndpoint<List<_i19.WorkspaceFinding>>(
     'finding',
     'listFindings',
     {
@@ -1473,7 +1646,7 @@ class EndpointInvoice extends _i1.EndpointRef {
   /// Totals are recomputed from [linesJson] here, server-side — never
   /// trusted from the caller, same discipline ringUpSale already applies
   /// to a sale's subtotal/tax/total.
-  _i2.Future<_i18.Invoice> createInvoice(
+  _i2.Future<_i20.Invoice> createInvoice(
     String accessToken,
     int workspaceId,
     String billToName,
@@ -1486,7 +1659,7 @@ class EndpointInvoice extends _i1.EndpointRef {
     required String currency,
     String? paymentInstructions,
     DateTime? dueAt,
-  }) => caller.callServerEndpoint<_i18.Invoice>(
+  }) => caller.callServerEndpoint<_i20.Invoice>(
     'invoice',
     'createInvoice',
     {
@@ -1505,12 +1678,12 @@ class EndpointInvoice extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i18.Invoice>> listInvoices(
+  _i2.Future<List<_i20.Invoice>> listInvoices(
     String accessToken,
     int workspaceId, {
     required int limit,
     required int offset,
-  }) => caller.callServerEndpoint<List<_i18.Invoice>>(
+  }) => caller.callServerEndpoint<List<_i20.Invoice>>(
     'invoice',
     'listInvoices',
     {
@@ -1521,11 +1694,11 @@ class EndpointInvoice extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i18.Invoice?> getInvoice(
+  _i2.Future<_i20.Invoice?> getInvoice(
     String accessToken,
     int workspaceId,
     int invoiceId,
-  ) => caller.callServerEndpoint<_i18.Invoice?>(
+  ) => caller.callServerEndpoint<_i20.Invoice?>(
     'invoice',
     'getInvoice',
     {
@@ -1538,11 +1711,11 @@ class EndpointInvoice extends _i1.EndpointRef {
   /// The most recently issued invoice for a given sale, or null. Lets
   /// Documents' A4 tab reuse an existing invoice instead of creating a
   /// new one every time an owner opens the tab for the same sale.
-  _i2.Future<_i18.Invoice?> getInvoiceForSale(
+  _i2.Future<_i20.Invoice?> getInvoiceForSale(
     String accessToken,
     int workspaceId,
     int saleId,
-  ) => caller.callServerEndpoint<_i18.Invoice?>(
+  ) => caller.callServerEndpoint<_i20.Invoice?>(
     'invoice',
     'getInvoiceForSale',
     {
@@ -1557,12 +1730,12 @@ class EndpointInvoice extends _i1.EndpointRef {
   /// No validation on the transition graph — same trust level Sale's own
   /// status already gets, and simpler than encoding a state machine for
   /// four values an owner is the sole judge of.
-  _i2.Future<_i18.Invoice> updateInvoiceStatus(
+  _i2.Future<_i20.Invoice> updateInvoiceStatus(
     String accessToken,
     int workspaceId,
     int invoiceId,
     String status,
-  ) => caller.callServerEndpoint<_i18.Invoice>(
+  ) => caller.callServerEndpoint<_i20.Invoice>(
     'invoice',
     'updateInvoiceStatus',
     {
@@ -1575,12 +1748,12 @@ class EndpointInvoice extends _i1.EndpointRef {
 
   /// Manual "mark as paid" — see this file's header on why this is not
   /// an automatic webhook credit yet.
-  _i2.Future<_i18.Invoice> recordPayment(
+  _i2.Future<_i20.Invoice> recordPayment(
     String accessToken,
     int workspaceId,
     int invoiceId,
     int amountMinor,
-  ) => caller.callServerEndpoint<_i18.Invoice>(
+  ) => caller.callServerEndpoint<_i20.Invoice>(
     'invoice',
     'recordPayment',
     {
@@ -1600,10 +1773,10 @@ class EndpointKnowledge extends _i1.EndpointRef {
   String get name => 'knowledge';
 
   /// Every document in the workspace, newest first.
-  _i2.Future<List<_i19.KnowledgeDocument>> listDocuments(
+  _i2.Future<List<_i21.KnowledgeDocument>> listDocuments(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i19.KnowledgeDocument>>(
+  ) => caller.callServerEndpoint<List<_i21.KnowledgeDocument>>(
     'knowledge',
     'listDocuments',
     {
@@ -1626,13 +1799,13 @@ class EndpointKnowledge extends _i1.EndpointRef {
   /// existing document, so the dashboard can offer "save it anyway"
   /// (which calls this again with [allowDuplicate] true) rather than
   /// presenting a dead end.
-  _i2.Future<_i19.KnowledgeDocument> addDocument(
+  _i2.Future<_i21.KnowledgeDocument> addDocument(
     String accessToken,
     int workspaceId,
     String title,
     String text, {
     required bool allowDuplicate,
-  }) => caller.callServerEndpoint<_i19.KnowledgeDocument>(
+  }) => caller.callServerEndpoint<_i21.KnowledgeDocument>(
     'knowledge',
     'addDocument',
     {
@@ -1662,13 +1835,13 @@ class EndpointKnowledge extends _i1.EndpointRef {
   );
 
   /// Replaces an existing document's content in place, keeping its id.
-  _i2.Future<_i19.KnowledgeDocument> updateDocument(
+  _i2.Future<_i21.KnowledgeDocument> updateDocument(
     String accessToken,
     int workspaceId,
     int documentId,
     String title,
     String text,
-  ) => caller.callServerEndpoint<_i19.KnowledgeDocument>(
+  ) => caller.callServerEndpoint<_i21.KnowledgeDocument>(
     'knowledge',
     'updateDocument',
     {
@@ -1688,11 +1861,11 @@ class EndpointKnowledge extends _i1.EndpointRef {
   /// owner can type a question a customer actually asked and see exactly
   /// which passages ground the answer, rather than having to trust the
   /// bot or argue with it.
-  _i2.Future<List<_i20.KnowledgeSearchHit>> searchMemory(
+  _i2.Future<List<_i22.KnowledgeSearchHit>> searchMemory(
     String accessToken,
     int workspaceId,
     String query,
-  ) => caller.callServerEndpoint<List<_i20.KnowledgeSearchHit>>(
+  ) => caller.callServerEndpoint<List<_i22.KnowledgeSearchHit>>(
     'knowledge',
     'searchMemory',
     {
@@ -1721,11 +1894,11 @@ class EndpointKnowledge extends _i1.EndpointRef {
   /// WorkspaceAnswerService. A question during a provider outage returns
   /// `generated: false` and an honest sentence, because an owner asking
   /// their own dashboard a question should not be shown a stack trace.
-  _i2.Future<_i21.WorkspaceAnswer> askWorkspace(
+  _i2.Future<_i23.WorkspaceAnswer> askWorkspace(
     String accessToken,
     int workspaceId,
     String question,
-  ) => caller.callServerEndpoint<_i21.WorkspaceAnswer>(
+  ) => caller.callServerEndpoint<_i23.WorkspaceAnswer>(
     'knowledge',
     'askWorkspace',
     {
@@ -1752,13 +1925,13 @@ class EndpointKnowledge extends _i1.EndpointRef {
   /// [base64Bytes] is the raw file. Serverpod parameters are JSON, so
   /// binary has to be encoded; at this size the ~33% overhead is not
   /// worth engineering around.
-  _i2.Future<_i19.KnowledgeDocument> addDocumentFromFile(
+  _i2.Future<_i21.KnowledgeDocument> addDocumentFromFile(
     String accessToken,
     int workspaceId,
     String fileName,
     String base64Bytes, {
     required bool allowDuplicate,
-  }) => caller.callServerEndpoint<_i19.KnowledgeDocument>(
+  }) => caller.callServerEndpoint<_i21.KnowledgeDocument>(
     'knowledge',
     'addDocumentFromFile',
     {
@@ -1781,10 +1954,10 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
   /// Returns null if the workspace has never configured notification
   /// settings yet — callers should treat that as "every channel
   /// disabled," not an error.
-  _i2.Future<_i22.OwnerNotificationSettings?> getSettings(
+  _i2.Future<_i24.OwnerNotificationSettings?> getSettings(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<_i22.OwnerNotificationSettings?>(
+  ) => caller.callServerEndpoint<_i24.OwnerNotificationSettings?>(
     'ownerNotification',
     'getSettings',
     {
@@ -1797,7 +1970,7 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
   /// Any field left null/false simply disables that channel; there's no
   /// partial-update semantics here on purpose, since a settings form
   /// naturally submits the whole shape at once.
-  _i2.Future<_i22.OwnerNotificationSettings> updateSettings(
+  _i2.Future<_i24.OwnerNotificationSettings> updateSettings(
     String accessToken,
     int workspaceId, {
     String? ownerEmail,
@@ -1810,7 +1983,7 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
     required bool smsEnabled,
     String? slackWebhookUrl,
     required bool slackEnabled,
-  }) => caller.callServerEndpoint<_i22.OwnerNotificationSettings>(
+  }) => caller.callServerEndpoint<_i24.OwnerNotificationSettings>(
     'ownerNotification',
     'updateSettings',
     {
@@ -1845,14 +2018,14 @@ class EndpointPayment extends _i1.EndpointRef {
   /// encryptedApiKey field doc on why Monnify needs a second required
   /// credential none of the other three gateways do. Ignored for every
   /// other gateway.
-  _i2.Future<_i23.PaymentGatewayCredential> connectGateway(
+  _i2.Future<_i25.PaymentGatewayCredential> connectGateway(
     String accessToken,
     int workspaceId,
     String gateway,
     String secretKey, {
     String? webhookSecret,
     String? apiKey,
-  }) => caller.callServerEndpoint<_i23.PaymentGatewayCredential>(
+  }) => caller.callServerEndpoint<_i25.PaymentGatewayCredential>(
     'payment',
     'connectGateway',
     {
@@ -1868,10 +2041,10 @@ class EndpointPayment extends _i1.EndpointRef {
   /// Every gateway this workspace has connected (never returns the
   /// decrypted key — this exists so a dashboard can show "Paystack:
   /// connected" without exposing the secret back to any client).
-  _i2.Future<List<_i23.PaymentGatewayCredential>> listConnectedGateways(
+  _i2.Future<List<_i25.PaymentGatewayCredential>> listConnectedGateways(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i23.PaymentGatewayCredential>>(
+  ) => caller.callServerEndpoint<List<_i25.PaymentGatewayCredential>>(
     'payment',
     'listConnectedGateways',
     {
@@ -1883,7 +2056,7 @@ class EndpointPayment extends _i1.EndpointRef {
   /// Starts a checkout against the workspace's OWN connected [gateway]
   /// account. See payment_checkout_service.dart for what actually
   /// happens — this method's only job is the auth check.
-  _i2.Future<_i24.PaymentTransaction> initializeCheckout(
+  _i2.Future<_i26.PaymentTransaction> initializeCheckout(
     String accessToken,
     int workspaceId,
     String gateway,
@@ -1894,7 +2067,7 @@ class EndpointPayment extends _i1.EndpointRef {
     int? conversationId,
     int? channelId,
     Map<String, dynamic>? metadata,
-  }) => caller.callServerEndpoint<_i24.PaymentTransaction>(
+  }) => caller.callServerEndpoint<_i26.PaymentTransaction>(
     'payment',
     'initializeCheckout',
     {
@@ -1911,11 +2084,11 @@ class EndpointPayment extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i24.PaymentTransaction?> getTransaction(
+  _i2.Future<_i26.PaymentTransaction?> getTransaction(
     String accessToken,
     int workspaceId,
     int transactionId,
-  ) => caller.callServerEndpoint<_i24.PaymentTransaction?>(
+  ) => caller.callServerEndpoint<_i26.PaymentTransaction?>(
     'payment',
     'getTransaction',
     {
@@ -1932,11 +2105,11 @@ class EndpointPayment extends _i1.EndpointRef {
   /// know that, per this codebase's usual "never trust a caller-supplied
   /// precondition" rule (same reasoning as db_credential_errand_executor's
   /// double read-only check).
-  _i2.Future<_i24.PaymentTransaction> releaseHold(
+  _i2.Future<_i26.PaymentTransaction> releaseHold(
     String accessToken,
     int workspaceId,
     int transactionId,
-  ) => caller.callServerEndpoint<_i24.PaymentTransaction>(
+  ) => caller.callServerEndpoint<_i26.PaymentTransaction>(
     'payment',
     'releaseHold',
     {
@@ -1956,10 +2129,10 @@ class EndpointPlatform extends _i1.EndpointRef {
 
   /// Every key for the workspace, revoked ones included — the design
   /// shows them so an owner can see what they turned off.
-  _i2.Future<List<_i25.ApiKey>> listApiKeys(
+  _i2.Future<List<_i27.ApiKey>> listApiKeys(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i25.ApiKey>>(
+  ) => caller.callServerEndpoint<List<_i27.ApiKey>>(
     'platform',
     'listApiKeys',
     {
@@ -1969,12 +2142,12 @@ class EndpointPlatform extends _i1.EndpointRef {
   );
 
   /// Creates a key. The response carries the ONLY copy of the plaintext.
-  _i2.Future<_i26.CreatedApiKey> createApiKey(
+  _i2.Future<_i28.CreatedApiKey> createApiKey(
     String accessToken,
     int workspaceId,
     String name,
     String scope,
-  ) => caller.callServerEndpoint<_i26.CreatedApiKey>(
+  ) => caller.callServerEndpoint<_i28.CreatedApiKey>(
     'platform',
     'createApiKey',
     {
@@ -2001,10 +2174,10 @@ class EndpointPlatform extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i27.WebhookEndpoint>> listWebhookEndpoints(
+  _i2.Future<List<_i29.WebhookEndpoint>> listWebhookEndpoints(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i27.WebhookEndpoint>>(
+  ) => caller.callServerEndpoint<List<_i29.WebhookEndpoint>>(
     'platform',
     'listWebhookEndpoints',
     {
@@ -2017,12 +2190,12 @@ class EndpointPlatform extends _i1.EndpointRef {
   ///
   /// The signing secret is generated here and encrypted before storage —
   /// unlike an API key, kola must recover this one to sign each delivery.
-  _i2.Future<_i27.WebhookEndpoint> saveWebhookEndpoint(
+  _i2.Future<_i29.WebhookEndpoint> saveWebhookEndpoint(
     String accessToken,
     int workspaceId,
     String url,
     List<String> events,
-  ) => caller.callServerEndpoint<_i27.WebhookEndpoint>(
+  ) => caller.callServerEndpoint<_i29.WebhookEndpoint>(
     'platform',
     'saveWebhookEndpoint',
     {
@@ -2055,11 +2228,11 @@ class EndpointProduct extends _i1.EndpointRef {
   @override
   String get name => 'product';
 
-  _i2.Future<List<_i28.Product>> listProducts(
+  _i2.Future<List<_i30.Product>> listProducts(
     String accessToken,
     int workspaceId, {
     required bool includeArchived,
-  }) => caller.callServerEndpoint<List<_i28.Product>>(
+  }) => caller.callServerEndpoint<List<_i30.Product>>(
     'product',
     'listProducts',
     {
@@ -2069,11 +2242,11 @@ class EndpointProduct extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i28.Product?> getProduct(
+  _i2.Future<_i30.Product?> getProduct(
     String accessToken,
     int workspaceId,
     int productId,
-  ) => caller.callServerEndpoint<_i28.Product?>(
+  ) => caller.callServerEndpoint<_i30.Product?>(
     'product',
     'getProduct',
     {
@@ -2087,11 +2260,11 @@ class EndpointProduct extends _i1.EndpointRef {
   ///
   /// Scoped through the product rather than queried directly: resolving
   /// the parent first is what proves the caller is entitled to it.
-  _i2.Future<List<_i29.ProductVariant>> listVariants(
+  _i2.Future<List<_i31.ProductVariant>> listVariants(
     String accessToken,
     int workspaceId,
     int productId,
-  ) => caller.callServerEndpoint<List<_i29.ProductVariant>>(
+  ) => caller.callServerEndpoint<List<_i31.ProductVariant>>(
     'product',
     'listVariants',
     {
@@ -2106,7 +2279,7 @@ class EndpointProduct extends _i1.EndpointRef {
   /// Note what is NOT a parameter: workspaceId comes from the argument
   /// and is checked, and status is not settable — a product is created
   /// active, and archiving is its own method with its own meaning.
-  _i2.Future<_i28.Product> createProduct(
+  _i2.Future<_i30.Product> createProduct(
     String accessToken,
     int workspaceId,
     String name, {
@@ -2120,7 +2293,7 @@ class EndpointProduct extends _i1.EndpointRef {
     int? costMinor,
     int? stock,
     required int lowStockThreshold,
-  }) => caller.callServerEndpoint<_i28.Product>(
+  }) => caller.callServerEndpoint<_i30.Product>(
     'product',
     'createProduct',
     {
@@ -2147,7 +2320,7 @@ class EndpointProduct extends _i1.EndpointRef {
   /// [clearStock] exist for that. Without them there would be no way to
   /// turn a priced product into an on-request one, which is exactly what
   /// happens when a shop stops publishing a price.
-  _i2.Future<_i28.Product> updateProduct(
+  _i2.Future<_i30.Product> updateProduct(
     String accessToken,
     int workspaceId,
     int productId, {
@@ -2164,7 +2337,7 @@ class EndpointProduct extends _i1.EndpointRef {
     int? stock,
     required bool clearStock,
     int? lowStockThreshold,
-  }) => caller.callServerEndpoint<_i28.Product>(
+  }) => caller.callServerEndpoint<_i30.Product>(
     'product',
     'updateProduct',
     {
@@ -2209,14 +2382,14 @@ class EndpointProduct extends _i1.EndpointRef {
   /// a custom model as an endpoint parameter. Their lengths must match;
   /// a mismatch is a client bug and is refused rather than zipped to the
   /// shortest, which would silently drop a variant the owner entered.
-  _i2.Future<List<_i29.ProductVariant>> replaceVariants(
+  _i2.Future<List<_i31.ProductVariant>> replaceVariants(
     String accessToken,
     int workspaceId,
     int productId,
     List<String> labels,
     List<int?> stocks,
     List<int?> priceMinors,
-  ) => caller.callServerEndpoint<List<_i29.ProductVariant>>(
+  ) => caller.callServerEndpoint<List<_i31.ProductVariant>>(
     'product',
     'replaceVariants',
     {
@@ -2256,11 +2429,11 @@ class EndpointProduct extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i30.ProductMedia>> listMedia(
+  _i2.Future<List<_i32.ProductMedia>> listMedia(
     String accessToken,
     int workspaceId,
     int productId,
-  ) => caller.callServerEndpoint<List<_i30.ProductMedia>>(
+  ) => caller.callServerEndpoint<List<_i32.ProductMedia>>(
     'product',
     'listMedia',
     {
@@ -2317,11 +2490,11 @@ class EndpointProduct extends _i1.EndpointRef {
   ///
   /// So the wire type is a String this endpoint parses itself. Uglier,
   /// and it cannot regress on someone else's edit.
-  _i2.Future<List<_i30.ProductMedia>> listMediaForProducts(
+  _i2.Future<List<_i32.ProductMedia>> listMediaForProducts(
     String accessToken,
     int workspaceId,
     String productIds,
-  ) => caller.callServerEndpoint<List<_i30.ProductMedia>>(
+  ) => caller.callServerEndpoint<List<_i32.ProductMedia>>(
     'product',
     'listMediaForProducts',
     {
@@ -2339,7 +2512,7 @@ class EndpointProduct extends _i1.EndpointRef {
   /// "photo" at any URL on the internet — including one that changes
   /// after review. The url must sit under the configured ImageKit
   /// endpoint, and nothing else is accepted.
-  _i2.Future<_i30.ProductMedia> addProductMedia(
+  _i2.Future<_i32.ProductMedia> addProductMedia(
     String accessToken,
     int workspaceId,
     int productId,
@@ -2349,7 +2522,7 @@ class EndpointProduct extends _i1.EndpointRef {
     String? thumbnailUrl,
     int? width,
     int? height,
-  }) => caller.callServerEndpoint<_i30.ProductMedia>(
+  }) => caller.callServerEndpoint<_i32.ProductMedia>(
     'product',
     'addProductMedia',
     {
@@ -2434,12 +2607,12 @@ class EndpointProduct extends _i1.EndpointRef {
   /// cloud metadata service) or at localhost and read whatever came
   /// back through the resulting image. The scheme and host checks below
   /// are the whole defence and are not optional.
-  _i2.Future<_i30.ProductMedia?> importMediaFromUrl(
+  _i2.Future<_i32.ProductMedia?> importMediaFromUrl(
     String accessToken,
     int workspaceId,
     int productId,
     String sourceUrl,
-  ) => caller.callServerEndpoint<_i30.ProductMedia?>(
+  ) => caller.callServerEndpoint<_i32.ProductMedia?>(
     'product',
     'importMediaFromUrl',
     {
@@ -2463,11 +2636,11 @@ class EndpointReport extends _i1.EndpointRef {
   /// Defaults to today (server UTC) when omitted, which is the only
   /// case documents_page.dart currently calls with — a date picker for
   /// past days is a natural follow-up, not built here.
-  _i2.Future<_i31.EndOfDayReport> getEndOfDayReport(
+  _i2.Future<_i33.EndOfDayReport> getEndOfDayReport(
     String accessToken,
     int workspaceId, {
     DateTime? date,
-  }) => caller.callServerEndpoint<_i31.EndOfDayReport>(
+  }) => caller.callServerEndpoint<_i33.EndOfDayReport>(
     'report',
     'getEndOfDayReport',
     {
@@ -2491,7 +2664,7 @@ class EndpointSale extends _i1.EndpointRef {
   /// Customer through the same deterministic matcher every other intake
   /// path uses, so the till participates in the graph rather than
   /// sitting beside it.
-  _i2.Future<_i32.Sale> ringUpSale(
+  _i2.Future<_i34.Sale> ringUpSale(
     String accessToken,
     int workspaceId, {
     required String linesJson,
@@ -2500,7 +2673,7 @@ class EndpointSale extends _i1.EndpointRef {
     String? clientReference,
     String? customerPhone,
     String? customerName,
-  }) => caller.callServerEndpoint<_i32.Sale>(
+  }) => caller.callServerEndpoint<_i34.Sale>(
     'sale',
     'ringUpSale',
     {
@@ -2515,12 +2688,12 @@ class EndpointSale extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i32.Sale>> listSales(
+  _i2.Future<List<_i34.Sale>> listSales(
     String accessToken,
     int workspaceId, {
     required int limit,
     required int offset,
-  }) => caller.callServerEndpoint<List<_i32.Sale>>(
+  }) => caller.callServerEndpoint<List<_i34.Sale>>(
     'sale',
     'listSales',
     {
@@ -2531,11 +2704,11 @@ class EndpointSale extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i33.SaleLine>> getSaleLines(
+  _i2.Future<List<_i35.SaleLine>> getSaleLines(
     String accessToken,
     int workspaceId,
     int saleId,
-  ) => caller.callServerEndpoint<List<_i33.SaleLine>>(
+  ) => caller.callServerEndpoint<List<_i35.SaleLine>>(
     'sale',
     'getSaleLines',
     {
@@ -2555,11 +2728,11 @@ class EndpointSupportTicket extends _i1.EndpointRef {
 
   /// Every ticket for a workspace, newest first. [status] optionally
   /// narrows to one status (e.g. just the open queue).
-  _i2.Future<List<_i34.SupportTicket>> list(
+  _i2.Future<List<_i36.SupportTicket>> list(
     String accessToken,
     int workspaceId, {
     String? status,
-  }) => caller.callServerEndpoint<List<_i34.SupportTicket>>(
+  }) => caller.callServerEndpoint<List<_i36.SupportTicket>>(
     'supportTicket',
     'list',
     {
@@ -2573,12 +2746,12 @@ class EndpointSupportTicket extends _i1.EndpointRef {
   /// 'closed'. Setting to 'resolved'/'closed' stamps resolvedAt
   /// automatically (see SupportTicketRepository.setStatus); reopening
   /// back to 'open'/'inProgress' clears it.
-  _i2.Future<_i34.SupportTicket> setStatus(
+  _i2.Future<_i36.SupportTicket> setStatus(
     String accessToken,
     int workspaceId,
     int ticketId,
     String status,
-  ) => caller.callServerEndpoint<_i34.SupportTicket>(
+  ) => caller.callServerEndpoint<_i36.SupportTicket>(
     'supportTicket',
     'setStatus',
     {
@@ -2604,13 +2777,13 @@ class EndpointWaitlist extends _i1.EndpointRef {
   /// A basic shape check on [email] happens here rather than trusting the
   /// browser's <input type="email"> alone, since this endpoint is public
   /// and reachable by anything, not just our own landing page.
-  _i2.Future<_i35.WaitlistSignup> joinWaitlist(
+  _i2.Future<_i37.WaitlistSignup> joinWaitlist(
     String email,
     String source, {
     String? name,
     String? phone,
     String? businessType,
-  }) => caller.callServerEndpoint<_i35.WaitlistSignup>(
+  }) => caller.callServerEndpoint<_i37.WaitlistSignup>(
     'waitlist',
     'joinWaitlist',
     {
@@ -2637,7 +2810,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// wrapper for the one shape the owner specifically asked for.
   /// Auth-checked here, then delegated to WhatsAppTemplateCreationService
   /// — see this file's header.
-  _i2.Future<_i36.WhatsAppMessageTemplate> createTemplate(
+  _i2.Future<_i38.WhatsAppMessageTemplate> createTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
@@ -2646,7 +2819,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
     String language,
     String bodyText,
     List<String> bodyExampleValues,
-  ) => caller.callServerEndpoint<_i36.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i38.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createTemplate',
     {
@@ -2673,14 +2846,14 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// values Meta's review requires for the two placeholders — not sent
   /// to any real customer, only shown to Meta's reviewer alongside the
   /// template.
-  _i2.Future<_i36.WhatsAppMessageTemplate> createProductListTemplate(
+  _i2.Future<_i38.WhatsAppMessageTemplate> createProductListTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
     String businessLabel,
     String customerNameExample,
     String productListExample,
-  ) => caller.callServerEndpoint<_i36.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i38.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createProductListTemplate',
     {
@@ -2695,10 +2868,10 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
 
   /// Every template submitted for this workspace, newest first — the
   /// dashboard's template status list.
-  _i2.Future<List<_i36.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
+  _i2.Future<List<_i38.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i36.WhatsAppMessageTemplate>>(
+  ) => caller.callServerEndpoint<List<_i38.WhatsAppMessageTemplate>>(
     'whatsAppTemplate',
     'listTemplatesForWorkspace',
     {
@@ -2710,11 +2883,11 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// Polls Meta for [templateId]'s current review outcome and persists
   /// any change — see whatsapp_template_service.dart's header on why
   /// this is polling, not a webhook, for now.
-  _i2.Future<_i36.WhatsAppMessageTemplate> refreshTemplateStatus(
+  _i2.Future<_i38.WhatsAppMessageTemplate> refreshTemplateStatus(
     String accessToken,
     int workspaceId,
     int templateId,
-  ) => caller.callServerEndpoint<_i36.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i38.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'refreshTemplateStatus',
     {
@@ -2757,13 +2930,13 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// A frozen package is frozen: it does not get edited to accommodate a
   /// signature change that had no reason to be breaking. Adding the new
   /// fields as NAMED and optional keeps every existing call valid.
-  _i2.Future<_i37.Workspace> createWorkspace(
+  _i2.Future<_i39.Workspace> createWorkspace(
     String accessToken,
     String name,
     String? industryTag, {
     String? ownerName,
     String? ownerPhone,
-  }) => caller.callServerEndpoint<_i37.Workspace>(
+  }) => caller.callServerEndpoint<_i39.Workspace>(
     'workspace',
     'createWorkspace',
     {
@@ -2778,8 +2951,8 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// Every workspace the caller belongs to, for the dashboard's workspace
   /// switcher (relevant now for a user with zero or one workspace, and
   /// unchanged when the agency/multi-workspace tier adds more).
-  _i2.Future<List<_i37.Workspace>> listMyWorkspaces(String accessToken) =>
-      caller.callServerEndpoint<List<_i37.Workspace>>(
+  _i2.Future<List<_i39.Workspace>> listMyWorkspaces(String accessToken) =>
+      caller.callServerEndpoint<List<_i39.Workspace>>(
         'workspace',
         'listMyWorkspaces',
         {'accessToken': accessToken},
@@ -2787,10 +2960,10 @@ class EndpointWorkspace extends _i1.EndpointRef {
 
   /// Fetch one workspace by id — access-checked, so a user can never read
   /// a workspace they're not a member of by guessing an id.
-  _i2.Future<_i37.Workspace> getWorkspace(
+  _i2.Future<_i39.Workspace> getWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<_i37.Workspace>(
+  ) => caller.callServerEndpoint<_i39.Workspace>(
     'workspace',
     'getWorkspace',
     {
@@ -2828,14 +3001,14 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// dashboard can save one field without having to send the others
   /// back correctly. To CLEAR industryTag, send an empty string — that
   /// is distinguishable from null and is normalised to null below.
-  _i2.Future<_i37.Workspace> updateWorkspace(
+  _i2.Future<_i39.Workspace> updateWorkspace(
     String accessToken,
     int workspaceId, {
     String? name,
     String? industryTag,
     String? ownerName,
     bool? sellsCatalogItems,
-  }) => caller.callServerEndpoint<_i37.Workspace>(
+  }) => caller.callServerEndpoint<_i39.Workspace>(
     'workspace',
     'updateWorkspace',
     {
@@ -2892,12 +3065,12 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// workspace collecting from ITS OWN customers). [customerEmail] is
   /// the signed-in dashboard user's email — the gateway needs an email
   /// on file for the checkout page/receipt regardless of who's paying.
-  _i2.Future<_i38.KolaBillingCheckout> initiateUpgrade(
+  _i2.Future<_i40.KolaBillingCheckout> initiateUpgrade(
     String accessToken,
     int workspaceId,
     String gateway,
     String customerEmail,
-  ) => caller.callServerEndpoint<_i38.KolaBillingCheckout>(
+  ) => caller.callServerEndpoint<_i40.KolaBillingCheckout>(
     'workspace',
     'initiateUpgrade',
     {
@@ -2929,7 +3102,7 @@ class Client extends _i1.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i39.Protocol(),
+         _i41.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -2938,6 +3111,8 @@ class Client extends _i1.ServerpodClientShared {
          disconnectStreamsOnLostInternetConnection:
              disconnectStreamsOnLostInternetConnection,
        ) {
+    adminAuth = EndpointAdminAuth(this);
+    adminFeature = EndpointAdminFeature(this);
     bot = EndpointBot(this);
     broadcast = EndpointBroadcast(this);
     channel = EndpointChannel(this);
@@ -2960,6 +3135,10 @@ class Client extends _i1.ServerpodClientShared {
     whatsAppTemplate = EndpointWhatsAppTemplate(this);
     workspace = EndpointWorkspace(this);
   }
+
+  late final EndpointAdminAuth adminAuth;
+
+  late final EndpointAdminFeature adminFeature;
 
   late final EndpointBot bot;
 
@@ -3005,6 +3184,8 @@ class Client extends _i1.ServerpodClientShared {
 
   @override
   Map<String, _i1.EndpointRef> get endpointRefLookup => {
+    'adminAuth': adminAuth,
+    'adminFeature': adminFeature,
     'bot': bot,
     'broadcast': broadcast,
     'channel': channel,

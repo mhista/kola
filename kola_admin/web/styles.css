@@ -1,0 +1,24 @@
+/* styles.css — minimal reset. Every real style in this app is inline
+   (see theme.dart), same choice kola_dashboard made, kept here too so
+   there's exactly one place per app to look for visual rules. */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #0B0D10;
+}
+
+body {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+button {
+  font-family: inherit;
+}
+
+input, select {
+  font-family: inherit;
+}

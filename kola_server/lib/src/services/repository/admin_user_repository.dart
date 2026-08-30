@@ -1,0 +1,75 @@
+// admin_user_repository.dart — kola_admin, step 1.
+//
+// Database access for admin_users. DELIBERATELY separate from every
+// workspace-scoped repository in this project (SRS.md §5's isolation
+// rule does not apply here — see admin_user.dart's header on why admin
+// identity has no relationship to workspace_members at all) and from
+// FeatureFlagRepository's "platform state, writes only from kola_admin"
+// posture — this one IS the identity kola_admin authenticates against,
+// so it is read from the login path and written to only when an admin
+// creates another admin account.
+
+import 'package:logging/logging.dart';
+import '../admin/admin_user.dart';
+import 'supabase_client.dart';
+
+final _log = Logger('AdminUserRepository');
+
+class AdminUserRepository {
+  const AdminUserRepository();
+
+  Future<AdminUser?> findByEmail(String email) async {
+    final response = await supabase
+        .from('admin_users')
+        .select()
+        .eq('email', email.trim().toLowerCase())
+        .maybeSingle();
+
+    if (response == null) return null;
+    return AdminUser.fromRow(response);
+  }
+
+  Future<AdminUser?> findById(int id) async {
+    final response =
+        await supabase.from('admin_users').select().eq('id', id).maybeSingle();
+
+    if (response == null) return null;
+    return AdminUser.fromRow(response);
+  }
+
+  /// Creates a new admin account. Called only from server-side tooling
+  /// or by an existing admin — there is no customer-reachable path to
+  /// this method, and no public endpoint exposes it directly (see
+  /// admin_auth_endpoint.dart's header: account creation is deliberately
+  /// NOT wired to any RPC method in this pass — see that file for the
+  /// honest reason why).
+  Future<AdminUser> create({
+    required String email,
+    required String passwordHash,
+    required String level,
+  }) async {
+    _log.warning('Creating admin account: $email ($level)');
+    final now = DateTime.now().toUtc().toIso8601String();
+    final response = await supabase
+        .from('admin_users')
+        .insert({
+          'email': email.trim().toLowerCase(),
+          'password_hash': passwordHash,
+          'level': level,
+          'mfa_enabled': false,
+          'active': true,
+          'created_at': now,
+          'updated_at': now,
+        })
+        .select()
+        .single();
+
+    return AdminUser.fromRow(response);
+  }
+
+  Future<void> touchLastSeen(int id) async {
+    await supabase.from('admin_users').update({
+      'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', id);
+  }
+}

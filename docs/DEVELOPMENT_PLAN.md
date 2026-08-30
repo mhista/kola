@@ -422,7 +422,9 @@ Full specification in `docs/ADMIN_APP_SPEC.md`. **Confirmed with the owner as a 
 
 ---
 
-## Phase 11 — Commerce (Catalog, Point of Sale, Offline, Documents) — Specified, not built
+## Phase 11 — Commerce (Catalog, Point of Sale, Offline, Documents) — Core till built and released; offline sync and second-tier surfaces still open
+
+**STALENESS CORRECTION (2026-08-30):** this phase sat marked "specified, not built" for a long stretch after real commerce work had already shipped — the exact failure this document's own Phase 9 section warns about elsewhere ("an audit updated only when someone remembers is an audit that is accurate exactly when it is least needed"). Corrected here rather than left to mislead the next reader.
 
 **Introduced by explicit product direction. Ships in V1, optional per business.** Full design brief in `docs/DESIGN_BRIEF_COMMERCE.md`.
 
@@ -447,9 +449,13 @@ Migration `019_commerce_feature_flags.sql`, applied and verified. **14 new keys:
 
 **A two-layer model worth stating, because it is easy to confuse:** the flags control whether commerce is AVAILABLE on the platform; whether a given business has TURNED IT ON is a workspace setting. A released feature a business has not enabled is not the same as a locked one, and the dashboard must render them differently — *"you could turn this on"* versus not existing at all.
 
-### Not built
+### What's actually built and released
 
-Everything. This phase is specification and release-registry only. The models, the offline store, the sync engine, the till, the document templates and the import paths are all still to build. **Offline sync with conflict resolution is the largest single engineering item in the whole roadmap so far** and should not be underestimated because the UI looks simple.
+`commerce.pos` (R1) is released and live, not just flagged. The sales counter (`till_page.dart`) is a real working till: cart with quantity/price editing, an "ask price" tile flow for open-priced items, a real camera-based barcode scanner (device camera, not a stub), and a persistent bottom nav with pull-to-refresh on mobile. A sale writes through to stock — `Product.quantity` decrements on sale and the dashboard reflects it without a manual refresh. Two document surfaces exist: an A4 invoice (real entity + endpoint + a real payment link, not a mockup) and an end-of-day report (aggregation endpoint + page). Mobile responsiveness across the commerce surfaces (till, catalog grid, invoice/report tables) was a separate, later pass and is done.
+
+### Still not built
+
+**Offline selling with sync is still the largest single engineering item in the whole roadmap** and remains untouched — today the till needs a live connection; a network outage stops sales the same as any other online-only POS, which is exactly the gap this phase's own framing warned against accepting. Also still open: the customer-facing public catalog page and the owner-configurable in-store display (two of the four customer-facing surfaces named above — the bot-through-chat and WhatsApp-delivered-receipt surfaces exist via the channels already built elsewhere in this plan, but a shareable public catalog URL and an in-store display mode do not), photo/voice-assisted catalog entry (scoped for R2 in `RELEASE_PHASES.md`), and product archetypes beyond the basic packaged-goods shape — variants, serialized/high-value, prepared, services all still get the same generic form.
 
 ---
 

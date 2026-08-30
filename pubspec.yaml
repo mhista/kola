@@ -22,3 +22,7 @@ workspace:
   # Being a workspace member does not couple it to the redesign — they
   # share no source, only dependency resolution.
   - kymaa_dashboard
+  # kola_admin — the internal control plane (ADMIN_APP_SPEC.md), a
+  # separate Jaspr app path-depending on kola_client, same requirement
+  # as kola_dashboard above.
+  - kola_admin

@@ -446,4 +446,19 @@ abstract class Env {
       Platform.environment['META_APP_SECRET'] ?? '';
   static final String metaOAuthRedirectUri =
       Platform.environment['META_OAUTH_REDIRECT_URI'] ?? '';
+
+  // ── kola_admin (ADMIN_APP_SPEC.md, steps 1-2) ────────────────────────────────
+  // Signs/verifies the short-lived JWT AdminAuthService issues on login —
+  // completely separate from SUPABASE_JWT_SECRET above, on purpose: an
+  // admin session must never be verifiable with the same key a customer
+  // session is, or a bug conflating the two auth models becomes a
+  // platform-wide compromise instead of a workspace-scoped one (see
+  // admin_auth_service.dart's header). Same Platform.environment-only
+  // pattern as instagramWebhookVerifyToken/the four OAuth provider
+  // blocks above — no real secret exists yet for build_runner to
+  // obfuscate, and no toolchain here to run it either way. Not required
+  // for the customer-facing server to start; kola_admin's auth simply
+  // does not work until this is set.
+  static final String adminJwtSecret =
+      Platform.environment['ADMIN_JWT_SECRET'] ?? '';
 }

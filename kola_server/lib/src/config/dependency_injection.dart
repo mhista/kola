@@ -19,6 +19,9 @@ import 'package:kola_server/src/services/repository/workspace_member_repository.
 import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
+import 'package:kola_server/src/services/repository/admin_user_repository.dart';
+import 'package:kola_server/src/services/repository/admin_audit_log_repository.dart';
+import 'package:kola_server/src/services/admin/admin_auth_service.dart';
 import 'package:kola_server/src/services/connectors/connector_service.dart';
 import 'package:kola_server/src/services/repository/api_key_repository.dart';
 import 'package:kola_server/src/services/repository/webhook_endpoint_repository.dart';
@@ -356,6 +359,24 @@ void setupDependencyInjection() {
       overrides: getIt<WorkspaceFeatureOverrideRepository>(),
       trialStateMachine: getIt<TrialStateMachine>(),
     ),
+  );
+
+  // ── kola_admin (ADMIN_APP_SPEC.md, steps 1-2) ──────────────────────────────
+  //
+  // Registered right after FeatureFlagService/its two repositories,
+  // because AdminFeatureEndpoint (release control) is built directly on
+  // top of them — see that file's header. AdminUserRepository and
+  // AdminAuditLogRepository have no dependency on anything above; the
+  // ordering here is "keep the admin block together", not a real
+  // requirement.
+  getIt.registerLazySingleton<AdminUserRepository>(
+    () => const AdminUserRepository(),
+  );
+  getIt.registerLazySingleton<AdminAuditLogRepository>(
+    () => const AdminAuditLogRepository(),
+  );
+  getIt.registerLazySingleton<AdminAuthService>(
+    () => AdminAuthService(users: getIt<AdminUserRepository>()),
   );
 
   // ── LAYER 3: CONNECTORS ───────────────────────────────────────────────────

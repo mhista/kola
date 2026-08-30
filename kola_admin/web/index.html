@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kola — Admin</title>
+  <!-- Never indexed. This is Kola's internal control plane, not a
+       public surface — see ADMIN_APP_SPEC.md §1. -->
+  <meta name="robots" content="noindex, nofollow, noarchive">
+
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+  <!-- IBM Plex Mono for the dense, keyboard-driven operator surface
+       ADMIN_APP_SPEC.md §1 calls for — deliberately not the customer
+       dashboard's Space Grotesk/Plus Jakarta Sans pairing, to keep this
+       visually distinct from anything a customer could screenshot and
+       mistake for the product. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Root-relative — same SPA-on-nested-route fix kola_dashboard's own
+       index.html documents in detail; identical failure mode applies
+       here since this is also a jaspr_router client-routed app. -->
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/main.dart.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+</html>
