@@ -20,6 +20,7 @@ abstract class PaymentGatewayCredential
     required this.gateway,
     required this.encryptedSecretKey,
     this.encryptedWebhookSecret,
+    this.encryptedApiKey,
     required this.createdAt,
     required this.updatedAt,
     this.syncCursor,
@@ -32,6 +33,7 @@ abstract class PaymentGatewayCredential
     required String gateway,
     required String encryptedSecretKey,
     String? encryptedWebhookSecret,
+    String? encryptedApiKey,
     required DateTime createdAt,
     required DateTime updatedAt,
     String? syncCursor,
@@ -48,6 +50,7 @@ abstract class PaymentGatewayCredential
       encryptedSecretKey: jsonSerialization['encryptedSecretKey'] as String,
       encryptedWebhookSecret:
           jsonSerialization['encryptedWebhookSecret'] as String?,
+      encryptedApiKey: jsonSerialization['encryptedApiKey'] as String?,
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
@@ -73,6 +76,8 @@ abstract class PaymentGatewayCredential
 
   String? encryptedWebhookSecret;
 
+  String? encryptedApiKey;
+
   DateTime createdAt;
 
   DateTime updatedAt;
@@ -90,6 +95,7 @@ abstract class PaymentGatewayCredential
     String? gateway,
     String? encryptedSecretKey,
     String? encryptedWebhookSecret,
+    String? encryptedApiKey,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? syncCursor,
@@ -105,6 +111,7 @@ abstract class PaymentGatewayCredential
       'encryptedSecretKey': encryptedSecretKey,
       if (encryptedWebhookSecret != null)
         'encryptedWebhookSecret': encryptedWebhookSecret,
+      if (encryptedApiKey != null) 'encryptedApiKey': encryptedApiKey,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
       if (syncCursor != null) 'syncCursor': syncCursor,
@@ -122,6 +129,7 @@ abstract class PaymentGatewayCredential
       'encryptedSecretKey': encryptedSecretKey,
       if (encryptedWebhookSecret != null)
         'encryptedWebhookSecret': encryptedWebhookSecret,
+      if (encryptedApiKey != null) 'encryptedApiKey': encryptedApiKey,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
       if (syncCursor != null) 'syncCursor': syncCursor,
@@ -144,6 +152,7 @@ class _PaymentGatewayCredentialImpl extends PaymentGatewayCredential {
     required String gateway,
     required String encryptedSecretKey,
     String? encryptedWebhookSecret,
+    String? encryptedApiKey,
     required DateTime createdAt,
     required DateTime updatedAt,
     String? syncCursor,
@@ -154,6 +163,7 @@ class _PaymentGatewayCredentialImpl extends PaymentGatewayCredential {
          gateway: gateway,
          encryptedSecretKey: encryptedSecretKey,
          encryptedWebhookSecret: encryptedWebhookSecret,
+         encryptedApiKey: encryptedApiKey,
          createdAt: createdAt,
          updatedAt: updatedAt,
          syncCursor: syncCursor,
@@ -170,6 +180,7 @@ class _PaymentGatewayCredentialImpl extends PaymentGatewayCredential {
     String? gateway,
     String? encryptedSecretKey,
     Object? encryptedWebhookSecret = _Undefined,
+    Object? encryptedApiKey = _Undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
     Object? syncCursor = _Undefined,
@@ -183,6 +194,9 @@ class _PaymentGatewayCredentialImpl extends PaymentGatewayCredential {
       encryptedWebhookSecret: encryptedWebhookSecret is String?
           ? encryptedWebhookSecret
           : this.encryptedWebhookSecret,
+      encryptedApiKey: encryptedApiKey is String?
+          ? encryptedApiKey
+          : this.encryptedApiKey,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncCursor: syncCursor is String? ? syncCursor : this.syncCursor,

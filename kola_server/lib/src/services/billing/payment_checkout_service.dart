@@ -36,14 +36,30 @@ import 'paystack_service.dart';
 import 'flutterwave_service.dart';
 import 'stripe_service.dart';
 
-/// Every gateway a business may connect.
+/// Every gateway a business may CONNECT (see PaymentEndpoint.connectGateway).
+/// NOT the same claim as "every gateway kolaa can INITIATE a checkout
+/// against" — see [checkoutSupportedGateways] below for that narrower
+/// set. Monnify is a real example of the difference: connectable (Gate
+/// 11 breadth — sync existing transactions into the graph) but not yet
+/// checkout-capable (see monnify_service.dart's header on why that's a
+/// deliberate scope cut, not a bug).
 ///
-/// THIS IS THE ONE LIST TO EXTEND when adding another. It is mirrored by
-/// a CHECK constraint in the database (migration 020) — both must move
+/// THIS IS THE ONE LIST TO EXTEND when adding another CONNECTABLE
+/// gateway. It is mirrored by a CHECK constraint in the database
+/// (migration 020, widened again by 051 for Monnify) — both must move
 /// together, and the constraint is deliberately kept rather than dropped
 /// so a typo ('stipe') fails at connect time rather than at charge time
 /// in front of a customer.
-const validPaymentGateways = {'paystack', 'flutterwave', 'stripe'};
+const validPaymentGateways = {'paystack', 'flutterwave', 'stripe', 'monnify', 'fincra'};
+
+/// The subset of [validPaymentGateways] this service can actually
+/// INITIATE a checkout against. A gateway can be connectable (its
+/// transactions sync into the graph) without being checkout-capable yet
+/// — see [validPaymentGateways]'s own doc. [initializeCheckout] checks
+/// this SEPARATELY from [validPaymentGateways], so adding a fifth
+/// connect-only gateway later can extend the wider set without silently
+/// also making it a checkout option nobody built.
+const checkoutSupportedGateways = {'paystack', 'flutterwave', 'stripe'};
 
 /// Thrown when a checkout is requested against a gateway the workspace
 /// hasn't connected yet — lets both callers (PaymentEndpoint, the
@@ -105,6 +121,19 @@ class PaymentCheckoutService {
 
     if (!validPaymentGateways.contains(gateway)) {
       throw ArgumentError('gateway must be one of: ${validPaymentGateways.join(", ")}');
+    }
+    // Separate from the check above on purpose — see
+    // checkoutSupportedGateways' own doc comment. A connectable-but-not-
+    // checkout-capable gateway (Monnify, today) must fail with a clear
+    // "not supported for checkout yet" message here, NOT fall through
+    // into the if/else chain below and get silently routed through
+    // whichever branch's `else` happens to catch it.
+    if (!checkoutSupportedGateways.contains(gateway)) {
+      throw ArgumentError(
+        '$gateway is connected for syncing existing transactions, but kolaa cannot '
+        'yet generate a $gateway checkout link. Supported for checkout: '
+        '${checkoutSupportedGateways.join(", ")}.',
+      );
     }
     if (amountKobo <= 0) {
       throw ArgumentError('amountKobo must be positive');

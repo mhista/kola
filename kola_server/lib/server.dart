@@ -47,6 +47,7 @@ import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/messaging/telegram/telegram_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_bot_registry.dart';
+import 'package:kola_server/src/services/messaging/instagram/instagram_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/channel_health_check_service.dart';
 import 'package:kola_server/src/services/billing/paystack_webhook_route.dart';
 import 'package:kola_server/src/services/billing/flutterwave_webhook_route.dart';
@@ -54,6 +55,7 @@ import 'package:kola_server/src/services/billing/kola_billing_paystack_webhook_r
 import 'package:kola_server/src/services/billing/kola_billing_flutterwave_webhook_route.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_webhook_route.dart';
 import 'package:kola_server/src/services/messaging/send_message_route.dart';
+import 'package:kola_server/src/services/assistant/ai_query_route.dart';
 import 'package:kola_server/src/services/notifications/kola_notifier_bot.dart';
 import 'package:kola_server/src/services/billing/trial_sweep_service.dart';
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
@@ -237,6 +239,20 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     Log.startupInfo('Bootstrapping connected WhatsApp channels...');
     await WhatsAppBotRegistry.instance.bootstrapFromDb();
 
+    // 2d. Instagram — the final channel connector of the Connections
+    //     Backbone build. Per-channel routes ONLY, from day one
+    //     (/webhooks/instagram/<channelId>, registered inside
+    //     bootstrapFromDb() via configure() below) — no legacy shared
+    //     route to carry forward, unlike WhatsApp above, since no
+    //     Instagram channel was ever connected under an older shared-URL
+    //     design. See instagram_bot_registry.dart's header.
+    InstagramBotRegistry.instance.configure(
+      addRoute: pod.webServer.addRoute,
+      webhookBaseUrl: Env.webhookBaseUrl,
+    );
+    Log.startupInfo('Bootstrapping connected Instagram channels...');
+    await InstagramBotRegistry.instance.bootstrapFromDb();
+
     // ── Custom routes go here (Phase 2+) ────────────────────────────────
     // e.g. pod.webServer.addRoute(MetaWebhookRoute(), '/webhooks/meta');
     // (Telegram's per-channel routes are already added above, inside
@@ -276,6 +292,13 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     // for why THIS route, unlike every webhook above, returns real HTTP
     // status codes rather than always 200.
     pod.webServer.addRoute(SendMessageRoute(), '/v1/messages');
+
+    // Gate 12 — the public, API-key-authenticated query API. Same
+    // webServer/Route shape as SendMessageRoute directly above (one
+    // line up in this file, one Route class alongside it) — see
+    // ai_query_route.dart's header for what it exposes and how API key
+    // scope gates action execution.
+    pod.webServer.addRoute(AiQueryRoute(), '/v1/ai/query');
 
     // DIAGNOSTIC — temporary, tracking the "No deserialization found for
     // type List<SaleLineInput>" 500 on POST /sale/ringUpSale. That

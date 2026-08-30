@@ -350,6 +350,49 @@ class PaymentTransactionRepository {
         .toList();
   }
 
+  /// Gate 13 — every COMPLETED payment in [workspaceId] with `paid_at`
+  /// (falling back to `created_at` for a row with no paid_at — a manual-
+  /// confirmation edge case, see markHumanConfirmed) inside `[from, to)`,
+  /// any gateway. Deliberately NOT filtered to `sale_id IS NULL` here —
+  /// PaymentReconciliationService needs BOTH the unmatched rows (to find
+  /// a sale for) and the already-linked ones (to know which sales are
+  /// spoken for) from one query, cheaper than two round trips for what
+  /// is, per workspace, always a small window's worth of rows. See that
+  /// service's own header for why the query is a fixed short window
+  /// rather than "all history" — this runs on every dashboard Overview
+  /// load via WorkspaceSweepService, same cost discipline as every other
+  /// detector there.
+  Future<List<PaymentTransaction>> listCompletedByWorkspaceAndRange({
+    required int workspaceId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final response = await supabase
+        .from('payment_transactions')
+        .select()
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'completed')
+        .gte('created_at', from.toIso8601String())
+        .lt('created_at', to.toIso8601String());
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Links a payment to the Sale PaymentReconciliationService determined
+  /// it funds. See payment_transaction.spy.yaml's saleId field doc for
+  /// why this is only ever called on a deterministic, unambiguous match.
+  Future<void> setSaleId(int transactionId, int saleId) async {
+    _log.info('setSaleId transactionId=$transactionId saleId=$saleId');
+    await supabase
+        .from('payment_transactions')
+        .update({
+          'sale_id': saleId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', transactionId);
+  }
+
   /// End-of-day reconciliation: transfers a person marked paid, and
   /// transfers nobody confirmed, for a workspace over a period.
   ///

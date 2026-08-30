@@ -54,6 +54,7 @@ import 'package:kola_server/src/services/repository/product_repository.dart';
 import 'package:kola_server/src/services/repository/support_ticket_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_finding_repository.dart';
+import 'package:kola_server/src/services/billing/payment_reconciliation_service.dart';
 
 final _log = Logger('WorkspaceSweepService');
 
@@ -88,12 +89,14 @@ class WorkspaceSweepService {
     required KnowledgeDocumentRepository documents,
     required WorkspaceConnectorRepository connectors,
     required SupportTicketRepository tickets,
+    required PaymentReconciliationService reconciliation,
   })  : _findings = findings,
         _products = products,
         _conversations = conversations,
         _documents = documents,
         _connectors = connectors,
-        _tickets = tickets;
+        _tickets = tickets,
+        _reconciliation = reconciliation;
 
   final WorkspaceFindingRepository _findings;
   final ProductRepository _products;
@@ -101,6 +104,7 @@ class WorkspaceSweepService {
   final KnowledgeDocumentRepository _documents;
   final WorkspaceConnectorRepository _connectors;
   final SupportTicketRepository _tickets;
+  final PaymentReconciliationService _reconciliation;
 
   /// Above this, individual product findings collapse into one counted
   /// finding.
@@ -126,6 +130,7 @@ class WorkspaceSweepService {
       _detectTickets,
       _detectKnowledge,
       _detectSetup,
+      _detectPaymentReconciliation,
     ]) {
       try {
         detected.addAll(await detector(workspaceId));
@@ -353,6 +358,58 @@ class WorkspaceSweepService {
     }
 
     return out;
+  }
+
+  // ── Money (Gate 13 — reconciliation) ───────────────────────────────
+  //
+  // THE ONE DETECTOR IN THIS FILE THAT WRITES, NOT JUST READS. Every
+  // other detector here computes a finding set from rows that already
+  // exist; this one first asks PaymentReconciliationService to attempt
+  // real, deterministic payment-to-sale links (see that service's own
+  // header for why doing this on every sweep — rather than a separate
+  // scheduled job — is safe: same bounded, indexed-per-workspace cost
+  // every other detector already pays), and only THEN reports whatever
+  // money is still left over. Matching before reporting means a payment
+  // that WAS matched a moment ago by this same call never shows up as
+  // "unmatched" in the very call that matched it.
+
+  Future<List<DetectedFinding>> _detectPaymentReconciliation(int workspaceId) async {
+    final result = await _reconciliation.reconcileWorkspace(workspaceId);
+    if (result.unmatched.isEmpty) return const [];
+
+    return [
+      for (final group in result.unmatched)
+        DetectedFinding(
+          kind: FindingKinds.paymentUnmatched,
+          // Fingerprinted by currency, not by the individual
+          // transactions it currently covers — the same "kind:subject,
+          // never counts" discipline this file's own header (borrowed
+          // from workspace_findings' migration 034) already applies
+          // elsewhere. The total changing from run to run must not read
+          // as a new finding each time; it is the same ongoing
+          // condition with an updated number.
+          fingerprint: '${FindingKinds.paymentUnmatched}:${group.currency}',
+          title: '${_money(group.totalMinor, group.currency)} from '
+              '${FindingKinds.count(group.distinctCustomerCount, 'customer')} '
+              'has not been matched to any order',
+          detail: '${FindingKinds.count(group.transactionCount, 'payment')} came in '
+              "that don't line up with a sale in the till — a partial payment, "
+              'an order rung up under the wrong amount, or one still on its way. '
+              'Check Sales for the ones missing a payment.',
+        ),
+    ];
+  }
+
+  /// Matches ReportEndpoint's own minor-units formatter for NGN — same
+  /// "₦" + two-decimal convention used everywhere else money is shown
+  /// to an owner in this codebase. Falls back to a plain "<amount>
+  /// <CODE>" for anything else, since Stripe (Gate 13's own "across
+  /// providers" requirement) makes a non-NGN workspace real, and
+  /// prefixing a foreign amount with ₦ would be a false fact about the
+  /// business's own money.
+  static String _money(int minor, String currency) {
+    final amount = (minor / 100).toStringAsFixed(2);
+    return currency == 'NGN' ? '₦$amount' : '$amount $currency';
   }
 
   // ── Setup ───────────────────────────────────────────────────────────

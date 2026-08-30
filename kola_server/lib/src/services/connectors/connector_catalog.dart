@@ -378,6 +378,49 @@ abstract class ConnectorCatalog {
         ),
       ],
     ),
+    // Gate 11 (breadth) — sync/graph-landing only, deliberately: no
+    // checkout-initiation path exists for this gateway yet (see
+    // payment_checkout_service.dart's explicit refusal for 'monnify' and
+    // monnify_service.dart's header). A business already collecting
+    // payments through Monnify can connect it so those transactions land
+    // on the same customer/sales graph as every other gateway; a
+    // business wanting kolaa to GENERATE a Monnify checkout link cannot
+    // yet, unlike Paystack/Flutterwave/Stripe.
+    ConnectorDefinition(
+      key: 'monnify',
+      name: 'Monnify',
+      category: 'pay',
+      description: 'Sync existing Monnify payments into your customer records.',
+      auth: ConnectorAuth.fields,
+      store: ConnectorStore.paymentGateway,
+      featureKey: FeatureKeys.payments,
+      helpText: 'Monnify dashboard → Developers → API Keys & Contracts. '
+          'Both the API key and secret key are required — kolaa uses '
+          'them together to sign in, the same way your own integration does.',
+      fields: [
+        ConnectorField(key: 'apiKey', label: 'API key', secret: true),
+        ConnectorField(key: 'secretKey', label: 'Secret key', secret: true),
+      ],
+    ),
+    // Gate 11 (breadth) — same sync/graph-landing-only cut as Monnify
+    // above (see that entry's comment). Unlike Monnify, Fincra needs
+    // only ONE secret — its auth is a single static `api-key` header,
+    // no login step — see fincra_service.dart's header.
+    ConnectorDefinition(
+      key: 'fincra',
+      name: 'Fincra',
+      category: 'pay',
+      description: 'Sync existing Fincra payments into your customer records.',
+      auth: ConnectorAuth.fields,
+      store: ConnectorStore.paymentGateway,
+      featureKey: FeatureKeys.payments,
+      helpText: 'Fincra dashboard → Developers → API Keys. Use the '
+          'Secret key, not the Public key — kolaa reads your existing '
+          'payments, it does not render the checkout widget.',
+      fields: [
+        ConnectorField(key: 'secretKey', label: 'Secret key', secret: true),
+      ],
+    ),
     ConnectorDefinition(
       key: 'stripe',
       name: 'Stripe',
@@ -430,6 +473,29 @@ abstract class ConnectorCatalog {
       auth: ConnectorAuth.oauth,
       store: ConnectorStore.generic,
       featureKey: FeatureKeys.connectorsStorage,
+    ),
+    // Gate 11 (breadth) — fifth and final connector named in the Rev 6
+    // addendum (Instagram intentionally last/unbuilt — see this
+    // codebase's status docs on why it's a different shape of
+    // connector, not a sync() case). Static internal-integration token,
+    // NOT OAuth — see notion_service.dart's header on why that's the
+    // correct auth model here, not a shortcut.
+    ConnectorDefinition(
+      key: 'notion',
+      name: 'Notion',
+      category: 'know',
+      description: 'Pull notes, SOPs, and policy pages straight from Notion.',
+      auth: ConnectorAuth.fields,
+      store: ConnectorStore.generic,
+      featureKey: FeatureKeys.connectorsStorage,
+      helpText: 'notion.so/profile/integrations → create an internal integration, '
+          'copy its token here, THEN open each Notion page you want kolaa to read → '
+          '••• menu → Add connections → select your integration. Notion only shows '
+          'kolaa pages you explicitly share this way — connecting the token alone '
+          'shares nothing.',
+      fields: [
+        ConnectorField(key: 'integrationToken', label: 'Internal integration token', secret: true),
+      ],
     ),
     ConnectorDefinition(
       key: 'dropbox',

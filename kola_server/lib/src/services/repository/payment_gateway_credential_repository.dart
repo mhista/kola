@@ -98,6 +98,10 @@ class PaymentGatewayCredentialRepository {
     required String gateway,
     required String encryptedSecretKey,
     String? encryptedWebhookSecret,
+    // Gate 11 — Monnify only, see payment_gateway_credential.spy.yaml's
+    // encryptedApiKey field doc. Same "only touch if supplied" rule as
+    // encryptedWebhookSecret below.
+    String? encryptedApiKey,
   }) async {
     _log.info('Upserting payment gateway credential workspaceId=$workspaceId gateway=$gateway');
     final now = DateTime.now().toUtc();
@@ -113,6 +117,9 @@ class PaymentGatewayCredentialRepository {
     // previously-set one alone, not silently null it out.
     if (encryptedWebhookSecret != null) {
       row['encrypted_webhook_secret'] = encryptedWebhookSecret;
+    }
+    if (encryptedApiKey != null) {
+      row['encrypted_api_key'] = encryptedApiKey;
     }
 
     final response = await supabase

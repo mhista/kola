@@ -36,6 +36,8 @@ import 'package:kola_server/src/services/billing/payment_checkout_service.dart';
 import 'package:kola_server/src/services/billing/paystack_service.dart';
 import 'package:kola_server/src/services/billing/flutterwave_service.dart';
 import 'package:kola_server/src/services/billing/stripe_service.dart';
+import 'package:kola_server/src/services/billing/monnify_service.dart';
+import 'package:kola_server/src/services/billing/fincra_service.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/features/feature_keys.dart';
@@ -51,8 +53,14 @@ class PaymentEndpoint extends Endpoint {
   FeatureFlagService get _features => getIt<FeatureFlagService>();
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
 
-  /// Connects (or rotates) a workspace's OWN Paystack/Flutterwave secret
-  /// key. Probes it against the real gateway before persisting anything.
+  /// Connects (or rotates) a workspace's OWN Paystack/Flutterwave/Stripe/
+  /// Monnify credential. Probes it against the real gateway before
+  /// persisting anything.
+  ///
+  /// [apiKey] is MONNIFY ONLY — see payment_gateway_credential.spy.yaml's
+  /// encryptedApiKey field doc on why Monnify needs a second required
+  /// credential none of the other three gateways do. Ignored for every
+  /// other gateway.
   Future<PaymentGatewayCredential> connectGateway(
     Session session,
     String accessToken,
@@ -60,6 +68,7 @@ class PaymentEndpoint extends Endpoint {
     String gateway,
     String secretKey, {
     String? webhookSecret,
+    String? apiKey,
   }) async {
     await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
 
@@ -86,17 +95,47 @@ class PaymentEndpoint extends Endpoint {
       throw const InvalidPaymentGatewayCredentialException('Secret key cannot be empty.');
     }
 
+    final trimmedApiKey = apiKey?.trim();
+    if (gateway == 'monnify' && (trimmedApiKey == null || trimmedApiKey.isEmpty)) {
+      throw const InvalidPaymentGatewayCredentialException(
+        'Monnify needs both an API key and a secret key.',
+      );
+    }
+
     // ── Probe against the real gateway before touching the DB ───────────
+    //
+    // EXPLICIT PER-GATEWAY BRANCHES, NOT AN if/else-FALLTHROUGH: this
+    // used to end in a bare `else` that treated anything that wasn't
+    // 'paystack' or 'stripe' as Flutterwave — harmless while only three
+    // gateways existed, but a real, silent-misroute bug waiting for a
+    // fourth (a Monnify key would have been probed against Flutterwave's
+    // API and rejected with a confusing "invalid secret key" error, or
+    // worse). Fixed here rather than only worked around for Monnify —
+    // the next gateway added after this one inherits the safe pattern
+    // instead of the trap.
     try {
-      if (gateway == 'paystack') {
-        await PaystackService(secretKey: trimmedKey).probe();
-      } else if (gateway == 'stripe') {
-        // Retrieving the account is Stripe's cheapest authenticated
-        // read — it creates nothing, so probing costs the business
-        // nothing and cannot leave a stray object behind.
-        await StripeService(secretKey: trimmedKey).retrieveAccount();
-      } else {
-        await FlutterwaveService(secretKey: trimmedKey).probe();
+      switch (gateway) {
+        case 'paystack':
+          await PaystackService(secretKey: trimmedKey).probe();
+        case 'stripe':
+          // Retrieving the account is Stripe's cheapest authenticated
+          // read — it creates nothing, so probing costs the business
+          // nothing and cannot leave a stray object behind.
+          await StripeService(secretKey: trimmedKey).retrieveAccount();
+        case 'flutterwave':
+          await FlutterwaveService(secretKey: trimmedKey).probe();
+        case 'monnify':
+          await MonnifyService(apiKey: trimmedApiKey!, secretKey: trimmedKey).probe();
+        case 'fincra':
+          // Single secret key, no separate apiKey — see fincra_service
+          // .dart's header on why Fincra's auth is simpler than Monnify's.
+          await FincraService(secretKey: trimmedKey).probe();
+        default:
+          // Unreachable given the validPaymentGateways check above —
+          // guarded anyway so a future gateway added to that set without
+          // a branch here fails loud at connect time instead of being
+          // silently probed as the wrong provider.
+          throw StateError('No probe implemented for gateway "$gateway".');
       }
     } catch (e) {
       throw InvalidPaymentGatewayCredentialException(
@@ -124,6 +163,9 @@ class PaymentEndpoint extends Endpoint {
       encryptedWebhookSecret: (trimmedWebhookSecret == null || trimmedWebhookSecret.isEmpty)
           ? null
           : ChannelCredentialEncryptionService.encrypt(trimmedWebhookSecret),
+      encryptedApiKey: (trimmedApiKey == null || trimmedApiKey.isEmpty)
+          ? null
+          : ChannelCredentialEncryptionService.encrypt(trimmedApiKey),
     );
     Log.success('Payment gateway connected: workspaceId=$workspaceId gateway=$gateway');
     return credential;

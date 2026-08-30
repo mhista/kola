@@ -38,6 +38,10 @@ import 'package:kola_server/src/services/connectors/contract/connector_retry.dar
 import 'package:kola_server/src/services/connectors/contract/sync_types.dart';
 import 'package:kola_server/src/services/connectors/paystack_adapter.dart';
 import 'package:kola_server/src/services/connectors/flutterwave_adapter.dart';
+import 'package:kola_server/src/services/connectors/monnify_adapter.dart';
+import 'package:kola_server/src/services/billing/monnify_service.dart';
+import 'package:kola_server/src/services/connectors/fincra_adapter.dart';
+import 'package:kola_server/src/services/billing/fincra_service.dart';
 import 'package:kola_server/src/services/connectors/google/google_oauth_service.dart';
 import 'package:kola_server/src/services/connectors/google/google_sheets_adapter.dart';
 import 'package:kola_server/src/services/connectors/google/google_sheets_config.dart';
@@ -46,6 +50,8 @@ import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_se
 import 'package:kola_server/src/services/connectors/microsoft/onedrive_excel_adapter.dart';
 import 'package:kola_server/src/services/connectors/bumpa/bumpa_service.dart';
 import 'package:kola_server/src/services/connectors/bumpa/bumpa_adapter.dart';
+import 'package:kola_server/src/services/connectors/notion/notion_service.dart';
+import 'package:kola_server/src/services/connectors/notion/notion_adapter.dart';
 
 class ConnectorSyncSweepService {
   ConnectorSyncSweepService({
@@ -81,10 +87,104 @@ class ConnectorSyncSweepService {
         service: FlutterwaveService(secretKey: secretKey),
       ),
     );
+    succeeded += await _sweepMonnify();
+    // Gate 11 — Fincra. Unlike Monnify, Fincra needs only ONE secret
+    // (no separate apiKey — see fincra_service.dart's header), so it
+    // fits [_sweepGateway]'s generic single-secret-string loop directly
+    // instead of needing its own bespoke method.
+    succeeded += await _sweepGateway(
+      gateway: 'fincra',
+      buildAdapter: (workspaceId, secretKey) => FincraAdapter(
+        workspaceId: workspaceId,
+        service: FincraService(secretKey: secretKey),
+      ),
+    );
     succeeded += await _sweepGoogleSheets();
     succeeded += await _sweepGoogleDrive();
     succeeded += await _sweepOneDriveExcel();
     succeeded += await _sweepBumpa();
+    succeeded += await _sweepNotion();
+    return succeeded;
+  }
+
+  /// Gate 11 — Monnify's own sweep, kept OUT of [_sweepGateway]'s loop
+  /// for the same reason [_sweepBumpa] is: [_sweepGateway]'s
+  /// `buildAdapter` signature takes one secret string, and Monnify needs
+  /// TWO required credentials (apiKey AND secretKey — see
+  /// payment_gateway_credential.spy.yaml's encryptedApiKey field). Still
+  /// reads from [_gatewayCredentials] (the paymentGateway store), unlike
+  /// Bumpa/Sheets/Drive/OneDrive which read from [_genericConnectors] —
+  /// Monnify's ConnectorDefinition uses `store: ConnectorStore
+  /// .paymentGateway`, same as Paystack/Flutterwave/Stripe, so its
+  /// credentials live in the same table those three do.
+  Future<int> _sweepMonnify() async {
+    final credentials = await _gatewayCredentials.listAllByGateway('monnify');
+    if (credentials.isEmpty) return 0;
+
+    Log.info('ConnectorSyncSweepService: syncing ${credentials.length} Monnify credential(s)...');
+    var succeeded = 0;
+
+    for (final credential in credentials) {
+      final workspaceId = credential.workspaceId;
+      try {
+        final secretKey = ChannelCredentialEncryptionService.decrypt(credential.encryptedSecretKey);
+        final encryptedApiKey = credential.encryptedApiKey;
+        if (encryptedApiKey == null) {
+          // Shouldn't happen — PaymentEndpoint.connectGateway requires
+          // both for 'monnify' at connect time — but a credential
+          // connected before Gate 11 shipped, or a data issue, must skip
+          // rather than crash the sweep.
+          Log.warning('ConnectorSyncSweepService: Monnify credential for workspace $workspaceId has no API key stored — skipping');
+          continue;
+        }
+        final apiKey = ChannelCredentialEncryptionService.decrypt(encryptedApiKey);
+
+        final adapter = MonnifyAdapter(
+          workspaceId: workspaceId,
+          service: MonnifyService(apiKey: apiKey, secretKey: secretKey),
+        );
+
+        final cursor = credential.syncCursor == null ? SyncCursor.none : SyncCursor(credential.syncCursor);
+
+        final result = await ConnectorRetry.run<SyncResult>(
+          () => adapter.sync(cursor: cursor),
+          deadLetter: _syncLog,
+          workspaceId: workspaceId,
+          connectorKey: 'monnify',
+          store: 'payment_gateway',
+          kind: 'sync',
+        );
+
+        await _gatewayCredentials.updateSyncState(
+          workspaceId: workspaceId,
+          gateway: 'monnify',
+          cursor: result.nextCursor.isEmpty ? credential.syncCursor : result.nextCursor.value as String?,
+          syncedAt: DateTime.now(),
+        );
+
+        await _syncLog.record(
+          workspaceId: workspaceId,
+          connectorKey: 'monnify',
+          store: 'payment_gateway',
+          kind: 'sync',
+          success: !result.hadErrors,
+          recordsSeen: result.recordsSeen,
+          recordsChanged: result.recordsChanged,
+          errorMessage: result.hadErrors ? result.errors.join('; ') : null,
+        );
+
+        if (result.recordsChanged > 0) {
+          Log.info(
+            'ConnectorSyncSweepService: workspace $workspaceId Monnify — '
+            '${result.recordsSeen} seen, ${result.recordsChanged} changed',
+          );
+        }
+        succeeded++;
+      } catch (e) {
+        Log.error('ConnectorSyncSweepService: Monnify sync failed for workspace $workspaceId', error: e);
+      }
+    }
+
     return succeeded;
   }
 
@@ -450,6 +550,78 @@ class ConnectorSyncSweepService {
         succeeded++;
       } catch (e) {
         Log.error('ConnectorSyncSweepService: Bumpa sync failed for workspace $workspaceId', error: e);
+      }
+    }
+
+    return succeeded;
+  }
+
+  /// Gate 11 — Notion. Same generic-store, single-config-field shape as
+  /// [_sweepBumpa] (one config key here instead of two: just
+  /// `integrationToken` — see notion_service.dart's header on why a
+  /// static token, not OAuth, is this connector's whole auth story).
+  Future<int> _sweepNotion() async {
+    final connectors = await _genericConnectors.listAllByKey('notion');
+    if (connectors.isEmpty) return 0;
+
+    Log.info('ConnectorSyncSweepService: syncing ${connectors.length} Notion connection(s)...');
+    var succeeded = 0;
+
+    for (final connector in connectors) {
+      final workspaceId = connector.workspaceId;
+      if (connector.encryptedConfig == null) continue;
+
+      try {
+        final config = jsonDecode(
+          ChannelCredentialEncryptionService.decrypt(connector.encryptedConfig!),
+        ) as Map<String, dynamic>;
+        final integrationToken = config['integrationToken'] as String?;
+        if (integrationToken == null) continue; // shouldn't happen — required at connect time
+
+        final adapter = NotionAdapter(
+          workspaceId: workspaceId,
+          service: NotionService(integrationToken: integrationToken),
+        );
+
+        final result = await ConnectorRetry.run<SyncResult>(
+          () => adapter.sync(),
+          deadLetter: _syncLog,
+          workspaceId: workspaceId,
+          connectorKey: 'notion',
+          store: 'generic',
+          kind: 'sync',
+        );
+
+        await _genericConnectors.recordSyncRun(
+          workspaceId: workspaceId,
+          connectorKey: 'notion',
+          cursor: result.nextCursor.isEmpty ? connector.syncCursor : result.nextCursor.value as String?,
+          syncedAt: DateTime.now(),
+          recordsSeen: result.recordsSeen,
+          recordsChanged: result.recordsChanged,
+          errorCount: result.errors.length,
+        );
+
+        await _syncLog.record(
+          workspaceId: workspaceId,
+          connectorKey: 'notion',
+          store: 'generic',
+          kind: 'sync',
+          success: !result.hadErrors,
+          recordsSeen: result.recordsSeen,
+          recordsChanged: result.recordsChanged,
+          errorMessage: result.hadErrors ? result.errors.join('; ') : null,
+        );
+
+        if (result.recordsChanged > 0) {
+          Log.info(
+            'ConnectorSyncSweepService: workspace $workspaceId Notion — '
+            '${result.recordsSeen} seen, ${result.recordsChanged} changed',
+          );
+        }
+        succeeded++;
+      } catch (e) {
+        Log.error('ConnectorSyncSweepService: Notion sync failed for workspace $workspaceId', error: e);
       }
     }
 

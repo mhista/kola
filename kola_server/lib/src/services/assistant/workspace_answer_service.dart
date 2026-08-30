@@ -260,8 +260,19 @@ class WorkspaceAnswerService {
   Future<WorkspaceAnswer> ask({
     required int workspaceId,
     required String question,
+    // Gate 12 — the public API's ONLY lever over what an external caller
+    // can do through this one method. Defaults to true, so every
+    // existing internal caller (the owner dashboard's "Ask kola" box)
+    // keeps its current behaviour byte-for-byte. AiQueryRoute is the
+    // one caller that ever passes false — see that file's header on why
+    // an API key's own scope (`read_only` vs `full`) is what decides
+    // this, not a request body field: letting the CALLER declare "don't
+    // let me trigger actions" would be a promise this service has no
+    // way to verify, where the key's stored scope is a promise the
+    // platform itself already enforces.
+    bool allowActions = true,
   }) async {
-    final answer = await _askInner(workspaceId: workspaceId, question: question);
+    final answer = await _askInner(workspaceId: workspaceId, question: question, allowActions: allowActions);
 
     final trimmedQuestion = question.trim();
     if (answer.generated && trimmedQuestion.isNotEmpty) {
@@ -282,6 +293,7 @@ class WorkspaceAnswerService {
   Future<WorkspaceAnswer> _askInner({
     required int workspaceId,
     required String question,
+    bool allowActions = true,
   }) async {
     final trimmed = question.trim();
     if (trimmed.isEmpty) {
@@ -301,7 +313,14 @@ class WorkspaceAnswerService {
     final catalog = await _catalogDigest(workspaceId);
     final connectorDigest = await _connectorDigest(workspaceId);
     final salesDigest = await _salesDigest(workspaceId);
-    final actionTools = await _actionTools(workspaceId);
+    // allowActions: false short-circuits to an empty tool set rather
+    // than computing real ones and discarding them — cheaper, and it
+    // means a read_only API key genuinely never causes
+    // ConnectorCapabilityRegistry/ErrandRepository work it has no use
+    // for, not just "the model was told not to use them."
+    final actionTools = allowActions
+        ? await _actionTools(workspaceId)
+        : (tools: <AiTool>[], errands: <Errand>[]);
     final recentTurns = await _recentTurnsBlock(workspaceId);
 
     final citations = <KnowledgeSearchHit>[

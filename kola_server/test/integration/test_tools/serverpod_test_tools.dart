@@ -1007,6 +1007,49 @@ class _ChannelEndpoint {
       }
     });
   }
+
+  _i3.Future<_i8.Channel> connectInstagramChannelManual(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    int botId,
+    String instagramAccessToken,
+    String igUserId,
+    String instagramAppSecret,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'channel',
+            method: 'connectInstagramChannelManual',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'channel',
+          methodName: 'connectInstagramChannelManual',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'botId': botId,
+            'instagramAccessToken': instagramAccessToken,
+            'igUserId': igUserId,
+            'instagramAppSecret': instagramAppSecret,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i8.Channel>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
 }
 
 class _ConnectorEndpoint {
@@ -3264,6 +3307,7 @@ class _PaymentEndpoint {
     String gateway,
     String secretKey, {
     String? webhookSecret,
+    String? apiKey,
   }) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -3282,6 +3326,7 @@ class _PaymentEndpoint {
             'gateway': gateway,
             'secretKey': secretKey,
             'webhookSecret': webhookSecret,
+            'apiKey': apiKey,
           }),
           serializationManager: _serializationManager,
         );

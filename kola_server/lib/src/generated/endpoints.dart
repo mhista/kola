@@ -818,6 +818,55 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['whatsappAppSecret'],
                   ),
         ),
+        'connectInstagramChannelManual': _i1.MethodConnector(
+          name: 'connectInstagramChannelManual',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'botId': _i1.ParameterDescription(
+              name: 'botId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'instagramAccessToken': _i1.ParameterDescription(
+              name: 'instagramAccessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'igUserId': _i1.ParameterDescription(
+              name: 'igUserId',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'instagramAppSecret': _i1.ParameterDescription(
+              name: 'instagramAppSecret',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['channel'] as _i4.ChannelEndpoint)
+                  .connectInstagramChannelManual(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['botId'],
+                    params['instagramAccessToken'],
+                    params['igUserId'],
+                    params['instagramAppSecret'],
+                  ),
+        ),
       },
     );
     connectors['connector'] = _i1.EndpointConnector(
@@ -2926,6 +2975,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<String?>(),
               nullable: true,
             ),
+            'apiKey': _i1.ParameterDescription(
+              name: 'apiKey',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
           },
           call:
               (
@@ -2939,6 +2993,7 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['gateway'],
                     params['secretKey'],
                     webhookSecret: params['webhookSecret'],
+                    apiKey: params['apiKey'],
                   ),
         ),
         'listConnectedGateways': _i1.MethodConnector(

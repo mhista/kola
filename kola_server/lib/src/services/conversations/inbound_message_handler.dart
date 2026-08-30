@@ -178,8 +178,12 @@ class InboundMessageHandler {
   ///
   /// [botId]/[channelId] identify which bot+channel received the
   /// message; [externalUserId] is the customer's platform-specific id
-  /// (Telegram chat id, WhatsApp wa_id); [platformType] is 'telegram' or
-  /// 'whatsapp'.
+  /// (Telegram chat id, WhatsApp wa_id, Instagram IGSID); [platformType]
+  /// is 'telegram', 'whatsapp', or 'instagram'. Instagram never passes
+  /// [mediaReference]/[mediaKind]/[channel] in this build — see
+  /// instagram_bot_registry.dart's header — so the platformType=='telegram'
+  /// ternary below is simply never reached for it; no third branch was
+  /// needed.
   Future<String?> handle({
     required int botId,
     required int channelId,

@@ -81,6 +81,7 @@ import 'package:kola_server/src/services/connectors/google/google_oauth_service.
 import 'package:kola_server/src/services/connectors/google/calendar_booking_service.dart';
 import 'package:kola_server/src/services/repository/payment_gateway_credential_repository.dart';
 import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
+import 'package:kola_server/src/services/billing/payment_reconciliation_service.dart';
 import 'package:kola_server/src/services/billing/payment_checkout_service.dart';
 import 'package:kola_server/src/services/repository/support_ticket_repository.dart';
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
@@ -446,6 +447,17 @@ void setupDependencyInjection() {
   getIt.registerLazySingleton<WorkspaceFindingRepository>(
     () => const WorkspaceFindingRepository(),
   );
+  // Gate 13 — payment-to-order matching, registered here (not down by
+  // PaymentTransactionRepository/SaleRepository) because its only
+  // caller is WorkspaceSweepService, immediately below — same
+  // "registered next to the detector that uses it" placement this file
+  // already gives WorkspaceFindingRepository.
+  getIt.registerLazySingleton<PaymentReconciliationService>(
+    () => PaymentReconciliationService(
+      transactions: getIt<PaymentTransactionRepository>(),
+      sales: getIt<SaleRepository>(),
+    ),
+  );
   getIt.registerLazySingleton<WorkspaceSweepService>(
     () => WorkspaceSweepService(
       findings: getIt<WorkspaceFindingRepository>(),
@@ -454,6 +466,7 @@ void setupDependencyInjection() {
       documents: getIt<KnowledgeDocumentRepository>(),
       connectors: getIt<WorkspaceConnectorRepository>(),
       tickets: getIt<SupportTicketRepository>(),
+      reconciliation: getIt<PaymentReconciliationService>(),
     ),
   );
 

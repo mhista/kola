@@ -26,6 +26,8 @@ class PaymentGatewayCredentialDto extends BaseDto<PaymentGatewayCredential> {
       gateway: row['gateway'] as String,
       encryptedSecretKey: row['encrypted_secret_key'] as String,
       encryptedWebhookSecret: row['encrypted_webhook_secret'] as String?,
+      // Gate 11 (migration 051) — Monnify only, see the model's own field doc.
+      encryptedApiKey: row['encrypted_api_key'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
       // Gate 4 (migration 040).
@@ -47,6 +49,7 @@ class PaymentGatewayCredentialDto extends BaseDto<PaymentGatewayCredential> {
       'gateway': model.gateway,
       'encrypted_secret_key': model.encryptedSecretKey,
       'encrypted_webhook_secret': model.encryptedWebhookSecret,
+      'encrypted_api_key': model.encryptedApiKey,
       'updated_at': model.updatedAt.toIso8601String(),
     };
   }

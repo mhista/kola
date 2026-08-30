@@ -31,6 +31,9 @@ import 'package:kola_server/src/services/messaging/telegram/telegram_bot_registr
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_credential.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_service.dart';
+import 'package:kola_server/src/services/messaging/instagram/instagram_bot_registry.dart';
+import 'package:kola_server/src/services/messaging/instagram/instagram_credential.dart';
+import 'package:kola_server/src/services/messaging/instagram/instagram_service.dart';
 import 'package:kola_server/src/services/connectors/contract/agent_lifecycle_events.dart';
 import 'package:kola_server/kola_logger.dart';
 
@@ -318,6 +321,139 @@ class ChannelEndpoint extends Endpoint {
         'botId': botId,
         'channelId': connectedChannel.id,
         'phoneNumberId': trimmedPhoneNumberId,
+        'displayName': displayName,
+      },
+      session: session,
+    );
+
+    return connectedChannel;
+  }
+
+  /// Connects an Instagram professional account — the final channel of
+  /// the Connections Backbone build (Rev 5/6's Gate 11 explicitly
+  /// deferred this one, scoped separately from that gate's sync()-shaped
+  /// connectors since Instagram DMs are push-driven like WhatsApp/
+  /// Telegram — see instagram_bot_registry.dart's header).
+  ///
+  /// Same manual-connect shape as connectWhatsAppChannelManual: the
+  /// business has already created a Meta App, generated an Instagram
+  /// User access token with instagram_business_basic +
+  /// instagram_business_manage_messages permissions, and knows their own
+  /// Instagram professional account's ID and that App's App Secret.
+  /// Probed against Meta's real API (InstagramService.probe()) before
+  /// anything touches the DB — same "a bad paste fails loudly, not as a
+  /// silently-broken 'connected' row" reasoning as every other manual
+  /// connect flow in this file.
+  ///
+  /// enableSubscription() is attempted right after probing succeeds —
+  /// per Meta's docs, an App-level webhook subscription alone isn't
+  /// enough; each individual Instagram account must separately opt in
+  /// via POST /<IG_ID>/subscribed_apps. A failure there does NOT block
+  /// the connection (sending still works; see instagram_service.dart's
+  /// own doc on that method) — only logged, same soft-fail posture as
+  /// WhatsApp's debug_token check above.
+  Future<Channel> connectInstagramChannelManual(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int botId,
+    String instagramAccessToken,
+    String igUserId,
+    String instagramAppSecret,
+  ) async {
+    await requireWorkspaceAccess(
+      accessToken: accessToken,
+      workspaceId: workspaceId,
+    );
+
+    final bot = await _bots.findByIdScoped(botId, workspaceId);
+    if (bot == null) {
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
+    }
+
+    final trimmedToken = instagramAccessToken.trim();
+    final trimmedIgUserId = igUserId.trim();
+    final trimmedAppSecret = instagramAppSecret.trim();
+    if (trimmedToken.isEmpty || trimmedIgUserId.isEmpty || trimmedAppSecret.isEmpty) {
+      throw const InvalidInstagramCredentialException(
+        'Access token, Instagram professional account ID, and App Secret are all required.',
+      );
+    }
+
+    // ── Probe against Meta's real API before touching the DB ────────────
+    final instagramService = InstagramService(
+      accessToken: trimmedToken,
+      igUserId: trimmedIgUserId,
+    );
+    Map<String, dynamic> accountInfo;
+    try {
+      accountInfo = await instagramService.probe();
+    } catch (e) {
+      throw InvalidInstagramCredentialException(
+        'Could not verify this Instagram account with Meta — double-check the '
+        'access token and account ID were copied exactly from your Meta App '
+        'Dashboard. ($e)',
+      );
+    }
+
+    // ── Enable webhook delivery for this account — see method doc above
+    //    on why this is a soft failure, not a blocking one. ──────────────
+    try {
+      await instagramService.enableSubscription();
+    } catch (e) {
+      Log.warning(
+        'Instagram subscribed_apps call failed for bot $botId (connection still '
+        'proceeds — sending works either way, but inbound messages will not '
+        'arrive until this is retried): $e',
+      );
+    }
+
+    // ── Reuse the existing Instagram channel row for this bot if one
+    //    already exists (e.g. reconnecting after a revoked token),
+    //    otherwise create a fresh 'pending' row first. ──────────────────
+    final existing = await _channels.findByBotAndPlatform(botId, 'instagram');
+    final channel = existing ??
+        await _channels.create(botId: botId, platformType: 'instagram');
+
+    final credential = InstagramCredential(
+      igUserId: trimmedIgUserId,
+      accessToken: trimmedToken,
+      appSecret: trimmedAppSecret,
+    );
+    final encryptedCredential =
+        ChannelCredentialEncryptionService.encrypt(credential.encode());
+
+    final displayName = accountInfo['username'] as String? ??
+        accountInfo['name'] as String?;
+
+    final connectedChannel = await _channels.setCredential(
+      channelId: channel.id!,
+      encryptedCredential: encryptedCredential,
+      displayName: displayName,
+    );
+
+    // ── Hot-connect — registers this channel's webhook route
+    //    immediately; the business needs InstagramBotRegistry
+    //    .instance.webhookUrlFor(connectedChannel.id) right after this
+    //    call returns, to paste into their Meta App Dashboard. ──────────
+    InstagramBotRegistry.instance.connectChannel(
+      channel: connectedChannel,
+      credential: credential,
+    );
+
+    if (bot.status == 'draft') {
+      final publishedBot = await _bots.setStatus(botId, 'live');
+      // Gate 2 — event bus. See agent_lifecycle_events.dart's header.
+      await _agentEvents.recordPublished(publishedBot);
+    }
+
+    Log.success(
+      'Instagram channel connected (manual)',
+      data: {
+        'workspaceId': workspaceId,
+        'botId': botId,
+        'channelId': connectedChannel.id,
+        'igUserId': trimmedIgUserId,
         'displayName': displayName,
       },
       session: session,

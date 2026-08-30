@@ -64,6 +64,23 @@ fields:
   # top-level webhook event alone is never sufficient proof).
   status: String
 
+  # Gate 13 (reconciliation) — foreign key → sales.id. Set by
+  # PaymentReconciliationService once a completed payment is deterministically
+  # matched to a till Sale (same workspace, same amount+currency, within
+  # the matching window, and never contradicting a resolved customerId on
+  # either side — see that service's own header). Null means either
+  # "not a till sale at all" (most bot-checkout payments) or "not matched
+  # yet" — those two are NOT distinguished by this column alone; see
+  # PaymentReconciliationService for how the unmatched-money finding tells
+  # them apart. Never set for anything but a deterministic, unambiguous
+  # match — this is the same "proposals over destructive rewrites"
+  # discipline CustomerIdentityResolver uses, applied to money instead of
+  # identity, except a wrong link here is cheap to notice (an owner sees
+  # a sale credited with someone else's payment) and cheap to reverse
+  # (clearing this column), so v1 auto-links on certainty rather than
+  # queuing a review step the way customer merges do.
+  saleId: int?
+
   # 'notHeld' | 'held' | 'released' — see this file's header. Set at
   # checkout time from the Errand's own holdInEscrow flag; 'held' only
   # ever transitions to 'released' via PaymentEndpoint.releaseHold, and

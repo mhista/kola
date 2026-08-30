@@ -173,6 +173,32 @@ abstract class Env {
       ? _Env.whatsappWebhookVerifyToken
       : Platform.environment['WHATSAPP_WEBHOOK_VERIFY_TOKEN'] ?? '';
 
+  // ── Instagram webhook (final gate — messaging channels) ─────────────────────
+  // Same role as whatsappWebhookVerifyToken directly above, and the same
+  // shared-Meta-webhook-infrastructure reasoning as
+  // instagram_webhook_route.dart's header: whatever string is set as the
+  // "Verify Token" for this Meta App's Webhooks product must match this
+  // exactly.
+  //
+  // DELIBERATELY NOT AN @EnviedField, UNLIKE EVERY FIELD ABOVE — a real
+  // difference from how this file normally grows, not an oversight. Every
+  // other secret in this class has an obfuscated counterpart hand-generated
+  // into env.g.dart by a real `dart run build_runner build` against a real
+  // secret value already sitting in someone's .env. This one doesn't exist
+  // yet — no business has connected Instagram before this field was added,
+  // so there is no real value to obfuscate, and no Dart toolchain in this
+  // environment to run build_runner even if there were. Fabricating XOR
+  // key/data byte arrays for a secret that doesn't exist would be exactly
+  // the kind of invented-to-look-done code this project's discipline exists
+  // to avoid. This reads straight from Platform.environment instead — works
+  // identically to every other field's runtime fallback path, just without
+  // the compile-time-baked-in option. Safe to upgrade to a real
+  // @EnviedField the next time someone runs build_runner for any other
+  // reason — see .env.example for the INSTAGRAM_WEBHOOK_VERIFY_TOKEN entry
+  // this expects.
+  static final String instagramWebhookVerifyToken =
+      Platform.environment['INSTAGRAM_WEBHOOK_VERIFY_TOKEN'] ?? '';
+
   // ── AI orchestrator (Phase 3a) ───────────────────────────────────────────────
   // Same cost-efficient cascade already proven in copycat/kopicat_server's
   // ai.dart, ported rather than reinvented: Groq first (fast, generous free

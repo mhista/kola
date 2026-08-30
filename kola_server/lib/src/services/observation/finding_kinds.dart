@@ -48,6 +48,14 @@ abstract class FindingKinds {
   // ── Setup ─────────────────────────────────────────────────────────
   static const noChannelConnected = 'no_channel_connected';
 
+  // ── Money (Gate 13 — reconciliation) ─────────────────────────────
+  // Deliberately its own group, not folded into Commerce: this fires
+  // for a workspace with payments and no products at all (a business
+  // that only takes bookings/deposits), same "commerce is a feature,
+  // never a prerequisite" posture the rest of this codebase already
+  // holds — see PaymentReconciliationService's own header.
+  static const paymentUnmatched = 'payment_unmatched';
+
   /// Severity, 1 = highest.
   ///
   /// ── THE ORDER IS AN OPINION AND IT SHOULD BE ARGUED WITH ─────────
@@ -72,6 +80,10 @@ abstract class FindingKinds {
         // outrank stock. A missed promise to a named customer is the
         // most expensive thing on this list.
         ticketOverdue => 1,
+        // Unmatched money ranks with ticketDueSoon/productOutOfStock —
+        // real money the owner has and cannot currently place against
+        // an order, but not a promise already broken to a named person.
+        paymentUnmatched => 2,
         ticketDueSoon => 2,
         productOutOfStock => 2,
         documentFailed => 3,

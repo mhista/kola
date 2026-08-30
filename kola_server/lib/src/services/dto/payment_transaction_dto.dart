@@ -28,6 +28,8 @@ class PaymentTransactionDto extends BaseDto<PaymentTransaction> {
       customerId: row['customer_id'] as int?,
       status: row['status'] as String,
       holdStatus: row['hold_status'] as String,
+      // Gate 13 (reconciliation, migration 053).
+      saleId: row['sale_id'] as int?,
       conversationId: row['conversation_id'] as int?,
       channelId: row['channel_id'] as int?,
       checkoutUrl: row['checkout_url'] as String?,
@@ -73,6 +75,7 @@ class PaymentTransactionDto extends BaseDto<PaymentTransaction> {
       'customer_id': model.customerId,
       'status': model.status,
       'hold_status': model.holdStatus,
+      'sale_id': model.saleId,
       'conversation_id': model.conversationId,
       'channel_id': model.channelId,
       'checkout_url': model.checkoutUrl,
