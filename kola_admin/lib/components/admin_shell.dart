@@ -10,20 +10,25 @@
 // shape (translated to route names here since this is Dart, not the
 // mockup's static HTML export).
 //
-// HONESTY ABOUT WHAT'S REAL: only "Release control" is an actual route
-// in this app (ADMIN_APP_SPEC.md build-order steps 4-7 — workspace
-// administration, customer service, platform health, push
-// notifications, support queue, admin accounts, audit log as its own
-// page — are NOT built; see docs/ADMIN_CONTROL_PLANE_STATUS.md). Every
-// other nav item is rendered dimmed and inert, exactly the way a real
-// product shows a nav item that exists in the design but has no page
-// behind it yet — clicking it surfaces an honest "not built yet" note
-// via [onUnbuiltNav] rather than 404ing or silently doing nothing.
+// HONESTY ABOUT WHAT'S REAL: every nav item except "Overview" is now a
+// real route (steps 5-7 plus the three deferred "own page" items were
+// all built in this pass — see docs/ADMIN_CONTROL_PLANE_STATUS.md for
+// what each surface does and does not cover honestly). "Overview" is
+// still inert — no dashboard-summary page exists yet — and renders
+// dimmed, same "not built yet" via [onUnbuiltNav] as before rather than
+// 404ing or silently doing nothing.
+//
+// NAVIGATION: a nav item with a real [AdminNavItem.route] renders as a
+// jaspr_router [Link] — this project's established declarative-
+// navigation convention (see kola_dashboard/lib/pages/create_bot_page
+// .dart's header: "no Router.of(context).push anywhere in lib/, every
+// transition is a Link"), kept consistent here in kola_admin too.
 
 import 'dart:js_interop';
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:jaspr_router/jaspr_router.dart';
 import 'package:web/web.dart' as web;
 
 import '../theme.dart';
@@ -37,14 +42,14 @@ class AdminNavItem {
 
 const List<AdminNavItem> kAdminNavItems = [
   AdminNavItem('Overview'),
-  AdminNavItem('Workspaces'),
+  AdminNavItem('Workspaces', route: '/workspaces'),
   AdminNavItem('Release control', route: '/'),
-  AdminNavItem('Customer service'),
-  AdminNavItem('Push notifications'),
-  AdminNavItem('Platform health'),
-  AdminNavItem('Support queue'),
-  AdminNavItem('Audit log'),
-  AdminNavItem('Admin accounts'),
+  AdminNavItem('Customer service', route: '/customer-service'),
+  AdminNavItem('Push notifications', route: '/announcements'),
+  AdminNavItem('Platform health', route: '/platform-health'),
+  AdminNavItem('Support queue', route: '/support-queue'),
+  AdminNavItem('Audit log', route: '/audit-log'),
+  AdminNavItem('Admin accounts', route: '/admin-accounts'),
 ];
 
 class AdminShell extends StatefulComponent {
@@ -121,7 +126,23 @@ class _AdminShellState extends State<AdminShell> {
 
   void _handlePaletteSelect(AdminNavItem item) {
     _closePalette();
-    if (item.route != null) return; // already on the only real route
+    if (item.route != null) {
+      if (item.label == component.activeLabel) return; // already here
+      // A full navigation via location.href rather than an imperative
+      // jaspr_router call — this project's only established navigation
+      // pattern is the declarative Link (see [_navRow] and
+      // kola_dashboard/create_bot_page.dart's header), and no imperative
+      // push/go API was verified against the actual jaspr_router version
+      // pinned here (no reachable package source in this environment to
+      // confirm one exists/its exact shape) — see this project's own
+      // standing discipline against inventing unverified APIs (the same
+      // reasoning that caught the earlier Fragment/select() mistakes).
+      // web.window.location.href is a real, always-correct Web API: a
+      // full reload of this small SPA is a fine cost for "jump to
+      // another page from the command palette," an infrequent action.
+      web.window.location.href = item.route!;
+      return;
+    }
     component.onUnbuiltNav(item.label);
   }
 
@@ -204,18 +225,22 @@ class _AdminShellState extends State<AdminShell> {
 
   Component _navRow(AdminNavItem n) {
     final active = n.label == component.activeLabel;
+    final style = 'display:block;padding:7px 10px;border-radius:6px;font-size:12.5px;'
+        'background:${active ? AdminColors.sidebarItemActiveBg : 'transparent'};'
+        'color:${active ? AdminColors.heading : AdminColors.muted};'
+        'cursor:pointer;user-select:none;text-decoration:none';
+
+    if (n.route != null) {
+      return Link(
+        to: n.route!,
+        attributes: {'style': style},
+        children: [Component.text(n.label)],
+      );
+    }
+
     return div(
-      events: {
-        'click': (_) {
-          if (n.route == null) component.onUnbuiltNav(n.label);
-        },
-      },
-      attributes: {
-        'style': 'padding:7px 10px;border-radius:6px;font-size:12.5px;'
-            'background:${active ? AdminColors.sidebarItemActiveBg : 'transparent'};'
-            'color:${active ? AdminColors.heading : AdminColors.muted};'
-            'cursor:pointer;user-select:none',
-      },
+      events: {'click': (_) => component.onUnbuiltNav(n.label)},
+      attributes: {'style': style},
       [Component.text(n.label)],
     );
   }

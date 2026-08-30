@@ -89,6 +89,23 @@ class SupportTicketRepository {
         .toList();
   }
 
+  /// Every open/in-progress ticket across EVERY workspace, newest first —
+  /// the admin "Support queue" page (deferred until this pass). Global,
+  /// same precedent as [listOpenPastDeadline] just above.
+  Future<List<SupportTicket>> listOpenGlobal({int limit = 200}) async {
+    _log.fine('listOpenGlobal(limit=$limit)');
+    final response = await supabase
+        .from('support_tickets')
+        .select()
+        .inFilter('status', ['open', 'inProgress'])
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
   // ── WRITE ─────────────────────────────────────────────────────────────────
 
   /// Creates a ticket with slaDeadline computed from [priority] — see

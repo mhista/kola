@@ -11,173 +11,408 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:serverpod/serverpod.dart' as _i1;
-import '../endpoints/admin/admin_auth_endpoint.dart' as _i2;
-import '../endpoints/admin/admin_feature_endpoint.dart' as _i3;
-import '../endpoints/bot_endpoint.dart' as _i4;
-import '../endpoints/broadcast_endpoint.dart' as _i5;
-import '../endpoints/channel_endpoint.dart' as _i6;
-import '../endpoints/connector_endpoint.dart' as _i7;
-import '../endpoints/conversation_endpoint.dart' as _i8;
-import '../endpoints/customer_endpoint.dart' as _i9;
-import '../endpoints/errand_endpoint.dart' as _i10;
-import '../endpoints/feature_endpoint.dart' as _i11;
-import '../endpoints/finding_endpoint.dart' as _i12;
-import '../endpoints/invoice_endpoint.dart' as _i13;
-import '../endpoints/knowledge_endpoint.dart' as _i14;
-import '../endpoints/owner_notification_endpoint.dart' as _i15;
-import '../endpoints/payment_endpoint.dart' as _i16;
-import '../endpoints/platform_endpoint.dart' as _i17;
-import '../endpoints/product_endpoint.dart' as _i18;
-import '../endpoints/report_endpoint.dart' as _i19;
-import '../endpoints/sale_endpoint.dart' as _i20;
-import '../endpoints/support_ticket_endpoint.dart' as _i21;
-import '../endpoints/waitlist_endpoint.dart' as _i22;
-import '../endpoints/whatsapp_template_endpoint.dart' as _i23;
-import '../endpoints/workspace_endpoint.dart' as _i24;
+import '../endpoints/admin/admin_accounts_endpoint.dart' as _i2;
+import '../endpoints/admin/admin_announcement_endpoint.dart' as _i3;
+import '../endpoints/admin/admin_audit_log_endpoint.dart' as _i4;
+import '../endpoints/admin/admin_auth_endpoint.dart' as _i5;
+import '../endpoints/admin/admin_diagnostics_endpoint.dart' as _i6;
+import '../endpoints/admin/admin_feature_endpoint.dart' as _i7;
+import '../endpoints/admin/admin_platform_endpoint.dart' as _i8;
+import '../endpoints/admin/admin_support_endpoint.dart' as _i9;
+import '../endpoints/admin/admin_workspace_endpoint.dart' as _i10;
+import '../endpoints/bot_endpoint.dart' as _i11;
+import '../endpoints/broadcast_endpoint.dart' as _i12;
+import '../endpoints/channel_endpoint.dart' as _i13;
+import '../endpoints/connector_endpoint.dart' as _i14;
+import '../endpoints/conversation_endpoint.dart' as _i15;
+import '../endpoints/customer_endpoint.dart' as _i16;
+import '../endpoints/errand_endpoint.dart' as _i17;
+import '../endpoints/feature_endpoint.dart' as _i18;
+import '../endpoints/finding_endpoint.dart' as _i19;
+import '../endpoints/invoice_endpoint.dart' as _i20;
+import '../endpoints/knowledge_endpoint.dart' as _i21;
+import '../endpoints/owner_notification_endpoint.dart' as _i22;
+import '../endpoints/payment_endpoint.dart' as _i23;
+import '../endpoints/platform_endpoint.dart' as _i24;
+import '../endpoints/product_endpoint.dart' as _i25;
+import '../endpoints/report_endpoint.dart' as _i26;
+import '../endpoints/sale_endpoint.dart' as _i27;
+import '../endpoints/support_ticket_endpoint.dart' as _i28;
+import '../endpoints/waitlist_endpoint.dart' as _i29;
+import '../endpoints/whatsapp_template_endpoint.dart' as _i30;
+import '../endpoints/workspace_endpoint.dart' as _i31;
 
 class Endpoints extends _i1.EndpointDispatch {
   @override
   void initializeEndpoints(_i1.Server server) {
     var endpoints = <String, _i1.Endpoint>{
-      'adminAuth': _i2.AdminAuthEndpoint()
+      'adminAccounts': _i2.AdminAccountsEndpoint()
+        ..initialize(
+          server,
+          'adminAccounts',
+          null,
+        ),
+      'adminAnnouncement': _i3.AdminAnnouncementEndpoint()
+        ..initialize(
+          server,
+          'adminAnnouncement',
+          null,
+        ),
+      'adminAuditLog': _i4.AdminAuditLogEndpoint()
+        ..initialize(
+          server,
+          'adminAuditLog',
+          null,
+        ),
+      'adminAuth': _i5.AdminAuthEndpoint()
         ..initialize(
           server,
           'adminAuth',
           null,
         ),
-      'adminFeature': _i3.AdminFeatureEndpoint()
+      'adminDiagnostics': _i6.AdminDiagnosticsEndpoint()
+        ..initialize(
+          server,
+          'adminDiagnostics',
+          null,
+        ),
+      'adminFeature': _i7.AdminFeatureEndpoint()
         ..initialize(
           server,
           'adminFeature',
           null,
         ),
-      'bot': _i4.BotEndpoint()
+      'adminPlatform': _i8.AdminPlatformEndpoint()
+        ..initialize(
+          server,
+          'adminPlatform',
+          null,
+        ),
+      'adminSupport': _i9.AdminSupportEndpoint()
+        ..initialize(
+          server,
+          'adminSupport',
+          null,
+        ),
+      'adminWorkspace': _i10.AdminWorkspaceEndpoint()
+        ..initialize(
+          server,
+          'adminWorkspace',
+          null,
+        ),
+      'bot': _i11.BotEndpoint()
         ..initialize(
           server,
           'bot',
           null,
         ),
-      'broadcast': _i5.BroadcastEndpoint()
+      'broadcast': _i12.BroadcastEndpoint()
         ..initialize(
           server,
           'broadcast',
           null,
         ),
-      'channel': _i6.ChannelEndpoint()
+      'channel': _i13.ChannelEndpoint()
         ..initialize(
           server,
           'channel',
           null,
         ),
-      'connector': _i7.ConnectorEndpoint()
+      'connector': _i14.ConnectorEndpoint()
         ..initialize(
           server,
           'connector',
           null,
         ),
-      'conversation': _i8.ConversationEndpoint()
+      'conversation': _i15.ConversationEndpoint()
         ..initialize(
           server,
           'conversation',
           null,
         ),
-      'customer': _i9.CustomerEndpoint()
+      'customer': _i16.CustomerEndpoint()
         ..initialize(
           server,
           'customer',
           null,
         ),
-      'errand': _i10.ErrandEndpoint()
+      'errand': _i17.ErrandEndpoint()
         ..initialize(
           server,
           'errand',
           null,
         ),
-      'feature': _i11.FeatureEndpoint()
+      'feature': _i18.FeatureEndpoint()
         ..initialize(
           server,
           'feature',
           null,
         ),
-      'finding': _i12.FindingEndpoint()
+      'finding': _i19.FindingEndpoint()
         ..initialize(
           server,
           'finding',
           null,
         ),
-      'invoice': _i13.InvoiceEndpoint()
+      'invoice': _i20.InvoiceEndpoint()
         ..initialize(
           server,
           'invoice',
           null,
         ),
-      'knowledge': _i14.KnowledgeEndpoint()
+      'knowledge': _i21.KnowledgeEndpoint()
         ..initialize(
           server,
           'knowledge',
           null,
         ),
-      'ownerNotification': _i15.OwnerNotificationEndpoint()
+      'ownerNotification': _i22.OwnerNotificationEndpoint()
         ..initialize(
           server,
           'ownerNotification',
           null,
         ),
-      'payment': _i16.PaymentEndpoint()
+      'payment': _i23.PaymentEndpoint()
         ..initialize(
           server,
           'payment',
           null,
         ),
-      'platform': _i17.PlatformEndpoint()
+      'platform': _i24.PlatformEndpoint()
         ..initialize(
           server,
           'platform',
           null,
         ),
-      'product': _i18.ProductEndpoint()
+      'product': _i25.ProductEndpoint()
         ..initialize(
           server,
           'product',
           null,
         ),
-      'report': _i19.ReportEndpoint()
+      'report': _i26.ReportEndpoint()
         ..initialize(
           server,
           'report',
           null,
         ),
-      'sale': _i20.SaleEndpoint()
+      'sale': _i27.SaleEndpoint()
         ..initialize(
           server,
           'sale',
           null,
         ),
-      'supportTicket': _i21.SupportTicketEndpoint()
+      'supportTicket': _i28.SupportTicketEndpoint()
         ..initialize(
           server,
           'supportTicket',
           null,
         ),
-      'waitlist': _i22.WaitlistEndpoint()
+      'waitlist': _i29.WaitlistEndpoint()
         ..initialize(
           server,
           'waitlist',
           null,
         ),
-      'whatsAppTemplate': _i23.WhatsAppTemplateEndpoint()
+      'whatsAppTemplate': _i30.WhatsAppTemplateEndpoint()
         ..initialize(
           server,
           'whatsAppTemplate',
           null,
         ),
-      'workspace': _i24.WorkspaceEndpoint()
+      'workspace': _i31.WorkspaceEndpoint()
         ..initialize(
           server,
           'workspace',
           null,
         ),
     };
+    connectors['adminAccounts'] = _i1.EndpointConnector(
+      name: 'adminAccounts',
+      endpoint: endpoints['adminAccounts']!,
+      methodConnectors: {
+        'listAdmins': _i1.MethodConnector(
+          name: 'listAdmins',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminAccounts'] as _i2.AdminAccountsEndpoint)
+                      .listAdmins(
+                        session,
+                        params['adminToken'],
+                      ),
+        ),
+        'setActive': _i1.MethodConnector(
+          name: 'setActive',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'accountId': _i1.ParameterDescription(
+              name: 'accountId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'active': _i1.ParameterDescription(
+              name: 'active',
+              type: _i1.getType<bool>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminAccounts'] as _i2.AdminAccountsEndpoint)
+                      .setActive(
+                        session,
+                        params['adminToken'],
+                        params['accountId'],
+                        params['active'],
+                        params['note'],
+                      ),
+        ),
+      },
+    );
+    connectors['adminAnnouncement'] = _i1.EndpointConnector(
+      name: 'adminAnnouncement',
+      endpoint: endpoints['adminAnnouncement']!,
+      methodConnectors: {
+        'previewAudience': _i1.MethodConnector(
+          name: 'previewAudience',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'audience': _i1.ParameterDescription(
+              name: 'audience',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'audienceValue': _i1.ParameterDescription(
+              name: 'audienceValue',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminAnnouncement']
+                          as _i3.AdminAnnouncementEndpoint)
+                      .previewAudience(
+                        session,
+                        params['adminToken'],
+                        params['audience'],
+                        params['audienceValue'],
+                      ),
+        ),
+        'sendAnnouncement': _i1.MethodConnector(
+          name: 'sendAnnouncement',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'audience': _i1.ParameterDescription(
+              name: 'audience',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'audienceValue': _i1.ParameterDescription(
+              name: 'audienceValue',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'subject': _i1.ParameterDescription(
+              name: 'subject',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'body': _i1.ParameterDescription(
+              name: 'body',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminAnnouncement']
+                          as _i3.AdminAnnouncementEndpoint)
+                      .sendAnnouncement(
+                        session,
+                        params['adminToken'],
+                        params['audience'],
+                        params['audienceValue'],
+                        params['subject'],
+                        params['body'],
+                        params['note'],
+                      ),
+        ),
+      },
+    );
+    connectors['adminAuditLog'] = _i1.EndpointConnector(
+      name: 'adminAuditLog',
+      endpoint: endpoints['adminAuditLog']!,
+      methodConnectors: {
+        'listRecent': _i1.MethodConnector(
+          name: 'listRecent',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'limit': _i1.ParameterDescription(
+              name: 'limit',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminAuditLog'] as _i4.AdminAuditLogEndpoint)
+                      .listRecent(
+                        session,
+                        params['adminToken'],
+                        limit: params['limit'],
+                      ),
+        ),
+      },
+    );
     connectors['adminAuth'] = _i1.EndpointConnector(
       name: 'adminAuth',
       endpoint: endpoints['adminAuth']!,
@@ -201,7 +436,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['adminAuth'] as _i2.AdminAuthEndpoint).login(
+                  (endpoints['adminAuth'] as _i5.AdminAuthEndpoint).login(
                     session,
                     params['email'],
                     params['password'],
@@ -220,7 +455,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminAuth'] as _i2.AdminAuthEndpoint)
+              ) async => (endpoints['adminAuth'] as _i5.AdminAuthEndpoint)
                   .mustResetPassword(
                     session,
                     params['adminToken'],
@@ -249,13 +484,190 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminAuth'] as _i2.AdminAuthEndpoint)
+              ) async => (endpoints['adminAuth'] as _i5.AdminAuthEndpoint)
                   .changePassword(
                     session,
                     params['adminToken'],
                     params['currentPassword'],
                     params['newPassword'],
                   ),
+        ),
+      },
+    );
+    connectors['adminDiagnostics'] = _i1.EndpointConnector(
+      name: 'adminDiagnostics',
+      endpoint: endpoints['adminDiagnostics']!,
+      methodConnectors: {
+        'diagnoseWorkspace': _i1.MethodConnector(
+          name: 'diagnoseWorkspace',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminDiagnostics']
+                          as _i6.AdminDiagnosticsEndpoint)
+                      .diagnoseWorkspace(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                      ),
+        ),
+        'listRecentConversations': _i1.MethodConnector(
+          name: 'listRecentConversations',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'limit': _i1.ParameterDescription(
+              name: 'limit',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminDiagnostics']
+                          as _i6.AdminDiagnosticsEndpoint)
+                      .listRecentConversations(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        limit: params['limit'],
+                      ),
+        ),
+        'listFailedKnowledgeDocuments': _i1.MethodConnector(
+          name: 'listFailedKnowledgeDocuments',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminDiagnostics']
+                          as _i6.AdminDiagnosticsEndpoint)
+                      .listFailedKnowledgeDocuments(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                      ),
+        ),
+        'reindexDocument': _i1.MethodConnector(
+          name: 'reindexDocument',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'documentId': _i1.ParameterDescription(
+              name: 'documentId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminDiagnostics']
+                          as _i6.AdminDiagnosticsEndpoint)
+                      .reindexDocument(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        params['documentId'],
+                        params['note'],
+                      ),
+        ),
+        'resendNotification': _i1.MethodConnector(
+          name: 'resendNotification',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'subject': _i1.ParameterDescription(
+              name: 'subject',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'body': _i1.ParameterDescription(
+              name: 'body',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminDiagnostics']
+                          as _i6.AdminDiagnosticsEndpoint)
+                      .resendNotification(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        params['subject'],
+                        params['body'],
+                        params['note'],
+                      ),
         ),
       },
     );
@@ -276,7 +688,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminFeature'] as _i3.AdminFeatureEndpoint)
+              ) async => (endpoints['adminFeature'] as _i7.AdminFeatureEndpoint)
                   .listFlags(
                     session,
                     params['adminToken'],
@@ -295,7 +707,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminFeature'] as _i3.AdminFeatureEndpoint)
+              ) async => (endpoints['adminFeature'] as _i7.AdminFeatureEndpoint)
                   .listMissingFeatureKeys(
                     session,
                     params['adminToken'],
@@ -314,7 +726,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminFeature'] as _i3.AdminFeatureEndpoint)
+              ) async => (endpoints['adminFeature'] as _i7.AdminFeatureEndpoint)
                   .listOrphanedFeatureKeys(
                     session,
                     params['adminToken'],
@@ -348,7 +760,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminFeature'] as _i3.AdminFeatureEndpoint)
+              ) async => (endpoints['adminFeature'] as _i7.AdminFeatureEndpoint)
                   .setFeatureState(
                     session,
                     params['adminToken'],
@@ -380,7 +792,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminFeature'] as _i3.AdminFeatureEndpoint)
+              ) async => (endpoints['adminFeature'] as _i7.AdminFeatureEndpoint)
                   .releaseWave(
                     session,
                     params['adminToken'],
@@ -421,7 +833,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminFeature'] as _i3.AdminFeatureEndpoint)
+              ) async => (endpoints['adminFeature'] as _i7.AdminFeatureEndpoint)
                   .setOverride(
                     session,
                     params['adminToken'],
@@ -454,7 +866,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminFeature'] as _i3.AdminFeatureEndpoint)
+              ) async => (endpoints['adminFeature'] as _i7.AdminFeatureEndpoint)
                   .removeOverride(
                     session,
                     params['adminToken'],
@@ -480,12 +892,429 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['adminFeature'] as _i3.AdminFeatureEndpoint)
+              ) async => (endpoints['adminFeature'] as _i7.AdminFeatureEndpoint)
                   .listOverridesForFeature(
                     session,
                     params['adminToken'],
                     params['featureKey'],
                   ),
+        ),
+      },
+    );
+    connectors['adminPlatform'] = _i1.EndpointConnector(
+      name: 'adminPlatform',
+      endpoint: endpoints['adminPlatform']!,
+      methodConnectors: {
+        'listSweepJobStatuses': _i1.MethodConnector(
+          name: 'listSweepJobStatuses',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminPlatform'] as _i8.AdminPlatformEndpoint)
+                      .listSweepJobStatuses(
+                        session,
+                        params['adminToken'],
+                      ),
+        ),
+        'listAiProviderStatus': _i1.MethodConnector(
+          name: 'listAiProviderStatus',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminPlatform'] as _i8.AdminPlatformEndpoint)
+                      .listAiProviderStatus(
+                        session,
+                        params['adminToken'],
+                      ),
+        ),
+        'embeddingQuotaInfo': _i1.MethodConnector(
+          name: 'embeddingQuotaInfo',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminPlatform'] as _i8.AdminPlatformEndpoint)
+                      .embeddingQuotaInfo(
+                        session,
+                        params['adminToken'],
+                      ),
+        ),
+      },
+    );
+    connectors['adminSupport'] = _i1.EndpointConnector(
+      name: 'adminSupport',
+      endpoint: endpoints['adminSupport']!,
+      methodConnectors: {
+        'listOpenTickets': _i1.MethodConnector(
+          name: 'listOpenTickets',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'limit': _i1.ParameterDescription(
+              name: 'limit',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['adminSupport'] as _i9.AdminSupportEndpoint)
+                  .listOpenTickets(
+                    session,
+                    params['adminToken'],
+                    limit: params['limit'],
+                  ),
+        ),
+      },
+    );
+    connectors['adminWorkspace'] = _i1.EndpointConnector(
+      name: 'adminWorkspace',
+      endpoint: endpoints['adminWorkspace']!,
+      methodConnectors: {
+        'listWorkspaces': _i1.MethodConnector(
+          name: 'listWorkspaces',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'query': _i1.ParameterDescription(
+              name: 'query',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .listWorkspaces(
+                        session,
+                        params['adminToken'],
+                        query: params['query'],
+                      ),
+        ),
+        'getWorkspace': _i1.MethodConnector(
+          name: 'getWorkspace',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .getWorkspace(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                      ),
+        ),
+        'listBotsForWorkspace': _i1.MethodConnector(
+          name: 'listBotsForWorkspace',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .listBotsForWorkspace(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                      ),
+        ),
+        'listChannelsForBot': _i1.MethodConnector(
+          name: 'listChannelsForBot',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'botId': _i1.ParameterDescription(
+              name: 'botId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .listChannelsForBot(
+                        session,
+                        params['adminToken'],
+                        params['botId'],
+                      ),
+        ),
+        'setPlan': _i1.MethodConnector(
+          name: 'setPlan',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'plan': _i1.ParameterDescription(
+              name: 'plan',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .setPlan(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        params['plan'],
+                        params['note'],
+                      ),
+        ),
+        'extendTrial': _i1.MethodConnector(
+          name: 'extendTrial',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'days': _i1.ParameterDescription(
+              name: 'days',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .extendTrial(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        params['days'],
+                        params['note'],
+                      ),
+        ),
+        'resetTrial': _i1.MethodConnector(
+          name: 'resetTrial',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .resetTrial(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        params['note'],
+                      ),
+        ),
+        'suspend': _i1.MethodConnector(
+          name: 'suspend',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .suspend(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        params['note'],
+                      ),
+        ),
+        'reinstate': _i1.MethodConnector(
+          name: 'reinstate',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .reinstate(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        params['note'],
+                      ),
+        ),
+        'setInternal': _i1.MethodConnector(
+          name: 'setInternal',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'isInternal': _i1.ParameterDescription(
+              name: 'isInternal',
+              type: _i1.getType<bool>(),
+              nullable: false,
+            ),
+            'note': _i1.ParameterDescription(
+              name: 'note',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['adminWorkspace'] as _i10.AdminWorkspaceEndpoint)
+                      .setInternal(
+                        session,
+                        params['adminToken'],
+                        params['workspaceId'],
+                        params['isInternal'],
+                        params['note'],
+                      ),
         ),
       },
     );
@@ -521,7 +1350,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['bot'] as _i4.BotEndpoint).createBot(
+              ) async => (endpoints['bot'] as _i11.BotEndpoint).createBot(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -552,7 +1381,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['bot'] as _i4.BotEndpoint)
+              ) async => (endpoints['bot'] as _i11.BotEndpoint)
                   .createBotFromDescription(
                     session,
                     params['accessToken'],
@@ -579,7 +1408,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['bot'] as _i4.BotEndpoint).listBotsForWorkspace(
+                  (endpoints['bot'] as _i11.BotEndpoint).listBotsForWorkspace(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -608,7 +1437,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['bot'] as _i4.BotEndpoint).getBot(
+              ) async => (endpoints['bot'] as _i11.BotEndpoint).getBot(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -648,7 +1477,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['bot'] as _i4.BotEndpoint).updateBot(
+              ) async => (endpoints['bot'] as _i11.BotEndpoint).updateBot(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -685,13 +1514,14 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['bot'] as _i4.BotEndpoint).setKnowledgeSeed(
-                session,
-                params['accessToken'],
-                params['workspaceId'],
-                params['botId'],
-                params['knowledgeSeed'],
-              ),
+              ) async =>
+                  (endpoints['bot'] as _i11.BotEndpoint).setKnowledgeSeed(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['botId'],
+                    params['knowledgeSeed'],
+                  ),
         ),
         'setCostSavingContacts': _i1.MethodConnector(
           name: 'setCostSavingContacts',
@@ -727,7 +1557,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['bot'] as _i4.BotEndpoint).setCostSavingContacts(
+                  (endpoints['bot'] as _i11.BotEndpoint).setCostSavingContacts(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -780,7 +1610,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['broadcast'] as _i5.BroadcastEndpoint)
+              ) async => (endpoints['broadcast'] as _i12.BroadcastEndpoint)
                   .createBroadcast(
                     session,
                     params['accessToken'],
@@ -814,7 +1644,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['broadcast'] as _i5.BroadcastEndpoint)
+              ) async => (endpoints['broadcast'] as _i12.BroadcastEndpoint)
                   .startBroadcast(
                     session,
                     params['accessToken'],
@@ -845,7 +1675,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['broadcast'] as _i5.BroadcastEndpoint)
+              ) async => (endpoints['broadcast'] as _i12.BroadcastEndpoint)
                   .cancelBroadcast(
                     session,
                     params['accessToken'],
@@ -871,7 +1701,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['broadcast'] as _i5.BroadcastEndpoint)
+              ) async => (endpoints['broadcast'] as _i12.BroadcastEndpoint)
                   .listBroadcasts(
                     session,
                     params['accessToken'],
@@ -901,7 +1731,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['broadcast'] as _i5.BroadcastEndpoint)
+              ) async => (endpoints['broadcast'] as _i12.BroadcastEndpoint)
                   .getBroadcastProgress(
                     session,
                     params['accessToken'],
@@ -927,7 +1757,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['broadcast'] as _i5.BroadcastEndpoint)
+              ) async => (endpoints['broadcast'] as _i12.BroadcastEndpoint)
                   .listSuppressions(
                     session,
                     params['accessToken'],
@@ -962,7 +1792,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['broadcast'] as _i5.BroadcastEndpoint)
+              ) async => (endpoints['broadcast'] as _i12.BroadcastEndpoint)
                   .addSuppression(
                     session,
                     params['accessToken'],
@@ -999,7 +1829,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['broadcast'] as _i5.BroadcastEndpoint)
+              ) async => (endpoints['broadcast'] as _i12.BroadcastEndpoint)
                   .removeSuppression(
                     session,
                     params['accessToken'],
@@ -1042,7 +1872,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['channel'] as _i6.ChannelEndpoint)
+              ) async => (endpoints['channel'] as _i13.ChannelEndpoint)
                   .connectTelegramChannel(
                     session,
                     params['accessToken'],
@@ -1074,7 +1904,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['channel'] as _i6.ChannelEndpoint)
+              ) async => (endpoints['channel'] as _i13.ChannelEndpoint)
                   .listChannelsForBot(
                     session,
                     params['accessToken'],
@@ -1130,7 +1960,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['channel'] as _i6.ChannelEndpoint)
+              ) async => (endpoints['channel'] as _i13.ChannelEndpoint)
                   .connectWhatsAppChannelManual(
                     session,
                     params['accessToken'],
@@ -1181,7 +2011,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['channel'] as _i6.ChannelEndpoint)
+              ) async => (endpoints['channel'] as _i13.ChannelEndpoint)
                   .connectInstagramChannelManual(
                     session,
                     params['accessToken'],
@@ -1216,7 +2046,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .listConnectors(
                     session,
                     params['accessToken'],
@@ -1251,7 +2081,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .connectConnector(
                     session,
                     params['accessToken'],
@@ -1283,7 +2113,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .startGoogleOAuth(
                     session,
                     params['accessToken'],
@@ -1314,7 +2144,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .listGoogleSheets(
                     session,
                     params['accessToken'],
@@ -1350,7 +2180,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .setGoogleSheetTargets(
                     session,
                     params['accessToken'],
@@ -1387,7 +2217,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .setGoogleSheetTarget(
                     session,
                     params['accessToken'],
@@ -1419,7 +2249,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .startMicrosoftOAuth(
                     session,
                     params['accessToken'],
@@ -1450,7 +2280,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .startDropboxOAuth(
                     session,
                     params['accessToken'],
@@ -1481,7 +2311,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .startHubSpotOAuth(
                     session,
                     params['accessToken'],
@@ -1512,7 +2342,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .startMetaOAuth(
                     session,
                     params['accessToken'],
@@ -1548,7 +2378,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .setExcelFileTarget(
                     session,
                     params['accessToken'],
@@ -1580,7 +2410,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .setCalendarBookingMode(
                     session,
                     params['accessToken'],
@@ -1606,7 +2436,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .listPendingBookings(
                     session,
                     params['accessToken'],
@@ -1636,7 +2466,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .approveBooking(
                     session,
                     params['accessToken'],
@@ -1667,7 +2497,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .rejectBooking(
                     session,
                     params['accessToken'],
@@ -1698,7 +2528,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['connector'] as _i7.ConnectorEndpoint)
+              ) async => (endpoints['connector'] as _i14.ConnectorEndpoint)
                   .disconnectConnector(
                     session,
                     params['accessToken'],
@@ -1730,12 +2560,13 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['conversation'] as _i8.ConversationEndpoint)
-                  .listEscalated(
-                    session,
-                    params['accessToken'],
-                    params['workspaceId'],
-                  ),
+              ) async =>
+                  (endpoints['conversation'] as _i15.ConversationEndpoint)
+                      .listEscalated(
+                        session,
+                        params['accessToken'],
+                        params['workspaceId'],
+                      ),
         ),
         'listAll': _i1.MethodConnector(
           name: 'listAll',
@@ -1755,12 +2586,13 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['conversation'] as _i8.ConversationEndpoint)
-                  .listAll(
-                    session,
-                    params['accessToken'],
-                    params['workspaceId'],
-                  ),
+              ) async =>
+                  (endpoints['conversation'] as _i15.ConversationEndpoint)
+                      .listAll(
+                        session,
+                        params['accessToken'],
+                        params['workspaceId'],
+                      ),
         ),
         'getMessages': _i1.MethodConnector(
           name: 'getMessages',
@@ -1785,13 +2617,14 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['conversation'] as _i8.ConversationEndpoint)
-                  .getMessages(
-                    session,
-                    params['accessToken'],
-                    params['workspaceId'],
-                    params['conversationId'],
-                  ),
+              ) async =>
+                  (endpoints['conversation'] as _i15.ConversationEndpoint)
+                      .getMessages(
+                        session,
+                        params['accessToken'],
+                        params['workspaceId'],
+                        params['conversationId'],
+                      ),
         ),
         'sendHumanReply': _i1.MethodConnector(
           name: 'sendHumanReply',
@@ -1821,14 +2654,15 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['conversation'] as _i8.ConversationEndpoint)
-                  .sendHumanReply(
-                    session,
-                    params['accessToken'],
-                    params['workspaceId'],
-                    params['conversationId'],
-                    params['body'],
-                  ),
+              ) async =>
+                  (endpoints['conversation'] as _i15.ConversationEndpoint)
+                      .sendHumanReply(
+                        session,
+                        params['accessToken'],
+                        params['workspaceId'],
+                        params['conversationId'],
+                        params['body'],
+                      ),
         ),
         'closeConversation': _i1.MethodConnector(
           name: 'closeConversation',
@@ -1853,13 +2687,14 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['conversation'] as _i8.ConversationEndpoint)
-                  .closeConversation(
-                    session,
-                    params['accessToken'],
-                    params['workspaceId'],
-                    params['conversationId'],
-                  ),
+              ) async =>
+                  (endpoints['conversation'] as _i15.ConversationEndpoint)
+                      .closeConversation(
+                        session,
+                        params['accessToken'],
+                        params['workspaceId'],
+                        params['conversationId'],
+                      ),
         ),
       },
     );
@@ -1895,8 +2730,8 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async =>
-                  (endpoints['customer'] as _i9.CustomerEndpoint).listCustomers(
+              ) async => (endpoints['customer'] as _i16.CustomerEndpoint)
+                  .listCustomers(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -1927,7 +2762,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['customer'] as _i9.CustomerEndpoint)
+              ) async => (endpoints['customer'] as _i16.CustomerEndpoint)
                   .getCustomerDetail(
                     session,
                     params['accessToken'],
@@ -1953,7 +2788,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['customer'] as _i9.CustomerEndpoint)
+              ) async => (endpoints['customer'] as _i16.CustomerEndpoint)
                   .listMergeProposals(
                     session,
                     params['accessToken'],
@@ -1988,7 +2823,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['customer'] as _i9.CustomerEndpoint)
+              ) async => (endpoints['customer'] as _i16.CustomerEndpoint)
                   .resolveMergeProposal(
                     session,
                     params['accessToken'],
@@ -2056,7 +2891,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['errand'] as _i10.ErrandEndpoint)
+              ) async => (endpoints['errand'] as _i17.ErrandEndpoint)
                   .createBuiltinErrand(
                     session,
                     params['accessToken'],
@@ -2088,7 +2923,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['errand'] as _i10.ErrandEndpoint)
+              ) async => (endpoints['errand'] as _i17.ErrandEndpoint)
                   .listErrandsForWorkspace(
                     session,
                     params['accessToken'],
@@ -2118,7 +2953,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['errand'] as _i10.ErrandEndpoint).getErrand(
+              ) async => (endpoints['errand'] as _i17.ErrandEndpoint).getErrand(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -2154,7 +2989,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['errand'] as _i10.ErrandEndpoint).setErrandStatus(
+                  (endpoints['errand'] as _i17.ErrandEndpoint).setErrandStatus(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2186,7 +3021,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['errand'] as _i10.ErrandEndpoint).deleteErrand(
+                  (endpoints['errand'] as _i17.ErrandEndpoint).deleteErrand(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2221,7 +3056,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['errand'] as _i10.ErrandEndpoint)
+              ) async => (endpoints['errand'] as _i17.ErrandEndpoint)
                   .executeBuiltinErrand(
                     session,
                     params['accessToken'],
@@ -2293,7 +3128,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['errand'] as _i10.ErrandEndpoint)
+              ) async => (endpoints['errand'] as _i17.ErrandEndpoint)
                   .createWebhookErrand(
                     session,
                     params['accessToken'],
@@ -2367,7 +3202,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['errand'] as _i10.ErrandEndpoint)
+              ) async => (endpoints['errand'] as _i17.ErrandEndpoint)
                   .createDbCredentialErrand(
                     session,
                     params['accessToken'],
@@ -2411,7 +3246,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['errand'] as _i10.ErrandEndpoint).executeErrand(
+                  (endpoints['errand'] as _i17.ErrandEndpoint).executeErrand(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2443,7 +3278,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['errand'] as _i10.ErrandEndpoint).discoverDbSchema(
+                  (endpoints['errand'] as _i17.ErrandEndpoint).discoverDbSchema(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2473,7 +3308,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['errand'] as _i10.ErrandEndpoint)
+              ) async => (endpoints['errand'] as _i17.ErrandEndpoint)
                   .discoverDbSchemaForErrand(
                     session,
                     params['accessToken'],
@@ -2519,7 +3354,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['errand'] as _i10.ErrandEndpoint)
+              ) async => (endpoints['errand'] as _i17.ErrandEndpoint)
                   .testWebhookErrand(
                     session,
                     params['accessToken'],
@@ -2554,7 +3389,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['errand'] as _i10.ErrandEndpoint).getEntityMapping(
+                  (endpoints['errand'] as _i17.ErrandEndpoint).getEntityMapping(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2590,7 +3425,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['errand'] as _i10.ErrandEndpoint).setEntityMapping(
+                  (endpoints['errand'] as _i17.ErrandEndpoint).setEntityMapping(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2622,7 +3457,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['feature'] as _i11.FeatureEndpoint)
+              ) async => (endpoints['feature'] as _i18.FeatureEndpoint)
                   .listEnabledFeatures(
                     session,
                     params['accessToken'],
@@ -2652,7 +3487,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['feature'] as _i11.FeatureEndpoint)
+              ) async => (endpoints['feature'] as _i18.FeatureEndpoint)
                   .isFeatureEnabled(
                     session,
                     params['accessToken'],
@@ -2685,7 +3520,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['finding'] as _i12.FindingEndpoint).listFindings(
+                  (endpoints['finding'] as _i19.FindingEndpoint).listFindings(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2715,7 +3550,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['finding'] as _i12.FindingEndpoint).dismissFinding(
+                  (endpoints['finding'] as _i19.FindingEndpoint).dismissFinding(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2797,7 +3632,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['invoice'] as _i13.InvoiceEndpoint).createInvoice(
+                  (endpoints['invoice'] as _i20.InvoiceEndpoint).createInvoice(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2842,7 +3677,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['invoice'] as _i13.InvoiceEndpoint).listInvoices(
+                  (endpoints['invoice'] as _i20.InvoiceEndpoint).listInvoices(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2874,7 +3709,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['invoice'] as _i13.InvoiceEndpoint).getInvoice(
+                  (endpoints['invoice'] as _i20.InvoiceEndpoint).getInvoice(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -2904,7 +3739,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['invoice'] as _i13.InvoiceEndpoint)
+              ) async => (endpoints['invoice'] as _i20.InvoiceEndpoint)
                   .getInvoiceForSale(
                     session,
                     params['accessToken'],
@@ -2940,7 +3775,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['invoice'] as _i13.InvoiceEndpoint)
+              ) async => (endpoints['invoice'] as _i20.InvoiceEndpoint)
                   .updateInvoiceStatus(
                     session,
                     params['accessToken'],
@@ -2978,7 +3813,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['invoice'] as _i13.InvoiceEndpoint).recordPayment(
+                  (endpoints['invoice'] as _i20.InvoiceEndpoint).recordPayment(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3010,7 +3845,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['knowledge'] as _i14.KnowledgeEndpoint)
+              ) async => (endpoints['knowledge'] as _i21.KnowledgeEndpoint)
                   .listDocuments(
                     session,
                     params['accessToken'],
@@ -3050,7 +3885,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['knowledge'] as _i14.KnowledgeEndpoint)
+              ) async => (endpoints['knowledge'] as _i21.KnowledgeEndpoint)
                   .addDocument(
                     session,
                     params['accessToken'],
@@ -3083,7 +3918,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['knowledge'] as _i14.KnowledgeEndpoint)
+              ) async => (endpoints['knowledge'] as _i21.KnowledgeEndpoint)
                   .deleteDocument(
                     session,
                     params['accessToken'],
@@ -3124,7 +3959,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['knowledge'] as _i14.KnowledgeEndpoint)
+              ) async => (endpoints['knowledge'] as _i21.KnowledgeEndpoint)
                   .updateDocument(
                     session,
                     params['accessToken'],
@@ -3157,7 +3992,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['knowledge'] as _i14.KnowledgeEndpoint)
+              ) async => (endpoints['knowledge'] as _i21.KnowledgeEndpoint)
                   .searchMemory(
                     session,
                     params['accessToken'],
@@ -3188,7 +4023,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['knowledge'] as _i14.KnowledgeEndpoint)
+              ) async => (endpoints['knowledge'] as _i21.KnowledgeEndpoint)
                   .askWorkspace(
                     session,
                     params['accessToken'],
@@ -3229,7 +4064,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['knowledge'] as _i14.KnowledgeEndpoint)
+              ) async => (endpoints['knowledge'] as _i21.KnowledgeEndpoint)
                   .addDocumentFromFile(
                     session,
                     params['accessToken'],
@@ -3265,7 +4100,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['ownerNotification']
-                          as _i15.OwnerNotificationEndpoint)
+                          as _i22.OwnerNotificationEndpoint)
                       .getSettings(
                         session,
                         params['accessToken'],
@@ -3342,7 +4177,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['ownerNotification']
-                          as _i15.OwnerNotificationEndpoint)
+                          as _i22.OwnerNotificationEndpoint)
                       .updateSettings(
                         session,
                         params['accessToken'],
@@ -3404,7 +4239,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['payment'] as _i16.PaymentEndpoint).connectGateway(
+                  (endpoints['payment'] as _i23.PaymentEndpoint).connectGateway(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3432,7 +4267,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['payment'] as _i16.PaymentEndpoint)
+              ) async => (endpoints['payment'] as _i23.PaymentEndpoint)
                   .listConnectedGateways(
                     session,
                     params['accessToken'],
@@ -3497,7 +4332,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['payment'] as _i16.PaymentEndpoint)
+              ) async => (endpoints['payment'] as _i23.PaymentEndpoint)
                   .initializeCheckout(
                     session,
                     params['accessToken'],
@@ -3536,7 +4371,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['payment'] as _i16.PaymentEndpoint).getTransaction(
+                  (endpoints['payment'] as _i23.PaymentEndpoint).getTransaction(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3567,7 +4402,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['payment'] as _i16.PaymentEndpoint).releaseHold(
+                  (endpoints['payment'] as _i23.PaymentEndpoint).releaseHold(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3599,7 +4434,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['platform'] as _i17.PlatformEndpoint).listApiKeys(
+                  (endpoints['platform'] as _i24.PlatformEndpoint).listApiKeys(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3634,7 +4469,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['platform'] as _i17.PlatformEndpoint).createApiKey(
+                  (endpoints['platform'] as _i24.PlatformEndpoint).createApiKey(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3666,7 +4501,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['platform'] as _i17.PlatformEndpoint).revokeApiKey(
+                  (endpoints['platform'] as _i24.PlatformEndpoint).revokeApiKey(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3691,7 +4526,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['platform'] as _i17.PlatformEndpoint)
+              ) async => (endpoints['platform'] as _i24.PlatformEndpoint)
                   .listWebhookEndpoints(
                     session,
                     params['accessToken'],
@@ -3726,7 +4561,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['platform'] as _i17.PlatformEndpoint)
+              ) async => (endpoints['platform'] as _i24.PlatformEndpoint)
                   .saveWebhookEndpoint(
                     session,
                     params['accessToken'],
@@ -3758,7 +4593,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['platform'] as _i17.PlatformEndpoint)
+              ) async => (endpoints['platform'] as _i24.PlatformEndpoint)
                   .deleteWebhookEndpoint(
                     session,
                     params['accessToken'],
@@ -3796,7 +4631,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['product'] as _i18.ProductEndpoint).listProducts(
+                  (endpoints['product'] as _i25.ProductEndpoint).listProducts(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3827,7 +4662,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['product'] as _i18.ProductEndpoint).getProduct(
+                  (endpoints['product'] as _i25.ProductEndpoint).getProduct(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3858,7 +4693,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['product'] as _i18.ProductEndpoint).listVariants(
+                  (endpoints['product'] as _i25.ProductEndpoint).listVariants(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -3939,7 +4774,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['product'] as _i18.ProductEndpoint).createProduct(
+                  (endpoints['product'] as _i25.ProductEndpoint).createProduct(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -4045,7 +4880,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['product'] as _i18.ProductEndpoint).updateProduct(
+                  (endpoints['product'] as _i25.ProductEndpoint).updateProduct(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -4089,7 +4924,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['product'] as _i18.ProductEndpoint).archiveProduct(
+                  (endpoints['product'] as _i25.ProductEndpoint).archiveProduct(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -4134,7 +4969,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['product'] as _i18.ProductEndpoint)
+              ) async => (endpoints['product'] as _i25.ProductEndpoint)
                   .replaceVariants(
                     session,
                     params['accessToken'],
@@ -4163,7 +4998,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['product'] as _i18.ProductEndpoint)
+              ) async => (endpoints['product'] as _i25.ProductEndpoint)
                   .getMediaUploadAuth(
                     session,
                     params['accessToken'],
@@ -4194,7 +5029,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['product'] as _i18.ProductEndpoint).listMedia(
+                  (endpoints['product'] as _i25.ProductEndpoint).listMedia(
                     session,
                     params['accessToken'],
                     params['workspaceId'],
@@ -4224,7 +5059,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['product'] as _i18.ProductEndpoint)
+              ) async => (endpoints['product'] as _i25.ProductEndpoint)
                   .listMediaForProducts(
                     session,
                     params['accessToken'],
@@ -4285,7 +5120,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['product'] as _i18.ProductEndpoint)
+              ) async => (endpoints['product'] as _i25.ProductEndpoint)
                   .addProductMedia(
                     session,
                     params['accessToken'],
@@ -4327,7 +5162,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['product'] as _i18.ProductEndpoint)
+              ) async => (endpoints['product'] as _i25.ProductEndpoint)
                   .deleteProductMedia(
                     session,
                     params['accessToken'],
@@ -4364,7 +5199,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['product'] as _i18.ProductEndpoint)
+              ) async => (endpoints['product'] as _i25.ProductEndpoint)
                   .reorderProductMedia(
                     session,
                     params['accessToken'],
@@ -4401,7 +5236,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['product'] as _i18.ProductEndpoint)
+              ) async => (endpoints['product'] as _i25.ProductEndpoint)
                   .importMediaFromUrl(
                     session,
                     params['accessToken'],
@@ -4439,7 +5274,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['report'] as _i19.ReportEndpoint)
+              ) async => (endpoints['report'] as _i26.ReportEndpoint)
                   .getEndOfDayReport(
                     session,
                     params['accessToken'],
@@ -4501,7 +5336,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sale'] as _i20.SaleEndpoint).ringUpSale(
+              ) async => (endpoints['sale'] as _i27.SaleEndpoint).ringUpSale(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -4541,7 +5376,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sale'] as _i20.SaleEndpoint).listSales(
+              ) async => (endpoints['sale'] as _i27.SaleEndpoint).listSales(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -4572,7 +5407,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['sale'] as _i20.SaleEndpoint).getSaleLines(
+              ) async => (endpoints['sale'] as _i27.SaleEndpoint).getSaleLines(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -4609,7 +5444,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['supportTicket'] as _i21.SupportTicketEndpoint)
+                  (endpoints['supportTicket'] as _i28.SupportTicketEndpoint)
                       .list(
                         session,
                         params['accessToken'],
@@ -4646,7 +5481,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['supportTicket'] as _i21.SupportTicketEndpoint)
+                  (endpoints['supportTicket'] as _i28.SupportTicketEndpoint)
                       .setStatus(
                         session,
                         params['accessToken'],
@@ -4695,7 +5530,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['waitlist'] as _i22.WaitlistEndpoint).joinWaitlist(
+                  (endpoints['waitlist'] as _i29.WaitlistEndpoint).joinWaitlist(
                     session,
                     params['email'],
                     params['source'],
@@ -4760,7 +5595,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i23.WhatsAppTemplateEndpoint)
+                          as _i30.WhatsAppTemplateEndpoint)
                       .createTemplate(
                         session,
                         params['accessToken'],
@@ -4813,7 +5648,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i23.WhatsAppTemplateEndpoint)
+                          as _i30.WhatsAppTemplateEndpoint)
                       .createProductListTemplate(
                         session,
                         params['accessToken'],
@@ -4844,7 +5679,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i23.WhatsAppTemplateEndpoint)
+                          as _i30.WhatsAppTemplateEndpoint)
                       .listTemplatesForWorkspace(
                         session,
                         params['accessToken'],
@@ -4876,7 +5711,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i23.WhatsAppTemplateEndpoint)
+                          as _i30.WhatsAppTemplateEndpoint)
                       .refreshTemplateStatus(
                         session,
                         params['accessToken'],
@@ -4923,7 +5758,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i24.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i31.WorkspaceEndpoint)
                   .createWorkspace(
                     session,
                     params['accessToken'],
@@ -4946,7 +5781,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i24.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i31.WorkspaceEndpoint)
                   .listMyWorkspaces(
                     session,
                     params['accessToken'],
@@ -4970,7 +5805,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i24.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i31.WorkspaceEndpoint)
                   .getWorkspace(
                     session,
                     params['accessToken'],
@@ -5015,7 +5850,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i24.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i31.WorkspaceEndpoint)
                   .updateWorkspace(
                     session,
                     params['accessToken'],
@@ -5044,7 +5879,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i24.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i31.WorkspaceEndpoint)
                   .getBillingSummary(
                     session,
                     params['accessToken'],
@@ -5079,7 +5914,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i24.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i31.WorkspaceEndpoint)
                   .initiateUpgrade(
                     session,
                     params['accessToken'],

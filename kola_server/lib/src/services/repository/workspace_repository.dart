@@ -58,6 +58,80 @@ class WorkspaceRepository {
         .toList();
   }
 
+  /// Every workspace on [plan] — added for §3.4 push notifications'
+  /// "audience: one plan tier" targeting (deferred until this pass).
+  /// Uncapped by design: an announcement audience needs the true count,
+  /// not a 50-row preview.
+  Future<List<Workspace>> listByPlan(String plan) async {
+    _log.fine('listByPlan($plan)');
+    final response = await supabase.from('workspaces').select().eq('plan', plan);
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Every workspace, uncapped — §3.4's "audience: all" targeting.
+  /// Deliberately separate from [search] (which caps at 50 for the
+  /// workspace list UI) rather than overloading that method's contract.
+  Future<List<Workspace>> listAllUncapped() async {
+    _log.fine('listAllUncapped()');
+    final response = await supabase.from('workspaces').select();
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// ADMIN_APP_SPEC.md §3.2 — "search by name, ID, owner email, or
+  /// connected phone number." This implements the FIRST TWO only (name
+  /// substring, exact numeric id) — owner email lives in Supabase Auth's
+  /// `auth.users` table (not exposed over PostgREST the way `workspaces`
+  /// is) and connected phone number lives inside each channel's
+  /// encrypted credential, neither of which this pass wires up. Stated
+  /// honestly as a real, narrow gap rather than silently only covering
+  /// name/id and calling it "search." See kola_admin's workspace page
+  /// for where this shows up as a UI-level caveat too.
+  ///
+  /// Empty/null [query] returns the most recently created workspaces —
+  /// the useful default when an admin just wants to see what's new,
+  /// capped at [limit] since this has no pagination yet.
+  Future<List<Workspace>> search({String? query, int limit = 50}) async {
+    _log.fine('search(query=$query, limit=$limit)');
+    final trimmed = query?.trim() ?? '';
+
+    if (trimmed.isEmpty) {
+      final response = await supabase
+          .from('workspaces')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(limit);
+      return (response as List)
+          .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+          .toList();
+    }
+
+    final asId = int.tryParse(trimmed);
+    if (asId != null) {
+      final response = await supabase
+          .from('workspaces')
+          .select()
+          .eq('id', asId)
+          .limit(limit);
+      return (response as List)
+          .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+          .toList();
+    }
+
+    final response = await supabase
+        .from('workspaces')
+        .select()
+        .ilike('name', '%$trimmed%')
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
   // ── WRITE ─────────────────────────────────────────────────────────────────
 
   /// Create a new workspace, computing its trial window from [now].
@@ -168,6 +242,104 @@ class WorkspaceRepository {
         .update({
           'plan': plan,
           'status': status,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', workspaceId)
+        .select()
+        .single();
+
+    return _dto.fromRow(response);
+  }
+
+  /// kola_admin, ADMIN_APP_SPEC.md §3.2 — a pure plan change with no
+  /// status side-effect, distinct from [setPlanAndStatus] (which is
+  /// specifically KolaBillingWebhookHandler's atomic "payment confirmed"
+  /// write). An admin manually comping/downgrading a plan should not
+  /// silently also flip trialing->active or active->trialing — those are
+  /// two different admin actions on purpose (this one, and
+  /// [suspend]/[reinstate] below).
+  Future<Workspace> setPlan(int workspaceId, String plan) async {
+    _log.info('setPlan workspaceId=$workspaceId plan=$plan');
+    final response = await supabase
+        .from('workspaces')
+        .update({
+          'plan': plan,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', workspaceId)
+        .select()
+        .single();
+
+    return _dto.fromRow(response);
+  }
+
+  /// kola_admin, ADMIN_APP_SPEC.md §3.2 — pushes both trial cutover dates
+  /// forward by [days] without touching `status`, so a workspace that's
+  /// already `active` (paying) is unaffected — extending a trial only
+  /// means something for a workspace still `trialing`, but this doesn't
+  /// gate on that: an admin extending a paying workspace's trial dates is
+  /// harmless (they're not read while `status == 'active'`) and refusing
+  /// it here would just be a surprising extra rule to remember.
+  Future<Workspace> extendTrial(int workspaceId, int days) async {
+    _log.info('extendTrial workspaceId=$workspaceId days=$days');
+    final current = await findById(workspaceId);
+    if (current == null) {
+      throw ArgumentError('No workspace with id $workspaceId');
+    }
+    final extension = Duration(days: days);
+    final response = await supabase
+        .from('workspaces')
+        .update({
+          'trial_full_access_ends_at':
+              current.trialFullAccessEndsAt.add(extension).toIso8601String(),
+          'trial_ends_at': current.trialEndsAt.add(extension).toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', workspaceId)
+        .select()
+        .single();
+
+    return _dto.fromRow(response);
+  }
+
+  /// kola_admin, ADMIN_APP_SPEC.md §3.2 — restarts the trial window from
+  /// [now] and puts the workspace back into `trialing`, same computation
+  /// [create] uses for a brand-new workspace. A genuinely different
+  /// action from [extendTrial]: this is for a `paused` workspace an admin
+  /// wants to give a fresh full trial window, not a small nudge to an
+  /// already-running one.
+  Future<Workspace> resetTrial(int workspaceId, {DateTime? now}) async {
+    final startedAt = now ?? DateTime.now().toUtc();
+    _log.info('resetTrial workspaceId=$workspaceId');
+    final response = await supabase
+        .from('workspaces')
+        .update({
+          'status': 'trialing',
+          'trial_started_at': startedAt.toIso8601String(),
+          'trial_full_access_ends_at':
+              startedAt.add(const Duration(hours: 48)).toIso8601String(),
+          'trial_ends_at': startedAt.add(const Duration(days: 14)).toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', workspaceId)
+        .select()
+        .single();
+
+    return _dto.fromRow(response);
+  }
+
+  /// PHASE 10 / kola_admin — the ONLY place `is_internal` is written from
+  /// (see workspace.spy.yaml's field comment: no customer-reachable path
+  /// exists to this column at all). Kept as its own dedicated method,
+  /// same "consequential field gets its own named method" pattern as
+  /// [setStatus], specifically so this one write is trivially greppable
+  /// and never accidentally folded into a generic update() call site.
+  Future<Workspace> setInternal(int workspaceId, bool isInternal) async {
+    _log.info('setInternal workspaceId=$workspaceId isInternal=$isInternal');
+    final response = await supabase
+        .from('workspaces')
+        .update({
+          'is_internal': isInternal,
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', workspaceId)

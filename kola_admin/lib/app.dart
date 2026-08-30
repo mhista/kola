@@ -36,6 +36,13 @@ import 'services/admin_local_storage.dart';
 import 'pages/login_page.dart';
 import 'pages/release_control_page.dart';
 import 'pages/reset_password_page.dart';
+import 'pages/workspace_admin_page.dart';
+import 'pages/customer_service_page.dart';
+import 'pages/announcements_page.dart';
+import 'pages/platform_health_page.dart';
+import 'pages/support_queue_page.dart';
+import 'pages/audit_log_page.dart';
+import 'pages/admin_accounts_page.dart';
 
 class AdminApp extends StatefulComponent {
   const AdminApp();
@@ -151,6 +158,62 @@ class _AdminAppState extends State<AdminApp> {
         Route(
           path: '/',
           builder: (context, state) => ReleaseControlPage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/workspaces',
+          builder: (context, state) => WorkspaceAdminPage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/customer-service',
+          builder: (context, state) => CustomerServicePage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/announcements',
+          builder: (context, state) => AnnouncementsPage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/platform-health',
+          builder: (context, state) => PlatformHealthPage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/support-queue',
+          builder: (context, state) => SupportQueuePage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/audit-log',
+          builder: (context, state) => AuditLogPage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/admin-accounts',
+          builder: (context, state) => AdminAccountsPage(
             client: _client,
             adminToken: _adminToken ?? '',
             onSignOut: _handleSignOut,

@@ -68,6 +68,7 @@ import 'package:kola_server/src/services/connectors/hubspot/hubspot_oauth_callba
 import 'package:kola_server/src/services/connectors/meta/meta_oauth_callback_route.dart';
 import 'package:kola_server/src/services/messaging/broadcast_sweep_service.dart';
 import 'package:kola_server/src/services/memory/embedding_orchestrator.dart';
+import 'package:kola_server/src/services/admin/platform_health_registry.dart';
 import 'package:kola_server/kola_logger.dart';
 import 'package:logging/logging.dart' as logging;
 
@@ -371,11 +372,14 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     Log.startupInfo('Running initial channel health check...');
     final flaggedNow = await channelHealthCheck.runOnce();
     Log.startupSuccess('Channel health check complete — $flaggedNow channel(s) flagged');
+    PlatformHealthRegistry.record('channel_health_check', ok: true, summary: '$flaggedNow flagged');
     Timer.periodic(const Duration(hours: 24), (_) async {
       try {
         final flagged = await channelHealthCheck.runOnce();
+        PlatformHealthRegistry.record('channel_health_check', ok: true, summary: '$flagged flagged');
         if (flagged > 0) Log.info('Channel health check: $flagged channel(s) flagged unhealthy');
       } catch (e) {
+        PlatformHealthRegistry.record('channel_health_check', ok: false, summary: '$e');
         Log.error('Channel health check failed', error: e);
       }
     });
@@ -404,11 +408,14 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     Log.startupInfo('Running initial trial sweep...');
     final pausedNow = await trialSweep.sweepOnce();
     Log.startupSuccess('Trial sweep complete — $pausedNow workspace(s) paused');
+    PlatformHealthRegistry.record('trial_sweep', ok: true, summary: '$pausedNow paused');
     Timer.periodic(const Duration(hours: 1), (_) async {
       try {
         final paused = await trialSweep.sweepOnce();
+        PlatformHealthRegistry.record('trial_sweep', ok: true, summary: '$paused paused');
         if (paused > 0) Log.info('Trial sweep: $paused workspace(s) paused');
       } catch (e) {
+        PlatformHealthRegistry.record('trial_sweep', ok: false, summary: '$e');
         Log.error('Trial sweep failed', error: e);
       }
     });
@@ -425,11 +432,14 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     Log.startupInfo('Running initial support ticket SLA sweep...');
     final breachedNow = await ticketSlaSweep.sweepOnce();
     Log.startupSuccess('Support ticket SLA sweep complete — $breachedNow breach notification(s) sent');
+    PlatformHealthRegistry.record('support_ticket_sla_sweep', ok: true, summary: '$breachedNow breach notice(s)');
     Timer.periodic(const Duration(hours: 1), (_) async {
       try {
         final breached = await ticketSlaSweep.sweepOnce();
+        PlatformHealthRegistry.record('support_ticket_sla_sweep', ok: true, summary: '$breached breach notice(s)');
         if (breached > 0) Log.info('Support ticket SLA sweep: $breached breach notification(s) sent');
       } catch (e) {
+        PlatformHealthRegistry.record('support_ticket_sla_sweep', ok: false, summary: '$e');
         Log.error('Support ticket SLA sweep failed', error: e);
       }
     });
@@ -445,11 +455,14 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     Log.startupInfo('Running initial customer campaign sweep...');
     final greetedNow = await customerCampaignSweep.sweepOnce();
     Log.startupSuccess('Customer campaign sweep complete — $greetedNow greeting(s) sent');
+    PlatformHealthRegistry.record('customer_campaign_sweep', ok: true, summary: '$greetedNow greeting(s)');
     Timer.periodic(const Duration(hours: 24), (_) async {
       try {
         final greeted = await customerCampaignSweep.sweepOnce();
+        PlatformHealthRegistry.record('customer_campaign_sweep', ok: true, summary: '$greeted greeting(s)');
         if (greeted > 0) Log.info('Customer campaign sweep: $greeted greeting(s) sent');
       } catch (e) {
+        PlatformHealthRegistry.record('customer_campaign_sweep', ok: false, summary: '$e');
         Log.error('Customer campaign sweep failed', error: e);
       }
     });
@@ -487,14 +500,18 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     try {
       final syncedNow = await connectorSyncSweep.sweepOnce();
       Log.startupSuccess('Connector sync sweep complete — $syncedNow credential(s) synced');
+      PlatformHealthRegistry.record('connector_sync_sweep', ok: true, summary: '$syncedNow synced');
     } catch (e) {
+      PlatformHealthRegistry.record('connector_sync_sweep', ok: false, summary: '$e');
       Log.error('Initial connector sync sweep failed — will retry on the next 30-minute interval', error: e);
     }
     Timer.periodic(const Duration(minutes: 30), (_) async {
       try {
         final synced = await connectorSyncSweep.sweepOnce();
+        PlatformHealthRegistry.record('connector_sync_sweep', ok: true, summary: '$synced synced');
         if (synced > 0) Log.info('Connector sync sweep: $synced credential(s) synced');
       } catch (e) {
+        PlatformHealthRegistry.record('connector_sync_sweep', ok: false, summary: '$e');
         Log.error('Connector sync sweep failed', error: e);
       }
     });
@@ -514,7 +531,9 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     Timer.periodic(BroadcastSweepService.tickInterval, (_) async {
       try {
         await broadcastSweep.sweepOnce();
+        PlatformHealthRegistry.record('broadcast_sweep', ok: true, summary: 'tick ok');
       } catch (e) {
+        PlatformHealthRegistry.record('broadcast_sweep', ok: false, summary: '$e');
         Log.error('Broadcast sweep failed', error: e);
       }
     });

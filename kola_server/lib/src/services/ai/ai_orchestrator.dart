@@ -49,6 +49,16 @@ class AiOrchestrator {
 
   final List<AiProvider> _providers;
 
+  /// name -> isConfigured, in cascade order — added for the admin
+  /// "Platform health" page (§3.5, deferred until this pass). This is
+  /// deliberately a "has a key been set" check, not a live reachability
+  /// ping: pinging a paid or rate-limited provider on every admin page
+  /// load would burn real quota just to render a dashboard, so this
+  /// reports what's honestly cheap to know without cost.
+  Map<String, bool> get providerConfigStatus => {
+        for (final p in _providers) p.name: p.isConfigured,
+      };
+
   /// Result of a successful [complete] call — carries which provider
   /// actually answered alongside the text, so callers can log/telemetry
   /// on provider usage without every call site re-deriving it.

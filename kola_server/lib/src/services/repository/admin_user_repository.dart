@@ -73,6 +73,41 @@ class AdminUserRepository {
     return AdminUser.fromRow(response);
   }
 
+  /// Read path added for step "Admin accounts as its own page" (deferred
+  /// until this pass). Deliberately still no CREATE via RPC (see
+  /// [create]'s header — account creation stays a direct-DB/tooling-only
+  /// path); this only lets an Owner see who has access today and
+  /// deactivate an account, which is the realistic day-2 need ("someone
+  /// left the team, cut their access now") without reopening the
+  /// no-self-registration decision.
+  Future<List<AdminUser>> listAll() async {
+    final response = await supabase
+        .from('admin_users')
+        .select()
+        .order('created_at', ascending: true);
+
+    return (response as List)
+        .map((row) => AdminUser.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Flips [AdminUser.active]. The only lever this pass adds for revoking
+  /// a departed admin's access short of a direct DB edit — deliberately
+  /// narrower than full account management (no level change, no email
+  /// change) to keep this addition small and auditable.
+  Future<AdminUser> setActive(int id, bool active) async {
+    final response = await supabase
+        .from('admin_users')
+        .update({
+          'active': active,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+    return AdminUser.fromRow(response);
+  }
+
   Future<void> touchLastSeen(int id) async {
     await supabase.from('admin_users').update({
       'last_seen_at': DateTime.now().toUtc().toIso8601String(),

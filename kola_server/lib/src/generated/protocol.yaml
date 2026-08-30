@@ -1,7 +1,21 @@
+adminAccounts:
+  - listAdmins:
+  - setActive:
+adminAnnouncement:
+  - previewAudience:
+  - sendAnnouncement:
+adminAuditLog:
+  - listRecent:
 adminAuth:
   - login:
   - mustResetPassword:
   - changePassword:
+adminDiagnostics:
+  - diagnoseWorkspace:
+  - listRecentConversations:
+  - listFailedKnowledgeDocuments:
+  - reindexDocument:
+  - resendNotification:
 adminFeature:
   - listFlags:
   - listMissingFeatureKeys:
@@ -11,6 +25,23 @@ adminFeature:
   - setOverride:
   - removeOverride:
   - listOverridesForFeature:
+adminPlatform:
+  - listSweepJobStatuses:
+  - listAiProviderStatus:
+  - embeddingQuotaInfo:
+adminSupport:
+  - listOpenTickets:
+adminWorkspace:
+  - listWorkspaces:
+  - getWorkspace:
+  - listBotsForWorkspace:
+  - listChannelsForBot:
+  - setPlan:
+  - extendTrial:
+  - resetTrial:
+  - suspend:
+  - reinstate:
+  - setInternal:
 bot:
   - createBot:
   - createBotFromDescription:
