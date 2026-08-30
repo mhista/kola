@@ -82,6 +82,40 @@ class EndpointAdminAuth extends _i1.EndpointRef {
       'password': password,
     },
   );
+
+  /// Whether the caller must change their password before doing anything
+  /// else — kola_admin calls this immediately after login and, if true,
+  /// blocks every other route behind the forced reset screen. Backed by
+  /// AdminSession.mustResetPassword, which is read live off the account
+  /// row on every call — see admin_auth_service.dart's verify().
+  _i2.Future<bool> mustResetPassword(String adminToken) =>
+      caller.callServerEndpoint<bool>(
+        'adminAuth',
+        'mustResetPassword',
+        {'adminToken': adminToken},
+      );
+
+  /// Changes the caller's own password. Requires the CURRENT password —
+  /// see AdminAuthService.changePassword's header for why that holds
+  /// even during a forced first-login reset. This is the only method
+  /// that ever clears must_reset_password.
+  ///
+  /// Throws [KolaException] with code 'admin_password_change_failed' on
+  /// any validation failure (wrong current password, new password too
+  /// short, new password same as current, or an inactive account).
+  _i2.Future<void> changePassword(
+    String adminToken,
+    String currentPassword,
+    String newPassword,
+  ) => caller.callServerEndpoint<void>(
+    'adminAuth',
+    'changePassword',
+    {
+      'adminToken': adminToken,
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    },
+  );
 }
 
 /// {@category Endpoint}

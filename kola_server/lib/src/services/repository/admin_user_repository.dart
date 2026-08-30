@@ -58,6 +58,12 @@ class AdminUserRepository {
           'level': level,
           'mfa_enabled': false,
           'active': true,
+          // Migration 055 — every new account starts forced into a
+          // reset on first login, no exceptions. Whoever creates this
+          // account hands the recipient a placeholder; this column is
+          // what turns "hand someone a password" into "hand someone a
+          // one-time credential."
+          'must_reset_password': true,
           'created_at': now,
           'updated_at': now,
         })
@@ -70,6 +76,18 @@ class AdminUserRepository {
   Future<void> touchLastSeen(int id) async {
     await supabase.from('admin_users').update({
       'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', id);
+  }
+
+  /// Sets a new password hash and clears [AdminUser.mustResetPassword]
+  /// in the same write — the only place either column changes after
+  /// account creation. Called only from AdminAuthService.changePassword,
+  /// which has already verified the caller's current password.
+  Future<void> updatePassword(int id, String newPasswordHash) async {
+    await supabase.from('admin_users').update({
+      'password_hash': newPasswordHash,
+      'must_reset_password': false,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', id);
   }
 }

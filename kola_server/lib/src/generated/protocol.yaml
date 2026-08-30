@@ -1,5 +1,7 @@
 adminAuth:
   - login:
+  - mustResetPassword:
+  - changePassword:
 adminFeature:
   - listFlags:
   - listMissingFeatureKeys:

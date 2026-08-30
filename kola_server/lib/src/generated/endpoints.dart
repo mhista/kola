@@ -207,6 +207,56 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['password'],
                   ),
         ),
+        'mustResetPassword': _i1.MethodConnector(
+          name: 'mustResetPassword',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['adminAuth'] as _i2.AdminAuthEndpoint)
+                  .mustResetPassword(
+                    session,
+                    params['adminToken'],
+                  ),
+        ),
+        'changePassword': _i1.MethodConnector(
+          name: 'changePassword',
+          params: {
+            'adminToken': _i1.ParameterDescription(
+              name: 'adminToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'currentPassword': _i1.ParameterDescription(
+              name: 'currentPassword',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'newPassword': _i1.ParameterDescription(
+              name: 'newPassword',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['adminAuth'] as _i2.AdminAuthEndpoint)
+                  .changePassword(
+                    session,
+                    params['adminToken'],
+                    params['currentPassword'],
+                    params['newPassword'],
+                  ),
+        ),
       },
     );
     connectors['adminFeature'] = _i1.EndpointConnector(

@@ -25,6 +25,7 @@ class AdminUser {
     required this.level,
     required this.mfaEnabled,
     required this.active,
+    required this.mustResetPassword,
     this.lastSeenAt,
     required this.createdAt,
     required this.updatedAt,
@@ -44,6 +45,15 @@ class AdminUser {
   final bool mfaEnabled;
 
   final bool active;
+
+  /// Migration 055. True for every account until it changes its own
+  /// password via AdminAuthEndpoint.changePassword — set true on
+  /// creation (see AdminUserRepository.create's default) and never
+  /// silently cleared by anything else. AdminAuthService.verify()
+  /// surfaces this on every session so kola_admin can gate the whole
+  /// app behind a forced reset screen until it's cleared.
+  final bool mustResetPassword;
+
   final DateTime? lastSeenAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -55,6 +65,7 @@ class AdminUser {
         level: row['level'] as String,
         mfaEnabled: row['mfa_enabled'] as bool? ?? false,
         active: row['active'] as bool? ?? true,
+        mustResetPassword: row['must_reset_password'] as bool? ?? true,
         lastSeenAt: row['last_seen_at'] == null
             ? null
             : DateTime.parse(row['last_seen_at'] as String),

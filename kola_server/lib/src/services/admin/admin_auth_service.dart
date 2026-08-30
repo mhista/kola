@@ -47,11 +47,19 @@ class AdminSession {
     required this.adminUserId,
     required this.email,
     required this.level,
+    required this.mustResetPassword,
   });
 
   final int adminUserId;
   final String email;
   final String level;
+
+  /// Migration 055 — true until this admin has changed their own
+  /// password at least once via [AdminAuthService.changePassword].
+  /// kola_admin checks this right after login and, if true, blocks
+  /// every other route behind a forced reset screen — see
+  /// AdminAuthEndpoint.mustResetPassword and app.dart's redirect guard.
+  final bool mustResetPassword;
 }
 
 /// Thrown on any admin auth failure — bad credentials, inactive
@@ -156,12 +164,55 @@ class AdminAuthService {
         throw const AdminAuthException('Admin session is stale — sign in again.');
       }
 
-      return AdminSession(adminUserId: userId, email: email, level: level);
+      return AdminSession(
+        adminUserId: userId,
+        email: email,
+        level: level,
+        // Read live off the account row, same as `active` and `level`
+        // above — never trusted from the token, since a reset that
+        // happens mid-session (or a brand-new token minted before a
+        // reset) must be reflected on the very next call, not after a
+        // re-login.
+        mustResetPassword: user.mustResetPassword,
+      );
     } on JWTExpiredException {
       throw const AdminAuthException('Admin session expired — sign in again.');
     } on JWTException catch (e) {
       throw AdminAuthException('Invalid admin session: ${e.message}');
     }
+  }
+
+  /// Changes the caller's own password. The only path that ever clears
+  /// [AdminUser.mustResetPassword] — see AdminUserRepository.updatePassword.
+  ///
+  /// Requires the CURRENT password, even during a forced first-login
+  /// reset: the temporary password was handed to this admin by whoever
+  /// created the account (or, for the very first accounts, generated
+  /// and shared once), so proving it is still "something you have," not
+  /// an extra hoop — and it keeps this endpoint from being a second,
+  /// weaker way to take over an account that doesn't require knowing
+  /// the current credential at all.
+  Future<void> changePassword({
+    required int adminUserId,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = await _users.findById(adminUserId);
+    if (user == null || !user.active) {
+      throw const AdminAuthException('This admin account is no longer active.');
+    }
+    if (!AdminPasswordHasher.verify(currentPassword, user.passwordHash)) {
+      throw const AdminAuthException('Current password is incorrect.');
+    }
+    if (newPassword.length < 12) {
+      throw const AdminAuthException('New password must be at least 12 characters.');
+    }
+    if (newPassword == currentPassword) {
+      throw const AdminAuthException('New password must be different from the current one.');
+    }
+
+    final newHash = AdminPasswordHasher.hash(newPassword);
+    await _users.updatePassword(user.id, newHash);
   }
 }
 
