@@ -36,6 +36,7 @@ import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
 import 'package:kola_server/src/services/repository/payment_gateway_credential_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
+import 'package:kola_server/src/services/repository/owner_notification_settings_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 
 final _log = Logger('ConnectorService');
@@ -56,17 +57,24 @@ class ConnectorService {
     required ChannelRepository channels,
     required PaymentGatewayCredentialRepository gateways,
     required WorkspaceConnectorRepository generic,
+    required OwnerNotificationSettingsRepository ownerNotifications,
   })  : _features = features,
         _bots = bots,
         _channels = channels,
         _gateways = gateways,
-        _generic = generic;
+        _generic = generic,
+        _ownerNotifications = ownerNotifications;
 
   final FeatureFlagService _features;
   final BotRepository _bots;
   final ChannelRepository _channels;
   final PaymentGatewayCredentialRepository _gateways;
   final WorkspaceConnectorRepository _generic;
+  // Fix-properly pass — slack's catalog entry is `manage`, not
+  // `generic`-store-backed, but _resolve still needs SOME source of
+  // truth for its status tile. This is that source: the same repository
+  // the Settings page's Slack webhook form already reads and writes.
+  final OwnerNotificationSettingsRepository _ownerNotifications;
 
   /// Every connector in the catalog, with this workspace's state
   /// resolved onto it. Always returns all 15 — a connector the
@@ -91,11 +99,14 @@ class ConnectorService {
       _channelsForWorkspace(workspaceId),
       _gateways.listByWorkspace(workspaceId),
       _generic.listByWorkspace(workspaceId),
+      _ownerNotifications.findByWorkspaceId(workspaceId),
     ]);
 
     final channels = results[0] as List<Channel>;
     final gateways = results[1] as List<PaymentGatewayCredential>;
     final stored = results[2] as List<WorkspaceConnector>;
+    final ownerNotificationSettings =
+        results[3] as OwnerNotificationSettings?;
 
     final byGateway = {for (final g in gateways) g.gateway: g};
     final byKey = {for (final s in stored) s.connectorKey: s};
@@ -118,6 +129,7 @@ class ConnectorService {
         channel: byPlatform[def.key],
         gateway: byGateway[def.key],
         stored: byKey[def.key],
+        ownerNotificationSettings: ownerNotificationSettings,
       ));
     }
 
@@ -134,6 +146,7 @@ class ConnectorService {
     Channel? channel,
     PaymentGatewayCredential? gateway,
     WorkspaceConnector? stored,
+    OwnerNotificationSettings? ownerNotificationSettings,
   }) {
     final base = _describe(def);
 
@@ -148,6 +161,28 @@ class ConnectorService {
     // state, and inventing one here would be inventing UI.
     if (!enabled) {
       return base..status = ConnectorStatusValue.soon;
+    }
+
+    // Slack is `store: generic` for catalog-grouping purposes (it isn't
+    // a channel or a payment gateway) but its real state lives in
+    // OwnerNotificationSettings, not workspace_connectors — see this
+    // file's header and connector_catalog.dart's slack entry. Resolved
+    // here, before the generic-store switch below, so a workspace that
+    // has never touched Settings-Slack doesn't wrongly show "connected"
+    // (or vice versa) by consulting the wrong table.
+    if (def.key == 'slack') {
+      final ready = ownerNotificationSettings != null &&
+          ownerNotificationSettings.slackEnabled &&
+          (ownerNotificationSettings.encryptedSlackWebhookUrl ?? '')
+              .trim()
+              .isNotEmpty;
+      if (!ready) {
+        return base..status = ConnectorStatusValue.available;
+      }
+      return base
+        ..status = ConnectorStatusValue.connected
+        ..displayDetail = 'Incoming webhook configured'
+        ..lastSyncedAt = ownerNotificationSettings.updatedAt;
     }
 
     switch (def.store) {

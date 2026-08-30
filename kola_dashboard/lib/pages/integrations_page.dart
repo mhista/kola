@@ -4,19 +4,21 @@
 // file grouped channels by bot, which is a different screen from the one
 // the design specifies — see DESIGN_DELTA.md, "Integrations — WRONG".
 //
-// ── PHASE C — CHANNELS ARE NOT A "SELL" CONNECTOR ─────────────────────
+// ── PHASE C, THEN REVERSED — CHANNELS ARE BACK IN THE GRID ────────────
 //
-// WhatsApp and Telegram used to render as two more cards inside the
-// "Sell" category grid, indistinguishable from Shopify or Facebook
-// Catalog. That is the exact architectural leftover the owner called
-// out: connecting WhatsApp does not make something an agent — it's a
-// communication surface ANY agent can be given, not a sell tool that
-// happens to share a category id. The server always modelled this
-// distinction (`ConnectorStore.channel` in connector_catalog.dart) but
-// never put it on the wire; `ConnectorStatus.isChannel` now does, and
-// [_channelsSection] draws WhatsApp/Telegram in their own section,
-// above and outside the searchable/filterable category grid — not a
-// fifth category chip, a genuinely separate kind of thing.
+// Phase C pulled WhatsApp/Telegram out of the "Sell" category grid into
+// their own section above the search bar, on the reasoning that
+// connecting a channel isn't a sell-tool decision — it's a
+// communication surface any agent can use. The owner asked for that
+// reversed: WhatsApp/Telegram back in the same searchable/filterable
+// grid as everything else, not pinned above it in a section of their
+// own. `ConnectorStatus.isChannel` and `ConnectorStore.channel` (in
+// connector_catalog.dart) still exist and are still accurate — a
+// channel's credentials still live in a different table than a generic
+// connector's — that distinction was never wrong. What changed is
+// purely presentational: [_visible] and [_countFor] no longer exclude
+// channels, and the dedicated `_channelsSection`/`_channels` rendering
+// path was removed rather than kept as unused dead code.
 //
 // ── WHAT THE DESIGN SPECIFIES ────────────────────────────────────────
 //
@@ -185,23 +187,19 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
 
   // ── Derived ────────────────────────────────────────────────────────
 
-  /// WhatsApp, Telegram — communication surfaces, not "Sell" tools. Drawn
-  /// by [_channelsSection], never by [_grid] — see this file's header.
-  List<ConnectorStatus> get _channels =>
-      [for (final c in _connectors) if (c.isChannel) c];
-
-  /// Everything BUT channels — what the search box and category chips
-  /// actually operate over now.
+  /// Every connector, channels included — see this file's header on why
+  /// the Phase C exclusion was reversed. WhatsApp/Telegram now flow
+  /// through the same search/category filtering as everything else,
+  /// landing in the 'sell' category (their catalog entry never changed).
   List<ConnectorStatus> get _visible {
     final q = _search.trim().toLowerCase();
     return [
       for (final c in _connectors)
-        if (!c.isChannel)
-          if (_category == 'all' || c.category == _category)
-            if (q.isEmpty ||
-                c.name.toLowerCase().contains(q) ||
-                c.description.toLowerCase().contains(q))
-              c,
+        if (_category == 'all' || c.category == _category)
+          if (q.isEmpty ||
+              c.name.toLowerCase().contains(q) ||
+              c.description.toLowerCase().contains(q))
+            c,
     ];
   }
 
@@ -214,14 +212,12 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     return null;
   }
 
-  /// Counted over EVERYTHING non-channel, not the filtered list — a chip
-  /// reading "Sell (5)" must keep saying 5 while a search narrows the
-  /// grid, or it is reporting the search rather than the category.
-  /// Channels are excluded here the same way they're excluded from
-  /// [_visible] — they have their own section now, not a chip.
+  /// Counted over EVERYTHING, not the filtered list — a chip reading
+  /// "Sell (6)" must keep saying 6 while a search narrows the grid, or
+  /// it is reporting the search rather than the category. Channels are
+  /// included here the same way they're included in [_visible] now.
   int _countFor(String id) {
-    final pool = _connectors.where((c) => !c.isChannel);
-    return id == 'all' ? pool.length : pool.where((c) => c.category == id).length;
+    return id == 'all' ? _connectors.length : _connectors.where((c) => c.category == id).length;
   }
 
   // ── Actions ────────────────────────────────────────────────────────
@@ -515,6 +511,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     try {
       final secretKey = _formValues['secretKey'] ?? '';
       final webhookSecret = _formValues['webhookSecret'];
+      // Gate 11 — Monnify only; every other gateway's form (Paystack,
+      // Flutterwave, Stripe, Fincra) has no 'apiKey' field (see
+      // connector_catalog.dart), so this is null and ignored
+      // server-side for them.
+      final apiKey = _formValues['apiKey'];
       await component.client.payment.connectGateway(
         component.accessToken,
         component.workspaceId,
@@ -523,6 +524,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         webhookSecret: (webhookSecret == null || webhookSecret.isEmpty)
             ? null
             : webhookSecret,
+        apiKey: (apiKey == null || apiKey.isEmpty) ? null : apiKey,
       );
       if (!mounted) return;
       // PaymentEndpoint returns the raw credential, not a ConnectorStatus
@@ -580,27 +582,60 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   /// for a consent URL, then sending the WHOLE BROWSER there via a real
   /// navigation (not fetched, not opened in a popup — every OAuth
   /// provider's consent screen must be the top-level document for its
-  /// own anti-clickjacking checks to pass). Two providers today, picked
-  /// by [ConnectorStatus.key] — startGoogleOAuth/startMicrosoftOAuth are
-  /// the only things that know which scopes a given connector needs;
-  /// this method just relays whatever URL either one returns.
+  /// own anti-clickjacking checks to pass).
+  ///
+  /// FIX-PROPERLY PASS: this used to be a bare two-way ternary —
+  /// `onedrive_excel` got startMicrosoftOAuth, and EVERY OTHER
+  /// oauth-typed key (including the five that had no server-side flow
+  /// at all) fell into startGoogleOAuth unconditionally. That's the bug
+  /// reported against Instagram Shop/Facebook Catalog's Connect
+  /// buttons — clicking them called Google's OAuth start method with a
+  /// key Google's own scope lookup didn't recognise, which failed with
+  /// a raw KolaException. [_wiredOAuthProviders] below stops that
+  /// button from rendering for anything not in this switch; this switch
+  /// is now the single place that has to agree with that set.
   Future<void> _startOAuth(ConnectorStatus c) async {
     setState(() {
       _submitting = true;
       _submitError = null;
     });
     try {
-      final url = c.key == 'onedrive_excel'
-          ? await component.client.connector.startMicrosoftOAuth(
-              component.accessToken,
-              component.workspaceId,
-              c.key,
-            )
-          : await component.client.connector.startGoogleOAuth(
-              component.accessToken,
-              component.workspaceId,
-              c.key,
-            );
+      final url = await switch (c.key) {
+        'onedrive_excel' => component.client.connector.startMicrosoftOAuth(
+            component.accessToken,
+            component.workspaceId,
+            c.key,
+          ),
+        'google_sheets' ||
+        'google_drive' ||
+        'google_calendar' =>
+          component.client.connector.startGoogleOAuth(
+            component.accessToken,
+            component.workspaceId,
+            c.key,
+          ),
+        'dropbox' => component.client.connector.startDropboxOAuth(
+            component.accessToken,
+            component.workspaceId,
+            c.key,
+          ),
+        'hubspot' => component.client.connector.startHubSpotOAuth(
+            component.accessToken,
+            component.workspaceId,
+            c.key,
+          ),
+        'instagram_shop' ||
+        'facebook_catalog' =>
+          component.client.connector.startMetaOAuth(
+            component.accessToken,
+            component.workspaceId,
+            c.key,
+          ),
+        _ => throw StateError(
+            '${c.key} is oauth-typed but not wired into _startOAuth — '
+            'should have been caught by _wiredOAuthProviders first.',
+          ),
+      };
       if (!mounted) return;
       // Deliberately no setState(_submitting = false) on the success
       // path — the browser is about to navigate away from this page
@@ -696,7 +731,6 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         else if (_loadError != null)
           _errorState()
         else ...[
-          if (_channels.isNotEmpty) _channelsSection(),
           _controls(),
           if (_visible.isEmpty) _emptyState() else _grid(),
         ],
@@ -731,42 +765,6 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         ],
       );
 
-  /// WhatsApp/Telegram, drawn separately from the category grid — see
-  /// this file's header. Same card visual language as [_card] (reused
-  /// directly, not reimplemented) so this reads as "the same kind of
-  /// tile, a different section," not a visually distinct feature.
-  Component _channelsSection() => div(
-        attributes: {'style': 'margin-bottom:${KolaSpace.lg}'},
-        [
-          div(
-            attributes: {
-              'style': 'font-size:${KolaType.ui};font-weight:700;'
-                  'color:${KolaVar.text};margin-bottom:4px',
-            },
-            [Component.text('Channels')],
-          ),
-          div(
-            attributes: {
-              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                  'line-height:1.5;margin-bottom:${KolaSpace.smd};max-width:60ch',
-            },
-            [
-              Component.text(
-                'How your agents reach customers. Connect once — any agent '
-                'you create can use it, not just one.',
-              ),
-            ],
-          ),
-          div(
-            attributes: {
-              'style': 'display:grid;gap:${KolaSpace.smd};'
-                  'grid-template-columns:repeat(auto-fill,minmax(280px,1fr))',
-            },
-            [for (final c in _channels) _card(c)],
-          ),
-        ],
-      );
-
   Component _controls() => div(
         attributes: {
           'style': 'display:flex;flex-wrap:wrap;gap:${KolaSpace.smd};'
@@ -778,6 +776,21 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
             attributes: {
               'aria-label': 'Search integrations',
               'placeholder': 'Search integrations',
+              'name': 'integrations-filter',
+              // Chrome/Firefox's address/contact autofill will happily
+              // drop the signed-in owner's saved email into any plain
+              // text/search input that doesn't explicitly opt out —
+              // observed here specifically after clicking a card's
+              // Connect button, which blurs/refocuses the DOM and gives
+              // the browser's autofill heuristics a fresh chance to
+              // "helpfully" fill the nearest text input on the page.
+              // 'off' is the correct value per the HTML spec (some
+              // browsers ignore literal 'off' for login-shaped fields,
+              // but this is a plain search box, not a credential field,
+              // so it isn't fighting that heuristic) — same fix already
+              // applied to the oauth target-URL input further down this
+              // file.
+              'autocomplete': 'off',
               'style': 'flex:1 1 220px;min-width:180px;padding:9px 12px;'
                   'border-radius:${KolaRadius.md};'
                   'border:1px solid ${KolaVar.border};'
@@ -1122,6 +1135,38 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   /// only because `connectLabel` still drives the not-yet-connected
   /// button's text, and splitting one field out into its own map felt
   /// like more churn than it was worth for three dead fields.
+  /// The oauth-typed connectors with a real provider flow wired
+  /// server-side — see ConnectorEndpoint's `_googleScopesFor`/
+  /// `_microsoftScopesFor`/`_metaScopesFor` switches (Dropbox and
+  /// HubSpot need no per-connector scope lookup — one fixed scope/app
+  /// each) and [_startOAuth]'s own switch, which must agree with this
+  /// set exactly.
+  ///
+  /// FIX-PROPERLY PASS STATUS: originally FIVE connectors were marked
+  /// `ConnectorAuth.oauth` with no server-side flow at all (instagram_
+  /// shop, facebook_catalog, dropbox, hubspot, slack) — clicking their
+  /// Connect button called startGoogleOAuth unconditionally and failed
+  /// with a raw KolaException, which this file's own header already
+  /// said the design shouldn't allow: "A connect button that fails
+  /// silently is worse than one that says why it cannot work yet."
+  /// Slack turned out not to need an entry here at all — it was never
+  /// really OAuth; see connector_catalog.dart's slack entry (now
+  /// `ConnectorAuth.manage`, pointing at the Settings page's existing,
+  /// already-working Incoming Webhook form instead of a second, BYO
+  /// -webhook Slack App that this codebase never had). The remaining
+  /// four now have real flows below. [_oauthBody] checks this set
+  /// before ever rendering the Connect button — see its own body.
+  static const _wiredOAuthProviders = {
+    'google_sheets',
+    'google_drive',
+    'google_calendar',
+    'onedrive_excel',
+    'dropbox',
+    'hubspot',
+    'instagram_shop',
+    'facebook_catalog',
+  };
+
   static const _oauthTargetConfig = <String, ({
     String sentinel,
     String label,
@@ -1161,6 +1206,17 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     final target = _oauthTargetConfig[c.key];
 
     if (c.status != 'connected') {
+      if (!_wiredOAuthProviders.contains(c.key)) {
+        // See _wiredOAuthProviders' own doc comment. Honest, not broken:
+        // no button that would just redirect into a server error.
+        return [
+          _note(
+            "${c.name}'s connect flow isn't wired up in kolaa yet — this "
+            "tile is here so you know it's coming, not so you can connect "
+            'it today.',
+          ),
+        ];
+      }
       return [
         if (c.helpText.isNotEmpty) _note(c.helpText),
         if (_submitError != null)

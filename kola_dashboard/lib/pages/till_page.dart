@@ -163,6 +163,11 @@ class _TillPageState extends State<TillPage> {
   String? _category;
 
   final List<_CartLine> _cart = [];
+
+  /// Mobile only — see `_phoneCartSheet`'s header for the bug this
+  /// fixes. Reset to false whenever the sell screen is left/reset so a
+  /// stale open sheet never reappears over a fresh sale.
+  bool _mobileCartOpen = false;
   String? _payMethod;
   String _cashReceived = '';
 
@@ -483,6 +488,7 @@ class _TillPageState extends State<TillPage> {
           paidLabel: _payMethod!,
         );
         _cart.clear();
+        _mobileCartOpen = false;
         _payMethod = null;
         _cashReceived = '';
         _charging = false;
@@ -866,6 +872,7 @@ class _TillPageState extends State<TillPage> {
             ],
           ),
           _phoneSellFooter(),
+          if (_mobileCartOpen) _phoneCartSheet(),
         ],
       );
     }
@@ -1553,6 +1560,109 @@ class _TillPageState extends State<TillPage> {
         [Component.text('Basket is empty — tap a product or scan a barcode')],
       );
 
+  /// Tappable row shown in the pinned footer whenever the cart is
+  /// non-empty. This is the actual entry point for the scroll-bug fix —
+  /// see _phoneSellFooter's comment above its call site. Reachable
+  /// without scrolling because the footer itself never scrolls.
+  Component _phoneCartSummaryBar() {
+    final itemCount = _cart.fold<int>(0, (sum, l) => sum + l.quantity);
+    return div(
+      attributes: {
+        'style': 'display:flex;align-items:center;justify-content:space-between;'
+            'background:${KolaVar.pill};border-radius:${KolaRadius.md};'
+            'padding:10px 14px;margin-bottom:10px;cursor:pointer',
+        'role': 'button',
+      },
+      events: {'click': (_) => setState(() => _mobileCartOpen = true)},
+      [
+        div(
+          attributes: {'style': 'font-size:${KolaType.body};font-weight:600'},
+          [
+            Component.text(
+              'Current sale · $itemCount item${itemCount == 1 ? '' : 's'} · tap to edit',
+            ),
+          ],
+        ),
+        div(
+          attributes: {'style': 'font-size:${KolaType.body};color:${KolaVar.muted}'},
+          [Component.text('▲')],
+        ),
+      ],
+    );
+  }
+
+  /// Bottom sheet giving mobile access to _phoneCartRow's −/+/× controls
+  /// from anywhere in the product grid, with zero scrolling — see
+  /// _phoneSellFooter's comment for the bug this fixes. Mirrors
+  /// MobileMoreSheet's established scrim/panel pattern
+  /// (mobile_chrome.dart) rather than inventing a new one.
+  Component _phoneCartSheet() => div(
+        attributes: {
+          'style': 'position:fixed;inset:0;z-index:200;'
+              'background:rgba(0,0,0,0.55);display:flex;align-items:flex-end',
+          'role': 'dialog',
+          'aria-modal': 'true',
+          'aria-label': 'Current sale',
+        },
+        events: {'click': (_) => setState(() => _mobileCartOpen = false)},
+        [
+          div(
+            attributes: {
+              'style': 'width:100%;background:${KolaVar.card};'
+                  'border-top-left-radius:${KolaRadius.xl};'
+                  'border-top-right-radius:${KolaRadius.xl};'
+                  'border-top:1px solid ${KolaVar.border};'
+                  'padding:10px 16px calc(20px + env(safe-area-inset-bottom, 0px));'
+                  'max-height:75vh;overflow-y:auto;overscroll-behavior:contain',
+            },
+            events: {'click': (e) => e.stopPropagation()},
+            [
+              div(
+                attributes: {
+                  'style': 'width:36px;height:4px;background:${KolaVar.border};'
+                      'border-radius:${KolaRadius.pill};margin:2px auto 14px',
+                },
+                [],
+              ),
+              div(
+                attributes: {
+                  'style': 'display:flex;align-items:center;justify-content:space-between;'
+                      'margin-bottom:12px',
+                },
+                [
+                  div(
+                    attributes: {
+                      'style': 'font-size:${KolaType.subhead};font-weight:700',
+                    },
+                    [Component.text('Current sale')],
+                  ),
+                  button(
+                    attributes: {
+                      'type': 'button',
+                      'style': 'background:${KolaVar.pill};border:none;'
+                          'border-radius:${KolaRadius.pill};padding:8px 16px;'
+                          'font-size:${KolaType.body};font-weight:600;'
+                          'color:${KolaVar.text};cursor:pointer',
+                    },
+                    events: {'click': (_) => setState(() => _mobileCartOpen = false)},
+                    [Component.text('Done')],
+                  ),
+                ],
+              ),
+              if (_cart.isEmpty)
+                _phoneEmptyBasketNote()
+              else
+                div(
+                  attributes: {
+                    'style': 'display:flex;flex-direction:column;gap:8px',
+                  },
+                  [for (final l in _cart) _phoneCartRow(l)],
+                ),
+            ],
+          ),
+        ],
+      );
+
   // A flex sibling of the scrolling content above it (see _phoneBody),
   // not `position:sticky` — sticky only pins within its OWN scroll
   // ancestor, which was the entire page here, so as the cart grew this
@@ -1565,6 +1675,23 @@ class _TillPageState extends State<TillPage> {
               'border-top:1px solid ${KolaVar.border};padding:14px 16px 18px;box-sizing:border-box',
         },
         [
+          // THE FIX for a real reported bug: "when I start adding a
+          // product for sales, I have to scroll down to increase or
+          // decrease the products before selling or even deleting.
+          // imagine I have 100 products, I have to scroll to the 100th
+          // before doing anything." Tapping a product tile only ever
+          // INCREMENTS it (see _productTile) — decreasing a quantity or
+          // removing a line needed _phoneCartRow's −/+/× buttons, and
+          // those lived in _phoneCartList, BELOW THE ENTIRE PRODUCT
+          // GRID in scroll order (see _phoneBody). With a long catalog,
+          // reaching them meant scrolling past every product first.
+          // This bar is always visible (it's part of the pinned
+          // footer, outside the grid's scroll region — see _phoneBody's
+          // own comment on why the footer is a flex sibling, not
+          // sticky) and opens a bottom sheet with the same
+          // −/+/× controls, reachable from anywhere in the grid with
+          // zero scrolling.
+          if (_cart.isNotEmpty) _phoneCartSummaryBar(),
           _totalsRows(),
           button(
             attributes: {

@@ -63,6 +63,9 @@ import 'package:kola_server/src/services/support/customer_campaign_sweep_service
 import 'package:kola_server/src/services/connectors/connector_sync_sweep_service.dart';
 import 'package:kola_server/src/services/connectors/google/google_oauth_callback_route.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_callback_route.dart';
+import 'package:kola_server/src/services/connectors/dropbox/dropbox_oauth_callback_route.dart';
+import 'package:kola_server/src/services/connectors/hubspot/hubspot_oauth_callback_route.dart';
+import 'package:kola_server/src/services/connectors/meta/meta_oauth_callback_route.dart';
 import 'package:kola_server/src/services/messaging/broadcast_sweep_service.dart';
 import 'package:kola_server/src/services/memory/embedding_orchestrator.dart';
 import 'package:kola_server/kola_logger.dart';
@@ -284,6 +287,17 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     // in Google Cloud Console) or Google rejects the callback outright.
     pod.webServer.addRoute(GoogleOAuthCallbackRoute(), '/oauth/google/callback');
     pod.webServer.addRoute(MicrosoftOAuthCallbackRoute(), '/oauth/microsoft/callback');
+
+    // Fix-properly pass — same shape, three more providers. Each path
+    // MUST exactly match that provider's own *_REDIRECT_URI (.env AND
+    // the redirect URI registered on that provider's own app console),
+    // or the callback is rejected outright — same rule as Google above.
+    // MetaOAuthCallbackRoute is shared by BOTH instagram_shop and
+    // facebook_catalog (one Meta App — see meta_oauth_service.dart's
+    // header), so there is one route here, not two.
+    pod.webServer.addRoute(DropboxOAuthCallbackRoute(), '/oauth/dropbox/callback');
+    pod.webServer.addRoute(HubSpotOAuthCallbackRoute(), '/oauth/hubspot/callback');
+    pod.webServer.addRoute(MetaOAuthCallbackRoute(), '/oauth/meta/callback');
 
     // Gate 8 — the public, API-key-authenticated outbound messaging
     // endpoint. Lives on webServer (not a generated Endpoint) for the

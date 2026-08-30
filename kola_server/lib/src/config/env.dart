@@ -408,4 +408,42 @@ abstract class Env {
   static final String microsoftOAuthTenant = _Env.microsoftOAuthTenant.isNotEmpty
       ? _Env.microsoftOAuthTenant
       : Platform.environment['MICROSOFT_OAUTH_TENANT'] ?? 'organizations';
+
+  // ── Dropbox / HubSpot / Meta OAuth (fix-properly pass) ──────────────────────
+  // Three more single-client-many-... wait, one-client-per-provider OAuth
+  // blocks, same shape as Google/Microsoft above. Deliberately NOT
+  // @EnviedField like every field above this point — that annotation
+  // needs a real `dart run build_runner build` against a real secret
+  // already sitting in someone's .env to populate env.g.dart's
+  // obfuscated counterpart, and neither exists yet: no business has
+  // connected any of these three before this pass, and this environment
+  // has no Dart toolchain to run build_runner even if one had. Same
+  // reasoning and same fallback shape as instagramWebhookVerifyToken
+  // above — reads straight from Platform.environment, safe to upgrade
+  // to a real @EnviedField the next time build_runner runs for any
+  // other reason. Not required for the server to start — each connector
+  // is simply unavailable until its three values are set. See
+  // .env.example for the matching entries.
+  static final String dropboxClientId =
+      Platform.environment['DROPBOX_CLIENT_ID'] ?? '';
+  static final String dropboxClientSecret =
+      Platform.environment['DROPBOX_CLIENT_SECRET'] ?? '';
+  static final String dropboxRedirectUri =
+      Platform.environment['DROPBOX_REDIRECT_URI'] ?? '';
+
+  static final String hubspotClientId =
+      Platform.environment['HUBSPOT_CLIENT_ID'] ?? '';
+  static final String hubspotClientSecret =
+      Platform.environment['HUBSPOT_CLIENT_SECRET'] ?? '';
+  static final String hubspotRedirectUri =
+      Platform.environment['HUBSPOT_REDIRECT_URI'] ?? '';
+
+  // Shared by instagram_shop AND facebook_catalog — one Meta App, same
+  // "one client, many connectors" shape as Google's block above. See
+  // meta_oauth_service.dart's header.
+  static final String metaAppId = Platform.environment['META_APP_ID'] ?? '';
+  static final String metaAppSecret =
+      Platform.environment['META_APP_SECRET'] ?? '';
+  static final String metaOAuthRedirectUri =
+      Platform.environment['META_OAUTH_REDIRECT_URI'] ?? '';
 }

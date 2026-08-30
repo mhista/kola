@@ -385,6 +385,14 @@ void setupDependencyInjection() {
       channels: getIt<ChannelRepository>(),
       gateways: getIt<PaymentGatewayCredentialRepository>(),
       generic: getIt<WorkspaceConnectorRepository>(),
+      // Registered further down (owner-notifications block) — safe
+      // because registerLazySingleton defers construction until first
+      // real use, by which point every registration in this file has
+      // run. Needed so ConnectorService can resolve slack's status from
+      // the same settings row the Settings page's Slack form uses,
+      // rather than the (always-empty, for slack) generic connector
+      // store — see connector_service.dart's slack special-case.
+      ownerNotifications: getIt<OwnerNotificationSettingsRepository>(),
     ),
   );
 

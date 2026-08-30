@@ -1102,6 +1102,99 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['connectorKey'],
                   ),
         ),
+        'startDropboxOAuth': _i1.MethodConnector(
+          name: 'startDropboxOAuth',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i5.ConnectorEndpoint)
+                  .startDropboxOAuth(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                  ),
+        ),
+        'startHubSpotOAuth': _i1.MethodConnector(
+          name: 'startHubSpotOAuth',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i5.ConnectorEndpoint)
+                  .startHubSpotOAuth(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                  ),
+        ),
+        'startMetaOAuth': _i1.MethodConnector(
+          name: 'startMetaOAuth',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'connectorKey': _i1.ParameterDescription(
+              name: 'connectorKey',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['connector'] as _i5.ConnectorEndpoint)
+                  .startMetaOAuth(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['connectorKey'],
+                  ),
+        ),
         'setExcelFileTarget': _i1.MethodConnector(
           name: 'setExcelFileTarget',
           params: {

@@ -47,9 +47,12 @@
 // stays the internal identifier while "agent" is what ships in events,
 // labels and docs.
 
+import 'dart:js_interop';
+
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
+import 'package:web/web.dart' as web;
 
 import '../components/shell/kola_icon.dart';
 import '../components/shell/icons.dart';
@@ -67,6 +70,10 @@ const _eventTypes = <(String value, String label)>[
   ('agent_published', 'Agent published'),
   ('agent_paused', 'Agent paused'),
   ('payment_confirmed', 'Payment confirmed'),
+  ('sale_completed', 'Sale completed'),
+  // Gate 8 — fired by outbound_message_service.dart once a POST
+  // /v1/messages send actually reaches the platform adapter.
+  ('message_sent', 'Message sent'),
 ];
 
 /// Mirrors `ApiKeyService.scopes`.
@@ -109,6 +116,11 @@ class _ApiWebhooksPageState extends State<ApiWebhooksPage> {
   /// The ONLY copy of a just-created key's plaintext. See this file's
   /// header on why this never joins [_keys].
   String? _newKeyPlaintext;
+
+  /// Transient "Copied!" confirmation on the reveal-key button — reset
+  /// every time the create-key modal reopens, same lifetime as
+  /// [_newKeyPlaintext] itself.
+  bool _keyCopied = false;
 
   // ── Add endpoint modal ────────────────────────────────────────────
   bool _showAddEndpoint = false;
@@ -167,6 +179,7 @@ class _ApiWebhooksPageState extends State<ApiWebhooksPage> {
       _keyScope = 'full';
       _createKeyError = null;
       _newKeyPlaintext = null;
+      _keyCopied = false;
     });
   }
 
@@ -178,7 +191,29 @@ class _ApiWebhooksPageState extends State<ApiWebhooksPage> {
       // The plaintext leaves memory the moment the modal that showed it
       // closes — see this file's header.
       _newKeyPlaintext = null;
+      _keyCopied = false;
     });
+  }
+
+  /// Writes the just-created key to the OS clipboard. `user-select:all`
+  /// on the key box (see `_createKeyRevealBody`) lets someone select and
+  /// Ctrl/Cmd+C it manually, but that's not an obvious affordance — most
+  /// people expect a copy button next to a "here's your secret" box, and
+  /// this page didn't have one. Swallows a failed write (an insecure
+  /// context, a browser that blocks clipboard access, etc.) rather than
+  /// throwing — the key is still on screen and manually selectable
+  /// either way, so a silent failure here loses nothing.
+  Future<void> _copyKeyToClipboard() async {
+    final value = _newKeyPlaintext;
+    if (value == null) return;
+    try {
+      await web.window.navigator.clipboard.writeText(value).toDart;
+      if (!mounted) return;
+      setState(() => _keyCopied = true);
+    } catch (_) {
+      // No fallback needed — user-select:all still lets it be copied by
+      // hand.
+    }
   }
 
   Future<void> _createKey() async {
@@ -695,6 +730,19 @@ class _ApiWebhooksPageState extends State<ApiWebhooksPage> {
                 'margin-bottom:${KolaSpace.md};user-select:all',
           },
           [Component.text(_newKeyPlaintext!)],
+        ),
+        button(
+          attributes: {
+            'type': 'button',
+            'style': 'width:100%;background:transparent;'
+                'color:${_keyCopied ? KolaVar.successBright : KolaVar.text};'
+                'border:1px solid ${_keyCopied ? KolaVar.successBright : KolaVar.border};'
+                'border-radius:${KolaRadius.sm};padding:11px;'
+                'font-size:${KolaType.body};font-weight:600;font-family:inherit;'
+                'cursor:pointer;min-height:44px;margin-bottom:${KolaSpace.md}',
+          },
+          events: {'click': (_) => _copyKeyToClipboard()},
+          [Component.text(_keyCopied ? 'Copied!' : 'Copy key')],
         ),
         _primaryButton(label: 'Done', disabled: false, onClick: () async => _closeCreateKey()),
       ]);

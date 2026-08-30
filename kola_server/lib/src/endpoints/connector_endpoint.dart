@@ -35,6 +35,9 @@ import 'package:kola_server/src/services/connectors/google/google_drive_service.
 import 'package:kola_server/src/services/connectors/google/google_sheets_config.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_service.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_graph_excel_service.dart';
+import 'package:kola_server/src/services/connectors/dropbox/dropbox_oauth_service.dart';
+import 'package:kola_server/src/services/connectors/hubspot/hubspot_oauth_service.dart';
+import 'package:kola_server/src/services/connectors/meta/meta_oauth_service.dart';
 import 'package:kola_server/src/services/repository/calendar_booking_repository.dart';
 import 'package:kola_server/src/config/env.dart';
 import 'package:kola_server/kola_logger.dart';
@@ -60,6 +63,21 @@ class ConnectorEndpoint extends Endpoint {
   GoogleCalendarService get _googleCalendar => const GoogleCalendarService();
   GoogleDriveService get _googleDrive => const GoogleDriveService();
   CalendarBookingRepository get _bookings => getIt<CalendarBookingRepository>();
+  DropboxOAuthService get _dropboxOAuth => DropboxOAuthService(
+        clientId: Env.dropboxClientId,
+        clientSecret: Env.dropboxClientSecret,
+        redirectUri: Env.dropboxRedirectUri,
+      );
+  HubSpotOAuthService get _hubspotOAuth => HubSpotOAuthService(
+        clientId: Env.hubspotClientId,
+        clientSecret: Env.hubspotClientSecret,
+        redirectUri: Env.hubspotRedirectUri,
+      );
+  MetaOAuthService get _metaOAuth => MetaOAuthService(
+        appId: Env.metaAppId,
+        appSecret: Env.metaAppSecret,
+        redirectUri: Env.metaOAuthRedirectUri,
+      );
 
   /// Every connector in the catalog with this workspace's state resolved
   /// onto it — all 16, always. A connector the workspace cannot use yet
@@ -443,6 +461,112 @@ class ConnectorEndpoint extends Endpoint {
     return _microsoftOAuth.authorizationUrl(state: state, scopes: scopes);
   }
 
+  /// Fix-properly pass — the Dropbox twin of [startGoogleOAuth]. Same
+  /// state-signing contract, no scope list: Dropbox's OAuth app
+  /// permissions are configured once on the App Console (a fixed
+  /// "scope" per app, not requested per-authorize-call the way Google/
+  /// Meta scopes are), so there is no per-connector scope lookup to
+  /// fail on the way [_googleScopesFor]/[_microsoftScopesFor] can.
+  Future<String> startDropboxOAuth(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final workspace = await _requireWorkspace(workspaceId);
+    final def = ConnectorCatalog.byKey(connectorKey);
+    if (def == null) {
+      throw KolaException(message: 'Unknown connector "$connectorKey".');
+    }
+    if (!await _features.isEnabled(def.featureKey, workspace)) {
+      throw KolaException(message: '${def.name} is not available on this workspace yet.');
+    }
+    if (def.auth != ConnectorAuth.oauth || connectorKey != 'dropbox') {
+      throw KolaException(message: '${def.name} does not use Dropbox sign-in.');
+    }
+
+    final state = ChannelCredentialEncryptionService.encrypt(jsonEncode({
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+      'expiresAt': DateTime.now().toUtc().add(const Duration(minutes: 15)).toIso8601String(),
+    }));
+
+    return _dropboxOAuth.authorizationUrl(state: state);
+  }
+
+  /// Fix-properly pass — the HubSpot twin of [startGoogleOAuth].
+  Future<String> startHubSpotOAuth(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final workspace = await _requireWorkspace(workspaceId);
+    final def = ConnectorCatalog.byKey(connectorKey);
+    if (def == null) {
+      throw KolaException(message: 'Unknown connector "$connectorKey".');
+    }
+    if (!await _features.isEnabled(def.featureKey, workspace)) {
+      throw KolaException(message: '${def.name} is not available on this workspace yet.');
+    }
+    if (def.auth != ConnectorAuth.oauth || connectorKey != 'hubspot') {
+      throw KolaException(message: '${def.name} does not use HubSpot sign-in.');
+    }
+
+    final state = ChannelCredentialEncryptionService.encrypt(jsonEncode({
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+      'expiresAt': DateTime.now().toUtc().add(const Duration(minutes: 15)).toIso8601String(),
+    }));
+
+    return _hubspotOAuth.authorizationUrl(
+      state: state,
+      scopes: const [HubSpotOAuthService.scopeContactsRead],
+    );
+  }
+
+  /// Fix-properly pass — the Meta twin of [startGoogleOAuth], shared by
+  /// BOTH instagram_shop and facebook_catalog (one Meta App — see
+  /// meta_oauth_service.dart's header). [_metaScopesFor] is what tells
+  /// the two connectors apart.
+  Future<String> startMetaOAuth(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    String connectorKey,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+
+    final workspace = await _requireWorkspace(workspaceId);
+    final def = ConnectorCatalog.byKey(connectorKey);
+    if (def == null) {
+      throw KolaException(message: 'Unknown connector "$connectorKey".');
+    }
+    if (!await _features.isEnabled(def.featureKey, workspace)) {
+      throw KolaException(message: '${def.name} is not available on this workspace yet.');
+    }
+    if (def.auth != ConnectorAuth.oauth) {
+      throw KolaException(message: '${def.name} does not use Meta sign-in.');
+    }
+
+    final scopes = _metaScopesFor(connectorKey);
+    if (scopes == null) {
+      throw KolaException(message: 'No Meta scope is defined for "$connectorKey" yet.');
+    }
+
+    final state = ChannelCredentialEncryptionService.encrypt(jsonEncode({
+      'workspaceId': workspaceId,
+      'connectorKey': connectorKey,
+      'expiresAt': DateTime.now().toUtc().add(const Duration(minutes: 15)).toIso8601String(),
+    }));
+
+    return _metaOAuth.authorizationUrl(state: state, scopes: scopes);
+  }
+
   /// Gate 4 — the OneDrive/SharePoint twin of [setGoogleSheetTarget].
   /// UNLIKE that method, this one makes a real Graph call: a sharing URL
   /// carries no stable id the way a Google Sheets URL does, so the
@@ -729,6 +853,26 @@ class ConnectorEndpoint extends Endpoint {
   /// reasoning.
   static List<String>? _microsoftScopesFor(String connectorKey) => switch (connectorKey) {
         'onedrive_excel' => const [MicrosoftOAuthService.scopeFilesReadWrite],
+        _ => null,
+      };
+
+  /// Fix-properly pass — which Meta permission(s) a connector's OAuth
+  /// grant should request. Both instagram_shop and facebook_catalog
+  /// share ONE Meta App (one client_id/secret — see meta_oauth_service
+  /// .dart's header) but request DIFFERENT scopes, because they read
+  /// different data: instagram_shop only ever needs the Instagram-side
+  /// catalog tags, facebook_catalog needs the Business Manager/Pages
+  /// surface a Facebook catalog actually lives under.
+  static List<String>? _metaScopesFor(String connectorKey) => switch (connectorKey) {
+        'instagram_shop' => const [
+            MetaOAuthService.scopeInstagramBasic,
+            MetaOAuthService.scopeCatalogManagement,
+          ],
+        'facebook_catalog' => const [
+            MetaOAuthService.scopeCatalogManagement,
+            MetaOAuthService.scopePagesShowList,
+            MetaOAuthService.scopeBusinessManagement,
+          ],
         _ => null,
       };
 

@@ -260,6 +260,10 @@ abstract class ConnectorCatalog {
         ),
       ],
     ),
+    // Fix-properly pass — real OAuth flow now exists (MetaOAuthService,
+    // shared with facebook_catalog below — one Meta App, two scopes).
+    // helpText filled in now that clicking Connect leads somewhere real
+    // instead of the "not wired up yet" tile.
     ConnectorDefinition(
       key: 'instagram_shop',
       name: 'Instagram Shop',
@@ -268,6 +272,8 @@ abstract class ConnectorCatalog {
       auth: ConnectorAuth.oauth,
       store: ConnectorStore.generic,
       featureKey: FeatureKeys.connectorsCommerce,
+      helpText: 'Needs an Instagram professional account linked to a Facebook '
+          'Page with a product catalog already set up in Commerce Manager.',
     ),
     ConnectorDefinition(
       key: 'facebook_catalog',
@@ -277,6 +283,8 @@ abstract class ConnectorCatalog {
       auth: ConnectorAuth.oauth,
       store: ConnectorStore.generic,
       featureKey: FeatureKeys.connectorsCommerce,
+      helpText: 'Needs a product catalog already set up in Meta Commerce '
+          'Manager, owned by a Business Manager account.',
     ),
     ConnectorDefinition(
       key: 'shopify',
@@ -497,6 +505,7 @@ abstract class ConnectorCatalog {
         ConnectorField(key: 'integrationToken', label: 'Internal integration token', secret: true),
       ],
     ),
+    // Fix-properly pass — real OAuth flow now exists (DropboxOAuthService).
     ConnectorDefinition(
       key: 'dropbox',
       name: 'Dropbox',
@@ -505,7 +514,10 @@ abstract class ConnectorCatalog {
       auth: ConnectorAuth.oauth,
       store: ConnectorStore.generic,
       featureKey: FeatureKeys.connectorsStorage,
+      helpText: "You'll be asked to sign in to Dropbox and approve kolaa's "
+          'access — no keys to copy.',
     ),
+    // Fix-properly pass — real OAuth flow now exists (HubSpotOAuthService).
     ConnectorDefinition(
       key: 'hubspot',
       name: 'HubSpot CRM',
@@ -514,6 +526,8 @@ abstract class ConnectorCatalog {
       auth: ConnectorAuth.oauth,
       store: ConnectorStore.generic,
       featureKey: FeatureKeys.connectorsCrm,
+      helpText: "You'll be asked to sign in to HubSpot and install kolaa on "
+          'your account — no keys to copy.',
     ),
 
     // ── Operate ───────────────────────────────────────────────────────
@@ -526,14 +540,25 @@ abstract class ConnectorCatalog {
       store: ConnectorStore.generic,
       featureKey: FeatureKeys.connectorsCalendar,
     ),
+    // Fix-properly pass — this was ConnectorAuth.oauth, which is simply
+    // wrong: there is no Kola-owned Slack App and no OAuth client for
+    // it anywhere in this codebase. Slack notifications are BYO
+    // Incoming Webhook (see slack_owner_notifier.dart's header) and are
+    // already fully built — configured on the Settings page's owner
+    // notifications section, not here. `manage` is the auth type this
+    // catalog already has for exactly this shape ("already configured
+    // elsewhere in the product; this screen links to where it is
+    // managed"). Recategorizing rather than building a second, redundant
+    // Slack App OAuth integration next to a working one.
     ConnectorDefinition(
       key: 'slack',
       name: 'Slack',
       category: 'operate',
       description: 'Route escalations to a staff channel instead of a phone.',
-      auth: ConnectorAuth.oauth,
+      auth: ConnectorAuth.manage,
       store: ConnectorStore.generic,
       featureKey: FeatureKeys.ownerNotifications,
+      manageRoute: '/settings',
     ),
     ConnectorDefinition(
       key: 'zapier',

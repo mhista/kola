@@ -28,6 +28,9 @@ connector:
   - setGoogleSheetTargets:
   - setGoogleSheetTarget:
   - startMicrosoftOAuth:
+  - startDropboxOAuth:
+  - startHubSpotOAuth:
+  - startMetaOAuth:
   - setExcelFileTarget:
   - setCalendarBookingMode:
   - listPendingBookings:
