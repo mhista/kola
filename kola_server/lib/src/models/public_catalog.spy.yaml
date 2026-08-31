@@ -1,0 +1,12 @@
+##
+## public_catalog.spy.yaml — the whole response for GET /catalog/<id>'s
+## page (migration 057, Phase 11's public catalog page): which business
+## this is, plus every item it currently sells. See
+## public_catalog_item.spy.yaml for what one item carries and why it is
+## a separate model from Product.
+##
+
+class: PublicCatalog
+fields:
+  businessName: String
+  items: List<PublicCatalogItem>

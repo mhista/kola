@@ -103,6 +103,12 @@ class _SettingsPageState extends State<SettingsPage> {
   // Gate 7 (migration 045). Null = never asked, matches the model's own
   // default — no chip pre-selected until an owner actually answers.
   late bool? _sellsCatalogItems = component.workspace.sellsCatalogItems;
+  // Phase 11 (migration 057). A real bool, defaults false on the model —
+  // matches the toggle starting off for every workspace until an owner
+  // deliberately turns it on.
+  late bool _publicCatalogEnabled = component.workspace.publicCatalogEnabled;
+  // Phase 11 (migration 058). Same shape as _publicCatalogEnabled above.
+  late bool _customerDisplayEnabled = component.workspace.customerDisplayEnabled;
   bool _savingWorkspace = false;
   String? _workspaceError;
   String? _workspaceSaved;
@@ -186,6 +192,8 @@ class _SettingsPageState extends State<SettingsPage> {
         industryTag: _industry,
         ownerName: _ownerName,
         sellsCatalogItems: _sellsCatalogItems,
+        publicCatalogEnabled: _publicCatalogEnabled,
+        customerDisplayEnabled: _customerDisplayEnabled,
       );
       if (!mounted) return;
       component.onWorkspaceUpdated(updated);
@@ -393,6 +401,8 @@ class _SettingsPageState extends State<SettingsPage> {
         _field('Your name', _ownerName, (v) => setState(() => _ownerName = v),
             placeholder: 'The name kolaa greets you with'),
         _catalogPicker(),
+        _publicCatalogToggle(),
+        _customerDisplayToggle(),
         if (_workspaceError != null) _msg(_workspaceError!, KolaVar.danger),
         if (_workspaceSaved != null) _msg(_workspaceSaved!, KolaVar.successBright),
         _primary(_savingWorkspace ? 'Saving…' : 'Save changes',
@@ -436,6 +446,126 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       );
+
+  /// Phase 11 (migration 057) — the shareable public catalog page.
+  /// Rendered only when the workspace's own flag is enabled (same
+  /// "hidden when locked, not just false" convention as the rest of
+  /// this dashboard) — the server enforces this independently on
+  /// ProductEndpoint.getPublicCatalog regardless, so hiding the toggle
+  /// here is a courtesy, not the actual gate.
+  Component _publicCatalogToggle() {
+    if (!component.gate.isEnabled(Features.commercePublicCatalog)) {
+      return const Component.text('');
+    }
+    final url = '/catalog/${component.workspace.id}';
+    return div(
+      attributes: {'style': 'margin-bottom:14px'},
+      [
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.tiny};font-weight:600;'
+                'color:${KolaVar.mutedStrong};margin-bottom:6px',
+          },
+          [Component.text('Public catalog page')],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                'margin-bottom:8px',
+          },
+          [
+            Component.text(
+              'A shareable page anyone can open — your active products, '
+              'prices and photos, no login required. Never shows cost or '
+              'exact stock counts.',
+            ),
+          ],
+        ),
+        _choices(
+          const [
+            (id: 'off', label: 'Off'),
+            (id: 'on', label: 'On'),
+          ],
+          _publicCatalogEnabled ? 'on' : 'off',
+          (id) => setState(() => _publicCatalogEnabled = id == 'on'),
+        ),
+        if (_publicCatalogEnabled)
+          div(
+            attributes: {'style': 'margin-top:8px'},
+            [
+              a(
+                attributes: {
+                  'href': url,
+                  'target': '_blank',
+                  'rel': 'noopener',
+                  'style': 'color:${KolaVar.accent};font-size:${KolaType.small}',
+                },
+                [Component.text(url)],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  /// Phase 11 (migration 058) — the in-store customer display. Same
+  /// shape as _publicCatalogToggle just above; hidden the same way when
+  /// the feature isn't released for this workspace.
+  Component _customerDisplayToggle() {
+    if (!component.gate.isEnabled(Features.commerceCustomerDisplay)) {
+      return const Component.text('');
+    }
+    final url = '/display/${component.workspace.id}';
+    return div(
+      attributes: {'style': 'margin-bottom:14px'},
+      [
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.tiny};font-weight:600;'
+                'color:${KolaVar.mutedStrong};margin-bottom:6px',
+          },
+          [Component.text('In-store customer display')],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                'margin-bottom:8px',
+          },
+          [
+            Component.text(
+              'A second screen for the customer\'s side of the counter — '
+              'shows items as they\'re scanned and the running total, no '
+              'login required. Leave it open on a tablet or spare phone. '
+              'Never shows cost or margin.',
+            ),
+          ],
+        ),
+        _choices(
+          const [
+            (id: 'off', label: 'Off'),
+            (id: 'on', label: 'On'),
+          ],
+          _customerDisplayEnabled ? 'on' : 'off',
+          (id) => setState(() => _customerDisplayEnabled = id == 'on'),
+        ),
+        if (_customerDisplayEnabled)
+          div(
+            attributes: {'style': 'margin-top:8px'},
+            [
+              a(
+                attributes: {
+                  'href': url,
+                  'target': '_blank',
+                  'rel': 'noopener',
+                  'style': 'color:${KolaVar.accent};font-size:${KolaType.small}',
+                },
+                [Component.text(url)],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 
   Component _workspaceRow(Workspace w) {
     final current = w.id == component.workspace.id;

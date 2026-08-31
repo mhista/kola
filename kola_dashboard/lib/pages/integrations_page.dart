@@ -22,7 +22,9 @@
 //
 // ── WHAT THE DESIGN SPECIFIES ────────────────────────────────────────
 //
-//   15 connectors, 4 categories        ← served, not hardcoded
+//   16 connectors, 4 categories        ← served, not hardcoded (was 15 at
+//                                        the design spec's own count;
+//                                        'instagram' joined 2026-08-31)
 //   search                             ← name + description
 //   category filter with counts        ← "All (15)", "Sell (5)" …
 //   per-connector modal                ← 5 auth types
@@ -98,6 +100,20 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   bool _loading = true;
   String? _loadError;
 
+  // ── Channel-connect fix (2026-08-31) ─────────────────────────────────
+  //
+  // Channel.botId is the real foreign key — connecting WhatsApp/Telegram/
+  // Instagram means picking WHICH bot the channel belongs to, something
+  // this page never had to ask before because [_submit] never actually
+  // reached ChannelEndpoint (see _submitChannel's own header). Fetched
+  // alongside connectors so the modal can decide, on open, whether a
+  // picker is even needed: one bot (the common case, and the only
+  // option on the free tier's cappedFreeBotCap = 1) auto-selects with no
+  // extra UI; zero bots blocks with a "create a bot first" message
+  // instead of a dropdown with nothing in it.
+  List<Bot> _bots = const [];
+  int? _selectedBotId;
+
   String _search = '';
   String _category = 'all';
 
@@ -163,13 +179,23 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       _loadError = null;
     });
     try {
-      final list = await component.client.connector.listConnectors(
-        component.accessToken,
-        component.workspaceId,
-      );
+      // Fetched together — a channel connector's modal needs both to
+      // render correctly on first open, and there is no reason to make
+      // two round trips sequential when neither depends on the other.
+      final results = await Future.wait([
+        component.client.connector.listConnectors(
+          component.accessToken,
+          component.workspaceId,
+        ),
+        component.client.bot.listBotsForWorkspace(
+          component.accessToken,
+          component.workspaceId,
+        ),
+      ]);
       if (!mounted) return;
       setState(() {
-        _connectors = list;
+        _connectors = results[0] as List<ConnectorStatus>;
+        _bots = results[1] as List<Bot>;
         _loading = false;
       });
     } catch (e) {
@@ -233,6 +259,9 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       _formValues
         ..clear()
         ..addEntries(c.fields.map((f) => MapEntry(f.key, '')));
+      // Auto-pick the only real option; leave null for "no bot yet" (the
+      // form blocks) or "more than one" (the form shows a picker).
+      _selectedBotId = c.isChannel && _bots.length == 1 ? _bots.first.id : null;
     });
     if (c.key == 'google_sheets' && c.status == 'connected') {
       _loadDriveSheets(c);
@@ -256,6 +285,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       _formValues.clear();
       _pendingBookings = const [];
       _pendingBookingsError = null;
+      _selectedBotId = null;
     });
   }
 
@@ -470,6 +500,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
 
   Future<void> _submit(ConnectorStatus c) async {
     if (c.isPaymentGateway) return _submitGateway(c);
+    if (c.isChannel) return _submitChannel(c);
 
     setState(() {
       _submitting = true;
@@ -552,12 +583,145 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     }
   }
 
+  /// Dispatches a channel-store connector's form to ChannelEndpoint
+  /// instead of ConnectorEndpoint.connectConnector, which explicitly
+  /// rejects any store but generic (see that endpoint's own header).
+  ///
+  /// BEFORE THIS METHOD EXISTED: clicking "Connect" on the WhatsApp or
+  /// Telegram tile always called connectConnector anyway (the only path
+  /// [_submit] had), which always threw "connected through its own
+  /// flow, not here" — a real, live bug. A business could fill in every
+  /// field correctly and still never connect a channel from this page.
+  /// GATE_INSTAGRAM_STATUS.md named this exact gap explicitly when
+  /// Instagram's server side shipped without a matching UI; this is the
+  /// fix, covering all three channel connectors at once rather than
+  /// inventing three near-duplicate submit paths.
+  ///
+  /// [c.key] selects which ChannelEndpoint method to call and how to
+  /// read [_formValues] — the field keys are chosen in
+  /// connector_catalog.dart specifically to match each method's
+  /// parameter names, so no field-name translation table is needed here.
+  Future<void> _submitChannel(ConnectorStatus c) async {
+    final botId = _selectedBotId;
+    if (botId == null) {
+      setState(() {
+        _submitError = _bots.isEmpty
+            ? 'Create a bot first — a channel has to belong to one.'
+            : 'Choose which bot this channel belongs to.';
+      });
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      switch (c.key) {
+        case 'whatsapp':
+          await component.client.channel.connectWhatsAppChannelManual(
+            component.accessToken,
+            component.workspaceId,
+            botId,
+            _formValues['accessToken'] ?? '',
+            _formValues['phoneNumberId'] ?? '',
+            _formValues['wabaId'] ?? '',
+            _formValues['appId'] ?? '',
+            _formValues['appSecret'] ?? '',
+          );
+          break;
+        case 'telegram':
+          await component.client.channel.connectTelegramChannel(
+            component.accessToken,
+            component.workspaceId,
+            botId,
+            _formValues['botToken'] ?? '',
+          );
+          break;
+        case 'instagram':
+          await component.client.channel.connectInstagramChannelManual(
+            component.accessToken,
+            component.workspaceId,
+            botId,
+            _formValues['accessToken'] ?? '',
+            _formValues['igUserId'] ?? '',
+            _formValues['appSecret'] ?? '',
+          );
+          break;
+        case 'messenger':
+          await component.client.channel.connectMessengerChannelManual(
+            component.accessToken,
+            component.workspaceId,
+            botId,
+            _formValues['accessToken'] ?? '',
+            _formValues['pageId'] ?? '',
+            _formValues['appSecret'] ?? '',
+          );
+          break;
+        default:
+          throw KolaException(message: 'No channel connect flow wired for "${c.key}" yet.');
+      }
+      if (!mounted) return;
+      // ChannelEndpoint returns a Channel, not a ConnectorStatus — re-read
+      // through listConnectors the same way _submitGateway does, so this
+      // card's merged status (isChannel's own server-side resolution)
+      // stays the single source of truth rather than this file guessing
+      // at what a fresh ConnectorStatus row would look like.
+      final list = await component.client.connector.listConnectors(
+        component.accessToken,
+        component.workspaceId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _connectors = list;
+        _openKey = null;
+        _submitting = false;
+        _formValues.clear();
+        _selectedBotId = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = ErrorText.of(e);
+      });
+    }
+  }
+
   Future<void> _disconnect(ConnectorStatus c) async {
     setState(() {
       _submitting = true;
       _submitError = null;
     });
     try {
+      if (c.isChannel) {
+        // See connector_status.spy.yaml's channelId doc comment — this
+        // is the real Channel row id, resolved server-side, not
+        // something this page has to look up itself.
+        final channelId = c.channelId;
+        if (channelId == null) {
+          throw KolaException(message: 'No connected channel to disconnect.');
+        }
+        await component.client.channel.disconnectChannel(
+          component.accessToken,
+          component.workspaceId,
+          channelId,
+        );
+        // ChannelEndpoint returns a Channel, not a ConnectorStatus — same
+        // re-read-through-listConnectors reasoning as _submitChannel.
+        final list = await component.client.connector.listConnectors(
+          component.accessToken,
+          component.workspaceId,
+        );
+        if (!mounted) return;
+        setState(() {
+          _connectors = list;
+          _openKey = null;
+          _submitting = false;
+        });
+        return;
+      }
+
       final updated = await component.client.connector.disconnectConnector(
         component.accessToken,
         component.workspaceId,
@@ -1031,10 +1195,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
 
   List<Component> _formBody(ConnectorStatus c) => [
         if (c.authType == 'whatsapp')
-          _note('WhatsApp needs five values from your Meta app. The last '
-              'one — the verify token — is any phrase you choose; you '
-              'paste the same phrase into Meta.'),
+          _note('WhatsApp needs five values from your Meta app — all five '
+              'are credentials Meta issues you, copied exactly as shown in '
+              'your App Dashboard.'),
         if (c.helpText.isNotEmpty) _note(c.helpText),
+        if (c.isChannel) ..._botPicker(),
         for (final f in c.fields) _field(f),
         if (_submitError != null)
           div(
@@ -1074,6 +1239,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
             // reject this store outright; hiding the button here is
             // honest about what actually exists rather than showing an
             // action that always fails.
+            //
+            // Channels DO have a real disconnect path now (2026-08-31) —
+            // ChannelEndpoint.disconnectChannel, dispatched from
+            // [_disconnect] via c.isChannel/c.channelId. Only payment
+            // gateways stay excluded, per the comment above.
             if (!c.isPaymentGateway &&
                 (c.status == 'connected' || c.status == 'error'))
               button(
@@ -1807,6 +1977,66 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
           ),
         ],
       );
+
+  /// Which bot a channel connector's credentials attach to — Channel
+  /// .botId is a real foreign key, not optional, so this has to be asked
+  /// somewhere. Renders nothing when there is exactly one bot ([_openModal]
+  /// already auto-selected it); otherwise a picker (2+ bots) or a
+  /// blocking "create a bot first" message (0 bots) — see
+  /// [_submitChannel]'s header for why this can't just default to
+  /// nothing and let the server 404.
+  List<Component> _botPicker() {
+    if (_bots.isEmpty) {
+      return [
+        _note('You need a bot before you can connect a channel to it. '
+            'Create one from the Home page, then come back here.'),
+      ];
+    }
+    if (_bots.length == 1) return const [];
+
+    return [
+      label(
+        attributes: {'style': 'display:block;margin-bottom:10px'},
+        [
+          span(
+            attributes: {
+              'style': 'display:block;font-size:${KolaType.small};'
+                  'font-weight:600;color:${KolaVar.mutedStrong};'
+                  'margin-bottom:4px',
+            },
+            [Component.text('Which bot?')],
+          ),
+          select(
+            [
+              option(
+                [Component.text('Choose a bot…')],
+                value: '',
+                selected: _selectedBotId == null,
+              ),
+              for (final b in _bots)
+                option(
+                  [Component.text(b.name)],
+                  value: b.id.toString(),
+                  selected: b.id == _selectedBotId,
+                ),
+            ],
+            value: _selectedBotId?.toString(),
+            onChange: (values) {
+              final picked = values.isEmpty ? null : int.tryParse(values.first);
+              setState(() => _selectedBotId = picked);
+            },
+            attributes: {
+              'style': 'width:100%;box-sizing:border-box;padding:9px 12px;'
+                  'border-radius:${KolaRadius.md};'
+                  'border:1px solid ${KolaVar.border};'
+                  'background:${KolaVar.bg};color:${KolaVar.text};'
+                  'font-family:inherit;font-size:${KolaType.body}',
+            },
+          ),
+        ],
+      ),
+    ];
+  }
 
   // ── States ─────────────────────────────────────────────────────────
 

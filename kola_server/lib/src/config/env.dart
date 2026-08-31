@@ -199,6 +199,14 @@ abstract class Env {
   static final String instagramWebhookVerifyToken =
       Platform.environment['INSTAGRAM_WEBHOOK_VERIFY_TOKEN'] ?? '';
 
+  // Messenger's webhook verification handshake uses the exact same
+  // hub.verify_token mechanism as Instagram's above — same reasoning,
+  // same fallback shape, same "safe to upgrade to @EnviedField later"
+  // note. See .env.example for the MESSENGER_WEBHOOK_VERIFY_TOKEN entry
+  // this expects.
+  static final String messengerWebhookVerifyToken =
+      Platform.environment['MESSENGER_WEBHOOK_VERIFY_TOKEN'] ?? '';
+
   // ── AI orchestrator (Phase 3a) ───────────────────────────────────────────────
   // Same cost-efficient cascade already proven in copycat/kopicat_server's
   // ai.dart, ported rather than reinvented: Groq first (fast, generous free
@@ -473,4 +481,25 @@ abstract class Env {
   static final String adminJwtSecret = _Env.adminJwtSecret.isNotEmpty
       ? _Env.adminJwtSecret
       : Platform.environment['ADMIN_JWT_SECRET'] ?? '';
+
+  // ── Admin MFA (migration 056) ───────────────────────────────────────────────
+  // AES-256-GCM master key protecting admin_users.mfa_secret (an
+  // enrolled admin's TOTP secret). Deliberately a THIRD distinct secret
+  // class from both ADMIN_JWT_SECRET (signs session tokens) and
+  // CHANNEL_CREDENTIAL_MASTER_KEY (protects customer channel
+  // credentials) — same "rotating one should never require touching
+  // another" discipline CHANNEL_CREDENTIAL_MASTER_KEY's own comment
+  // states. Must decode to exactly 32 bytes; generate the same way (see
+  // channel_credential_encryption_service.dart's header for the exact
+  // command). Same fallback shape as adminJwtSecret above: works via a
+  // bare Platform.environment read even before `dart run build_runner
+  // build` has ever produced the obfuscated path.
+  @EnviedField(
+    varName: 'ADMIN_MFA_MASTER_KEY',
+    obfuscate: true,
+    defaultValue: '',
+  )
+  static final String adminMfaMasterKey = _Env.adminMfaMasterKey.isNotEmpty
+      ? _Env.adminMfaMasterKey
+      : Platform.environment['ADMIN_MFA_MASTER_KEY'] ?? '';
 }

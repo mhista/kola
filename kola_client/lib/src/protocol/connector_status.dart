@@ -30,6 +30,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
     this.displayDetail,
     this.lastSyncedAt,
     this.lastError,
+    this.channelId,
   });
 
   factory ConnectorStatus({
@@ -47,6 +48,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
     String? displayDetail,
     DateTime? lastSyncedAt,
     String? lastError,
+    int? channelId,
   }) = _ConnectorStatusImpl;
 
   factory ConnectorStatus.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -73,6 +75,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
               jsonSerialization['lastSyncedAt'],
             ),
       lastError: jsonSerialization['lastError'] as String?,
+      channelId: jsonSerialization['channelId'] as int?,
     );
   }
 
@@ -104,6 +107,8 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
 
   String? lastError;
 
+  int? channelId;
+
   /// Returns a shallow copy of this [ConnectorStatus]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -122,6 +127,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
     String? displayDetail,
     DateTime? lastSyncedAt,
     String? lastError,
+    int? channelId,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -141,6 +147,7 @@ abstract class ConnectorStatus implements _i1.SerializableModel {
       if (displayDetail != null) 'displayDetail': displayDetail,
       if (lastSyncedAt != null) 'lastSyncedAt': lastSyncedAt?.toJson(),
       if (lastError != null) 'lastError': lastError,
+      if (channelId != null) 'channelId': channelId,
     };
   }
 
@@ -168,6 +175,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
     String? displayDetail,
     DateTime? lastSyncedAt,
     String? lastError,
+    int? channelId,
   }) : super._(
          key: key,
          name: name,
@@ -183,6 +191,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
          displayDetail: displayDetail,
          lastSyncedAt: lastSyncedAt,
          lastError: lastError,
+         channelId: channelId,
        );
 
   /// Returns a shallow copy of this [ConnectorStatus]
@@ -204,6 +213,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
     Object? displayDetail = _Undefined,
     Object? lastSyncedAt = _Undefined,
     Object? lastError = _Undefined,
+    Object? channelId = _Undefined,
   }) {
     return ConnectorStatus(
       key: key ?? this.key,
@@ -224,6 +234,7 @@ class _ConnectorStatusImpl extends ConnectorStatus {
           ? lastSyncedAt
           : this.lastSyncedAt,
       lastError: lastError is String? ? lastError : this.lastError,
+      channelId: channelId is int? ? channelId : this.channelId,
     );
   }
 }

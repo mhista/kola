@@ -47,6 +47,8 @@ import 'package:kola_server/src/services/auth/workspace_access.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/errand_credential_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
+import 'package:kola_server/src/services/features/feature_keys.dart';
+import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
 import 'package:kola_server/src/services/billing/plan_limits.dart';
 import 'package:kola_server/src/services/errand/builtin_errand_executor.dart';
@@ -84,6 +86,27 @@ class ErrandEndpoint extends Endpoint {
   SecurityFilter get _security => getIt<SecurityFilter>();
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
   TrialStateMachine get _trialStateMachine => getIt<TrialStateMachine>();
+  FeatureFlagService get _features => getIt<FeatureFlagService>();
+
+  /// `errands.webhook`/`errands.db_credential` are locked in R6 despite
+  /// being fully built and working since Phase 3c — held back only
+  /// because they're developer-facing capabilities that need the
+  /// Developer Portal to be supportable (see RELEASE_PHASES.md's own
+  /// note on this). "Locked but working" makes an ungated create
+  /// endpoint a real gap, not a theoretical one — the same class of gap
+  /// ConnectorEndpoint.connectConnector/PaymentEndpoint.connectGateway
+  /// already close for their own capabilities (see DESIGN_DELTA.md).
+  /// Found and closed 2026-08-31 while auditing DEVELOPMENT_PLAN.md's
+  /// "no endpoint is gated yet" claim, which turned out to be half true.
+  Future<void> _requireFeature(String featureKey, int workspaceId) async {
+    final workspace = await _workspaces.findById(workspaceId);
+    if (workspace == null) {
+      throw KolaException(message: 'Workspace $workspaceId not found.');
+    }
+    if (!await _features.isEnabled(featureKey, workspace)) {
+      throw KolaException(message: 'This Errand type is not available on this workspace yet.');
+    }
+  }
 
   /// Phase 5 plan limits — a cappedFree or paused workspace may have at
   /// most PlanLimits.cappedFreeErrandCap ACTIVE Errands (confirmed with
@@ -362,6 +385,7 @@ class ErrandEndpoint extends Endpoint {
     String sensitiveInputKeysJson = '[]',
   }) async {
     await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+    await _requireFeature(FeatureKeys.errandsWebhook, workspaceId);
     await _assertErrandCapNotExceeded(workspaceId);
 
     final trimmedName = name.trim();
@@ -440,6 +464,7 @@ class ErrandEndpoint extends Endpoint {
     String sensitiveInputKeysJson = '[]',
   }) async {
     await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+    await _requireFeature(FeatureKeys.errandsDbCredential, workspaceId);
     await _assertErrandCapNotExceeded(workspaceId);
 
     final trimmedName = name.trim();

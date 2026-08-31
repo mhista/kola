@@ -210,6 +210,14 @@ class _AdminShellState extends State<AdminShell> {
           ),
           for (final n in kAdminNavItems) _navRow(n),
           div(attributes: {'style': 'flex:1'}, []),
+          Link(
+            to: '/security',
+            attributes: {
+              'style': 'font-size:11.5px;color:${AdminColors.faint};padding:6px 10px;'
+                  'text-decoration:none;display:block',
+            },
+            children: [Component.text('Account security')],
+          ),
           button(
             [Component.text('Sign out')],
             onClick: component.onSignOut,

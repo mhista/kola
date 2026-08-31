@@ -24,8 +24,11 @@ import 'package:televerse/televerse.dart' show Bot;
 import 'package:kola_server/src/generated/protocol.dart' hide Bot;
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/auth/workspace_access.dart';
+import 'package:kola_server/src/services/features/feature_keys.dart';
+import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
+import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/messaging/telegram/telegram_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_bot_registry.dart';
@@ -34,6 +37,9 @@ import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_service.dar
 import 'package:kola_server/src/services/messaging/instagram/instagram_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/instagram/instagram_credential.dart';
 import 'package:kola_server/src/services/messaging/instagram/instagram_service.dart';
+import 'package:kola_server/src/services/messaging/messenger/messenger_bot_registry.dart';
+import 'package:kola_server/src/services/messaging/messenger/messenger_credential.dart';
+import 'package:kola_server/src/services/messaging/messenger/messenger_service.dart';
 import 'package:kola_server/src/services/connectors/contract/agent_lifecycle_events.dart';
 import 'package:kola_server/kola_logger.dart';
 
@@ -41,6 +47,30 @@ class ChannelEndpoint extends Endpoint {
   BotRepository get _bots => getIt<BotRepository>();
   ChannelRepository get _channels => getIt<ChannelRepository>();
   AgentLifecycleEvents get _agentEvents => getIt<AgentLifecycleEvents>();
+  WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
+  FeatureFlagService get _features => getIt<FeatureFlagService>();
+
+  /// Instagram and Messenger both sit in FeatureKeys' unreleased Group 5
+  /// wave (externally_gated — Meta App Review) — unlike WhatsApp/
+  /// Telegram, which are R1/released and deliberately NOT gated here,
+  /// same as every other released feature in this codebase. Without
+  /// this check, a workspace the flag hides the connect tile from could
+  /// still call the endpoint directly through the generated client and
+  /// connect the channel anyway — the UI hiding a tile was never itself
+  /// enforcement, and this is the same `_features.isEnabled(FeatureKeys
+  /// .x, workspace)` idiom already used in broadcast_endpoint.dart/
+  /// customer_endpoint.dart/sale_endpoint.dart/report_endpoint.dart/
+  /// invoice_endpoint.dart/product_endpoint.dart/platform_endpoint.dart/
+  /// payment_endpoint.dart, not a new pattern.
+  Future<void> _requireFeature(String featureKey, int workspaceId) async {
+    final workspace = await _workspaces.findById(workspaceId);
+    if (workspace == null) {
+      throw KolaException(message: 'Workspace $workspaceId not found.');
+    }
+    if (!await _features.isEnabled(featureKey, workspace)) {
+      throw KolaException(message: 'This channel is not available on this workspace yet.');
+    }
+  }
 
   /// Connects [botToken] (a token from @BotFather) as the Telegram
   /// channel for [botId] inside [workspaceId]. Returns the resulting
@@ -365,6 +395,7 @@ class ChannelEndpoint extends Endpoint {
       accessToken: accessToken,
       workspaceId: workspaceId,
     );
+    await _requireFeature(FeatureKeys.channelInstagram, workspaceId);
 
     final bot = await _bots.findByIdScoped(botId, workspaceId);
     if (bot == null) {
@@ -460,5 +491,193 @@ class ChannelEndpoint extends Endpoint {
     );
 
     return connectedChannel;
+  }
+
+  /// Connects a Facebook Page as a Messenger channel — same probe-
+  /// before-persist shape as connectInstagramChannelManual, the exact
+  /// template this method was built from (31 Aug 2026).
+  Future<Channel> connectMessengerChannelManual(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int botId,
+    String pageAccessToken,
+    String pageId,
+    String messengerAppSecret,
+  ) async {
+    await requireWorkspaceAccess(
+      accessToken: accessToken,
+      workspaceId: workspaceId,
+    );
+    await _requireFeature(FeatureKeys.channelMessenger, workspaceId);
+
+    final bot = await _bots.findByIdScoped(botId, workspaceId);
+    if (bot == null) {
+      throw KolaException(message: 'Bot $botId not found in workspace $workspaceId');
+    }
+
+    final trimmedToken = pageAccessToken.trim();
+    final trimmedPageId = pageId.trim();
+    final trimmedAppSecret = messengerAppSecret.trim();
+    if (trimmedToken.isEmpty || trimmedPageId.isEmpty || trimmedAppSecret.isEmpty) {
+      throw const InvalidMessengerCredentialException(
+        'Page access token, Page ID, and App Secret are all required.',
+      );
+    }
+
+    // ── Probe against Meta's real API before touching the DB ────────────
+    final messengerService = MessengerService(
+      pageAccessToken: trimmedToken,
+      pageId: trimmedPageId,
+    );
+    Map<String, dynamic> pageInfo;
+    try {
+      pageInfo = await messengerService.probe();
+    } catch (e) {
+      throw InvalidMessengerCredentialException(
+        'Could not verify this Facebook Page with Meta — double-check the '
+        'Page access token and Page ID were copied exactly from your Meta '
+        'App Dashboard. ($e)',
+      );
+    }
+
+    // ── Opt this Page's app in to webhook delivery — REQUIRED for
+    //    Messenger (unlike Instagram's soft-fail equivalent, see
+    //    messenger_service.dart's header), but still doesn't block the
+    //    connection itself — a business can fix a failed subscribe by
+    //    reconnecting without losing the channel row. ────────────────────
+    try {
+      await messengerService.enableSubscription();
+    } catch (e) {
+      Log.warning(
+        'Messenger subscribed_apps call failed for bot $botId (connection still '
+        'proceeds — sending works either way, but inbound messages will not '
+        'arrive until this is retried): $e',
+      );
+    }
+
+    // ── Reuse the existing Messenger channel row for this bot if one
+    //    already exists (e.g. reconnecting after a revoked token),
+    //    otherwise create a fresh 'pending' row first. ──────────────────
+    final existing = await _channels.findByBotAndPlatform(botId, 'messenger');
+    final channel = existing ??
+        await _channels.create(botId: botId, platformType: 'messenger');
+
+    final credential = MessengerCredential(
+      pageId: trimmedPageId,
+      pageAccessToken: trimmedToken,
+      appSecret: trimmedAppSecret,
+    );
+    final encryptedCredential =
+        ChannelCredentialEncryptionService.encrypt(credential.encode());
+
+    final displayName = pageInfo['name'] as String?;
+
+    final connectedChannel = await _channels.setCredential(
+      channelId: channel.id!,
+      encryptedCredential: encryptedCredential,
+      displayName: displayName,
+    );
+
+    // ── Hot-connect — registers this channel's webhook route
+    //    immediately; the business needs MessengerBotRegistry
+    //    .instance.webhookUrlFor(connectedChannel.id) right after this
+    //    call returns, to paste into their Meta App Dashboard. ──────────
+    MessengerBotRegistry.instance.connectChannel(
+      channel: connectedChannel,
+      credential: credential,
+    );
+
+    if (bot.status == 'draft') {
+      final publishedBot = await _bots.setStatus(botId, 'live');
+      // Gate 2 — event bus. See agent_lifecycle_events.dart's header.
+      await _agentEvents.recordPublished(publishedBot);
+    }
+
+    Log.success(
+      'Messenger channel connected (manual)',
+      data: {
+        'workspaceId': workspaceId,
+        'botId': botId,
+        'channelId': connectedChannel.id,
+        'pageId': trimmedPageId,
+        'displayName': displayName,
+      },
+      session: session,
+    );
+
+    return connectedChannel;
+  }
+
+  /// Owner-initiated disconnect (2026-08-31) — the endpoint layer over
+  /// ChannelRepository.disconnect + the owning registry's own
+  /// disconnectChannel. Deliberately takes [channelId] directly rather
+  /// than (workspaceId, botId, platformType): ConnectorStatus.channelId
+  /// (connector_status.spy.yaml) is exactly this row's id, already
+  /// resolved server-side for the dashboard's Disconnect button, so
+  /// there is no reason to make the caller re-derive it.
+  ///
+  /// OWNERSHIP CHECK, NOT JUST AUTH: requireWorkspaceAccess alone would
+  /// let any member of workspace A disconnect a channel belonging to
+  /// workspace B, as long as they could guess or enumerate its id —
+  /// [channel.botId] is looked up and re-checked against [workspaceId]
+  /// via BotRepository.findByIdScoped, the same scoping every other
+  /// endpoint in this file already applies before touching a Channel row.
+  Future<Channel> disconnectChannel(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int channelId,
+  ) async {
+    await requireWorkspaceAccess(
+      accessToken: accessToken,
+      workspaceId: workspaceId,
+    );
+
+    final channel = await _channels.findById(channelId);
+    if (channel == null) {
+      throw KolaException(message: 'No channel with id $channelId.');
+    }
+
+    final bot = await _bots.findByIdScoped(channel.botId, workspaceId);
+    if (bot == null) {
+      throw KolaException(message: 'Channel $channelId does not belong to workspace $workspaceId.');
+    }
+
+    switch (channel.platformType) {
+      case 'telegram':
+        TelegramBotRegistry.instance.disconnectChannel(channelId);
+        break;
+      case 'whatsapp':
+        WhatsAppBotRegistry.instance.disconnectChannel(channelId);
+        break;
+      case 'instagram':
+        InstagramBotRegistry.instance.disconnectChannel(channelId);
+        break;
+      case 'messenger':
+        MessengerBotRegistry.instance.disconnectChannel(channelId);
+        break;
+      default:
+        Log.warning(
+          'disconnectChannel: unrecognized platformType "${channel.platformType}" '
+          'for channel $channelId — clearing the DB row anyway, but no '
+          'in-memory registry was told to stop.',
+        );
+    }
+
+    final disconnected = await _channels.disconnect(channelId);
+
+    Log.success(
+      'Channel disconnected (owner-initiated)',
+      data: {
+        'workspaceId': workspaceId,
+        'botId': channel.botId,
+        'channelId': channelId,
+        'platformType': channel.platformType,
+      },
+      session: session,
+    );
+
+    return disconnected;
   }
 }

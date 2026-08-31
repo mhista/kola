@@ -1,0 +1,22 @@
+-- Kola — migration 056 — MFA for admin accounts.
+--
+-- Applies AFTER 055_admin_force_password_reset.sql.
+--
+-- admin_users.mfa_enabled has existed since migration 054 as a real
+-- column with no verification behind it — this migration adds the one
+-- thing that was missing: somewhere to store the encrypted TOTP secret
+-- once an account actually enrolls. See admin_mfa_service.dart and
+-- admin_auth_service.dart's headers for the full enrollment/verification
+-- design.
+--
+-- mfa_secret is nullable and stores an AES-256-GCM-encrypted TOTP
+-- secret (never plaintext at rest) — encrypted with
+-- ADMIN_MFA_MASTER_KEY, a key deliberately separate from both
+-- ADMIN_JWT_SECRET and CHANNEL_CREDENTIAL_MASTER_KEY (see
+-- admin_mfa_secret_encryption_service.dart's header: "a different secret
+-- class... rotating one should never require touching another").
+-- NULL means "not enrolled," matching mfa_enabled = false; the two are
+-- always kept in sync by AdminUserRepository.setMfaSecret — never set
+-- independently anywhere else.
+alter table admin_users
+  add column if not exists mfa_secret text;

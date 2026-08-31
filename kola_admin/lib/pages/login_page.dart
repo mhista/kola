@@ -23,12 +23,25 @@ class LoginPage extends StatefulComponent {
 class _LoginPageState extends State<LoginPage> {
   String _email = '';
   String _password = '';
+  String _totpCode = '';
   bool _loading = false;
   String? _error;
+
+  /// True once the server has confirmed email/password are correct and
+  /// is waiting on a TOTP code — see AdminAuthService.login's header on
+  /// why this is a distinct exception ('admin_mfa_required') rather than
+  /// a generic failure. The password is NOT re-sent on the second call;
+  /// [_submit] resubmits it from state, but the user only sees/fills in
+  /// the code field at this stage.
+  bool _mfaRequired = false;
 
   Future<void> _submit() async {
     if (_email.trim().isEmpty || _password.isEmpty) {
       setState(() => _error = 'Enter an email and password.');
+      return;
+    }
+    if (_mfaRequired && _totpCode.trim().length != 6) {
+      setState(() => _error = 'Enter the 6-digit code from your authenticator app.');
       return;
     }
     setState(() {
@@ -36,15 +49,33 @@ class _LoginPageState extends State<LoginPage> {
       _error = null;
     });
     try {
-      final token = await component.client.adminAuth.login(_email.trim(), _password);
+      final token = await component.client.adminAuth.login(
+        _email.trim(),
+        _password,
+        totpCode: _mfaRequired ? _totpCode.trim() : null,
+      );
       if (!mounted) return;
       component.onLoggedIn(token);
     } catch (e) {
       if (!mounted) return;
+      final message = e.toString();
+
+      if (message.contains('admin_mfa_required')) {
+        setState(() {
+          _mfaRequired = true;
+          _error = null;
+          _loading = false;
+        });
+        return;
+      }
+
       // AdminAuthService.login() already collapses "no such account" and
       // "wrong password" into one message server-side, on purpose — a
       // login form shouldn't distinguish them, and that message
-      // ('Invalid email or password.') is safe to show verbatim.
+      // ('Invalid email or password.') is safe to show verbatim. A wrong
+      // TOTP code ('Invalid authentication code.') is shown the same
+      // direct way — by this point the password is already proven, so
+      // there's nothing left to avoid leaking by staying generic.
       //
       // Anything else here is NOT a credentials problem and showing the
       // same generic copy for it hides a real, diagnosable failure — e.g.
@@ -54,14 +85,19 @@ class _LoginPageState extends State<LoginPage> {
       // KOLA_SERVER_URL entirely. Surface those distinctly so the next
       // person hitting this doesn't have to open devtools to find out
       // it's a deploy gap, not a typo'd password.
-      final message = e.toString();
       final isCredentialsError = message.contains('Invalid email or password');
+      final isCodeError = message.contains('Invalid authentication code');
       setState(() {
-        _error = isCredentialsError
-            ? 'Sign-in failed. Check the email and password and try again.'
-            : 'Could not reach the admin server ($message). Check that '
-                'KOLA_SERVER_URL is correct and that kola_server has been '
-                'redeployed with the admin endpoints.';
+        if (isCredentialsError) {
+          _error = 'Sign-in failed. Check the email and password and try again.';
+          _mfaRequired = false; // start over — a wrong password means re-enter everything
+        } else if (isCodeError) {
+          _error = 'Invalid code. Check your authenticator app and try again.';
+        } else {
+          _error = 'Could not reach the admin server ($message). Check that '
+              'KOLA_SERVER_URL is correct and that kola_server has been '
+              'redeployed with the admin endpoints.';
+        }
         _loading = false;
       });
     }
@@ -119,38 +155,82 @@ class _LoginPageState extends State<LoginPage> {
                 },
                 [Component.text(_error!)],
               ),
-            div(
-              attributes: {'style': 'margin-bottom:14px'},
-              [
-                div(
-                  attributes: {'style': 'font-size:12px;color:${AdminColors.muted};margin-bottom:6px'},
-                  [Component.text('Email')],
-                ),
-                input<String>(
-                  type: InputType.email,
-                  value: _email,
-                  onInput: (v) => setState(() => _email = v),
-                  attributes: {'style': _inputStyle, 'placeholder': 'you@kola.internal'},
-                ),
-              ],
-            ),
-            div(
-              attributes: {'style': 'margin-bottom:18px'},
-              [
-                div(
-                  attributes: {'style': 'font-size:12px;color:${AdminColors.muted};margin-bottom:6px'},
-                  [Component.text('Password')],
-                ),
-                input<String>(
-                  type: InputType.password,
-                  value: _password,
-                  onInput: (v) => setState(() => _password = v),
-                  attributes: {'style': _inputStyle, 'placeholder': '••••••••'},
-                ),
-              ],
-            ),
+            if (!_mfaRequired) ...[
+              div(
+                attributes: {'style': 'margin-bottom:14px'},
+                [
+                  div(
+                    attributes: {'style': 'font-size:12px;color:${AdminColors.muted};margin-bottom:6px'},
+                    [Component.text('Email')],
+                  ),
+                  input<String>(
+                    type: InputType.email,
+                    value: _email,
+                    onInput: (v) => setState(() => _email = v),
+                    attributes: {'style': _inputStyle, 'placeholder': 'you@kola.internal'},
+                  ),
+                ],
+              ),
+              div(
+                attributes: {'style': 'margin-bottom:18px'},
+                [
+                  div(
+                    attributes: {'style': 'font-size:12px;color:${AdminColors.muted};margin-bottom:6px'},
+                    [Component.text('Password')],
+                  ),
+                  input<String>(
+                    type: InputType.password,
+                    value: _password,
+                    onInput: (v) => setState(() => _password = v),
+                    attributes: {'style': _inputStyle, 'placeholder': '••••••••'},
+                  ),
+                ],
+              ),
+            ] else ...[
+              div(
+                attributes: {'style': 'margin-bottom:18px'},
+                [
+                  div(
+                    attributes: {'style': 'font-size:12px;color:${AdminColors.muted};margin-bottom:6px'},
+                    [Component.text('Authenticator code')],
+                  ),
+                  input<String>(
+                    type: InputType.text,
+                    value: _totpCode,
+                    onInput: (v) => setState(() => _totpCode = v),
+                    attributes: {
+                      'style': _inputStyle,
+                      'placeholder': '123456',
+                      'inputmode': 'numeric',
+                      'maxlength': '6',
+                      'autofocus': 'true',
+                    },
+                  ),
+                  div(
+                    attributes: {'style': 'font-size:11.5px;color:${AdminColors.faint};margin-top:8px'},
+                    [
+                      Component.text('Password verified — enter the 6-digit code from your authenticator app.'),
+                    ],
+                  ),
+                  button(
+                    [Component.text('Use a different account')],
+                    type: ButtonType.button,
+                    onClick: () => setState(() {
+                      _mfaRequired = false;
+                      _totpCode = '';
+                      _password = '';
+                      _error = null;
+                    }),
+                    attributes: {
+                      'style': 'background:transparent;border:none;color:${AdminColors.accent};'
+                          'font-size:11.5px;cursor:pointer;padding:8px 0 0;font-family:inherit',
+                    },
+                  ),
+                ],
+              ),
+            ],
             button(
-              [Component.text(_loading ? 'Signing in…' : 'Sign in')],
+              [Component.text(_loading ? 'Verifying…' : (_mfaRequired ? 'Verify' : 'Sign in'))],
               type: ButtonType.submit,
               disabled: _loading,
               onClick: _submit,

@@ -190,6 +190,11 @@ class ConnectorService {
         if (channel == null || channel.encryptedCredential == null) {
           return base..status = ConnectorStatusValue.available;
         }
+        // channelId set on every remaining branch below — a business can
+        // reconnect an 'error'/'disconnected' row (setCredential upserts
+        // in place) or disconnect a live one, and both actions need the
+        // real row id regardless of which of these three states it's in.
+        base.channelId = channel.id;
         if (channel.status == 'disconnected') {
           return base
             ..status = ConnectorStatusValue.error

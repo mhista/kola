@@ -1,0 +1,46 @@
+##
+## public_catalog_item.spy.yaml — one product as it may be shown to a
+## customer who is not signed in (migration 057, Phase 11's public
+## catalog page).
+##
+## ── WHY THIS IS A SEPARATE MODEL, NOT Product WITH FIELDS OMITTED ─────
+##
+## Product carries costMinor — "what the business paid... NEVER sent to
+## a customer" per that model's own field comment — and an exact stock
+## count, which the design brief's customer-display rule ("no cost or
+## margin data ever visible") extends to by the same logic: an exact
+## count is a competitor's free inventory audit. Returning Product
+## itself and trusting every future reader of this endpoint to never
+## add a field to the response is exactly the kind of leak that ends a
+## customer relationship (DESIGN_BRIEF_COMMERCE.md's own words, about
+## the customer display, and just as true here). A model that
+## physically cannot carry costMinor is the only version of "never
+## sent to a customer" that survives someone else editing this file
+## later without reading this comment.
+##
+## stockStatus is a tri-state summary, not the number: 'inStock' |
+## 'lowStock' | 'outOfStock' | 'notTracked' (service/on-request items,
+## Product.stock null — see product.spy.yaml's own note that null is
+## not zero). Computed server-side from Product.stock/.lowStockThreshold
+## at read time, never stored.
+##
+
+class: PublicCatalogItem
+fields:
+  productId: int
+  name: String
+  description: String?
+  category: String?
+
+  ## Null means "ask us" — same meaning as Product.priceMinor, carried
+  ## through unchanged. A bot/page quoting ₦0 would be a false fact.
+  priceMinor: int?
+  priceCurrency: String
+  priceUnit: String?
+
+  stockStatus: String
+
+  ## The main product image only (ProductMedia position 0) — a public
+  ## catalog card is one photo, not the full gallery the owner's own
+  ## product-detail screen shows.
+  imageUrl: String?

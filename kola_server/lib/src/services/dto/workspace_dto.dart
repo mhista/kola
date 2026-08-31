@@ -49,6 +49,12 @@ class WorkspaceDto extends BaseDto<Workspace> {
       // both read as null — "never asked", the safe default (see that
       // migration's header).
       sellsCatalogItems: row['sells_catalog_items'] as bool?,
+      // Migration 057. Defaults false when absent, same "opt-in, never
+      // happens by itself" reasoning as that migration's DEFAULT false.
+      publicCatalogEnabled: (row['public_catalog_enabled'] as bool?) ?? false,
+      // Migration 058. Same absent-column/never-asked-both-default-false
+      // reasoning as publicCatalogEnabled just above.
+      customerDisplayEnabled: (row['customer_display_enabled'] as bool?) ?? false,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
     );
@@ -71,6 +77,8 @@ class WorkspaceDto extends BaseDto<Workspace> {
       'region': model.region,
       'tax_rate_bps': model.taxRateBps,
       'sells_catalog_items': model.sellsCatalogItems,
+      'public_catalog_enabled': model.publicCatalogEnabled,
+      'customer_display_enabled': model.customerDisplayEnabled,
       'updated_at': model.updatedAt.toIso8601String(),
       // created_at is set by Supabase default — we never write it on updates
     };

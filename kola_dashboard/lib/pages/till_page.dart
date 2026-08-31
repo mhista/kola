@@ -384,6 +384,7 @@ class _TillPageState extends State<TillPage> {
         _cart.add(_CartLine(product: product, unitPriceMinor: unitPriceMinor));
       }
     });
+    unawaited(_pushDisplay());
   }
 
   // ── "Ask price" entry ─────────────────────────────────────────────
@@ -416,14 +417,21 @@ class _TillPageState extends State<TillPage> {
     setState(() => _pricingProduct = null);
   }
 
-  void _inc(_CartLine line) => setState(() => line.quantity++);
+  void _inc(_CartLine line) {
+    setState(() => line.quantity++);
+    unawaited(_pushDisplay());
+  }
 
   void _dec(_CartLine line) {
     if (line.quantity <= 1) return;
     setState(() => line.quantity--);
+    unawaited(_pushDisplay());
   }
 
-  void _removeLine(_CartLine line) => setState(() => _cart.remove(line));
+  void _removeLine(_CartLine line) {
+    setState(() => _cart.remove(line));
+    unawaited(_pushDisplay());
+  }
 
   int _quantityInCart(Product p) {
     final match = _cart.where((l) => l.product.id == p.id).toList();
@@ -494,6 +502,7 @@ class _TillPageState extends State<TillPage> {
         _charging = false;
         _screen = _Screen.receipt;
       });
+      unawaited(_pushDisplay());
       // Stock sync — ringUpSale now decrements each line's product on the
       // server; this quietly re-fetches so the grid behind this receipt
       // shows the real remaining count the moment the cashier taps "New
@@ -518,6 +527,7 @@ class _TillPageState extends State<TillPage> {
       _cashReceived = '';
       _chargeError = null;
     });
+    unawaited(_pushDisplay());
   }
 
   void _newSale() {
@@ -528,6 +538,58 @@ class _TillPageState extends State<TillPage> {
       _cashReceived = '';
       _completed = null;
     });
+    unawaited(_pushDisplay());
+  }
+
+  // ── Customer display sync ──────────────────────────────────────────
+  //
+  // Fire-and-forget push to TillDisplayEndpoint.pushState after every
+  // cart mutation and screen transition above — see
+  // till_display_page.dart's own header on what's rendering on the
+  // other end. Never awaited at any call site and every failure is
+  // swallowed here: a customer-facing second screen failing to update
+  // must never block, or even visibly slow down, an actual sale. Safe
+  // to call unconditionally — pushState itself is deliberately
+  // ungated (see that endpoint's own header), so this costs one cheap
+  // upsert whether or not the workspace has the display switched on.
+  Future<void> _pushDisplay() async {
+    // The receipt screen shows what was JUST charged, not the (already
+    // cleared) live cart — _completeSale snapshots that into
+    // `_completed` before clearing `_cart`, same snapshot the receipt
+    // itself renders from.
+    final receiptSale = _screen == _Screen.receipt ? _completed : null;
+    final lines = receiptSale?.lines ?? _cart;
+    final subtotal = receiptSale != null
+        ? receiptSale.lines.fold<int>(0, (sum, l) => sum + l.lineTotalMinor)
+        : _subtotalMinor;
+    final status = switch (_screen) {
+      _Screen.payment => 'payment',
+      _Screen.receipt => 'receipt',
+      _Screen.sell => lines.isEmpty ? 'idle' : 'shopping',
+    };
+    try {
+      await component.client.tillDisplay.pushState(
+        component.accessToken,
+        component.workspaceId,
+        jsonEncode([
+          for (final l in lines)
+            {
+              'name': l.product.name,
+              'quantity': l.quantity,
+              'unitPriceMinor': l.unitPriceMinor,
+              'lineTotalMinor': l.lineTotalMinor,
+            },
+        ]),
+        subtotal,
+        // No per-workspace currency field exists yet — see
+        // money_format.dart's own hardcoded ₦ symbol, the same gap this
+        // mirrors rather than invents.
+        'NGN',
+        status,
+      );
+    } catch (_) {
+      // Swallowed — see doc comment above.
+    }
   }
 
   // ── Scanner ────────────────────────────────────────────────────────
@@ -1110,7 +1172,10 @@ class _TillPageState extends State<TillPage> {
               },
               events: {
                 'click': (_) {
-                  if (_cart.isNotEmpty) setState(() => _screen = _Screen.payment);
+                  if (_cart.isNotEmpty) {
+                    setState(() => _screen = _Screen.payment);
+                    unawaited(_pushDisplay());
+                  }
                 },
               },
               [Component.text('Charge ${formatMinor(_totalMinor)}')],
@@ -1705,7 +1770,10 @@ class _TillPageState extends State<TillPage> {
             },
             events: {
               'click': (_) {
-                if (_cart.isNotEmpty) setState(() => _screen = _Screen.payment);
+                if (_cart.isNotEmpty) {
+                  setState(() => _screen = _Screen.payment);
+                  unawaited(_pushDisplay());
+                }
               },
             },
             [Component.text('Charge ${formatMinor(_totalMinor)}')],

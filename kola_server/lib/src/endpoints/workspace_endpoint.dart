@@ -23,6 +23,8 @@ import 'package:kola_server/src/services/repository/workspace_member_repository.
 import 'package:kola_server/src/services/repository/owner_notification_settings_repository.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/usage_record_repository.dart';
+import 'package:kola_server/src/services/features/feature_keys.dart';
+import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
 import 'package:kola_server/src/services/billing/plan_limits.dart';
 import 'package:kola_server/src/services/billing/stripe_service.dart';
@@ -36,6 +38,7 @@ class WorkspaceEndpoint extends Endpoint {
 
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
   WorkspaceMemberRepository get _members => getIt<WorkspaceMemberRepository>();
+  FeatureFlagService get _features => getIt<FeatureFlagService>();
 
   /// Seeded at creation from the wizard's phone field — see
   /// createWorkspace on why the number lives here and not on the
@@ -227,6 +230,15 @@ class WorkspaceEndpoint extends Endpoint {
     // this back to "never asked" once an owner has answered, so null
     // simply means "leave it," same as every other optional param here.
     bool? sellsCatalogItems,
+    // Phase 11 (migration 057). Same "real bool, null means leave it"
+    // shape as sellsCatalogItems above. Turning it ON is checked against
+    // FeatureKeys.commercePublicCatalog below — turning it OFF never
+    // needs the flag, an owner can always take their own catalog back
+    // down regardless of release state.
+    bool? publicCatalogEnabled,
+    // Phase 11 (migration 058). Same "real bool, gated on ON, never on
+    // OFF" shape as publicCatalogEnabled just above.
+    bool? customerDisplayEnabled,
   }) async {
     await requireWorkspaceAccess(
       accessToken: accessToken,
@@ -258,6 +270,24 @@ class WorkspaceEndpoint extends Endpoint {
     }
     if (sellsCatalogItems != null) {
       current.sellsCatalogItems = sellsCatalogItems;
+    }
+    if (publicCatalogEnabled != null) {
+      if (publicCatalogEnabled &&
+          !await _features.isEnabled(FeatureKeys.commercePublicCatalog, current)) {
+        throw KolaException(
+          message:           'The public catalog page is not available on this workspace yet.',
+        );
+      }
+      current.publicCatalogEnabled = publicCatalogEnabled;
+    }
+    if (customerDisplayEnabled != null) {
+      if (customerDisplayEnabled &&
+          !await _features.isEnabled(FeatureKeys.commerceCustomerDisplay, current)) {
+        throw KolaException(
+          message:           'The in-store customer display is not available on this workspace yet.',
+        );
+      }
+      current.customerDisplayEnabled = customerDisplayEnabled;
     }
 
     return _workspaces.update(current);

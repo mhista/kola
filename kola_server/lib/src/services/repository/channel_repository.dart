@@ -173,6 +173,31 @@ class ChannelRepository {
     return _dto.fromRow(response);
   }
 
+  /// Owner-initiated disconnect (2026-08-31) — deliberately DIFFERENT
+  /// from [markDisconnected]: that method is the health check's "this
+  /// broke on its own" flag, keeping the credential in place because a
+  /// reconnect might just need the SAME token re-verified. A business
+  /// clicking Disconnect means "stop using this, and stop holding onto
+  /// it" — so this clears encryptedCredential too, the same "store the
+  /// least we can" principle PaymentEndpoint's own docs already state.
+  /// Conversations/messages are untouched either way — that's governed
+  /// by Channel.retentionPolicy, a separate decision from the credential.
+  Future<Channel> disconnect(int channelId) async {
+    _log.info('disconnect channelId=$channelId (owner-initiated)');
+    final response = await supabase
+        .from('channels')
+        .update({
+          'status': 'disconnected',
+          'encrypted_credential': null,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', channelId)
+        .select()
+        .single();
+
+    return _dto.fromRow(response);
+  }
+
   /// Gate 1 — records that ChannelHealthCheckService actually attempted
   /// this channel just now, regardless of outcome. Deliberately separate
   /// from [markDisconnected]: a channel that passed its check still

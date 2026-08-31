@@ -44,6 +44,7 @@ import 'pages/support_queue_page.dart';
 import 'pages/audit_log_page.dart';
 import 'pages/admin_accounts_page.dart';
 import 'pages/overview_page.dart';
+import 'pages/security_page.dart';
 
 class AdminApp extends StatefulComponent {
   const AdminApp();
@@ -159,6 +160,14 @@ class _AdminAppState extends State<AdminApp> {
         Route(
           path: '/',
           builder: (context, state) => ReleaseControlPage(
+            client: _client,
+            adminToken: _adminToken ?? '',
+            onSignOut: _handleSignOut,
+          ),
+        ),
+        Route(
+          path: '/security',
+          builder: (context, state) => SecurityPage(
             client: _client,
             adminToken: _adminToken ?? '',
             onSignOut: _handleSignOut,

@@ -1,0 +1,42 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Kola — Supabase schema (migration 057 — Phase 11: the public catalog page)
+--
+-- Apply AFTER 056.
+--
+-- Backs DEVELOPMENT_PLAN.md Phase 11's "Confirmed scope decisions" list:
+-- "All four customer-facing surfaces: catalog through the bot, a shareable
+-- public catalog page, an owner-configurable in-store customer display,
+-- and a digital receipt delivered to WhatsApp." Two of the four already
+-- existed (bot-through-chat, WhatsApp receipt via the channels built
+-- elsewhere). This migration is the first half of the remaining two —
+-- the public catalog page. The in-store display is a separate, later
+-- pass (see DEVELOPMENT_PLAN.md's own note on why it was scoped out of
+-- this one — it needs a live staff-screen/customer-screen sync mechanism,
+-- not just a read surface).
+--
+-- ── WHY AN EXPLICIT OPT-IN BOOLEAN, NOT JUST THE commerce.public_catalog
+--    FEATURE FLAG ─────────────────────────────────────────────────────────
+--
+-- The feature flag controls whether the CAPABILITY exists on the
+-- platform. It says nothing about whether THIS business wants its
+-- product list, prices and photos exposed on a URL anyone can open —
+-- that is a real decision a shop owner makes, not a default. Same
+-- two-layer model Phase 11's own "Feature flags — done and applied"
+-- section already established for commerce.core generally: a released
+-- feature a business has not enabled is not the same as a locked one.
+-- Defaults false — publishing a catalog is something a business turns
+-- on, never something that happens to it.
+--
+-- ── NO SLUG, DELIBERATELY ────────────────────────────────────────────────
+--
+-- The shareable URL is /catalog/<workspaceId> — a plain integer, not a
+-- chosen slug. A slug system (uniqueness, reservation, change-of-slug
+-- redirects) is real scope with no functional payoff yet: nothing today
+-- needs a human-readable catalog URL, and workspaceId is already what
+-- every other Kola URL a business shares (invoice links, receipts)
+-- exposes. Worth revisiting if a business ever asks for a branded link.
+
+alter table workspaces
+    add column if not exists public_catalog_enabled boolean not null default false;
+
+-- ─────────────────────────────────────────────────────────────────────────────

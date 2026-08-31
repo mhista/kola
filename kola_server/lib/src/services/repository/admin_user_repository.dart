@@ -108,6 +108,25 @@ class AdminUserRepository {
     return AdminUser.fromRow(response);
   }
 
+  /// The ONLY writer of either `mfa_secret` or `mfa_enabled` — always
+  /// sets both together so the two columns can never drift out of sync
+  /// (mfa_enabled = true with a null secret, or vice versa, would be a
+  /// broken state nothing else in this codebase checks for). Pass an
+  /// encrypted secret to enroll, or null to disable MFA entirely.
+  Future<AdminUser> setMfaSecret(int id, String? encryptedSecret) async {
+    final response = await supabase
+        .from('admin_users')
+        .update({
+          'mfa_secret': encryptedSecret,
+          'mfa_enabled': encryptedSecret != null,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+    return AdminUser.fromRow(response);
+  }
+
   Future<void> touchLastSeen(int id) async {
     await supabase.from('admin_users').update({
       'last_seen_at': DateTime.now().toUtc().toIso8601String(),

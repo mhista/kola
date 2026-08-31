@@ -8,7 +8,11 @@ adminAuditLog:
   - listRecent:
 adminAuth:
   - login:
+  - beginMfaEnrollment:
+  - confirmMfaEnrollment:
+  - disableMfa:
   - mustResetPassword:
+  - mfaEnabled:
   - changePassword:
 adminDiagnostics:
   - diagnoseWorkspace:
@@ -16,6 +20,8 @@ adminDiagnostics:
   - listFailedKnowledgeDocuments:
   - reindexDocument:
   - resendNotification:
+  - getConversationMessages:
+  - listErrandsForWorkspace:
 adminFeature:
   - listFlags:
   - listMissingFeatureKeys:
@@ -67,6 +73,8 @@ channel:
   - listChannelsForBot:
   - connectWhatsAppChannelManual:
   - connectInstagramChannelManual:
+  - connectMessengerChannelManual:
+  - disconnectChannel:
 connector:
   - listConnectors:
   - connectConnector:
@@ -155,6 +163,7 @@ product:
   - updateProduct:
   - archiveProduct:
   - replaceVariants:
+  - getPublicCatalog:
   - getMediaUploadAuth:
   - listMedia:
   - listMediaForProducts:
@@ -171,6 +180,9 @@ sale:
 supportTicket:
   - list:
   - setStatus:
+tillDisplay:
+  - pushState:
+  - getState:
 waitlist:
   - joinWaitlist:
 whatsAppTemplate:

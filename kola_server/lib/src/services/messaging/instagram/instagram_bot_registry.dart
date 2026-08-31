@@ -295,6 +295,21 @@ class InstagramBotRegistry {
   /// WhatsAppBotRegistry.messagingFor.
   IMessagingService? messagingFor(int channelId) => _adapters[channelId];
 
+  /// Owner-initiated disconnect (2026-08-31) — same role as
+  /// TelegramBotRegistry.disconnectChannel/WhatsAppBotRegistry
+  /// .disconnectChannel. InstagramService holds no polling loop or
+  /// persistent connection either, so this is map cleanup only. This
+  /// channel's webhook route stays registered (Relic has no route-removal
+  /// API); processWebhookEvent's existing `_adapters.containsKey` check
+  /// already treats a missing entry as a normal, logged no-op.
+  void disconnectChannel(int channelId) {
+    _services.remove(channelId);
+    _adapters.remove(channelId);
+    _appSecrets.remove(channelId);
+    _botIdForChannel.remove(channelId);
+    Log.info('Instagram channel $channelId disconnected (owner-initiated)');
+  }
+
   bool isRunning(int channelId) => _services.containsKey(channelId);
 
   /// Nightly credential health check's Instagram probe — same pattern as

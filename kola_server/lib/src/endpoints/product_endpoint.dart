@@ -360,6 +360,85 @@ class ProductEndpoint extends Endpoint {
     }
   }
 
+  // ── Public read (no session — Phase 11's public catalog page) ────────
+
+  /// GET-equivalent for /catalog/<workspaceId> — deliberately NO
+  /// accessToken parameter. This is the one ProductEndpoint method a
+  /// customer with no Kola account and no session can call, so it is
+  /// gated on its own terms rather than reusing [_require]:
+  ///
+  ///   1. commerce.core + commerce.catalog (the capability exists at
+  ///      all — same two flags every other method here checks)
+  ///   2. commerce.public_catalog (this specific surface is released)
+  ///   3. Workspace.publicCatalogEnabled (this specific business chose
+  ///      to publish one — see migration 057's header on why this is a
+  ///      separate, explicit opt-in from the flag above)
+  ///
+  /// All three fail the same way — a generic "not available" — rather
+  /// than distinguishing which one failed, so a probe against a random
+  /// workspaceId cannot learn anything about that workspace's flags or
+  /// settings from the error alone.
+  ///
+  /// Returns [PublicCatalogItem] rows, never [Product] — see that
+  /// model's own header on why costMinor and exact stock counts cannot
+  /// simply be "not read" by a careful caller; they must not be on the
+  /// wire at all.
+  Future<PublicCatalog> getPublicCatalog(
+    Session session,
+    int workspaceId,
+  ) async {
+    final workspace = await _workspaces.findById(workspaceId);
+    if (workspace == null) {
+      throw KolaException(message: 'This catalog is not available.');
+    }
+
+    final core = await _features.isEnabled(FeatureKeys.commerceCore, workspace);
+    final catalog = await _features.isEnabled(FeatureKeys.commerceCatalog, workspace);
+    final publicCatalogFlag =
+        await _features.isEnabled(FeatureKeys.commercePublicCatalog, workspace);
+    if (!core || !catalog || !publicCatalogFlag || !workspace.publicCatalogEnabled) {
+      throw KolaException(message: 'This catalog is not available.');
+    }
+
+    final products = await _products.listByWorkspace(workspaceId);
+    final ids = [for (final p in products) if (p.id != null) p.id!];
+    final mediaByProduct = await _products.listMediaForProducts(ids);
+
+    final items = [
+      for (final p in products)
+        PublicCatalogItem(
+          productId: p.id!,
+          name: p.name,
+          description: p.description,
+          category: p.category,
+          priceMinor: p.priceMinor,
+          priceCurrency: p.priceCurrency,
+          priceUnit: p.priceUnit,
+          stockStatus: _stockStatus(p),
+          imageUrl: _mainImageUrl(mediaByProduct[p.id!]),
+        ),
+    ];
+
+    return PublicCatalog(businessName: workspace.name, items: items);
+  }
+
+  /// Tri-state summary — see PublicCatalogItem's own header on why the
+  /// exact number never leaves this method.
+  String _stockStatus(Product p) {
+    if (p.stock == null) return 'notTracked';
+    if (p.stock! <= 0) return 'outOfStock';
+    if (p.stock! <= p.lowStockThreshold) return 'lowStock';
+    return 'inStock';
+  }
+
+  /// Position 0 is the main image, same convention listMedia's own
+  /// caller-facing doc comment already establishes.
+  String? _mainImageUrl(List<ProductMedia>? media) {
+    if (media == null || media.isEmpty) return null;
+    final sorted = [...media]..sort((a, b) => a.position.compareTo(b.position));
+    return sorted.first.url;
+  }
+
   /// Empty and whitespace-only become null.
   ///
   /// A SKU of '' is not a SKU, and storing one would make the partial

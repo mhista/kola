@@ -206,20 +206,26 @@ abstract class ConnectorCatalog {
       store: ConnectorStore.channel,
       featureKey: FeatureKeys.channelWhatsapp,
       helpText: 'From your Meta App dashboard, under WhatsApp → API Setup.',
-      // FIELD 5 IS THE VERIFY TOKEN, NOT THE APP SECRET.
+      // FIELD 5 IS BACK TO APP SECRET, REVERSING THE EARLIER "the design
+      // is more correct than the server" call.
       //
-      // An earlier version of this file listed 'App secret' here. The
-      // export says 'Webhook verify token', placeholder "Any string you
-      // choose" — a value the OWNER invents and then pastes into Meta's
-      // Callback URL form, not a credential Meta issues.
-      //
-      // The design is also more correct than the server here. Today the
-      // verify token is a single server-wide env var
-      // (WHATSAPP_WEBHOOK_VERIFY_TOKEN), which cannot be right for a
-      // multi-tenant product: every workspace would have to be told the
-      // same secret string to paste into their own Meta dashboard.
-      // Per-workspace is what the design specifies and what the product
-      // needs. Server work item, not a reason to change the form.
+      // The design export's field 5 is a webhook verify token — a phrase
+      // the OWNER invents and pastes into Meta's Callback URL form — and
+      // that IS the more correct design for a multi-tenant product (see
+      // the previous version of this comment, kept in git history). But
+      // integrations_page.dart's connect form was never actually wired
+      // to submit anywhere until now (it called connectConnector, which
+      // explicitly rejects store != generic — every WhatsApp/Telegram
+      // connect attempt from the dashboard failed, every time). Wiring
+      // it for real means matching what ChannelEndpoint
+      // .connectWhatsAppChannelManual ACTUALLY requires today —
+      // whatsappAppSecret, not a verify token the server has nowhere to
+      // store per-workspace (WHATSAPP_WEBHOOK_VERIFY_TOKEN is still one
+      // global env var). Building the per-workspace verify-token column
+      // is real, separate server work (a migration + a field on Channel
+      // + reading it in the webhook handshake instead of the env var) —
+      // out of scope for "make the existing form actually submit."
+      // Revisit this field again once that lands.
       fields: [
         ConnectorField(
             key: 'appId', label: 'Meta App ID', placeholder: '1029384756102938'),
@@ -237,9 +243,10 @@ abstract class ConnectorCatalog {
             placeholder: 'EAAG...',
             secret: true),
         ConnectorField(
-            key: 'verifyToken',
-            label: 'Webhook verify token',
-            placeholder: 'Any string you choose'),
+            key: 'appSecret',
+            label: 'App secret',
+            placeholder: 'From App Settings → Basic',
+            secret: true),
       ],
     ),
     ConnectorDefinition(
@@ -258,6 +265,83 @@ abstract class ConnectorCatalog {
           placeholder: '123456789:AAExample-Token',
           secret: true,
         ),
+      ],
+    ),
+    // Instagram DM — a communication channel (store: channel), distinct
+    // from 'instagram_shop' below (a catalog-sync connector, store:
+    // generic, OAuth-based). Backed by ChannelEndpoint
+    // .connectInstagramChannelManual (see GATE_INSTAGRAM_STATUS.md — the
+    // server side has been real since 2026-08-30; this catalog entry
+    // and integrations_page.dart's dispatch to it are what were missing
+    // to make it reachable from the dashboard at all).
+    //
+    // featureKey is FeatureKeys.channelInstagram, which sits in an
+    // unreleased wave (R5, not R1 — see feature_keys.dart) — so this
+    // tile renders as 'soon' until an Owner flips it to available/beta
+    // in kola_admin's release control page. That is deliberate: shipping
+    // this catalog entry doesn't itself release the feature, the same
+    // "decouple build from release" principle every other gateable
+    // capability in this codebase follows.
+    ConnectorDefinition(
+      key: 'instagram',
+      name: 'Instagram',
+      category: 'sell',
+      description: 'Automate DMs on your Instagram professional account.',
+      auth: ConnectorAuth.fields,
+      store: ConnectorStore.channel,
+      featureKey: FeatureKeys.channelInstagram,
+      helpText: 'Needs an Instagram professional account, an access token with '
+          'instagram_business_basic + instagram_business_manage_messages, and '
+          'your Meta App\'s App Secret.',
+      fields: [
+        ConnectorField(
+            key: 'igUserId',
+            label: 'Instagram professional account ID',
+            placeholder: '17841400000000000'),
+        ConnectorField(
+            key: 'accessToken',
+            label: 'Access token',
+            placeholder: 'IGAAG...',
+            secret: true),
+        ConnectorField(
+            key: 'appSecret',
+            label: 'App secret',
+            placeholder: 'From App Settings → Basic',
+            secret: true),
+      ],
+    ),
+    // Messenger — the fourth channel connector, built 31 Aug 2026 as the
+    // direct sibling of Instagram above (same store: channel, same
+    // manual-fields auth, same ChannelEndpoint probe-before-persist
+    // shape via .connectMessengerChannelManual). featureKey is
+    // FeatureKeys.channelMessenger, which sits in the same unreleased
+    // Group 5 wave as channelInstagram — same "soon" until an Owner
+    // flips it, same "decouple build from release" reasoning.
+    ConnectorDefinition(
+      key: 'messenger',
+      name: 'Messenger',
+      category: 'sell',
+      description: 'Automate DMs on your Facebook Page.',
+      auth: ConnectorAuth.fields,
+      store: ConnectorStore.channel,
+      featureKey: FeatureKeys.channelMessenger,
+      helpText: 'Needs a Facebook Page, a Page access token with '
+          'pages_messaging, the Page ID, and your Meta App\'s App Secret.',
+      fields: [
+        ConnectorField(
+            key: 'pageId',
+            label: 'Facebook Page ID',
+            placeholder: '61550000000000'),
+        ConnectorField(
+            key: 'accessToken',
+            label: 'Page access token',
+            placeholder: 'EAAG...',
+            secret: true),
+        ConnectorField(
+            key: 'appSecret',
+            label: 'App secret',
+            placeholder: 'From App Settings → Basic',
+            secret: true),
       ],
     ),
     // Fix-properly pass — real OAuth flow now exists (MetaOAuthService,

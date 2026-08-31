@@ -455,6 +455,31 @@ class WhatsAppBotRegistry {
   /// currently registered.
   IMessagingService? messagingFor(int channelId) => _adapters[channelId];
 
+  /// Owner-initiated disconnect (2026-08-31) — same role as
+  /// TelegramBotRegistry.disconnectChannel. WhatsAppService holds no
+  /// polling loop or persistent connection to stop (it's a plain HTTP
+  /// wrapper, unlike Telegram's long-poll/webhook-registered Bot), so
+  /// there is nothing to dispose — forgetting the maps is the whole job.
+  ///
+  /// _phoneNumberIdToChannelId is keyed by phone number, not channelId,
+  /// so it's cleared by value rather than by key — a small map (one
+  /// entry per WhatsApp channel a business has ever connected), so a
+  /// linear scan costs nothing real.
+  ///
+  /// SAME "ROUTE STAYS REGISTERED" REASONING AS TELEGRAM: this channel's
+  /// per-channel route keeps existing as a live path; processWebhook's
+  /// existing `_adapters.containsKey` check already treats a missing
+  /// entry as a normal, logged no-op.
+  void disconnectChannel(int channelId) {
+    _services.remove(channelId);
+    _adapters.remove(channelId);
+    _appSecrets.remove(channelId);
+    _botIdForChannel.remove(channelId);
+    _channelById.remove(channelId);
+    _phoneNumberIdToChannelId.removeWhere((_, id) => id == channelId);
+    Log.info('WhatsApp channel $channelId disconnected (owner-initiated)');
+  }
+
   /// Used by health checks/diagnostics — not part of any endpoint yet.
   bool isRunning(int channelId) => _services.containsKey(channelId);
 

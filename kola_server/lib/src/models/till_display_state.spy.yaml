@@ -1,0 +1,18 @@
+##
+## till_display_state.spy.yaml — the whole response GET /display/<id>'s
+## page polls (migration 058, Phase 11's in-store customer display).
+## See till_display_item.spy.yaml for what one line carries.
+##
+
+class: TillDisplayState
+fields:
+  businessName: String
+
+  ## 'idle' | 'shopping' | 'payment' | 'receipt' — see migration 058's
+  ## own comment on till_display_state's status column.
+  status: String
+
+  items: List<TillDisplayItem>
+  subtotalMinor: int
+  currency: String
+  updatedAt: DateTime

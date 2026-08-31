@@ -118,6 +118,8 @@ abstract class Features {
   static const commerceReceipts = 'commerce.receipts';
   static const commerceInvoices = 'commerce.invoices';
   static const commerceReports = 'commerce.reports';
+  static const commercePublicCatalog = 'commerce.public_catalog';
+  static const commerceCustomerDisplay = 'commerce.customer_display';
 
   // ── Intelligence ───────────────────────────────────────────────────
   static const observations = 'intelligence.observations';

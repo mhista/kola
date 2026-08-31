@@ -101,3 +101,14 @@ fields:
 
   # Owner-facing failure reason. Non-null only when [status] is 'error'.
   lastError: String?
+
+  # The real Channel row id backing this card — set only when [isChannel]
+  # is true and a Channel actually exists for this workspace/platform
+  # (null while [status] is 'soon' or 'available'). integrations_page
+  # .dart's Disconnect button needs this: ChannelEndpoint.disconnectChannel
+  # takes a channelId, not a connectorKey, because Channel.botId is the
+  # real foreign key and a connector key alone can't identify which row
+  # to touch. No other connector store needs an id on the wire — generic
+  # connectors and payment gateways are looked up by (workspaceId,
+  # connectorKey) alone, one row per key.
+  channelId: int?

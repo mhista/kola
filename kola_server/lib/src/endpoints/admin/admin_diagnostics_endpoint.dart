@@ -45,7 +45,7 @@
 // spec's own "reads are logged too where they touch customer
 // conversation content."
 
-import 'package:serverpod/serverpod.dart';
+import 'package:serverpod/serverpod.dart' hide Message;
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/admin/admin_audit_log.dart';
@@ -58,7 +58,9 @@ import 'package:kola_server/src/services/repository/admin_audit_log_repository.d
 import 'package:kola_server/src/services/repository/bot_repository.dart';
 import 'package:kola_server/src/services/repository/channel_repository.dart';
 import 'package:kola_server/src/services/repository/conversation_repository.dart';
+import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/knowledge_document_repository.dart';
+import 'package:kola_server/src/services/repository/message_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/notifications/owner_notification_dispatcher.dart';
 
@@ -67,6 +69,8 @@ class AdminDiagnosticsEndpoint extends Endpoint {
   BotRepository get _bots => getIt<BotRepository>();
   ChannelRepository get _channels => getIt<ChannelRepository>();
   ConversationRepository get _conversations => getIt<ConversationRepository>();
+  MessageRepository get _messages => getIt<MessageRepository>();
+  ErrandRepository get _errands => getIt<ErrandRepository>();
   KnowledgeDocumentRepository get _documents => getIt<KnowledgeDocumentRepository>();
   AiOrchestrator get _ai => getIt<AiOrchestrator>();
   DocumentIngestionService get _ingestion => getIt<DocumentIngestionService>();
@@ -275,5 +279,63 @@ class AdminDiagnosticsEndpoint extends Endpoint {
     ));
 
     return result.anySent ? 'sent' : 'not_sent';
+  }
+
+  /// Full message thread for one conversation — the "workspace
+  /// inspection" substitute for literal customer-session impersonation
+  /// (see docs/ADMIN_CONTROL_PLANE_STATUS.md's "Workspace inspection"
+  /// section for why real session-forging was deliberately not built
+  /// here: it's an account-takeover-shaped capability that needs its
+  /// own dedicated session-issuance design, audit shape, and time-limit
+  /// mechanism, the same reasoning already stated on
+  /// AdminWorkspaceEndpoint — not something to improvise as a rider on
+  /// this endpoint). This gives an admin the actual diagnostic value
+  /// the spec wanted ("why isn't my bot replying") — reading exactly
+  /// what the customer and the bot said to each other — without ever
+  /// issuing a customer-facing credential.
+  ///
+  /// [conversationId] is scoped to [workspaceId] via
+  /// ConversationRepository.findByIdScoped so an admin operating on one
+  /// workspace's page can't be handed another workspace's messages by
+  /// guessing an id. Read-only; audited because message content is
+  /// customer data (same discipline as [listRecentConversations]).
+  Future<List<Message>> getConversationMessages(
+    Session session,
+    String adminToken,
+    int workspaceId,
+    int conversationId,
+  ) async {
+    final admin = await requireAdminLevel(adminToken: adminToken);
+
+    final conversation = await _conversations.findByIdScoped(conversationId, workspaceId);
+    if (conversation == null) {
+      throw KolaException(message: 'No conversation $conversationId in workspace $workspaceId.');
+    }
+
+    final messages = await _messages.listByConversation(conversationId);
+
+    await _audit.record(AdminAuditLogEntry(
+      actorEmail: admin.email,
+      actorLevel: admin.level,
+      action: 'diagnostics.messages_viewed',
+      targetWorkspaceId: workspaceId,
+      note: 'viewed ${messages.length} message(s) in conversation $conversationId',
+    ));
+
+    return messages;
+  }
+
+  /// The other half of workspace inspection: what is this bot actually
+  /// configured to do. Read-only reference (name, source, handler key,
+  /// permission scope, status) — not customer conversation content, so
+  /// no audit log entry, same reasoning as [listFailedKnowledgeDocuments]
+  /// staying unaudited.
+  Future<List<Errand>> listErrandsForWorkspace(
+    Session session,
+    String adminToken,
+    int workspaceId,
+  ) async {
+    await requireAdminLevel(adminToken: adminToken);
+    return _errands.listByWorkspace(workspaceId);
   }
 }

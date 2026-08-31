@@ -7,6 +7,17 @@
 // then optionally drill into recent conversations or failed knowledge
 // documents for that same workspace and act (re-index, resend a
 // notification) — all audited server-side.
+//
+// WORKSPACE INSPECTION (added this pass — the honest substitute for
+// literal impersonation, see docs/ADMIN_CONTROL_PLANE_STATUS.md):
+// clicking a conversation row expands it into the real message thread
+// (AdminDiagnosticsEndpoint.getConversationMessages), and a new
+// "Bot configuration" section lists the workspace's configured errands
+// (listErrandsForWorkspace) — both read-only. This is deliberately NOT
+// a way to send messages as the bot or issue any customer-facing
+// session; it's a way to see what the customer and bot actually said
+// and what the bot was told to do, which is the real diagnostic need
+// behind "why isn't my bot replying."
 
 import 'package:jaspr/jaspr.dart' hide VoidCallback;
 import 'package:jaspr/dom.dart';
@@ -40,6 +51,12 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   List<String> _checks = const [];
   List<Conversation> _conversations = const [];
   List<KnowledgeDocument> _failedDocs = const [];
+  List<Errand> _errands = const [];
+
+  int? _expandedConversationId;
+  bool _messagesLoading = false;
+  List<Message> _threadMessages = const [];
+  String? _threadError;
 
   bool _busy = false;
   String? _banner;
@@ -60,11 +77,16 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       final checks = await component.client.adminDiagnostics.diagnoseWorkspace(component.adminToken, id);
       final convos = await component.client.adminDiagnostics.listRecentConversations(component.adminToken, id, limit: 20);
       final docs = await component.client.adminDiagnostics.listFailedKnowledgeDocuments(component.adminToken, id);
+      final errands = await component.client.adminDiagnostics.listErrandsForWorkspace(component.adminToken, id);
       if (!mounted) return;
       setState(() {
         _checks = checks;
         _conversations = convos;
         _failedDocs = docs;
+        _errands = errands;
+        _expandedConversationId = null;
+        _threadMessages = const [];
+        _threadError = null;
         _loading = false;
       });
     } catch (e) {
@@ -107,6 +129,46 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
         _banner = 'Re-index failed: ${describeAdminError(e)}';
         _bannerIsError = true;
         _busy = false;
+      });
+    }
+  }
+
+  /// Click a conversation row to expand/collapse its real message
+  /// thread — see this file's header on why this replaces literal
+  /// impersonation. Clicking an already-expanded row just collapses it
+  /// without a re-fetch.
+  Future<void> _toggleConversation(Conversation c) async {
+    if (_workspaceId == null || c.id == null) return;
+    if (_expandedConversationId == c.id) {
+      setState(() => _expandedConversationId = null);
+      return;
+    }
+    setState(() {
+      _expandedConversationId = c.id;
+      _messagesLoading = true;
+      _threadMessages = const [];
+      _threadError = null;
+    });
+    try {
+      final messages = await component.client.adminDiagnostics.getConversationMessages(
+        component.adminToken,
+        _workspaceId!,
+        c.id!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _threadMessages = messages;
+        _messagesLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      if (isAdminSessionError(e)) {
+        component.onSignOut();
+        return;
+      }
+      setState(() {
+        _threadError = describeAdminError(e);
+        _messagesLoading = false;
       });
     }
   }
@@ -170,6 +232,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
           if (_checks.isNotEmpty) ..._checksSection(),
           if (_workspaceId != null) ..._conversationsSection(),
           if (_workspaceId != null) ..._failedDocsSection(),
+          if (_workspaceId != null) ..._errandsSection(),
         ]),
       );
 
@@ -224,6 +287,10 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
           [Component.text('Recent conversations (${_conversations.length})')],
         ),
         div(
+          attributes: {'style': 'font-size:11.5px;color:${AdminColors.faint};margin:-4px 0 8px'},
+          [Component.text('Click a conversation to read its message thread — read-only, audited.')],
+        ),
+        div(
           attributes: {
             'style': 'border:1px solid ${AdminColors.border};border-radius:8px;overflow:hidden;margin-bottom:18px',
           },
@@ -234,15 +301,101 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
                   ]),
                 ]
               : [
-                  for (final c in _conversations)
+                  for (final c in _conversations) ..._conversationRow(c),
+                ],
+        ),
+      ];
+
+  List<Component> _conversationRow(Conversation c) {
+    final expanded = _expandedConversationId == c.id;
+    return [
+      div(
+        events: {'click': (_) => _toggleConversation(c)},
+        attributes: {
+          'style': 'padding:9px 14px;border-bottom:1px solid ${AdminColors.rowBorder};'
+              'font-size:12.5px;color:${AdminColors.text};display:flex;justify-content:space-between;'
+              'cursor:pointer;background:${expanded ? AdminColors.sidebarItemActiveBg : 'transparent'}',
+        },
+        [
+          Component.text('${expanded ? '▾' : '▸'} #${c.id} · customer ${c.customerId ?? "-"}'),
+          span([Component.text(c.status)], attributes: {'style': 'color:${AdminColors.muted}'}),
+        ],
+      ),
+      if (expanded) _threadPanel(),
+    ];
+  }
+
+  Component _threadPanel() => div(
+        attributes: {
+          'style': 'padding:12px 14px;border-bottom:1px solid ${AdminColors.rowBorder};'
+              'background:${AdminColors.bg}',
+        },
+        [
+          if (_messagesLoading) div([Component.text('Loading thread…')], attributes: {'style': 'color:${AdminColors.muted};font-size:12px'}),
+          if (_threadError != null)
+            div(attributes: {'style': 'color:${AdminColors.danger};font-size:12px'}, [Component.text(_threadError!)]),
+          if (!_messagesLoading && _threadError == null && _threadMessages.isEmpty)
+            div([Component.text('No messages in this conversation.')], attributes: {'style': 'color:${AdminColors.faint};font-size:12px'}),
+          if (!_messagesLoading && _threadError == null && _threadMessages.isNotEmpty)
+            div(
+              attributes: {'style': 'display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto'},
+              [for (final m in _threadMessages) _messageRow(m)],
+            ),
+        ],
+      );
+
+  Component _messageRow(Message m) {
+    final fromCustomer = m.direction == 'inbound';
+    return div(
+      attributes: {
+        'style': 'display:flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:6px;'
+            'max-width:80%;align-self:${fromCustomer ? 'flex-start' : 'flex-end'};'
+            'background:${fromCustomer ? AdminColors.card : AdminColors.sidebarItemActiveBg}',
+      },
+      [
+        div(
+          attributes: {'style': 'font-size:10px;color:${AdminColors.faint}'},
+          [Component.text('${fromCustomer ? "Customer" : "Bot"} · ${m.senderType} · ${m.createdAt}')],
+        ),
+        div(
+          attributes: {'style': 'font-size:12.5px;color:${AdminColors.text};white-space:pre-wrap'},
+          [Component.text(m.body.isEmpty ? '(no text — media or empty body)' : m.body)],
+        ),
+      ],
+    );
+  }
+
+  List<Component> _errandsSection() => [
+        div(
+          attributes: {'style': 'font-size:13px;font-weight:700;color:${AdminColors.heading};margin:18px 0 8px'},
+          [Component.text('Bot configuration — errands (${_errands.length})')],
+        ),
+        div(
+          attributes: {'style': 'font-size:11.5px;color:${AdminColors.faint};margin:-4px 0 8px'},
+          [Component.text('Read-only: what this workspace\'s bot is configured to do.')],
+        ),
+        div(
+          attributes: {
+            'style': 'border:1px solid ${AdminColors.border};border-radius:8px;overflow:hidden',
+          },
+          _errands.isEmpty
+              ? [
+                  div(attributes: {'style': 'padding:14px;font-size:12.5px;color:${AdminColors.faint}'}, [
+                    Component.text('No errands configured for this workspace.'),
+                  ]),
+                ]
+              : [
+                  for (final e in _errands)
                     div(
                       attributes: {
                         'style': 'padding:9px 14px;border-bottom:1px solid ${AdminColors.rowBorder};'
-                            'font-size:12.5px;color:${AdminColors.text};display:flex;justify-content:space-between',
+                            'font-size:12.5px;color:${AdminColors.text};display:flex;justify-content:space-between;'
+                            'gap:12px;align-items:baseline',
                       },
                       [
-                        Component.text('#${c.id} · customer ${c.customerId ?? "-"}'),
-                        span([Component.text(c.status)], attributes: {'style': 'color:${AdminColors.muted}'}),
+                        span([Component.text(e.name)], attributes: {'style': 'flex:1'}),
+                        span([Component.text(e.status)], attributes: {'style': 'color:${AdminColors.muted};flex:none'}),
+                        span([Component.text(e.source)], attributes: {'style': 'color:${AdminColors.faint};flex:none'}),
                       ],
                     ),
                 ],

@@ -47,6 +47,7 @@ import 'package:kola_server/src/services/notifications/owner_notification_dispat
 import 'telegram/telegram_bot_registry.dart';
 import 'whatsapp/whatsapp_bot_registry.dart';
 import 'instagram/instagram_bot_registry.dart';
+import 'messenger/messenger_bot_registry.dart';
 
 class ChannelHealthCheckService {
   ChannelHealthCheckService({
@@ -130,6 +131,8 @@ class ChannelHealthCheckService {
         return WhatsAppBotRegistry.instance.checkHealth(channelId);
       case 'instagram':
         return InstagramBotRegistry.instance.checkHealth(channelId);
+      case 'messenger':
+        return MessengerBotRegistry.instance.checkHealth(channelId);
       default:
         // An unrecognized platform isn't this service's problem to
         // diagnose — leave it alone rather than guess at a check for it.

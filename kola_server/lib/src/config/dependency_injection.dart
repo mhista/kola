@@ -22,6 +22,7 @@ import 'package:kola_server/src/services/repository/workspace_connector_reposito
 import 'package:kola_server/src/services/repository/admin_user_repository.dart';
 import 'package:kola_server/src/services/repository/admin_audit_log_repository.dart';
 import 'package:kola_server/src/services/admin/admin_auth_service.dart';
+import 'package:kola_server/src/services/admin/admin_mfa_service.dart';
 import 'package:kola_server/src/services/connectors/connector_service.dart';
 import 'package:kola_server/src/services/repository/api_key_repository.dart';
 import 'package:kola_server/src/services/repository/webhook_endpoint_repository.dart';
@@ -108,6 +109,7 @@ import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/repository/feature_flag_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_feature_override_repository.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
+import 'package:kola_server/src/services/repository/till_display_repository.dart';
 import 'package:kola_server/src/services/media/imagekit_service.dart';
 import 'package:kola_server/src/services/media/inbound_media_service.dart';
 // Connect Gate, subphase 4g — short-term conversational memory for the
@@ -159,6 +161,11 @@ void setupDependencyInjection() {
 
   getIt.registerLazySingleton<ProductRepository>(
     () => const ProductRepository(),
+  );
+
+  // Phase 11 (migration 058) — the in-store customer display.
+  getIt.registerLazySingleton<TillDisplayRepository>(
+    () => const TillDisplayRepository(),
   );
 
   // Phase 3b — Errand system repositories.
@@ -375,8 +382,14 @@ void setupDependencyInjection() {
   getIt.registerLazySingleton<AdminAuditLogRepository>(
     () => const AdminAuditLogRepository(),
   );
+  getIt.registerLazySingleton<AdminMfaService>(
+    () => const AdminMfaService(),
+  );
   getIt.registerLazySingleton<AdminAuthService>(
-    () => AdminAuthService(users: getIt<AdminUserRepository>()),
+    () => AdminAuthService(
+      users: getIt<AdminUserRepository>(),
+      mfa: getIt<AdminMfaService>(),
+    ),
   );
 
   // ── LAYER 3: CONNECTORS ───────────────────────────────────────────────────

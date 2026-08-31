@@ -1,0 +1,17 @@
+##
+## till_display_item.spy.yaml — one line of the till's current cart, as
+## it may be shown on the in-store customer display (migration 058).
+##
+## No costMinor, same discipline as public_catalog_item.spy.yaml — this
+## model physically cannot carry it, so nothing downstream can leak it
+## by forgetting to omit a field. See that model's header for the full
+## reasoning; DESIGN_BRIEF_COMMERCE.md's own words for this exact
+## surface: "no cost or margin data ever visible."
+##
+
+class: TillDisplayItem
+fields:
+  name: String
+  quantity: int
+  unitPriceMinor: int
+  lineTotalMinor: int

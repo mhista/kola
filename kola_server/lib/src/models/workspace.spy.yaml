@@ -112,6 +112,22 @@ fields:
   # surface yet.
   sellsCatalogItems: bool?
 
+  # Phase 11 (migration 057) — the shareable public catalog page,
+  # /catalog/<workspaceId>. Explicit per-workspace opt-in, separate from
+  # the commerce.public_catalog feature flag: the flag says the
+  # capability exists on the platform, this says THIS business wants its
+  # product list, prices and photos exposed on a URL anyone can open.
+  # Defaults false — see migration 057's own header.
+  publicCatalogEnabled: bool
+
+  # Phase 11 (migration 058) — the in-store customer display,
+  # /display/<workspaceId>. Same explicit-opt-in shape as
+  # publicCatalogEnabled just above, deliberately a separate field: two
+  # different customer-facing surfaces, two different decisions a
+  # business makes independently of each other. Defaults false — see
+  # migration 058's own header.
+  customerDisplayEnabled: bool
+
   createdAt: DateTime
   updatedAt: DateTime
 

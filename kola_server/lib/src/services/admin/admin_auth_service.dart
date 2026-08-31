@@ -37,6 +37,8 @@ import 'package:kola_server/kola_logger.dart';
 import 'package:kola_server/src/config/env.dart';
 import 'package:kola_server/src/services/repository/admin_user_repository.dart';
 
+import 'admin_mfa_secret_encryption_service.dart';
+import 'admin_mfa_service.dart';
 import 'admin_password_hasher.dart';
 import 'admin_user.dart';
 
@@ -48,6 +50,7 @@ class AdminSession {
     required this.email,
     required this.level,
     required this.mustResetPassword,
+    required this.mfaEnabled,
   });
 
   final int adminUserId;
@@ -60,6 +63,13 @@ class AdminSession {
   /// every other route behind a forced reset screen — see
   /// AdminAuthEndpoint.mustResetPassword and app.dart's redirect guard.
   final bool mustResetPassword;
+
+  /// Migration 056 — read live off the account row, same staleness
+  /// posture as [mustResetPassword] and [level]: MFA being
+  /// enrolled/disabled mid-session is reflected on the very next call,
+  /// not after a re-login. kola_admin's security page reads this to
+  /// decide whether to show "enable MFA" or "disable MFA."
+  final bool mfaEnabled;
 }
 
 /// Thrown on any admin auth failure — bad credentials, inactive
@@ -74,10 +84,25 @@ class AdminAuthException implements Exception {
   String toString() => message;
 }
 
+/// Thrown by [AdminAuthService.login] when the email/password were
+/// correct but the account has MFA enrolled and no (or an invalid) TOTP
+/// code was supplied — a distinct exception type rather than an
+/// [AdminAuthException] with a special message, so
+/// AdminAuthEndpoint.login can map it to its own KolaException code
+/// ('admin_mfa_required') without string-matching a message the way
+/// login_page.dart's UI-facing error text already has to for other
+/// cases (see that file's header on why that's a real, named cost).
+class AdminMfaRequiredException implements Exception {
+  const AdminMfaRequiredException();
+}
+
 class AdminAuthService {
-  AdminAuthService({required AdminUserRepository users}) : _users = users;
+  AdminAuthService({required AdminUserRepository users, required AdminMfaService mfa})
+      : _users = users,
+        _mfa = mfa;
 
   final AdminUserRepository _users;
+  final AdminMfaService _mfa;
 
   static const _sessionLifetime = Duration(hours: 4);
 
@@ -119,7 +144,20 @@ class AdminAuthService {
   /// Verifies [email]/[password] and returns a signed session token.
   /// Same "generic failure message" posture Supabase Auth itself uses —
   /// bad email and bad password both fail identically here.
-  Future<String> login({required String email, required String password}) async {
+  ///
+  /// MFA: if the account has enrolled (AdminUser.mfaEnabled), [totpCode]
+  /// is checked AFTER the password — a correct password with no/blank
+  /// [totpCode] throws [AdminMfaRequiredException] so the caller (
+  /// AdminAuthEndpoint) can prompt for a code without asking for the
+  /// password again; an incorrect code throws the same generic
+  /// [AdminAuthException] as a wrong password, since by this point the
+  /// account's existence and password are already proven and there is
+  /// nothing left to avoid leaking.
+  Future<String> login({
+    required String email,
+    required String password,
+    String? totpCode,
+  }) async {
     final key = email.trim().toLowerCase();
 
     if (_isLockedOut(key)) {
@@ -153,6 +191,27 @@ class AdminAuthService {
       throw const AdminAuthException(
         'Admin sign-in is not configured on this server yet.',
       );
+    }
+
+    if (user.mfaEnabled) {
+      final secret = user.mfaSecret;
+      if (secret == null) {
+        // Data integrity guard: mfa_enabled=true with no secret should
+        // be impossible — setMfaSecret is the only writer of either and
+        // always sets them together — but fail loud rather than silently
+        // skip the MFA check if it somehow happens.
+        Log.error('AdminAuthService.login: ${user.email} has mfa_enabled with no mfa_secret.');
+        throw const AdminAuthException('MFA is misconfigured on this account — contact an Owner.');
+      }
+      if (totpCode == null || totpCode.trim().isEmpty) {
+        _recordSuccess(key); // password was correct — don't count this as a failed attempt
+        throw const AdminMfaRequiredException();
+      }
+      final decryptedSecret = AdminMfaSecretEncryptionService.decrypt(secret);
+      if (!_mfa.verifyCode(decryptedSecret, totpCode)) {
+        _recordFailure(key);
+        throw const AdminAuthException('Invalid authentication code.');
+      }
     }
 
     _recordSuccess(key);
@@ -220,6 +279,7 @@ class AdminAuthService {
         // reset) must be reflected on the very next call, not after a
         // re-login.
         mustResetPassword: user.mustResetPassword,
+        mfaEnabled: user.mfaEnabled,
       );
     } on JWTExpiredException {
       throw const AdminAuthException('Admin session expired — sign in again.');
@@ -259,6 +319,58 @@ class AdminAuthService {
 
     final newHash = await AdminPasswordHasher.hash(newPassword);
     await _users.updatePassword(user.id, newHash);
+  }
+
+  /// Step 1 of enrollment: generates a fresh secret and its otpauth://
+  /// URI, WITHOUT persisting anything yet. Deliberately stateless on the
+  /// server side — no "pending enrollment" row or column — the secret
+  /// round-trips through the client for [confirmMfaEnrollment] to prove
+  /// the admin's authenticator app actually has it before it becomes the
+  /// account's real MFA secret. See that method for why this is safe.
+  ({String secretBase32, String otpauthUri}) beginMfaEnrollment({required String email}) {
+    final secret = _mfa.generateSecret();
+    return (
+      secretBase32: secret,
+      otpauthUri: _mfa.provisioningUri(secretBase32: secret, accountEmail: email),
+    );
+  }
+
+  /// Step 2: proves the admin's authenticator app produced [code] for
+  /// [secretBase32] (the exact value [beginMfaEnrollment] just returned)
+  /// before persisting it — this is the only real verification that
+  /// enrollment actually worked, not just that the QR code was
+  /// displayed. Only on a correct code does this encrypt the secret and
+  /// write it via AdminUserRepository.setMfaSecret.
+  Future<void> confirmMfaEnrollment({
+    required int adminUserId,
+    required String secretBase32,
+    required String code,
+  }) async {
+    if (!_mfa.verifyCode(secretBase32, code)) {
+      throw const AdminAuthException(
+        'That code did not match. Check your authenticator app and try again.',
+      );
+    }
+    final encrypted = AdminMfaSecretEncryptionService.encrypt(secretBase32);
+    await _users.setMfaSecret(adminUserId, encrypted);
+  }
+
+  /// Disables MFA entirely — requires the CURRENT password, same
+  /// "prove you have it" posture as [changePassword], since turning MFA
+  /// off is a real reduction in this account's protection and shouldn't
+  /// be reachable from a stolen session token alone.
+  Future<void> disableMfa({
+    required int adminUserId,
+    required String currentPassword,
+  }) async {
+    final user = await _users.findById(adminUserId);
+    if (user == null || !user.active) {
+      throw const AdminAuthException('This admin account is no longer active.');
+    }
+    if (!await AdminPasswordHasher.verify(currentPassword, user.passwordHash)) {
+      throw const AdminAuthException('Current password is incorrect.');
+    }
+    await _users.setMfaSecret(adminUserId, null);
   }
 }
 

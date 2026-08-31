@@ -58,6 +58,8 @@ import 'pages/bot_detail_chat_page.dart';
 import 'pages/bot_detail_dev_page.dart';
 import 'pages/login_page.dart';
 import 'pages/create_workspace_page.dart';
+import 'pages/public_catalog_page.dart';
+import 'pages/till_display_page.dart';
 import 'pages/logout_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/catalog_page.dart';
@@ -416,6 +418,21 @@ class _DashboardAppState extends State<DashboardApp> {
     final loc = state.location;
     final loggedIn = _session != null;
 
+    // Phase 11's public catalog page — the one route in this whole app
+    // a visitor with no session is meant to reach. Checked before the
+    // login guard below, not after: an unauthenticated visitor hitting
+    // this path must see the catalog, not get bounced to /login the way
+    // every other path correctly does. An already-signed-in owner
+    // previewing their own link also just sees the page — no redirect
+    // either way, unconditionally allowed.
+    if (loc.startsWith('/catalog/')) return null;
+
+    // The in-store customer display, Phase 11's other unauthenticated
+    // surface — same reasoning as /catalog/ immediately above: a
+    // customer-facing second screen has no session and must not bounce
+    // to /login.
+    if (loc.startsWith('/display/')) return null;
+
     if (!loggedIn) {
       return loc == '/login' ? null : '/login';
     }
@@ -483,6 +500,27 @@ class _DashboardAppState extends State<DashboardApp> {
           builder: (context, state) => LoginPage(
             authService: _authService,
             onAuthenticated: _handleAuthenticated,
+          ),
+        ),
+        Route(
+          path: '/catalog/:workspaceId',
+          // No _session!/_selectedWorkspace! here on purpose — this is
+          // the one page reachable with neither, per _redirect's own
+          // early-return above. workspaceId is parsed at the boundary,
+          // same convention as /bots/:id.
+          builder: (context, state) => PublicCatalogPage(
+            client: _client,
+            workspaceId: int.tryParse(state.params['workspaceId'] ?? '') ?? 0,
+          ),
+        ),
+        Route(
+          path: '/display/:workspaceId',
+          // Same shape as /catalog/:workspaceId immediately above, same
+          // reason: no _session!/_selectedWorkspace! here, reachable
+          // with neither per _redirect's early-return.
+          builder: (context, state) => TillDisplayPage(
+            client: _client,
+            workspaceId: int.tryParse(state.params['workspaceId'] ?? '') ?? 0,
           ),
         ),
         Route(

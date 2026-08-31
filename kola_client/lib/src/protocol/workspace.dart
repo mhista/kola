@@ -27,6 +27,8 @@ abstract class Workspace implements _i1.SerializableModel {
     required this.isInternal,
     required this.taxRateBps,
     this.sellsCatalogItems,
+    required this.publicCatalogEnabled,
+    required this.customerDisplayEnabled,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -45,6 +47,8 @@ abstract class Workspace implements _i1.SerializableModel {
     required bool isInternal,
     required int taxRateBps,
     bool? sellsCatalogItems,
+    required bool publicCatalogEnabled,
+    required bool customerDisplayEnabled,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _WorkspaceImpl;
@@ -76,6 +80,12 @@ abstract class Workspace implements _i1.SerializableModel {
           : _i1.BoolJsonExtension.fromJson(
               jsonSerialization['sellsCatalogItems'],
             ),
+      publicCatalogEnabled: _i1.BoolJsonExtension.fromJson(
+        jsonSerialization['publicCatalogEnabled'],
+      ),
+      customerDisplayEnabled: _i1.BoolJsonExtension.fromJson(
+        jsonSerialization['customerDisplayEnabled'],
+      ),
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
@@ -111,6 +121,10 @@ abstract class Workspace implements _i1.SerializableModel {
 
   bool? sellsCatalogItems;
 
+  bool publicCatalogEnabled;
+
+  bool customerDisplayEnabled;
+
   DateTime createdAt;
 
   DateTime updatedAt;
@@ -132,6 +146,8 @@ abstract class Workspace implements _i1.SerializableModel {
     bool? isInternal,
     int? taxRateBps,
     bool? sellsCatalogItems,
+    bool? publicCatalogEnabled,
+    bool? customerDisplayEnabled,
     DateTime? createdAt,
     DateTime? updatedAt,
   });
@@ -152,6 +168,8 @@ abstract class Workspace implements _i1.SerializableModel {
       'isInternal': isInternal,
       'taxRateBps': taxRateBps,
       if (sellsCatalogItems != null) 'sellsCatalogItems': sellsCatalogItems,
+      'publicCatalogEnabled': publicCatalogEnabled,
+      'customerDisplayEnabled': customerDisplayEnabled,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
     };
@@ -180,6 +198,8 @@ class _WorkspaceImpl extends Workspace {
     required bool isInternal,
     required int taxRateBps,
     bool? sellsCatalogItems,
+    required bool publicCatalogEnabled,
+    required bool customerDisplayEnabled,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : super._(
@@ -196,6 +216,8 @@ class _WorkspaceImpl extends Workspace {
          isInternal: isInternal,
          taxRateBps: taxRateBps,
          sellsCatalogItems: sellsCatalogItems,
+         publicCatalogEnabled: publicCatalogEnabled,
+         customerDisplayEnabled: customerDisplayEnabled,
          createdAt: createdAt,
          updatedAt: updatedAt,
        );
@@ -218,6 +240,8 @@ class _WorkspaceImpl extends Workspace {
     bool? isInternal,
     int? taxRateBps,
     Object? sellsCatalogItems = _Undefined,
+    bool? publicCatalogEnabled,
+    bool? customerDisplayEnabled,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -238,6 +262,9 @@ class _WorkspaceImpl extends Workspace {
       sellsCatalogItems: sellsCatalogItems is bool?
           ? sellsCatalogItems
           : this.sellsCatalogItems,
+      publicCatalogEnabled: publicCatalogEnabled ?? this.publicCatalogEnabled,
+      customerDisplayEnabled:
+          customerDisplayEnabled ?? this.customerDisplayEnabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

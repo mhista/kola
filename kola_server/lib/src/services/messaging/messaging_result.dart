@@ -15,7 +15,7 @@
 // SRS.md §9 explicitly calls for reusing this exact interface shape
 // rather than re-deriving it.
 
-enum PlatformType { telegram, whatsapp, instagram }
+enum PlatformType { telegram, whatsapp, instagram, messenger }
 
 enum MediaType { image, video, audio, document, sticker }
 

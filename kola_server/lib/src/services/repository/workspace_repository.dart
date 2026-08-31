@@ -172,6 +172,12 @@ class WorkspaceRepository {
       // VAT-registered by default; turning it on is a Settings decision
       // the owner makes knowingly.
       taxRateBps: 0,
+      // Migrations 057/058 — both customer-facing surfaces default OFF.
+      // Publishing a catalog or leaving a customer display running is a
+      // decision an owner makes deliberately in Settings, never something
+      // that happens to a workspace just by existing.
+      publicCatalogEnabled: false,
+      customerDisplayEnabled: false,
       createdAt: createdAt,
       updatedAt: createdAt,
     );

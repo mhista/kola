@@ -24,6 +24,7 @@ class AdminUser {
     required this.passwordHash,
     required this.level,
     required this.mfaEnabled,
+    this.mfaSecret,
     required this.active,
     required this.mustResetPassword,
     this.lastSeenAt,
@@ -38,11 +39,18 @@ class AdminUser {
   /// 'support' | 'operator' | 'owner' — see ADMIN_APP_SPEC.md §2.
   final String level;
 
-  /// Honest gap, not a lie by omission: this column exists so the
-  /// schema doesn't need a second migration once real MFA is wired up,
-  /// but nothing in this pass actually verifies a TOTP code — see
-  /// admin_auth_service.dart's header. Always false today.
+  /// Migration 056: true once this admin has completed TOTP enrollment
+  /// (see AdminAuthService.confirmMfaEnrollment) — real verification now
+  /// exists, no longer the honest-gap placeholder this column started
+  /// as. Always kept in sync with [mfaSecret] being non-null by
+  /// AdminUserRepository.setMfaSecret, the only writer of either.
   final bool mfaEnabled;
+
+  /// AES-256-GCM-encrypted TOTP secret (AdminMfaSecretEncryptionService)
+  /// — null until enrollment completes. Never decrypted anywhere except
+  /// inside AdminAuthService's login()/confirmMfaEnrollment() calls,
+  /// immediately before verifying a code; never sent to kola_admin.
+  final String? mfaSecret;
 
   final bool active;
 
@@ -64,6 +72,7 @@ class AdminUser {
         passwordHash: row['password_hash'] as String,
         level: row['level'] as String,
         mfaEnabled: row['mfa_enabled'] as bool? ?? false,
+        mfaSecret: row['mfa_secret'] as String?,
         active: row['active'] as bool? ?? true,
         mustResetPassword: row['must_reset_password'] as bool? ?? true,
         lastSeenAt: row['last_seen_at'] == null

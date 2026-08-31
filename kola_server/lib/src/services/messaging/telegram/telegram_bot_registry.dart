@@ -378,6 +378,30 @@ void _register({required Channel channel, required String botToken}) {
   /// and hasn't reached it yet).
   IMessagingService? messagingFor(int channelId) => _adapters[channelId];
 
+  /// Owner-initiated disconnect (2026-08-31) — the runtime half of
+  /// ChannelEndpoint.disconnectChannel. Disposes the running
+  /// TelegramService (stops polling / drops the webhook handler from
+  /// actually doing anything on the next request) and forgets this
+  /// channel across every map this registry keeps.
+  ///
+  /// THE WEBHOOK ROUTE ITSELF IS NOT REMOVED — Relic's router has no
+  /// "remove a route" API (see _register's own comment on why re-adding
+  /// one throws "Conflicting values"), so `/webhooks/telegram/$channelId`
+  /// keeps existing as a live HTTP path. That's safe: processWebhook
+  /// already handles "no bot registered for channel X" as a normal,
+  /// logged no-op (returns success:false, never throws) — exactly the
+  /// state this leaves the route in. A stray POST to a disconnected
+  /// channel's URL does nothing, which is the correct behavior, not a
+  /// gap silently left open.
+  void disconnectChannel(int channelId) {
+    _services[channelId]?.dispose();
+    _services.remove(channelId);
+    _adapters.remove(channelId);
+    _botIdForChannel.remove(channelId);
+    _channelById.remove(channelId);
+    Log.info('Telegram channel $channelId disconnected (owner-initiated)');
+  }
+
   /// Used by health checks / diagnostics — not part of any endpoint yet.
   bool isRunning(int channelId) => _services.containsKey(channelId);
 

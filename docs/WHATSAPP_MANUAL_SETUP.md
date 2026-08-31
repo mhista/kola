@@ -139,7 +139,7 @@ This is a **Standard Access** token, scoped only to assets your own System User 
 
 ## Step 6 — Connect it to Kola
 
-1. In your Kola dashboard, go to your bot's **Channels** page and choose **Connect WhatsApp → Manual setup**.
+1. In your Kola dashboard, go to **Integrations** and click the **WhatsApp** tile (Sell category). If you have more than one bot, you'll be asked which one this channel belongs to.
 2. Paste in the five values you collected:
    - Access Token (Step 5, or the temporary one from Step 4a's page if you're just testing)
    - Phone Number ID (Step 4)
@@ -172,7 +172,7 @@ Connecting in Step 6 makes your bot able to *send* messages. To *receive* them, 
 
    > *[Screenshot placeholder: webhook fields list with "messages" toggled on]*
 
-**Honest gap:** Kola's dashboard doesn't have a self-serve Channels page with this Callback URL/Verify Token display built yet — until it does, Kola's team completes this step for you right after you finish Step 6. You won't need to do anything here yourself for now; this section documents what it'll look like once that screen ships.
+**Honest gap, narrowed (2026-08-31):** Step 6 — connecting the channel itself — is now real and self-serve from the Integrations page (it wasn't before this date: the connect form existed but always failed with a "connected through its own flow, not here" error, a live bug now fixed). **Step 7 is still not self-serve.** Kola's dashboard has no screen displaying a channel's Callback URL or Verify Token yet, and the Verify Token itself is still a single value shared across the whole server (`WHATSAPP_WEBHOOK_VERIFY_TOKEN`), not a per-workspace one the way this walkthrough describes — so pasting a business's own invented phrase into Meta's Verify Token field would not actually match what Kola checks. Until both of those are built, Kola's team completes this step for you right after you finish Step 6. You won't need to do anything here yourself for now; this section documents what it'll look like once both pieces ship.
 
 ---
 

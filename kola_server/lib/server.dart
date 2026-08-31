@@ -45,9 +45,11 @@ import 'package:kola_server/src/config/env.dart';
 import 'package:kola_server/src/services/repository/supabase_client.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
+import 'package:kola_server/src/services/admin/admin_mfa_secret_encryption_service.dart';
 import 'package:kola_server/src/services/messaging/telegram/telegram_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/instagram/instagram_bot_registry.dart';
+import 'package:kola_server/src/services/messaging/messenger/messenger_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/channel_health_check_service.dart';
 import 'package:kola_server/src/services/billing/paystack_webhook_route.dart';
 import 'package:kola_server/src/services/billing/flutterwave_webhook_route.dart';
@@ -145,6 +147,20 @@ void run(List<String> args) async {
       Log.startupWarning(
         'CHANNEL_CREDENTIAL_MASTER_KEY not set — connecting a Telegram '
         'channel will fail until it is. See .env.example.',
+      );
+    }
+
+    // 1d. Admin MFA secret encryption — must be ready before any admin
+    //     enrolls in or verifies TOTP. See admin_mfa_secret_encryption_
+    //     service.dart's header on why this uses its own key rather than
+    //     reusing CHANNEL_CREDENTIAL_MASTER_KEY or ADMIN_JWT_SECRET.
+    if (Env.adminMfaMasterKey.isNotEmpty) {
+      AdminMfaSecretEncryptionService.init(Env.adminMfaMasterKey);
+      Log.startupSuccess('Admin MFA secret encryption initialized');
+    } else {
+      Log.startupWarning(
+        'ADMIN_MFA_MASTER_KEY not set — admin MFA enrollment will fail '
+        'until it is. See .env.example.',
       );
     }
 
@@ -256,6 +272,17 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     );
     Log.startupInfo('Bootstrapping connected Instagram channels...');
     await InstagramBotRegistry.instance.bootstrapFromDb();
+
+    // 2e. Messenger — the fourth channel connector, built 31 Aug 2026
+    //     straight from the Instagram template above. Same per-channel-
+    //     routes-only, no-two-phase-split reasoning — see
+    //     messenger_bot_registry.dart's header.
+    MessengerBotRegistry.instance.configure(
+      addRoute: pod.webServer.addRoute,
+      webhookBaseUrl: Env.webhookBaseUrl,
+    );
+    Log.startupInfo('Bootstrapping connected Messenger channels...');
+    await MessengerBotRegistry.instance.bootstrapFromDb();
 
     // ── Custom routes go here (Phase 2+) ────────────────────────────────
     // e.g. pod.webServer.addRoute(MetaWebhookRoute(), '/webhooks/meta');
