@@ -50,6 +50,11 @@ import 'components/shell/splash_screen.dart';
 
 import 'pages/overview_page.dart';
 import 'pages/operations_page.dart';
+import 'pages/observations_page.dart';
+import 'pages/recommendations_page.dart';
+import 'pages/tasks_page.dart';
+import 'pages/automation_runs_page.dart';
+import 'pages/analytics_page.dart';
 import 'pages/dashboard_home_page.dart';
 import 'pages/bots_page.dart';
 import 'pages/billing_page.dart';
@@ -657,6 +662,69 @@ class _DashboardAppState extends State<DashboardApp> {
             ),
           ),
         ),
+        // Phase 13a — both previously 404'd: nav_model.dart always
+        // pointed here correctly, but neither route was ever registered
+        // and neither page file existed. See observations_page.dart's
+        // own header for the full audit. Backed by the same
+        // FindingEndpoint/WorkspaceFinding data as Overview's own
+        // findings list.
+        Route(
+          path: '/observations',
+          builder: (context, state) => shellFor(
+            state,
+            ObservationsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
+          ),
+        ),
+        Route(
+          path: '/recommendations',
+          builder: (context, state) => shellFor(
+            state,
+            RecommendationsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
+          ),
+        ),
+        // Phase 13b — the third previously-404'd route, and the first of
+        // this batch to need a brand-new backend (task.spy.yaml,
+        // TaskRepository, TaskEndpoint — Observations/Recommendations
+        // above only needed a page, since FindingEndpoint already
+        // existed). See tasks_page.dart's own header.
+        Route(
+          path: '/tasks',
+          builder: (context, state) => shellFor(
+            state,
+            TasksPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
+          ),
+        ),
+        // Phase 13e — the fourth previously-404'd route. See
+        // analytics_page.dart's own header for the scope note (channel
+        // segments, not geography or customer tenure; Business
+        // Intelligence not attempted this pass).
+        Route(
+          path: '/analytics',
+          builder: (context, state) => shellFor(
+            state,
+            AnalyticsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
+          ),
+        ),
         Route(
           path: '/home-legacy',
           builder: (context, state) => DashboardHomePage(
@@ -747,6 +815,23 @@ class _DashboardAppState extends State<DashboardApp> {
             client: _client,
             accessToken: _session!.accessToken,
             workspaceId: _selectedWorkspace!.id!,
+          ),
+        ),
+        // Phase 13d — one Errand's run history, reached via the
+        // "History" link on each row in ErrandBuilderPage's list. Uses
+        // shellFor (unlike /errands above) since this is an ordinary
+        // detail page, not the builder's own full-bleed layout.
+        Route(
+          path: '/errands/:id/runs',
+          builder: (context, state) => shellFor(
+            state,
+            AutomationRunsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              errandId: int.tryParse(state.params['id'] ?? '') ?? 0,
+              gate: _gate,
+            ),
           ),
         ),
         Route(

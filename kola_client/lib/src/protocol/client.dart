@@ -23,40 +23,45 @@ import 'package:kola_client/src/protocol/support_ticket.dart' as _i9;
 import 'package:kola_client/src/protocol/workspace.dart' as _i10;
 import 'package:kola_client/src/protocol/bot.dart' as _i11;
 import 'package:kola_client/src/protocol/channel.dart' as _i12;
-import 'package:kola_client/src/protocol/broadcast.dart' as _i13;
-import 'package:kola_client/src/protocol/broadcast_progress.dart' as _i14;
-import 'package:kola_client/src/protocol/message_suppression.dart' as _i15;
-import 'package:kola_client/src/protocol/connector_status.dart' as _i16;
-import 'package:kola_client/src/protocol/google_drive_spreadsheet.dart' as _i17;
-import 'package:kola_client/src/protocol/calendar_booking.dart' as _i18;
-import 'package:kola_client/src/protocol/customer.dart' as _i19;
-import 'package:kola_client/src/protocol/customer_detail.dart' as _i20;
-import 'package:kola_client/src/protocol/customer_merge_proposal.dart' as _i21;
-import 'package:kola_client/src/protocol/workspace_finding.dart' as _i22;
-import 'package:kola_client/src/protocol/invoice.dart' as _i23;
-import 'package:kola_client/src/protocol/knowledge_search_hit.dart' as _i24;
-import 'package:kola_client/src/protocol/workspace_answer.dart' as _i25;
+import 'package:kola_client/src/protocol/analytics_summary.dart' as _i13;
+import 'package:kola_client/src/protocol/broadcast.dart' as _i14;
+import 'package:kola_client/src/protocol/broadcast_progress.dart' as _i15;
+import 'package:kola_client/src/protocol/message_suppression.dart' as _i16;
+import 'package:kola_client/src/protocol/connector_status.dart' as _i17;
+import 'package:kola_client/src/protocol/google_drive_spreadsheet.dart' as _i18;
+import 'package:kola_client/src/protocol/calendar_booking.dart' as _i19;
+import 'package:kola_client/src/protocol/customer.dart' as _i20;
+import 'package:kola_client/src/protocol/customer_summary.dart' as _i21;
+import 'package:kola_client/src/protocol/customer_detail.dart' as _i22;
+import 'package:kola_client/src/protocol/customer_merge_proposal.dart' as _i23;
+import 'package:kola_client/src/protocol/customer_profile.dart' as _i24;
+import 'package:kola_client/src/protocol/errand_execution_log.dart' as _i25;
+import 'package:kola_client/src/protocol/workspace_finding.dart' as _i26;
+import 'package:kola_client/src/protocol/invoice.dart' as _i27;
+import 'package:kola_client/src/protocol/knowledge_search_hit.dart' as _i28;
+import 'package:kola_client/src/protocol/workspace_answer.dart' as _i29;
 import 'package:kola_client/src/protocol/owner_notification_settings.dart'
-    as _i26;
+    as _i30;
 import 'package:kola_client/src/protocol/payment_gateway_credential.dart'
-    as _i27;
-import 'package:kola_client/src/protocol/payment_transaction.dart' as _i28;
-import 'package:kola_client/src/protocol/api_key.dart' as _i29;
-import 'package:kola_client/src/protocol/created_api_key.dart' as _i30;
-import 'package:kola_client/src/protocol/webhook_endpoint.dart' as _i31;
-import 'package:kola_client/src/protocol/product.dart' as _i32;
-import 'package:kola_client/src/protocol/product_variant.dart' as _i33;
-import 'package:kola_client/src/protocol/public_catalog.dart' as _i34;
-import 'package:kola_client/src/protocol/product_media.dart' as _i35;
-import 'package:kola_client/src/protocol/end_of_day_report.dart' as _i36;
-import 'package:kola_client/src/protocol/sale.dart' as _i37;
-import 'package:kola_client/src/protocol/sale_line.dart' as _i38;
-import 'package:kola_client/src/protocol/till_display_state.dart' as _i39;
-import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i40;
+    as _i31;
+import 'package:kola_client/src/protocol/payment_transaction.dart' as _i32;
+import 'package:kola_client/src/protocol/api_key.dart' as _i33;
+import 'package:kola_client/src/protocol/created_api_key.dart' as _i34;
+import 'package:kola_client/src/protocol/webhook_endpoint.dart' as _i35;
+import 'package:kola_client/src/protocol/product.dart' as _i36;
+import 'package:kola_client/src/protocol/product_variant.dart' as _i37;
+import 'package:kola_client/src/protocol/public_catalog.dart' as _i38;
+import 'package:kola_client/src/protocol/product_media.dart' as _i39;
+import 'package:kola_client/src/protocol/end_of_day_report.dart' as _i40;
+import 'package:kola_client/src/protocol/sale.dart' as _i41;
+import 'package:kola_client/src/protocol/sale_line.dart' as _i42;
+import 'package:kola_client/src/protocol/task.dart' as _i43;
+import 'package:kola_client/src/protocol/till_display_state.dart' as _i44;
+import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i45;
 import 'package:kola_client/src/protocol/whatsapp_message_template.dart'
-    as _i41;
-import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i42;
-import 'protocol.dart' as _i43;
+    as _i46;
+import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i47;
+import 'protocol.dart' as _i48;
 
 /// {@category Endpoint}
 class EndpointAdminAccounts extends _i1.EndpointRef {
@@ -859,6 +864,28 @@ class EndpointAdminWorkspace extends _i1.EndpointRef {
 }
 
 /// {@category Endpoint}
+class EndpointAnalytics extends _i1.EndpointRef {
+  EndpointAnalytics(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'analytics';
+
+  _i2.Future<_i13.AnalyticsSummary> getSummary(
+    String accessToken,
+    int workspaceId, {
+    required int periodDays,
+  }) => caller.callServerEndpoint<_i13.AnalyticsSummary>(
+    'analytics',
+    'getSummary',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'periodDays': periodDays,
+    },
+  );
+}
+
+/// {@category Endpoint}
 class EndpointBot extends _i1.EndpointRef {
   EndpointBot(_i1.EndpointCaller caller) : super(caller);
 
@@ -1043,14 +1070,14 @@ class EndpointBroadcast extends _i1.EndpointRef {
   /// later, so totalRecipients reflects who could actually be reached —
   /// live suppression added AFTER this call is still re-checked at send
   /// time by broadcast_sweep_service.dart, per spec.
-  _i2.Future<_i13.Broadcast> createBroadcast(
+  _i2.Future<_i14.Broadcast> createBroadcast(
     String accessToken,
     int workspaceId,
     String platform,
     String text,
     String recipientsJson,
     int? throughputPerMinute,
-  ) => caller.callServerEndpoint<_i13.Broadcast>(
+  ) => caller.callServerEndpoint<_i14.Broadcast>(
     'broadcast',
     'createBroadcast',
     {
@@ -1066,11 +1093,11 @@ class EndpointBroadcast extends _i1.EndpointRef {
   /// draft -> running. broadcast_sweep_service.dart's next tick (every
   /// [BroadcastSweepService.tickInterval]) picks it up from here — this
   /// method does not send anything itself.
-  _i2.Future<_i13.Broadcast> startBroadcast(
+  _i2.Future<_i14.Broadcast> startBroadcast(
     String accessToken,
     int workspaceId,
     int broadcastId,
-  ) => caller.callServerEndpoint<_i13.Broadcast>(
+  ) => caller.callServerEndpoint<_i14.Broadcast>(
     'broadcast',
     'startBroadcast',
     {
@@ -1084,11 +1111,11 @@ class EndpointBroadcast extends _i1.EndpointRef {
   /// sent; only 'queued' rows are affected, and they simply never get
   /// attempted (broadcast_sweep_service.dart only ever works
   /// 'running' broadcasts).
-  _i2.Future<_i13.Broadcast> cancelBroadcast(
+  _i2.Future<_i14.Broadcast> cancelBroadcast(
     String accessToken,
     int workspaceId,
     int broadcastId,
-  ) => caller.callServerEndpoint<_i13.Broadcast>(
+  ) => caller.callServerEndpoint<_i14.Broadcast>(
     'broadcast',
     'cancelBroadcast',
     {
@@ -1098,10 +1125,10 @@ class EndpointBroadcast extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i13.Broadcast>> listBroadcasts(
+  _i2.Future<List<_i14.Broadcast>> listBroadcasts(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i13.Broadcast>>(
+  ) => caller.callServerEndpoint<List<_i14.Broadcast>>(
     'broadcast',
     'listBroadcasts',
     {
@@ -1113,11 +1140,11 @@ class EndpointBroadcast extends _i1.EndpointRef {
   /// "Live progress — sent, delivered, failed, remaining" (spec, minus
   /// delivered/read — see broadcast.spy.yaml's header on why those
   /// aren't tracked yet).
-  _i2.Future<_i14.BroadcastProgress> getBroadcastProgress(
+  _i2.Future<_i15.BroadcastProgress> getBroadcastProgress(
     String accessToken,
     int workspaceId,
     int broadcastId,
-  ) => caller.callServerEndpoint<_i14.BroadcastProgress>(
+  ) => caller.callServerEndpoint<_i15.BroadcastProgress>(
     'broadcast',
     'getBroadcastProgress',
     {
@@ -1127,10 +1154,10 @@ class EndpointBroadcast extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i15.MessageSuppression>> listSuppressions(
+  _i2.Future<List<_i16.MessageSuppression>> listSuppressions(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i15.MessageSuppression>>(
+  ) => caller.callServerEndpoint<List<_i16.MessageSuppression>>(
     'broadcast',
     'listSuppressions',
     {
@@ -1139,12 +1166,12 @@ class EndpointBroadcast extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i15.MessageSuppression> addSuppression(
+  _i2.Future<_i16.MessageSuppression> addSuppression(
     String accessToken,
     int workspaceId,
     String platform,
     String address,
-  ) => caller.callServerEndpoint<_i15.MessageSuppression>(
+  ) => caller.callServerEndpoint<_i16.MessageSuppression>(
     'broadcast',
     'addSuppression',
     {
@@ -1395,10 +1422,10 @@ class EndpointConnector extends _i1.EndpointRef {
   /// absence-not-false rule rather than an oversight. The exception is
   /// narrow: connector names only. No flag key, no state, nothing about
   /// the rest of the roadmap.
-  _i2.Future<List<_i16.ConnectorStatus>> listConnectors(
+  _i2.Future<List<_i17.ConnectorStatus>> listConnectors(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i16.ConnectorStatus>>(
+  ) => caller.callServerEndpoint<List<_i17.ConnectorStatus>>(
     'connector',
     'listConnectors',
     {
@@ -1414,12 +1441,12 @@ class EndpointConnector extends _i1.EndpointRef {
   /// the connector's own definition is DROPPED rather than stored —
   /// a caller cannot invent fields, so the encrypted blob's shape stays
   /// the one the catalog describes.
-  _i2.Future<_i16.ConnectorStatus> connectConnector(
+  _i2.Future<_i17.ConnectorStatus> connectConnector(
     String accessToken,
     int workspaceId,
     String connectorKey,
     Map<String, String> values,
-  ) => caller.callServerEndpoint<_i16.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i17.ConnectorStatus>(
     'connector',
     'connectConnector',
     {
@@ -1464,11 +1491,11 @@ class EndpointConnector extends _i1.EndpointRef {
   /// stored refresh token has no Drive grant, so Google will 403 this
   /// call until they reconnect. See this file's header on why that's
   /// surfaced as a clear "reconnect" message, not a raw API error.
-  _i2.Future<List<_i17.GoogleDriveSpreadsheet>> listGoogleSheets(
+  _i2.Future<List<_i18.GoogleDriveSpreadsheet>> listGoogleSheets(
     String accessToken,
     int workspaceId,
     String connectorKey,
-  ) => caller.callServerEndpoint<List<_i17.GoogleDriveSpreadsheet>>(
+  ) => caller.callServerEndpoint<List<_i18.GoogleDriveSpreadsheet>>(
     'connector',
     'listGoogleSheets',
     {
@@ -1484,12 +1511,12 @@ class EndpointConnector extends _i1.EndpointRef {
   /// from [listGoogleSheets]. An empty list is valid: it means "sync
   /// nothing", not an error — same as never having picked a sheet at all
   /// under the old single-target flow.
-  _i2.Future<_i16.ConnectorStatus> setGoogleSheetTargets(
+  _i2.Future<_i17.ConnectorStatus> setGoogleSheetTargets(
     String accessToken,
     int workspaceId,
     String connectorKey,
     List<String> spreadsheetIds,
-  ) => caller.callServerEndpoint<_i16.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i17.ConnectorStatus>(
     'connector',
     'setGoogleSheetTargets',
     {
@@ -1505,12 +1532,12 @@ class EndpointConnector extends _i1.EndpointRef {
   /// ADDS [sheetUrl] to whatever's already selected rather than
   /// replacing it, since a paste box has no way to express "and keep the
   /// others too" the way the picker's checkbox list does.
-  _i2.Future<_i16.ConnectorStatus> setGoogleSheetTarget(
+  _i2.Future<_i17.ConnectorStatus> setGoogleSheetTarget(
     String accessToken,
     int workspaceId,
     String connectorKey,
     String sheetUrl,
-  ) => caller.callServerEndpoint<_i16.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i17.ConnectorStatus>(
     'connector',
     'setGoogleSheetTarget',
     {
@@ -1603,12 +1630,12 @@ class EndpointConnector extends _i1.EndpointRef {
   /// stored — see that method's header. Doing this here rather than at
   /// sync time means a bad link fails LOUD, in front of the owner who
   /// just pasted it, not silently on the next unattended sweep run.
-  _i2.Future<_i16.ConnectorStatus> setExcelFileTarget(
+  _i2.Future<_i17.ConnectorStatus> setExcelFileTarget(
     String accessToken,
     int workspaceId,
     String connectorKey,
     String fileUrl,
-  ) => caller.callServerEndpoint<_i16.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i17.ConnectorStatus>(
     'connector',
     'setExcelFileTarget',
     {
@@ -1629,11 +1656,11 @@ class EndpointConnector extends _i1.EndpointRef {
   /// UNSET value (a connection made before this setting existed, or one
   /// never touched) as 'draft' — the safer default, never 'immediate'
   /// by omission.
-  _i2.Future<_i16.ConnectorStatus> setCalendarBookingMode(
+  _i2.Future<_i17.ConnectorStatus> setCalendarBookingMode(
     String accessToken,
     int workspaceId,
     String bookingMode,
-  ) => caller.callServerEndpoint<_i16.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i17.ConnectorStatus>(
     'connector',
     'setCalendarBookingMode',
     {
@@ -1647,10 +1674,10 @@ class EndpointConnector extends _i1.EndpointRef {
   /// still needs an owner's yes/no. Draft-mode bookings only — a
   /// workspace running in immediate mode never accumulates any of these,
   /// since bookCalendarEvent skips straight to Google for them.
-  _i2.Future<List<_i18.CalendarBooking>> listPendingBookings(
+  _i2.Future<List<_i19.CalendarBooking>> listPendingBookings(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i18.CalendarBooking>>(
+  ) => caller.callServerEndpoint<List<_i19.CalendarBooking>>(
     'connector',
     'listPendingBookings',
     {
@@ -1665,11 +1692,11 @@ class EndpointConnector extends _i1.EndpointRef {
   /// booking is left sitting at 'approved' rather than silently reverted
   /// — visibly stuck, matching migration 042's own reasoning for why
   /// 'approved' and 'booked' are distinct states, not one.
-  _i2.Future<_i18.CalendarBooking> approveBooking(
+  _i2.Future<_i19.CalendarBooking> approveBooking(
     String accessToken,
     int workspaceId,
     int bookingId,
-  ) => caller.callServerEndpoint<_i18.CalendarBooking>(
+  ) => caller.callServerEndpoint<_i19.CalendarBooking>(
     'connector',
     'approveBooking',
     {
@@ -1679,11 +1706,11 @@ class EndpointConnector extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i18.CalendarBooking> rejectBooking(
+  _i2.Future<_i19.CalendarBooking> rejectBooking(
     String accessToken,
     int workspaceId,
     int bookingId,
-  ) => caller.callServerEndpoint<_i18.CalendarBooking>(
+  ) => caller.callServerEndpoint<_i19.CalendarBooking>(
     'connector',
     'rejectBooking',
     {
@@ -1696,11 +1723,11 @@ class EndpointConnector extends _i1.EndpointRef {
   /// Disconnects, clearing the stored credential but keeping the row —
   /// 'disconnected' and "never connected" are different states, and the
   /// row is the only record that this business ever had it working.
-  _i2.Future<_i16.ConnectorStatus> disconnectConnector(
+  _i2.Future<_i17.ConnectorStatus> disconnectConnector(
     String accessToken,
     int workspaceId,
     String connectorKey,
-  ) => caller.callServerEndpoint<_i16.ConnectorStatus>(
+  ) => caller.callServerEndpoint<_i17.ConnectorStatus>(
     'connector',
     'disconnectConnector',
     {
@@ -1810,12 +1837,12 @@ class EndpointCustomer extends _i1.EndpointRef {
   @override
   String get name => 'customer';
 
-  _i2.Future<List<_i19.Customer>> listCustomers(
+  _i2.Future<List<_i20.Customer>> listCustomers(
     String accessToken,
     int workspaceId, {
     required int limit,
     required int offset,
-  }) => caller.callServerEndpoint<List<_i19.Customer>>(
+  }) => caller.callServerEndpoint<List<_i20.Customer>>(
     'customer',
     'listCustomers',
     {
@@ -1826,13 +1853,39 @@ class EndpointCustomer extends _i1.EndpointRef {
     },
   );
 
+  /// Phase 13f — the Customers page's list, with lifetime value and
+  /// order count already computed per customer, so the page doesn't
+  /// have to call getCustomerDetail once per row (an N+1 this endpoint
+  /// avoids by fetching Sales/Payments/Conversations ONCE for the whole
+  /// workspace and grouping in memory — same shape as
+  /// AnalyticsEndpoint.getSummary, Phase 13e).
+  ///
+  /// De-duplicated the same way: a completed PaymentTransaction already
+  /// matched to a Sale via saleId is not counted twice. `from`/`to` span
+  /// effectively "all time" — there's no natural period boundary for a
+  /// customer's own lifetime value the way Analytics has one for a
+  /// revenue trend.
+  _i2.Future<List<_i21.CustomerSummary>> listCustomersWithSummary(
+    String accessToken,
+    int workspaceId, {
+    required int limit,
+  }) => caller.callServerEndpoint<List<_i21.CustomerSummary>>(
+    'customer',
+    'listCustomersWithSummary',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'limit': limit,
+    },
+  );
+
   /// The Gate 3b proof surface: everything this customer has ever done,
   /// across every source, in one place — see CustomerDetail's header.
-  _i2.Future<_i20.CustomerDetail> getCustomerDetail(
+  _i2.Future<_i22.CustomerDetail> getCustomerDetail(
     String accessToken,
     int workspaceId,
     int customerId,
-  ) => caller.callServerEndpoint<_i20.CustomerDetail>(
+  ) => caller.callServerEndpoint<_i22.CustomerDetail>(
     'customer',
     'getCustomerDetail',
     {
@@ -1844,10 +1897,10 @@ class EndpointCustomer extends _i1.EndpointRef {
 
   /// The merge-review queue — PART V: "Merges are proposals, not
   /// facts... the owner confirms."
-  _i2.Future<List<_i21.CustomerMergeProposal>> listMergeProposals(
+  _i2.Future<List<_i23.CustomerMergeProposal>> listMergeProposals(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i21.CustomerMergeProposal>>(
+  ) => caller.callServerEndpoint<List<_i23.CustomerMergeProposal>>(
     'customer',
     'listMergeProposals',
     {
@@ -1876,6 +1929,30 @@ class EndpointCustomer extends _i1.EndpointRef {
       'workspaceId': workspaceId,
       'proposalId': proposalId,
       'approve': approve,
+    },
+  );
+}
+
+/// {@category Endpoint}
+class EndpointCustomerProfile extends _i1.EndpointRef {
+  EndpointCustomerProfile(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'customerProfile';
+
+  /// Null when nothing has been saved for this conversation — a
+  /// perfectly normal state, not an error.
+  _i2.Future<_i24.CustomerProfile?> getForConversation(
+    String accessToken,
+    int workspaceId,
+    int conversationId,
+  ) => caller.callServerEndpoint<_i24.CustomerProfile?>(
+    'customerProfile',
+    'getForConversation',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'conversationId': conversationId,
     },
   );
 }
@@ -1941,6 +2018,32 @@ class EndpointErrand extends _i1.EndpointRef {
   ) => caller.callServerEndpoint<_i6.Errand>(
     'errand',
     'getErrand',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'errandId': errandId,
+    },
+  );
+
+  /// Phase 13d — the run history behind `Kola Automation Builder.dc.html`.
+  ///
+  /// A DELIBERATELY SMALL SLICE of that export, not the whole thing —
+  /// see automation_runs_page.dart's own header for the full reasoning.
+  /// Short version: the export shows an ordered chain of steps with
+  /// per-step approval gates ("stopped at step 3, awaiting your
+  /// approval"). Nothing in this codebase models a multi-step chain —
+  /// Errand is one action, ErrandExecutionLog is one execution record of
+  /// one Errand, with no step concept and no approval/hold state. That
+  /// is real, separate future work (a new "Automation" entity above
+  /// Errand). What ships here is what already exists made visible: one
+  /// Errand's own execution history, newest first.
+  _i2.Future<List<_i25.ErrandExecutionLog>> listExecutions(
+    String accessToken,
+    int workspaceId,
+    int errandId,
+  ) => caller.callServerEndpoint<List<_i25.ErrandExecutionLog>>(
+    'errand',
+    'listExecutions',
     {
       'accessToken': accessToken,
       'workspaceId': workspaceId,
@@ -2277,10 +2380,10 @@ class EndpointFinding extends _i1.EndpointRef {
   /// Never throws for a workspace with nothing wrong — an empty list is
   /// the correct and common answer, and the dashboard renders it as
   /// "all clear" rather than as a failure.
-  _i2.Future<List<_i22.WorkspaceFinding>> listFindings(
+  _i2.Future<List<_i26.WorkspaceFinding>> listFindings(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i22.WorkspaceFinding>>(
+  ) => caller.callServerEndpoint<List<_i26.WorkspaceFinding>>(
     'finding',
     'listFindings',
     {
@@ -2329,7 +2432,7 @@ class EndpointInvoice extends _i1.EndpointRef {
   /// Totals are recomputed from [linesJson] here, server-side — never
   /// trusted from the caller, same discipline ringUpSale already applies
   /// to a sale's subtotal/tax/total.
-  _i2.Future<_i23.Invoice> createInvoice(
+  _i2.Future<_i27.Invoice> createInvoice(
     String accessToken,
     int workspaceId,
     String billToName,
@@ -2342,7 +2445,7 @@ class EndpointInvoice extends _i1.EndpointRef {
     required String currency,
     String? paymentInstructions,
     DateTime? dueAt,
-  }) => caller.callServerEndpoint<_i23.Invoice>(
+  }) => caller.callServerEndpoint<_i27.Invoice>(
     'invoice',
     'createInvoice',
     {
@@ -2361,12 +2464,12 @@ class EndpointInvoice extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i23.Invoice>> listInvoices(
+  _i2.Future<List<_i27.Invoice>> listInvoices(
     String accessToken,
     int workspaceId, {
     required int limit,
     required int offset,
-  }) => caller.callServerEndpoint<List<_i23.Invoice>>(
+  }) => caller.callServerEndpoint<List<_i27.Invoice>>(
     'invoice',
     'listInvoices',
     {
@@ -2377,11 +2480,11 @@ class EndpointInvoice extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i23.Invoice?> getInvoice(
+  _i2.Future<_i27.Invoice?> getInvoice(
     String accessToken,
     int workspaceId,
     int invoiceId,
-  ) => caller.callServerEndpoint<_i23.Invoice?>(
+  ) => caller.callServerEndpoint<_i27.Invoice?>(
     'invoice',
     'getInvoice',
     {
@@ -2394,11 +2497,11 @@ class EndpointInvoice extends _i1.EndpointRef {
   /// The most recently issued invoice for a given sale, or null. Lets
   /// Documents' A4 tab reuse an existing invoice instead of creating a
   /// new one every time an owner opens the tab for the same sale.
-  _i2.Future<_i23.Invoice?> getInvoiceForSale(
+  _i2.Future<_i27.Invoice?> getInvoiceForSale(
     String accessToken,
     int workspaceId,
     int saleId,
-  ) => caller.callServerEndpoint<_i23.Invoice?>(
+  ) => caller.callServerEndpoint<_i27.Invoice?>(
     'invoice',
     'getInvoiceForSale',
     {
@@ -2413,12 +2516,12 @@ class EndpointInvoice extends _i1.EndpointRef {
   /// No validation on the transition graph — same trust level Sale's own
   /// status already gets, and simpler than encoding a state machine for
   /// four values an owner is the sole judge of.
-  _i2.Future<_i23.Invoice> updateInvoiceStatus(
+  _i2.Future<_i27.Invoice> updateInvoiceStatus(
     String accessToken,
     int workspaceId,
     int invoiceId,
     String status,
-  ) => caller.callServerEndpoint<_i23.Invoice>(
+  ) => caller.callServerEndpoint<_i27.Invoice>(
     'invoice',
     'updateInvoiceStatus',
     {
@@ -2431,12 +2534,12 @@ class EndpointInvoice extends _i1.EndpointRef {
 
   /// Manual "mark as paid" — see this file's header on why this is not
   /// an automatic webhook credit yet.
-  _i2.Future<_i23.Invoice> recordPayment(
+  _i2.Future<_i27.Invoice> recordPayment(
     String accessToken,
     int workspaceId,
     int invoiceId,
     int amountMinor,
-  ) => caller.callServerEndpoint<_i23.Invoice>(
+  ) => caller.callServerEndpoint<_i27.Invoice>(
     'invoice',
     'recordPayment',
     {
@@ -2544,11 +2647,11 @@ class EndpointKnowledge extends _i1.EndpointRef {
   /// owner can type a question a customer actually asked and see exactly
   /// which passages ground the answer, rather than having to trust the
   /// bot or argue with it.
-  _i2.Future<List<_i24.KnowledgeSearchHit>> searchMemory(
+  _i2.Future<List<_i28.KnowledgeSearchHit>> searchMemory(
     String accessToken,
     int workspaceId,
     String query,
-  ) => caller.callServerEndpoint<List<_i24.KnowledgeSearchHit>>(
+  ) => caller.callServerEndpoint<List<_i28.KnowledgeSearchHit>>(
     'knowledge',
     'searchMemory',
     {
@@ -2577,11 +2680,11 @@ class EndpointKnowledge extends _i1.EndpointRef {
   /// WorkspaceAnswerService. A question during a provider outage returns
   /// `generated: false` and an honest sentence, because an owner asking
   /// their own dashboard a question should not be shown a stack trace.
-  _i2.Future<_i25.WorkspaceAnswer> askWorkspace(
+  _i2.Future<_i29.WorkspaceAnswer> askWorkspace(
     String accessToken,
     int workspaceId,
     String question,
-  ) => caller.callServerEndpoint<_i25.WorkspaceAnswer>(
+  ) => caller.callServerEndpoint<_i29.WorkspaceAnswer>(
     'knowledge',
     'askWorkspace',
     {
@@ -2637,10 +2740,10 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
   /// Returns null if the workspace has never configured notification
   /// settings yet — callers should treat that as "every channel
   /// disabled," not an error.
-  _i2.Future<_i26.OwnerNotificationSettings?> getSettings(
+  _i2.Future<_i30.OwnerNotificationSettings?> getSettings(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<_i26.OwnerNotificationSettings?>(
+  ) => caller.callServerEndpoint<_i30.OwnerNotificationSettings?>(
     'ownerNotification',
     'getSettings',
     {
@@ -2653,7 +2756,7 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
   /// Any field left null/false simply disables that channel; there's no
   /// partial-update semantics here on purpose, since a settings form
   /// naturally submits the whole shape at once.
-  _i2.Future<_i26.OwnerNotificationSettings> updateSettings(
+  _i2.Future<_i30.OwnerNotificationSettings> updateSettings(
     String accessToken,
     int workspaceId, {
     String? ownerEmail,
@@ -2666,7 +2769,7 @@ class EndpointOwnerNotification extends _i1.EndpointRef {
     required bool smsEnabled,
     String? slackWebhookUrl,
     required bool slackEnabled,
-  }) => caller.callServerEndpoint<_i26.OwnerNotificationSettings>(
+  }) => caller.callServerEndpoint<_i30.OwnerNotificationSettings>(
     'ownerNotification',
     'updateSettings',
     {
@@ -2701,14 +2804,14 @@ class EndpointPayment extends _i1.EndpointRef {
   /// encryptedApiKey field doc on why Monnify needs a second required
   /// credential none of the other three gateways do. Ignored for every
   /// other gateway.
-  _i2.Future<_i27.PaymentGatewayCredential> connectGateway(
+  _i2.Future<_i31.PaymentGatewayCredential> connectGateway(
     String accessToken,
     int workspaceId,
     String gateway,
     String secretKey, {
     String? webhookSecret,
     String? apiKey,
-  }) => caller.callServerEndpoint<_i27.PaymentGatewayCredential>(
+  }) => caller.callServerEndpoint<_i31.PaymentGatewayCredential>(
     'payment',
     'connectGateway',
     {
@@ -2724,10 +2827,10 @@ class EndpointPayment extends _i1.EndpointRef {
   /// Every gateway this workspace has connected (never returns the
   /// decrypted key — this exists so a dashboard can show "Paystack:
   /// connected" without exposing the secret back to any client).
-  _i2.Future<List<_i27.PaymentGatewayCredential>> listConnectedGateways(
+  _i2.Future<List<_i31.PaymentGatewayCredential>> listConnectedGateways(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i27.PaymentGatewayCredential>>(
+  ) => caller.callServerEndpoint<List<_i31.PaymentGatewayCredential>>(
     'payment',
     'listConnectedGateways',
     {
@@ -2739,7 +2842,7 @@ class EndpointPayment extends _i1.EndpointRef {
   /// Starts a checkout against the workspace's OWN connected [gateway]
   /// account. See payment_checkout_service.dart for what actually
   /// happens — this method's only job is the auth check.
-  _i2.Future<_i28.PaymentTransaction> initializeCheckout(
+  _i2.Future<_i32.PaymentTransaction> initializeCheckout(
     String accessToken,
     int workspaceId,
     String gateway,
@@ -2750,7 +2853,7 @@ class EndpointPayment extends _i1.EndpointRef {
     int? conversationId,
     int? channelId,
     Map<String, dynamic>? metadata,
-  }) => caller.callServerEndpoint<_i28.PaymentTransaction>(
+  }) => caller.callServerEndpoint<_i32.PaymentTransaction>(
     'payment',
     'initializeCheckout',
     {
@@ -2767,11 +2870,11 @@ class EndpointPayment extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i28.PaymentTransaction?> getTransaction(
+  _i2.Future<_i32.PaymentTransaction?> getTransaction(
     String accessToken,
     int workspaceId,
     int transactionId,
-  ) => caller.callServerEndpoint<_i28.PaymentTransaction?>(
+  ) => caller.callServerEndpoint<_i32.PaymentTransaction?>(
     'payment',
     'getTransaction',
     {
@@ -2788,11 +2891,11 @@ class EndpointPayment extends _i1.EndpointRef {
   /// know that, per this codebase's usual "never trust a caller-supplied
   /// precondition" rule (same reasoning as db_credential_errand_executor's
   /// double read-only check).
-  _i2.Future<_i28.PaymentTransaction> releaseHold(
+  _i2.Future<_i32.PaymentTransaction> releaseHold(
     String accessToken,
     int workspaceId,
     int transactionId,
-  ) => caller.callServerEndpoint<_i28.PaymentTransaction>(
+  ) => caller.callServerEndpoint<_i32.PaymentTransaction>(
     'payment',
     'releaseHold',
     {
@@ -2812,10 +2915,10 @@ class EndpointPlatform extends _i1.EndpointRef {
 
   /// Every key for the workspace, revoked ones included — the design
   /// shows them so an owner can see what they turned off.
-  _i2.Future<List<_i29.ApiKey>> listApiKeys(
+  _i2.Future<List<_i33.ApiKey>> listApiKeys(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i29.ApiKey>>(
+  ) => caller.callServerEndpoint<List<_i33.ApiKey>>(
     'platform',
     'listApiKeys',
     {
@@ -2825,12 +2928,12 @@ class EndpointPlatform extends _i1.EndpointRef {
   );
 
   /// Creates a key. The response carries the ONLY copy of the plaintext.
-  _i2.Future<_i30.CreatedApiKey> createApiKey(
+  _i2.Future<_i34.CreatedApiKey> createApiKey(
     String accessToken,
     int workspaceId,
     String name,
     String scope,
-  ) => caller.callServerEndpoint<_i30.CreatedApiKey>(
+  ) => caller.callServerEndpoint<_i34.CreatedApiKey>(
     'platform',
     'createApiKey',
     {
@@ -2857,10 +2960,10 @@ class EndpointPlatform extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i31.WebhookEndpoint>> listWebhookEndpoints(
+  _i2.Future<List<_i35.WebhookEndpoint>> listWebhookEndpoints(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i31.WebhookEndpoint>>(
+  ) => caller.callServerEndpoint<List<_i35.WebhookEndpoint>>(
     'platform',
     'listWebhookEndpoints',
     {
@@ -2873,12 +2976,12 @@ class EndpointPlatform extends _i1.EndpointRef {
   ///
   /// The signing secret is generated here and encrypted before storage —
   /// unlike an API key, kola must recover this one to sign each delivery.
-  _i2.Future<_i31.WebhookEndpoint> saveWebhookEndpoint(
+  _i2.Future<_i35.WebhookEndpoint> saveWebhookEndpoint(
     String accessToken,
     int workspaceId,
     String url,
     List<String> events,
-  ) => caller.callServerEndpoint<_i31.WebhookEndpoint>(
+  ) => caller.callServerEndpoint<_i35.WebhookEndpoint>(
     'platform',
     'saveWebhookEndpoint',
     {
@@ -2911,11 +3014,11 @@ class EndpointProduct extends _i1.EndpointRef {
   @override
   String get name => 'product';
 
-  _i2.Future<List<_i32.Product>> listProducts(
+  _i2.Future<List<_i36.Product>> listProducts(
     String accessToken,
     int workspaceId, {
     required bool includeArchived,
-  }) => caller.callServerEndpoint<List<_i32.Product>>(
+  }) => caller.callServerEndpoint<List<_i36.Product>>(
     'product',
     'listProducts',
     {
@@ -2925,11 +3028,11 @@ class EndpointProduct extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<_i32.Product?> getProduct(
+  _i2.Future<_i36.Product?> getProduct(
     String accessToken,
     int workspaceId,
     int productId,
-  ) => caller.callServerEndpoint<_i32.Product?>(
+  ) => caller.callServerEndpoint<_i36.Product?>(
     'product',
     'getProduct',
     {
@@ -2943,11 +3046,11 @@ class EndpointProduct extends _i1.EndpointRef {
   ///
   /// Scoped through the product rather than queried directly: resolving
   /// the parent first is what proves the caller is entitled to it.
-  _i2.Future<List<_i33.ProductVariant>> listVariants(
+  _i2.Future<List<_i37.ProductVariant>> listVariants(
     String accessToken,
     int workspaceId,
     int productId,
-  ) => caller.callServerEndpoint<List<_i33.ProductVariant>>(
+  ) => caller.callServerEndpoint<List<_i37.ProductVariant>>(
     'product',
     'listVariants',
     {
@@ -2962,7 +3065,7 @@ class EndpointProduct extends _i1.EndpointRef {
   /// Note what is NOT a parameter: workspaceId comes from the argument
   /// and is checked, and status is not settable — a product is created
   /// active, and archiving is its own method with its own meaning.
-  _i2.Future<_i32.Product> createProduct(
+  _i2.Future<_i36.Product> createProduct(
     String accessToken,
     int workspaceId,
     String name, {
@@ -2976,7 +3079,7 @@ class EndpointProduct extends _i1.EndpointRef {
     int? costMinor,
     int? stock,
     required int lowStockThreshold,
-  }) => caller.callServerEndpoint<_i32.Product>(
+  }) => caller.callServerEndpoint<_i36.Product>(
     'product',
     'createProduct',
     {
@@ -3003,7 +3106,7 @@ class EndpointProduct extends _i1.EndpointRef {
   /// [clearStock] exist for that. Without them there would be no way to
   /// turn a priced product into an on-request one, which is exactly what
   /// happens when a shop stops publishing a price.
-  _i2.Future<_i32.Product> updateProduct(
+  _i2.Future<_i36.Product> updateProduct(
     String accessToken,
     int workspaceId,
     int productId, {
@@ -3020,7 +3123,7 @@ class EndpointProduct extends _i1.EndpointRef {
     int? stock,
     required bool clearStock,
     int? lowStockThreshold,
-  }) => caller.callServerEndpoint<_i32.Product>(
+  }) => caller.callServerEndpoint<_i36.Product>(
     'product',
     'updateProduct',
     {
@@ -3065,14 +3168,14 @@ class EndpointProduct extends _i1.EndpointRef {
   /// a custom model as an endpoint parameter. Their lengths must match;
   /// a mismatch is a client bug and is refused rather than zipped to the
   /// shortest, which would silently drop a variant the owner entered.
-  _i2.Future<List<_i33.ProductVariant>> replaceVariants(
+  _i2.Future<List<_i37.ProductVariant>> replaceVariants(
     String accessToken,
     int workspaceId,
     int productId,
     List<String> labels,
     List<int?> stocks,
     List<int?> priceMinors,
-  ) => caller.callServerEndpoint<List<_i33.ProductVariant>>(
+  ) => caller.callServerEndpoint<List<_i37.ProductVariant>>(
     'product',
     'replaceVariants',
     {
@@ -3106,8 +3209,8 @@ class EndpointProduct extends _i1.EndpointRef {
   /// model's own header on why costMinor and exact stock counts cannot
   /// simply be "not read" by a careful caller; they must not be on the
   /// wire at all.
-  _i2.Future<_i34.PublicCatalog> getPublicCatalog(int workspaceId) =>
-      caller.callServerEndpoint<_i34.PublicCatalog>(
+  _i2.Future<_i38.PublicCatalog> getPublicCatalog(int workspaceId) =>
+      caller.callServerEndpoint<_i38.PublicCatalog>(
         'product',
         'getPublicCatalog',
         {'workspaceId': workspaceId},
@@ -3140,11 +3243,11 @@ class EndpointProduct extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i35.ProductMedia>> listMedia(
+  _i2.Future<List<_i39.ProductMedia>> listMedia(
     String accessToken,
     int workspaceId,
     int productId,
-  ) => caller.callServerEndpoint<List<_i35.ProductMedia>>(
+  ) => caller.callServerEndpoint<List<_i39.ProductMedia>>(
     'product',
     'listMedia',
     {
@@ -3201,11 +3304,11 @@ class EndpointProduct extends _i1.EndpointRef {
   ///
   /// So the wire type is a String this endpoint parses itself. Uglier,
   /// and it cannot regress on someone else's edit.
-  _i2.Future<List<_i35.ProductMedia>> listMediaForProducts(
+  _i2.Future<List<_i39.ProductMedia>> listMediaForProducts(
     String accessToken,
     int workspaceId,
     String productIds,
-  ) => caller.callServerEndpoint<List<_i35.ProductMedia>>(
+  ) => caller.callServerEndpoint<List<_i39.ProductMedia>>(
     'product',
     'listMediaForProducts',
     {
@@ -3223,7 +3326,7 @@ class EndpointProduct extends _i1.EndpointRef {
   /// "photo" at any URL on the internet — including one that changes
   /// after review. The url must sit under the configured ImageKit
   /// endpoint, and nothing else is accepted.
-  _i2.Future<_i35.ProductMedia> addProductMedia(
+  _i2.Future<_i39.ProductMedia> addProductMedia(
     String accessToken,
     int workspaceId,
     int productId,
@@ -3233,7 +3336,7 @@ class EndpointProduct extends _i1.EndpointRef {
     String? thumbnailUrl,
     int? width,
     int? height,
-  }) => caller.callServerEndpoint<_i35.ProductMedia>(
+  }) => caller.callServerEndpoint<_i39.ProductMedia>(
     'product',
     'addProductMedia',
     {
@@ -3318,12 +3421,12 @@ class EndpointProduct extends _i1.EndpointRef {
   /// cloud metadata service) or at localhost and read whatever came
   /// back through the resulting image. The scheme and host checks below
   /// are the whole defence and are not optional.
-  _i2.Future<_i35.ProductMedia?> importMediaFromUrl(
+  _i2.Future<_i39.ProductMedia?> importMediaFromUrl(
     String accessToken,
     int workspaceId,
     int productId,
     String sourceUrl,
-  ) => caller.callServerEndpoint<_i35.ProductMedia?>(
+  ) => caller.callServerEndpoint<_i39.ProductMedia?>(
     'product',
     'importMediaFromUrl',
     {
@@ -3347,11 +3450,11 @@ class EndpointReport extends _i1.EndpointRef {
   /// Defaults to today (server UTC) when omitted, which is the only
   /// case documents_page.dart currently calls with — a date picker for
   /// past days is a natural follow-up, not built here.
-  _i2.Future<_i36.EndOfDayReport> getEndOfDayReport(
+  _i2.Future<_i40.EndOfDayReport> getEndOfDayReport(
     String accessToken,
     int workspaceId, {
     DateTime? date,
-  }) => caller.callServerEndpoint<_i36.EndOfDayReport>(
+  }) => caller.callServerEndpoint<_i40.EndOfDayReport>(
     'report',
     'getEndOfDayReport',
     {
@@ -3375,7 +3478,7 @@ class EndpointSale extends _i1.EndpointRef {
   /// Customer through the same deterministic matcher every other intake
   /// path uses, so the till participates in the graph rather than
   /// sitting beside it.
-  _i2.Future<_i37.Sale> ringUpSale(
+  _i2.Future<_i41.Sale> ringUpSale(
     String accessToken,
     int workspaceId, {
     required String linesJson,
@@ -3384,7 +3487,7 @@ class EndpointSale extends _i1.EndpointRef {
     String? clientReference,
     String? customerPhone,
     String? customerName,
-  }) => caller.callServerEndpoint<_i37.Sale>(
+  }) => caller.callServerEndpoint<_i41.Sale>(
     'sale',
     'ringUpSale',
     {
@@ -3399,12 +3502,12 @@ class EndpointSale extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i37.Sale>> listSales(
+  _i2.Future<List<_i41.Sale>> listSales(
     String accessToken,
     int workspaceId, {
     required int limit,
     required int offset,
-  }) => caller.callServerEndpoint<List<_i37.Sale>>(
+  }) => caller.callServerEndpoint<List<_i41.Sale>>(
     'sale',
     'listSales',
     {
@@ -3415,11 +3518,11 @@ class EndpointSale extends _i1.EndpointRef {
     },
   );
 
-  _i2.Future<List<_i38.SaleLine>> getSaleLines(
+  _i2.Future<List<_i42.SaleLine>> getSaleLines(
     String accessToken,
     int workspaceId,
     int saleId,
-  ) => caller.callServerEndpoint<List<_i38.SaleLine>>(
+  ) => caller.callServerEndpoint<List<_i42.SaleLine>>(
     'sale',
     'getSaleLines',
     {
@@ -3470,6 +3573,85 @@ class EndpointSupportTicket extends _i1.EndpointRef {
       'workspaceId': workspaceId,
       'ticketId': ticketId,
       'status': status,
+    },
+  );
+}
+
+/// {@category Endpoint}
+class EndpointTask extends _i1.EndpointRef {
+  EndpointTask(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'task';
+
+  /// Every task for a workspace — tasks_page.dart buckets these into
+  /// the three kanban columns client-side by status.
+  _i2.Future<List<_i43.Task>> list(
+    String accessToken,
+    int workspaceId,
+  ) => caller.callServerEndpoint<List<_i43.Task>>(
+    'task',
+    'list',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+    },
+  );
+
+  /// Creates a task by hand — see file header on why this exists even
+  /// though the design export itself only shows pre-populated cards.
+  _i2.Future<_i43.Task> create(
+    String accessToken,
+    int workspaceId,
+    String title, {
+    required String priority,
+    String? sourceType,
+    int? sourceFindingId,
+    String? assignee,
+    DateTime? dueAt,
+  }) => caller.callServerEndpoint<_i43.Task>(
+    'task',
+    'create',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'title': title,
+      'priority': priority,
+      'sourceType': sourceType,
+      'sourceFindingId': sourceFindingId,
+      'assignee': assignee,
+      'dueAt': dueAt,
+    },
+  );
+
+  /// Moves a task between columns — 'todo' | 'in_progress' | 'done'.
+  _i2.Future<_i43.Task> setStatus(
+    String accessToken,
+    int workspaceId,
+    int taskId,
+    String status,
+  ) => caller.callServerEndpoint<_i43.Task>(
+    'task',
+    'setStatus',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'taskId': taskId,
+      'status': status,
+    },
+  );
+
+  _i2.Future<void> delete(
+    String accessToken,
+    int workspaceId,
+    int taskId,
+  ) => caller.callServerEndpoint<void>(
+    'task',
+    'delete',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'taskId': taskId,
     },
   );
 }
@@ -3528,8 +3710,8 @@ class EndpointTillDisplay extends _i1.EndpointRef {
   /// a fresh row would represent, rather than an error — the display is
   /// meant to be left open on a screen well before the first sale of
   /// the day, not opened only once a sale is already in progress.
-  _i2.Future<_i39.TillDisplayState> getState(int workspaceId) =>
-      caller.callServerEndpoint<_i39.TillDisplayState>(
+  _i2.Future<_i44.TillDisplayState> getState(int workspaceId) =>
+      caller.callServerEndpoint<_i44.TillDisplayState>(
         'tillDisplay',
         'getState',
         {'workspaceId': workspaceId},
@@ -3550,13 +3732,13 @@ class EndpointWaitlist extends _i1.EndpointRef {
   /// A basic shape check on [email] happens here rather than trusting the
   /// browser's <input type="email"> alone, since this endpoint is public
   /// and reachable by anything, not just our own landing page.
-  _i2.Future<_i40.WaitlistSignup> joinWaitlist(
+  _i2.Future<_i45.WaitlistSignup> joinWaitlist(
     String email,
     String source, {
     String? name,
     String? phone,
     String? businessType,
-  }) => caller.callServerEndpoint<_i40.WaitlistSignup>(
+  }) => caller.callServerEndpoint<_i45.WaitlistSignup>(
     'waitlist',
     'joinWaitlist',
     {
@@ -3583,7 +3765,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// wrapper for the one shape the owner specifically asked for.
   /// Auth-checked here, then delegated to WhatsAppTemplateCreationService
   /// — see this file's header.
-  _i2.Future<_i41.WhatsAppMessageTemplate> createTemplate(
+  _i2.Future<_i46.WhatsAppMessageTemplate> createTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
@@ -3592,7 +3774,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
     String language,
     String bodyText,
     List<String> bodyExampleValues,
-  ) => caller.callServerEndpoint<_i41.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i46.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createTemplate',
     {
@@ -3619,14 +3801,14 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// values Meta's review requires for the two placeholders — not sent
   /// to any real customer, only shown to Meta's reviewer alongside the
   /// template.
-  _i2.Future<_i41.WhatsAppMessageTemplate> createProductListTemplate(
+  _i2.Future<_i46.WhatsAppMessageTemplate> createProductListTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
     String businessLabel,
     String customerNameExample,
     String productListExample,
-  ) => caller.callServerEndpoint<_i41.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i46.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createProductListTemplate',
     {
@@ -3641,10 +3823,10 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
 
   /// Every template submitted for this workspace, newest first — the
   /// dashboard's template status list.
-  _i2.Future<List<_i41.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
+  _i2.Future<List<_i46.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i41.WhatsAppMessageTemplate>>(
+  ) => caller.callServerEndpoint<List<_i46.WhatsAppMessageTemplate>>(
     'whatsAppTemplate',
     'listTemplatesForWorkspace',
     {
@@ -3656,11 +3838,11 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// Polls Meta for [templateId]'s current review outcome and persists
   /// any change — see whatsapp_template_service.dart's header on why
   /// this is polling, not a webhook, for now.
-  _i2.Future<_i41.WhatsAppMessageTemplate> refreshTemplateStatus(
+  _i2.Future<_i46.WhatsAppMessageTemplate> refreshTemplateStatus(
     String accessToken,
     int workspaceId,
     int templateId,
-  ) => caller.callServerEndpoint<_i41.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i46.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'refreshTemplateStatus',
     {
@@ -3842,12 +4024,12 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// workspace collecting from ITS OWN customers). [customerEmail] is
   /// the signed-in dashboard user's email — the gateway needs an email
   /// on file for the checkout page/receipt regardless of who's paying.
-  _i2.Future<_i42.KolaBillingCheckout> initiateUpgrade(
+  _i2.Future<_i47.KolaBillingCheckout> initiateUpgrade(
     String accessToken,
     int workspaceId,
     String gateway,
     String customerEmail,
-  ) => caller.callServerEndpoint<_i42.KolaBillingCheckout>(
+  ) => caller.callServerEndpoint<_i47.KolaBillingCheckout>(
     'workspace',
     'initiateUpgrade',
     {
@@ -3879,7 +4061,7 @@ class Client extends _i1.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i43.Protocol(),
+         _i48.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -3898,12 +4080,14 @@ class Client extends _i1.ServerpodClientShared {
     adminPlatform = EndpointAdminPlatform(this);
     adminSupport = EndpointAdminSupport(this);
     adminWorkspace = EndpointAdminWorkspace(this);
+    analytics = EndpointAnalytics(this);
     bot = EndpointBot(this);
     broadcast = EndpointBroadcast(this);
     channel = EndpointChannel(this);
     connector = EndpointConnector(this);
     conversation = EndpointConversation(this);
     customer = EndpointCustomer(this);
+    customerProfile = EndpointCustomerProfile(this);
     errand = EndpointErrand(this);
     feature = EndpointFeature(this);
     finding = EndpointFinding(this);
@@ -3916,6 +4100,7 @@ class Client extends _i1.ServerpodClientShared {
     report = EndpointReport(this);
     sale = EndpointSale(this);
     supportTicket = EndpointSupportTicket(this);
+    task = EndpointTask(this);
     tillDisplay = EndpointTillDisplay(this);
     waitlist = EndpointWaitlist(this);
     whatsAppTemplate = EndpointWhatsAppTemplate(this);
@@ -3942,6 +4127,8 @@ class Client extends _i1.ServerpodClientShared {
 
   late final EndpointAdminWorkspace adminWorkspace;
 
+  late final EndpointAnalytics analytics;
+
   late final EndpointBot bot;
 
   late final EndpointBroadcast broadcast;
@@ -3953,6 +4140,8 @@ class Client extends _i1.ServerpodClientShared {
   late final EndpointConversation conversation;
 
   late final EndpointCustomer customer;
+
+  late final EndpointCustomerProfile customerProfile;
 
   late final EndpointErrand errand;
 
@@ -3978,6 +4167,8 @@ class Client extends _i1.ServerpodClientShared {
 
   late final EndpointSupportTicket supportTicket;
 
+  late final EndpointTask task;
+
   late final EndpointTillDisplay tillDisplay;
 
   late final EndpointWaitlist waitlist;
@@ -3998,12 +4189,14 @@ class Client extends _i1.ServerpodClientShared {
     'adminPlatform': adminPlatform,
     'adminSupport': adminSupport,
     'adminWorkspace': adminWorkspace,
+    'analytics': analytics,
     'bot': bot,
     'broadcast': broadcast,
     'channel': channel,
     'connector': connector,
     'conversation': conversation,
     'customer': customer,
+    'customerProfile': customerProfile,
     'errand': errand,
     'feature': feature,
     'finding': finding,
@@ -4016,6 +4209,7 @@ class Client extends _i1.ServerpodClientShared {
     'report': report,
     'sale': sale,
     'supportTicket': supportTicket,
+    'task': task,
     'tillDisplay': tillDisplay,
     'waitlist': waitlist,
     'whatsAppTemplate': whatsAppTemplate,

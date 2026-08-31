@@ -88,6 +88,7 @@ import 'package:kola_server/src/services/repository/payment_transaction_reposito
 import 'package:kola_server/src/services/billing/payment_reconciliation_service.dart';
 import 'package:kola_server/src/services/billing/payment_checkout_service.dart';
 import 'package:kola_server/src/services/repository/support_ticket_repository.dart';
+import 'package:kola_server/src/services/repository/task_repository.dart';
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
 import 'package:kola_server/src/services/repository/customer_profile_repository.dart';
 import 'package:kola_server/src/services/support/customer_campaign_sweep_service.dart';
@@ -776,6 +777,14 @@ void setupDependencyInjection() {
       conversations: getIt<ConversationRepository>(),
       notifications: getIt<OwnerNotificationDispatcher>(),
     ),
+  );
+
+  // Phase 13b — the backend behind /tasks. TaskEndpoint reads this
+  // directly via getIt; no service depends on it (yet — see
+  // task.spy.yaml's header on the sourceFindingId link to
+  // WorkspaceFinding, which is looked up by the dashboard, not here).
+  getIt.registerLazySingleton<TaskRepository>(
+    () => const TaskRepository(),
   );
 
   // Task #132 / Phase 8b — birthday/anniversary campaigns. The sweep

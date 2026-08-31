@@ -58,6 +58,7 @@ import 'package:kola_server/src/services/errand/db_credential_errand_credential.
 import 'package:kola_server/src/services/errand/db_schema_discovery_service.dart';
 import 'package:kola_server/src/services/errand/webhook_connection_tester.dart';
 import 'package:kola_server/src/services/repository/errand_entity_mapping_repository.dart';
+import 'package:kola_server/src/services/repository/errand_execution_log_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/security/security_filter.dart';
 import 'package:kola_server/kola_logger.dart';
@@ -83,6 +84,10 @@ class ErrandEndpoint extends Endpoint {
   DbSchemaDiscoveryService get _schemaDiscovery => getIt<DbSchemaDiscoveryService>();
   WebhookConnectionTester get _webhookTester => getIt<WebhookConnectionTester>();
   ErrandEntityMappingRepository get _entityMappings => getIt<ErrandEntityMappingRepository>();
+  // Phase 13d — run history for the (not-yet-built) Automation Builder
+  // page. See listExecutions' own doc comment on why this is a small,
+  // honest slice of that export rather than the whole thing.
+  ErrandExecutionLogRepository get _executionLogs => getIt<ErrandExecutionLogRepository>();
   SecurityFilter get _security => getIt<SecurityFilter>();
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
   TrialStateMachine get _trialStateMachine => getIt<TrialStateMachine>();
@@ -238,6 +243,33 @@ class ErrandEndpoint extends Endpoint {
       throw KolaException(message: 'Errand $errandId not found in workspace $workspaceId');
     }
     return errand;
+  }
+
+  /// Phase 13d — the run history behind `Kola Automation Builder.dc.html`.
+  ///
+  /// A DELIBERATELY SMALL SLICE of that export, not the whole thing —
+  /// see automation_runs_page.dart's own header for the full reasoning.
+  /// Short version: the export shows an ordered chain of steps with
+  /// per-step approval gates ("stopped at step 3, awaiting your
+  /// approval"). Nothing in this codebase models a multi-step chain —
+  /// Errand is one action, ErrandExecutionLog is one execution record of
+  /// one Errand, with no step concept and no approval/hold state. That
+  /// is real, separate future work (a new "Automation" entity above
+  /// Errand). What ships here is what already exists made visible: one
+  /// Errand's own execution history, newest first.
+  Future<List<ErrandExecutionLog>> listExecutions(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int errandId,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+    // Confirms the errand is actually this workspace's before handing
+    // back its logs — ErrandExecutionLogRepository.listByErrand takes no
+    // workspaceId itself (see that repository's own header).
+    await getErrand(session, accessToken, workspaceId, errandId);
+    final logs = await _executionLogs.listByErrand(errandId);
+    return [...logs]..sort((a, b) => b.executedAt.compareTo(a.executedAt));
   }
 
   /// Toggle an Errand active/disabled without deleting its history/logs.

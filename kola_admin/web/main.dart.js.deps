@@ -530,6 +530,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/pages/overvie
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/pages/platform_health_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/pages/release_control_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/pages/reset_password_page.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/pages/security_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/pages/support_queue_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/pages/workspace_admin_page.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/services/admin_error.dart
@@ -579,11 +580,15 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/product_media.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/product_variant.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/protocol.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/public_catalog.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/public_catalog_item.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/sale.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/sale_line.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/sale_line_input.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/subscription.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/support_ticket.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/till_display_item.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/till_display_state.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/usage_record.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/waitlist_signup.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/webhook_endpoint.dart

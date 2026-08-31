@@ -1,0 +1,26 @@
+##
+## analytics_summary.spy.yaml — Phase 13e. NOT A TABLE — a wire-only
+## OUTPUT type, same convention as end_of_day_report.spy.yaml. Computed
+## fresh from Sale/PaymentTransaction/Conversation rows on every call,
+## same "nothing here isn't already derivable, so no second table to
+## keep in sync" reasoning that file's header already gives.
+##
+## See analytics_endpoint.dart's own header for the full scope note:
+## this is the buildable half of `Kola Analytics.dc.html` — the
+## self-serve exploration page. `Kola Business Intelligence.dc.html`
+## (the curated, narrative sibling page) is NOT built this pass — it
+## needs an AI-reasoning layer (revenue narratives, correlation
+## detection) this codebase deliberately doesn't have yet, per Phase
+## 12's already-established "AI reasoning layer left unfilled" seam.
+##
+
+class: AnalyticsSummary
+fields:
+  workspaceId: int
+  periodDays: int
+  currency: String
+
+  ## Oldest first — one point per calendar day in the period.
+  dailyRevenue: List<AnalyticsDailyPoint>
+
+  segments: List<AnalyticsSegment>

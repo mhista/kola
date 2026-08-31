@@ -1,0 +1,98 @@
+##
+## task.spy.yaml — Phase 13b: the backend behind the previously-404ing
+## `/tasks` sidebar route. Built against Kola Tasks.dc.html (the design
+## export) — a 3-column board (To do / In progress / Done) where every
+## card can trace back to what generated it: a recommendation, an
+## observation, an operational issue, or nothing (typed in by hand).
+##
+## STATUS: 'todo' (default) | 'in_progress' | 'done'. completedAt is set
+## the moment status becomes 'done', cleared if ever moved back — same
+## pattern SupportTicket.resolvedAt already established for the identical
+## reason (see support_ticket.spy.yaml).
+##
+## PRIORITY: 'high' | 'medium' | 'low' (default 'medium') — drives the
+## card's left-border color in the export (PRIORITY_COLOR), same three
+## bands used everywhere else in this codebase (WorkspaceFinding's
+## severity, SupportTicket's priority).
+##
+## overdue IS NOT STORED — the export derives it from
+## `dueAt < now && status != done`. Storing a boolean that can go stale
+## the instant the clock ticks would just be a second source of truth to
+## keep in sync; the dashboard computes it at render time instead, same
+## choice WorkspaceFinding.confidence's header rejects a similar
+## always-recompute-vs-store tradeoff for the opposite reason (there,
+## storing was right because a sweep result shouldn't silently change
+## between reads — here, "is this overdue right now" SHOULD change the
+## instant `now` moves past `dueAt`, so storing would be wrong).
+##
+## ── TWO NAMED SIMPLIFICATIONS, READ BEFORE EXTENDING ──────────────────
+##
+## 1. `assignee` is free text (an initial, e.g. "A", or a name), not a
+##    foreign key to a member/user table. This codebase has no
+##    per-task-assignment infrastructure — no member picker, no
+##    "assigned to me" filter — anywhere yet. Inventing a full
+##    assignment system to back one field on one new page is out of
+##    proportion to what this pass is for; free text is the honest
+##    minimum that still renders the export's avatar-initial correctly.
+##    When a real member/role system exists, this becomes a foreign key
+##    and this note goes away.
+##
+## 2. `sourceType` is a free-text label ('recommendation' | 'observation'
+##    | 'operation' | null), not a strict polymorphic reference. Only
+##    'recommendation' and 'observation' get a real `sourceFindingId`
+##    link back to a WorkspaceFinding (both Recommendations and
+##    Observations already read from that same table — see
+##    recommendations_page.dart / observations_page.dart). 'operation'
+##    has no single backing table to point at yet (a task could trace to
+##    a conversation, a support ticket, or nothing) — sourceFindingId
+##    stays null for those, and the label alone still renders correctly
+##    (the export only ever shows the source's name + a link, which for
+##    'operation' points at the Operations page in general, not one row).
+##
+
+class: Task
+# table: tasks
+fields:
+  id: int? # Supabase assigns this automatically
+
+  # Foreign key → workspaces.id — every per-workspace query filters by
+  # it directly, same convention as every other model in this project.
+  workspaceId: int
+
+  title: String
+
+  # 'todo' | 'in_progress' | 'done' — which kanban column this renders
+  # in. See header.
+  status: String
+
+  # 'high' | 'medium' | 'low' — see header.
+  priority: String
+
+  # 'recommendation' | 'observation' | 'operation' | null — see header's
+  # second named simplification.
+  sourceType: String?
+
+  # Foreign key → workspace_findings.id — only ever set when sourceType
+  # is 'recommendation' or 'observation'. See header.
+  sourceFindingId: int?
+
+  # Free text — an initial or a name. See header's first named
+  # simplification.
+  assignee: String?
+
+  dueAt: DateTime?
+
+  # Set the moment status transitions to 'done' — null otherwise. See
+  # header on why overdue itself is never stored.
+  completedAt: DateTime?
+
+  createdAt: DateTime
+  updatedAt: DateTime
+
+indexes:
+  task_workspace_idx:
+    fields: workspaceId
+  task_status_idx:
+    fields: status
+  task_source_finding_idx:
+    fields: sourceFindingId

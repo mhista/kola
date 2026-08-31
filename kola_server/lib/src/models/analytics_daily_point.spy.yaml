@@ -1,0 +1,13 @@
+##
+## analytics_daily_point.spy.yaml — Phase 13e. NOT A TABLE — a wire-only
+## OUTPUT type nested inside AnalyticsSummary, same convention as
+## end_of_day_report.spy.yaml's own header explains in full. One bar in
+## the Analytics page's "Revenue by day" chart.
+##
+
+class: AnalyticsDailyPoint
+fields:
+  ## Midnight UTC of the day this point covers.
+  date: DateTime
+
+  grossMinor: int

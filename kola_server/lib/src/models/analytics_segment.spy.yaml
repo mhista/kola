@@ -1,0 +1,32 @@
+##
+## analytics_segment.spy.yaml — Phase 13e. NOT A TABLE — a wire-only
+## OUTPUT type nested inside AnalyticsSummary, same convention as
+## end_of_day_report.spy.yaml's own header explains in full. One row in
+## the Analytics page's segment table.
+##
+## SEGMENTED BY CHANNEL, NOT GEOGRAPHY — see analytics_endpoint.dart's
+## own header on why `Kola Analytics.dc.html`'s "WhatsApp — Lagos" /
+## "WhatsApp — Abuja" city-level rows and its "Repeat customers" /
+## "First-time customers" rows are NOT built here: this codebase has no
+## location field on Customer, and a customer-tenure classification pass
+## is real, separate, deferred work, not silently invented. What ships
+## is channel-based only — 'WhatsApp' | 'Telegram' | ... | 'In-person'.
+##
+
+class: AnalyticsSegment
+fields:
+  label: String
+
+  ## Conversations whose lastMessageAt fell inside the period, for this
+  ## channel. Always 0 for 'In-person' — there is no conversation
+  ## concept behind a till sale, and 0 here is a real, measured fact,
+  ## not a placeholder (see this file's header rule on never showing an
+  ## unmeasured zero — this one IS measured).
+  conversations: int
+
+  orders: int
+  revenueMinor: int
+
+  ## Null when there's no prior period to compare against (e.g. a
+  ## workspace younger than the period length) — never a fabricated 0%.
+  deltaPct: double?

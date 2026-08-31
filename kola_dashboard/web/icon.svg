@@ -1,0 +1,22 @@
+<!--
+  icon.svg — Phase 11g-a's PWA install icon.
+
+  NAMED, DELIBERATE PLACEHOLDER — not a designed brand mark. No app-icon
+  asset exists anywhere in this repo (only favicon.ico, a generic
+  browser-tab icon at 16-32px, too small and not maskable-safe for an
+  install icon shown at 192-512px on a home screen). Rather than ship a
+  blank/broken install prompt or block this whole sub-phase on a design
+  asset that doesn't exist, this is a simple monogram in the design
+  system's own accent colour (KolaDark._D.accent, '#C1552E' — see
+  lib/theme.dart) on a safe-zone-respecting solid background, drawn to
+  satisfy a maskable icon's center-80% content rule. Swap this file for
+  a real designed icon whenever one exists; nothing else needs to change
+  since manifest.json references it by this one path.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#121214"/>
+  <circle cx="256" cy="256" r="180" fill="#C1552E"/>
+  <text x="256" y="296" font-family="'Space Grotesk', 'Arial', sans-serif"
+        font-size="220" font-weight="700" fill="#FFF6EE"
+        text-anchor="middle">K</text>
+</svg>

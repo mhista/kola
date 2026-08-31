@@ -51,6 +51,8 @@ adminWorkspace:
   - suspend:
   - reinstate:
   - setInternal:
+analytics:
+  - getSummary:
 bot:
   - createBot:
   - createBotFromDescription:
@@ -100,13 +102,17 @@ conversation:
   - closeConversation:
 customer:
   - listCustomers:
+  - listCustomersWithSummary:
   - getCustomerDetail:
   - listMergeProposals:
   - resolveMergeProposal:
+customerProfile:
+  - getForConversation:
 errand:
   - createBuiltinErrand:
   - listErrandsForWorkspace:
   - getErrand:
+  - listExecutions:
   - setErrandStatus:
   - deleteErrand:
   - executeBuiltinErrand:
@@ -180,6 +186,11 @@ sale:
 supportTicket:
   - list:
   - setStatus:
+task:
+  - list:
+  - create:
+  - setStatus:
+  - delete:
 tillDisplay:
   - pushState:
   - getState:

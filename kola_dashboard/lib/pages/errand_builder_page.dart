@@ -51,6 +51,7 @@
 import 'dart:convert';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../theme.dart';
@@ -1629,6 +1630,23 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
         ),
         if (errand.source == 'dbCredential')
           _mappingToggleChip(errand),
+        // Phase 13d — links into automation_runs_page.dart, the new
+        // read-only run-history view. Not part of the original mockup
+        // (this row predates it); added because a run history that
+        // exists but has no entry point from anywhere is as good as not
+        // existing.
+        Link(
+          to: '/errands/${errand.id}/runs',
+          attributes: {
+            'style': 'display:flex;align-items:center;gap:6px;'
+                'background:${KolaDashboardColors.pill};'
+                'border:1px solid ${KolaDashboardColors.border};'
+                'border-radius:100px;padding:5px 11px;flex:none;'
+                'text-decoration:none;font-size:11.5px;font-weight:600;'
+                'color:${KolaDashboardColors.mutedSecondary}',
+          },
+          children: [Component.text('History')],
+        ),
         div(
           events: isToggling ? {} : {'click': (_) => _toggleStatus(errand)},
           attributes: {

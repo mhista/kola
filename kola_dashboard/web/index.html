@@ -10,6 +10,19 @@
        a relative favicon href breaks on a hard load of a nested route. -->
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
 
+  <!-- Phase 11g-a — PWA shell. manifest.json makes the app installable
+       (DESIGN_BRIEF_COMMERCE.md §4: "no hardware to buy, no app store"
+       — installing straight from the browser IS the store here).
+       theme-color matches KolaDark bg (see lib/theme.dart) so the
+       browser/OS chrome around an installed window doesn't clash with
+       the app's own background the instant it opens. Root-relative for
+       the same reason every other asset on this page is — see the
+       styles.css/main.dart.js comment below on why a relative path
+       breaks on a hard load of a nested route. -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#121214">
+  <link rel="apple-touch-icon" href="/icon.svg">
+
   <!-- Space Grotesk (display) + Plus Jakarta Sans (UI) + IBM Plex Mono.
        Inter is gone as of the redesign — see lib/theme.dart. This href
        must stay identical to KolaFonts.googleFontsHref; the fonts are
@@ -49,6 +62,27 @@
   <script src="https://accounts.google.com/gsi/client" async></script>
 
   <script defer src="/main.dart.js"></script>
+
+  <!-- Phase 11g-a — registers sw.js (see that file's own header for
+       the caching strategy). Deliberately plain, un-deferred inline JS
+       rather than something routed through Dart/Jaspr: registration
+       must fire on every load regardless of whether main.dart.js has
+       finished (or ever finishes, on a bad connection) loading — the
+       whole point of a service worker is to be the thing that's
+       already there before the app needs it. Guarded on
+       'serviceWorker' in navigator for the handful of browsers
+       (older Safari, non-Chromium mobile browsers) that don't support
+       it: those users simply don't get offline support, they don't
+       get an error. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('Kola: service worker registration failed', err);
+        });
+      });
+    }
+  </script>
 </head>
 <body>
   <!-- Jaspr client-mode renders into #app -->

@@ -1,5 +1,6 @@
-// operations_page.dart — the inbox. Conversations and support tickets
-// in one place.
+// operations_page.dart — the inbox. Conversations and escalations in
+// one place, rebuilt Phase 13c against `Kola Operations.dc.html` (the
+// 35 KB export) per DESIGN_DELTA.md's extraction method.
 //
 // ── CONVERSATIONS DO NOT HAVE THEIR OWN PAGE ANY MORE ────────────────
 //
@@ -9,28 +10,50 @@
 // window." That is the design decision, and this page implements it.
 // The old /conversations route redirects here.
 //
-// ── WHAT THE DESIGN SHOWS THAT THE BACKEND CANNOT YET FILL ───────────
+// ── PHASE 13C: TAB ORDER/NAMING CORRECTED, CUSTOMER CHIPS WIRED ───────
 //
-// The export's detail pane carries four things there is no endpoint
-// for. None of them are faked here:
+// The export's two tabs are "Escalations (N)" then "Conversations", in
+// that order — escalations is the default. This page previously had
+// them reversed and mislabeled ("Queue" for conversations, "Tickets"
+// for escalations). Fixed to match: `_Tab.escalations` is first and
+// default, `_Tab.conversations` second. Escalation cards now show the
+// linked conversation's customer name, a waiting duration, and an
+// "Act now" button that jumps straight into that conversation — none
+// of that existed before; SupportTicket already carried
+// `conversationId`, it just wasn't being used to cross-link.
 //
-//   CUSTOMER CONTEXT CHIPS (lifetime value, orders, last purchase,
-//     saved date) — customers.core is a locked feature and there is no
-//     customer endpoint at all. Gated.
+// The CUSTOMER CONTEXT CHIPS (lifetime value, orders, last purchase,
+// saved date) were previously gated off with the note "no customer
+// endpoint at all" — that was stale. `CustomerEndpoint.getCustomerDetail`
+// already existed (Gate 3b) and now backs the first three chips here;
+// a new `CustomerProfileEndpoint.getForConversation` (this pass) backs
+// the fourth. See `_loadCustomerContext` for the lifetime-value
+// computation and why it does NOT simply sum every Sale plus every
+// PaymentTransaction: Gate 13's reconciliation links a completed
+// payment to the Sale it paid for via `PaymentTransaction.saleId` —
+// summing both would double-count reconciled money. The rule used
+// here: every 'completed' Sale, plus every 'completed' payment whose
+// `saleId` is still null (money that was never a till sale at all, or
+// hasn't been matched yet) — no double count, no undercount.
 //
-//   CITATIONS ("Inventory.xlsx, row 214") — the Message model has no
-//     citation field. Memory retrieval records its sources server-side,
-//     but nothing exposes them per message yet.
+// ── THREE GAPS THAT ARE STILL REAL, RE-VERIFIED THIS PASS ─────────────
+//
+//   CITATIONS ("Inventory.xlsx, row 214") — re-checked: Message still
+//     has no citation field. Memory retrieval records its sources
+//     server-side, but nothing exposes them per message yet.
 //
 //   SUGGESTED REPLY — the export offers an editable AI draft. There is
-//     no endpoint that produces one.
+//     still no endpoint that produces one — same deliberately-unfilled
+//     AI-reasoning seam Phase 12 already names for Observations.
 //
-//   FIRED ERRANDS with outcomes — errand_execution_log exists as a
-//     model, but EndpointErrand has no method to list executions.
+//   FIRED ERRANDS with outcomes, per conversation — re-checked:
+//     ErrandExecutionLog is keyed by (errandId, workspaceId), with no
+//     conversationId column at all, so there is no way to ask "what
+//     fired on THIS thread" without a schema change. Real, separate
+//     future work, not silently dropped.
 //
-// Each is a real gap, written down rather than papered over with
-// plausible-looking sample data. A support inbox that invents a
-// customer's lifetime value is worse than one that omits it.
+// Each is written down rather than papered over with plausible-looking
+// sample data.
 //
 // ── WHAT IS REAL ─────────────────────────────────────────────────────
 //
@@ -38,7 +61,11 @@
 //   conversation.getMessages              → the transcript
 //   conversation.sendHumanReply           → replying
 //   conversation.closeConversation        → resolving
-//   supportTicket.list / setStatus        → the tickets tab
+//   supportTicket.list / setStatus        → the escalations tab
+//   customer.getCustomerDetail            → LTV / orders / last purchase chips
+//   customerProfile.getForConversation    → saved date chip
+
+import 'dart:async';
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -52,7 +79,7 @@ import '../services/error_text.dart';
 import '../services/imagekit_url.dart';
 import '../theme.dart';
 
-enum _Tab { queue, tickets }
+enum _Tab { escalations, conversations }
 
 class OperationsPage extends StatefulComponent {
   const OperationsPage({
@@ -72,7 +99,7 @@ class OperationsPage extends StatefulComponent {
 }
 
 class _OperationsPageState extends State<OperationsPage> {
-  _Tab _tab = _Tab.queue;
+  _Tab _tab = _Tab.escalations;
 
   bool _loading = true;
   String? _error;
@@ -88,6 +115,15 @@ class _OperationsPageState extends State<OperationsPage> {
   String _reply = '';
   bool _sending = false;
 
+  // ── Customer context chips (Phase 13c) ────────────────────────────
+  //
+  // Keyed by customerId, not conversationId — two conversations can
+  // point at the same customer, and there is no reason to fetch twice.
+  // Populated lazily by _loadCustomerContext, called from _select.
+  final Map<int, CustomerDetail> _customerDetailCache = {};
+  final Map<int, CustomerProfile?> _customerProfileCache = {};
+  bool _customerContextLoading = false;
+
   /// Mobile only. Desktop shows both panes at once, so this is ignored
   /// above the breakpoint — see build().
   bool _showDetailOnMobile = false;
@@ -95,6 +131,12 @@ class _OperationsPageState extends State<OperationsPage> {
   @override
   void initState() {
     super.initState();
+    // The escalations tab doesn't exist at all when Features.operations
+    // is off — defaulting to it in that case would land on a tab whose
+    // button is never rendered. See _header's own gate check.
+    if (!component.gate.isEnabled(Features.operations)) {
+      _tab = _Tab.conversations;
+    }
     _load();
   }
 
@@ -186,6 +228,49 @@ class _OperationsPageState extends State<OperationsPage> {
       if (!mounted || _selected?.id != convo.id) return;
       setState(() => _messagesLoading = false);
     }
+
+    unawaited(_loadCustomerContext(convo));
+  }
+
+  /// Backs the four customer-context chips. Gated on `customers.core`
+  /// (same gate `CustomerEndpoint` enforces server-side — checking it
+  /// here too just avoids a request that would fail anyway) and on the
+  /// conversation actually having a resolved `customerId` — a brand new
+  /// conversation with no purchase/identity history yet has none, and
+  /// that's a normal state, not an error.
+  Future<void> _loadCustomerContext(Conversation convo) async {
+    final customerId = convo.customerId;
+    if (customerId == null || !component.gate.isEnabled(Features.customers)) {
+      return;
+    }
+    if (_customerDetailCache.containsKey(customerId)) return;
+
+    setState(() => _customerContextLoading = true);
+    try {
+      final results = await Future.wait([
+        component.client.customer.getCustomerDetail(
+          component.accessToken,
+          component.workspaceId,
+          customerId,
+        ),
+        component.client.customerProfile.getForConversation(
+          component.accessToken,
+          component.workspaceId,
+          convo.id!,
+        ),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _customerDetailCache[customerId] = results[0] as CustomerDetail;
+        _customerProfileCache[customerId] = results[1] as CustomerProfile?;
+        _customerContextLoading = false;
+      });
+    } catch (_) {
+      // A failed context fetch should not block the conversation itself
+      // from being usable — the chips just don't render.
+      if (!mounted) return;
+      setState(() => _customerContextLoading = false);
+    }
   }
 
   Future<void> _send() async {
@@ -251,6 +336,15 @@ class _OperationsPageState extends State<OperationsPage> {
         if (_error != null) _errorBanner(),
         if (_loading)
           _skeleton()
+        else if (_tab == _Tab.escalations)
+          // Single full-width column, matching the export — Escalations
+          // is a queue, not a conversation view, so there is no detail
+          // pane here at all. "Act now" on a card switches to the
+          // Conversations tab and opens the linked thread instead.
+          div(
+            attributes: {'style': 'flex:1;overflow-y:auto;min-height:0'},
+            [_escalationList()],
+          )
         else
           div(
             attributes: {'style': 'flex:1;display:flex;min-height:0'},
@@ -263,7 +357,7 @@ class _OperationsPageState extends State<OperationsPage> {
                       'border-right:1px solid ${KolaVar.border};'
                       'overflow-y:auto;min-height:0',
                 },
-                [_list()],
+                [_conversationList()],
               ),
               div(
                 classes: _showDetailOnMobile ? '' : 'kola-shell-desktop',
@@ -314,9 +408,11 @@ class _OperationsPageState extends State<OperationsPage> {
         div(
           attributes: {'style': 'display:flex;gap:4px'},
           [
-            _tabButton(_Tab.queue, 'Queue', _conversations.length),
+            // Escalations first, matching the export's own tab order
+            // and default ('queue' in the export's state is this tab).
             if (component.gate.isEnabled(Features.operations))
-              _tabButton(_Tab.tickets, 'Tickets', openTickets),
+              _tabButton(_Tab.escalations, 'Escalations', openTickets),
+            _tabButton(_Tab.conversations, 'Conversations', _conversations.length),
           ],
         ),
       ],
@@ -340,11 +436,9 @@ class _OperationsPageState extends State<OperationsPage> {
     );
   }
 
-  // ── List pane ───────────────────────────────────────────────────────
+  // ── List panes ──────────────────────────────────────────────────────
 
-  Component _list() {
-    if (_tab == _Tab.tickets) return _ticketList();
-
+  Component _conversationList() {
     if (_conversations.isEmpty) {
       return _emptyPane(
         'No conversations yet',
@@ -430,54 +524,114 @@ class _OperationsPageState extends State<OperationsPage> {
     );
   }
 
-  Component _ticketList() {
+  /// The export's escalation card: a urgency-colored left bar, title,
+  /// "customer · waiting Xh", a right-aligned deadline countdown +
+  /// priority label, and an "Act now" button. One field from the export
+  /// is deliberately not rendered: `tried` ("offered replacement,
+  /// customer declined") has no home on SupportTicket — there is no
+  /// running log of what's been attempted on a ticket, just its current
+  /// status. Named here rather than invented.
+  Component _escalationList() {
     final open = _tickets
         .where((t) => t.status != 'resolved' && t.status != 'closed')
         .toList();
 
     if (open.isEmpty) {
       return _emptyPane(
-        'No open tickets',
-        'Tickets are raised when a conversation needs tracked follow-up.',
+        'All clear',
+        'No escalations waiting and nothing needs you right now.',
       );
     }
 
     final now = DateTime.now();
     return div(
-      attributes: {'style': 'display:flex;flex-direction:column'},
+      attributes: {
+        'style': 'display:flex;flex-direction:column;gap:10px;padding:14px 16px',
+      },
+      [for (final t in open) _escalationCard(t, now)],
+    );
+  }
+
+  Component _escalationCard(SupportTicket t, DateTime now) {
+    final tone = _slaTone(t, now);
+    final barColor = tone == KolaTone.negative
+        ? KolaVar.danger
+        : tone == KolaTone.caution
+            ? KolaVar.warning
+            : KolaVar.success;
+    final linked = _conversationFor(t);
+    final customerName = linked != null ? _displayName(linked) : 'Customer';
+
+    return div(
+      attributes: {
+        'style': 'background:${KolaVar.card};'
+            'border:1px solid ${tone == KolaTone.negative ? KolaVar.danger : KolaVar.border};'
+            'border-radius:${KolaRadius.lg};padding:14px 16px;'
+            'display:flex;align-items:center;gap:14px;flex-wrap:wrap',
+      },
       [
-        for (final t in open)
-          div(
-            attributes: {
-              'style': 'padding:14px 16px;'
-                  'border-bottom:1px solid ${KolaVar.border}',
+        span(
+          attributes: {
+            'style': 'width:4px;height:34px;border-radius:4px;'
+                'background:$barColor;flex:none',
+          },
+          [],
+        ),
+        div(
+          attributes: {'style': 'flex:1;min-width:160px'},
+          [
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.body};font-weight:600;'
+                    'color:${KolaVar.text};margin-bottom:3px',
+              },
+              [Component.text(t.subject)],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+              },
+              [Component.text('$customerName · waiting ${_ago(t.createdAt)}')],
+            ),
+          ],
+        ),
+        div(
+          attributes: {'style': 'text-align:right;flex:none'},
+          [
+            div(
+              attributes: {
+                'style': 'font-family:${KolaFonts.mono};'
+                    'font-size:${KolaType.body};font-weight:600;'
+                    'color:$barColor',
+              },
+              [Component.text(_slaLabel(t, now))],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.micro};color:${KolaVar.muted}',
+              },
+              [Component.text('${t.priority} priority')],
+            ),
+          ],
+        ),
+        button(
+          attributes: {
+            'class': 'kola-pressable',
+            'type': 'button',
+            'style': 'background:${KolaVar.accentFill};'
+                'color:${KolaVar.accentText};border:none;'
+                'border-radius:${KolaRadius.sm};padding:9px 16px;'
+                'font-size:${KolaType.small};font-weight:600;flex:none;'
+                'min-height:44px;font-family:inherit;cursor:pointer',
+          },
+          events: {
+            'click': (_) {
+              setState(() => _tab = _Tab.conversations);
+              if (linked != null) _select(linked);
             },
-            [
-              div(
-                attributes: {
-                  'style': 'font-size:${KolaType.body};font-weight:600;'
-                      'color:${KolaVar.text};margin-bottom:6px',
-                },
-                [Component.text(t.subject)],
-              ),
-              div(
-                attributes: {'style': 'display:flex;gap:8px;align-items:center'},
-                [
-                  span(
-                    attributes: {'style': _slaTone(t, now).badgeCss},
-                    [Component.text(_slaLabel(t, now))],
-                  ),
-                  span(
-                    attributes: {
-                      'style': 'font-size:${KolaType.micro};'
-                          'color:${KolaVar.muted}',
-                    },
-                    [Component.text(t.priority)],
-                  ),
-                ],
-              ),
-            ],
-          ),
+          },
+          [Component.text('Act now')],
+        ),
       ],
     );
   }
@@ -491,12 +645,21 @@ class _OperationsPageState extends State<OperationsPage> {
           'Pick a conversation on the left to see the full exchange.');
     }
 
+    final chipsRow = _customerChipsRow(convo);
+
     return div(
       attributes: {
         'style': 'display:flex;flex-direction:column;height:100%;min-height:0',
       },
       [
         _detailHeader(convo),
+        if (chipsRow != null)
+          div(
+            attributes: {
+              'style': 'flex:none;padding:12px 20px 0',
+            },
+            [chipsRow],
+          ),
         div(
           attributes: {
             'style': 'flex:1;overflow-y:auto;min-height:0;padding:16px 20px;'
@@ -742,6 +905,135 @@ class _OperationsPageState extends State<OperationsPage> {
         ),
       ],
     );
+  }
+
+  // ── Customer context (Phase 13c) ───────────────────────────────────
+
+  /// The SupportTicket ↔ Conversation link the escalation cards use for
+  /// "Act now" — a linear scan of an already-loaded list, not a second
+  /// fetch. `null` means the linked conversation hasn't loaded (or the
+  /// ticket predates a schema where this always resolves) — callers
+  /// treat that as "switch tabs, but don't try to select anything."
+  Conversation? _conversationFor(SupportTicket t) {
+    for (final c in _conversations) {
+      if (c.id == t.conversationId) return c;
+    }
+    return null;
+  }
+
+  /// The four chips from the export — lifetime value, orders, last
+  /// purchase, saved date — or `null` when there's nothing to show
+  /// (customers.core off, no resolved customerId yet, or the context
+  /// fetch hasn't completed). Returning `null` rather than an empty row
+  /// is what keeps this out of the layout entirely when there's nothing
+  /// real to say, per the same "never show a hollow chip" instinct
+  /// DESIGN_DELTA.md applies to zero states elsewhere.
+  Component? _customerChipsRow(Conversation convo) {
+    final customerId = convo.customerId;
+    if (customerId == null) return null;
+    final detail = _customerDetailCache[customerId];
+    if (detail == null) return null; // still loading, or fetch failed
+
+    final profile = _customerProfileCache[customerId];
+
+    // ── Lifetime value / orders, de-duplicated ──────────────────────
+    //
+    // See this file's header: a completed Sale and a completed
+    // PaymentTransaction can be the SAME money (Gate 13 reconciliation
+    // links them via PaymentTransaction.saleId). Counting both would
+    // overstate what this customer has actually paid.
+    var minor = 0;
+    var orders = 0;
+    DateTime? lastPurchase;
+    var currency = 'NGN';
+    for (final s in detail.sales) {
+      if (s.status != 'completed') continue;
+      minor += s.totalMinor;
+      orders++;
+      currency = s.currency;
+      if (lastPurchase == null || s.soldAt.isAfter(lastPurchase)) {
+        lastPurchase = s.soldAt;
+      }
+    }
+    for (final p in detail.payments) {
+      if (p.status != 'completed' || p.saleId != null) continue;
+      minor += p.amountKobo;
+      orders++;
+      currency = p.currency;
+      final when = p.paidAt ?? p.createdAt;
+      if (lastPurchase == null || when.isAfter(lastPurchase)) {
+        lastPurchase = when;
+      }
+    }
+
+    final chips = <MapEntry<String, String>>[
+      MapEntry('Lifetime value', _naira(minor, currency)),
+      MapEntry('Orders', '$orders'),
+      MapEntry(
+        'Last purchase',
+        lastPurchase == null ? '—' : _dateAgo(lastPurchase),
+      ),
+      MapEntry(
+        'Saved date',
+        profile?.birthday == null ? '—' : _monthDay(profile!.birthday!),
+      ),
+    ];
+
+    return div(
+      attributes: {
+        'style': 'display:flex;gap:10px;flex-wrap:wrap',
+      },
+      [
+        for (final c in chips)
+          div(
+            attributes: {
+              'style': 'background:${KolaVar.bg};'
+                  'border:1px solid ${KolaVar.border};'
+                  'border-radius:9px;padding:8px 12px;min-width:110px',
+            },
+            [
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.micro};color:${KolaVar.muted};'
+                      'margin-bottom:2px;text-transform:uppercase;'
+                      'letter-spacing:0.03em',
+                },
+                [Component.text(c.key)],
+              ),
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.small};font-weight:600;'
+                      'color:${KolaVar.text}',
+                },
+                [Component.text(c.value)],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  /// Same minor-unit-divided-by-100 approach as till_display_page.dart's
+  /// own `_money` and PublicCatalogPage's `_priceLabel` — including the
+  /// same named gap: zero-decimal currencies aren't handled specially.
+  static String _naira(int minor, String currency) {
+    final major = minor / 100;
+    return '$currency ${major.toStringAsFixed(2)}';
+  }
+
+  static String _dateAgo(DateTime d) {
+    final days = DateTime.now().difference(d).inDays;
+    if (days <= 0) return 'today';
+    if (days == 1) return '1 day ago';
+    return '$days days ago';
+  }
+
+  static String _monthDay(DateTime d) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[d.month - 1]} ${d.day}';
   }
 
   // ── Shared bits ─────────────────────────────────────────────────────

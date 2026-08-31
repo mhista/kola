@@ -1,0 +1,27 @@
+##
+## customer_summary.spy.yaml — Phase 13f. NOT A TABLE — a wire-only
+## OUTPUT type, same convention as end_of_day_report.spy.yaml /
+## analytics_summary.spy.yaml. One row in the Customers page's list —
+## a Customer plus the lifetime-value/order-count numbers
+## CustomerEndpoint.getCustomerDetail already computes per customer,
+## made cheap to list for EVERY customer in a workspace at once.
+##
+## De-duplicated the same way analytics_endpoint.dart's segments are
+## (Phase 13e) and operations_page.dart's customer chips are (13c): a
+## completed PaymentTransaction already matched to a Sale via saleId is
+## not counted again.
+##
+
+class: CustomerSummary
+fields:
+  customer: Customer
+
+  ltvMinor: int
+  orderCount: int
+  currency: String
+
+  ## Latest of: last sale, last unmatched payment, last message across
+  ## any conversation. Null only for a customer with literally no
+  ## activity recorded anywhere yet (should be rare — a Customer row is
+  ## normally created BECAUSE of some activity).
+  lastActivityAt: DateTime?
