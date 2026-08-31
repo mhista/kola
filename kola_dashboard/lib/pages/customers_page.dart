@@ -51,6 +51,8 @@
 //    documented rule (see `_isTop` below), not an invented one, but a
 //    rule this codebase has never been asked to formalize before.
 
+import 'dart:async';
+
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
@@ -114,6 +116,7 @@ class _CustomersPageState extends State<CustomersPage> {
         component.client.customer.listCustomersWithSummary(
           component.accessToken,
           component.workspaceId,
+          limit: 500,
         ),
         component.client.customer.listMergeProposals(
           component.accessToken,
@@ -307,7 +310,6 @@ class _CustomersPageState extends State<CustomersPage> {
                 },
                 [
                   div(
-                    [],
                     [
                       _searchAndSort(),
                       _segmentChips(),
@@ -759,7 +761,6 @@ class _CustomersPageState extends State<CustomersPage> {
                 ],
               ),
               div(
-                [],
                 [
                   div(
                     attributes: {

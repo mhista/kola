@@ -494,8 +494,8 @@ class _SettingsPageState extends State<SettingsPage> {
             attributes: {'style': 'margin-top:8px'},
             [
               a(
+                href: url,
                 attributes: {
-                  'href': url,
                   'target': '_blank',
                   'rel': 'noopener',
                   'style': 'color:${KolaVar.accent};font-size:${KolaType.small}',
@@ -553,8 +553,8 @@ class _SettingsPageState extends State<SettingsPage> {
             attributes: {'style': 'margin-top:8px'},
             [
               a(
+                href: url,
                 attributes: {
-                  'href': url,
                   'target': '_blank',
                   'rel': 'noopener',
                   'style': 'color:${KolaVar.accent};font-size:${KolaType.small}',

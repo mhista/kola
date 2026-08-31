@@ -165,7 +165,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         },
         [
           div(
-            [],
+          
             [
               h1(
                 attributes: {
@@ -388,9 +388,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             'font-size:${KolaType.small};align-items:center',
       },
       [
-        div([], [Component.text(s.label)]),
-        div([], [Component.text('${s.conversations}')]),
-        div([], [Component.text('${s.orders}')]),
+        div([Component.text(s.label)]),
+        div([Component.text('${s.conversations}')]),
+        div([Component.text('${s.orders}')]),
         div(
           attributes: {'style': 'font-family:${KolaFonts.mono}'},
           [Component.text(_naira(s.revenueMinor, currency))],

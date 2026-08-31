@@ -163,11 +163,11 @@ class _PublicCatalogPageState extends State<PublicCatalogPage> {
                 ]
               : [
                   img(
+                    src: item.imageUrl!,
+                    alt: item.name,
                     attributes: {
-                      'src': item.imageUrl!,
                       'style': 'width:100%;height:100%;object-fit:cover',
                       'loading': 'lazy',
-                      'alt': item.name,
                     },
                   ),
                 ],

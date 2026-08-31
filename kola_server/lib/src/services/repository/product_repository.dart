@@ -179,7 +179,20 @@ class ProductRepository {
   ///
   /// A null stock means "not tracked" and is left alone — incrementing
   /// it would silently start tracking something the owner chose not to.
-  Future<Product?> adjustStock(
+  ///
+  /// Returns `(product, oversoldBy)` rather than plain `Product?` —
+  /// Phase 11g-e. `oversoldBy` is how many units this decrement would
+  /// have taken stock below zero for (0 for an ordinary sale, an
+  /// increment, or an untracked product). Product.stock ITSELF STAYS
+  /// CLAMPED AT ZERO, unchanged from before — the record this codebase
+  /// keeps of "how many units exist" must never go negative, that isn't
+  /// a real inventory state. `oversoldBy` is the separate signal a
+  /// clamped column can't carry on its own: the caller
+  /// (SaleEndpoint.ringUpSale) uses it to create a StockConflict row
+  /// when this happens via a synced offline sale — see that model's own
+  /// header on why this only becomes reachable once sales can queue and
+  /// sync out of order.
+  Future<({Product product, int oversoldBy})?> adjustStock(
     int workspaceId,
     int productId,
     int delta,
@@ -188,13 +201,17 @@ class ProductRepository {
     if (product == null) return null;
 
     final current = product.stock;
-    if (current == null) return product;
+    if (current == null) return (product: product, oversoldBy: 0);
+
+    final wouldBe = current + delta;
+    final oversoldBy = wouldBe < 0 ? -wouldBe : 0;
 
     // Clamped at zero. Negative stock is not a state a shop can be in,
     // and letting it go negative turns one mis-scan into a number that
     // has to be explained later.
-    product.stock = (current + delta) < 0 ? 0 : current + delta;
-    return update(product);
+    product.stock = wouldBe < 0 ? 0 : wouldBe;
+    final updated = await update(product);
+    return (product: updated, oversoldBy: oversoldBy);
   }
 
   // ── Variants ───────────────────────────────────────────────────────

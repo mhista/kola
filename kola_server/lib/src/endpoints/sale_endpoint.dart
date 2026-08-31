@@ -21,6 +21,7 @@ import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/repository/sale_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
+import 'package:kola_server/src/services/repository/stock_conflict_repository.dart';
 import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
 import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
 import 'package:kola_server/kola_logger.dart';
@@ -29,6 +30,7 @@ class SaleEndpoint extends Endpoint {
   SaleRepository get _sales => getIt<SaleRepository>();
   WorkspaceRepository get _workspaces => getIt<WorkspaceRepository>();
   ProductRepository get _products => getIt<ProductRepository>();
+  StockConflictRepository get _stockConflicts => getIt<StockConflictRepository>();
   FeatureFlagService get _features => getIt<FeatureFlagService>();
   CustomerIdentityResolver get _identity => getIt<CustomerIdentityResolver>();
   EventBus get _events => getIt<EventBus>();
@@ -210,7 +212,24 @@ class SaleEndpoint extends Endpoint {
       for (final l in lines) {
         final productId = l.productId;
         if (productId == null) continue;
-        await _products.adjustStock(workspaceId, productId, -l.quantity);
+        final result = await _products.adjustStock(workspaceId, productId, -l.quantity);
+
+        // Phase 11g-e. `oversoldBy > 0` means this decrement would have
+        // taken stock below zero — reachable now that a sale can queue
+        // offline and sync later, so two tills can both believe they're
+        // selling the last unit. Product.stock itself is already
+        // clamped at zero (adjustStock's own doc comment); this records
+        // the incident for the owner to resolve in plain language,
+        // per DESIGN_BRIEF_COMMERCE.md §1 — never blocks or reverses
+        // the sale that revealed it, the money is real either way.
+        if (result != null && result.oversoldBy > 0) {
+          await _stockConflicts.create(
+            workspaceId: workspaceId,
+            productId: productId,
+            saleId: saleId,
+            oversoldBy: result.oversoldBy,
+          );
+        }
       }
 
       // Gate 2 substrate, Gate 3b proof: this is the event a future

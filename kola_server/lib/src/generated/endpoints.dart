@@ -40,12 +40,13 @@ import '../endpoints/platform_endpoint.dart' as _i27;
 import '../endpoints/product_endpoint.dart' as _i28;
 import '../endpoints/report_endpoint.dart' as _i29;
 import '../endpoints/sale_endpoint.dart' as _i30;
-import '../endpoints/support_ticket_endpoint.dart' as _i31;
-import '../endpoints/task_endpoint.dart' as _i32;
-import '../endpoints/till_display_endpoint.dart' as _i33;
-import '../endpoints/waitlist_endpoint.dart' as _i34;
-import '../endpoints/whatsapp_template_endpoint.dart' as _i35;
-import '../endpoints/workspace_endpoint.dart' as _i36;
+import '../endpoints/stock_conflict_endpoint.dart' as _i31;
+import '../endpoints/support_ticket_endpoint.dart' as _i32;
+import '../endpoints/task_endpoint.dart' as _i33;
+import '../endpoints/till_display_endpoint.dart' as _i34;
+import '../endpoints/waitlist_endpoint.dart' as _i35;
+import '../endpoints/whatsapp_template_endpoint.dart' as _i36;
+import '../endpoints/workspace_endpoint.dart' as _i37;
 
 class Endpoints extends _i1.EndpointDispatch {
   @override
@@ -225,37 +226,43 @@ class Endpoints extends _i1.EndpointDispatch {
           'sale',
           null,
         ),
-      'supportTicket': _i31.SupportTicketEndpoint()
+      'stockConflict': _i31.StockConflictEndpoint()
+        ..initialize(
+          server,
+          'stockConflict',
+          null,
+        ),
+      'supportTicket': _i32.SupportTicketEndpoint()
         ..initialize(
           server,
           'supportTicket',
           null,
         ),
-      'task': _i32.TaskEndpoint()
+      'task': _i33.TaskEndpoint()
         ..initialize(
           server,
           'task',
           null,
         ),
-      'tillDisplay': _i33.TillDisplayEndpoint()
+      'tillDisplay': _i34.TillDisplayEndpoint()
         ..initialize(
           server,
           'tillDisplay',
           null,
         ),
-      'waitlist': _i34.WaitlistEndpoint()
+      'waitlist': _i35.WaitlistEndpoint()
         ..initialize(
           server,
           'waitlist',
           null,
         ),
-      'whatsAppTemplate': _i35.WhatsAppTemplateEndpoint()
+      'whatsAppTemplate': _i36.WhatsAppTemplateEndpoint()
         ..initialize(
           server,
           'whatsAppTemplate',
           null,
         ),
-      'workspace': _i36.WorkspaceEndpoint()
+      'workspace': _i37.WorkspaceEndpoint()
         ..initialize(
           server,
           'workspace',
@@ -5894,6 +5901,76 @@ class Endpoints extends _i1.EndpointDispatch {
         ),
       },
     );
+    connectors['stockConflict'] = _i1.EndpointConnector(
+      name: 'stockConflict',
+      endpoint: endpoints['stockConflict']!,
+      methodConnectors: {
+        'listOpen': _i1.MethodConnector(
+          name: 'listOpen',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['stockConflict'] as _i31.StockConflictEndpoint)
+                      .listOpen(
+                        session,
+                        params['accessToken'],
+                        params['workspaceId'],
+                      ),
+        ),
+        'resolve': _i1.MethodConnector(
+          name: 'resolve',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'conflictId': _i1.ParameterDescription(
+              name: 'conflictId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'resolution': _i1.ParameterDescription(
+              name: 'resolution',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['stockConflict'] as _i31.StockConflictEndpoint)
+                      .resolve(
+                        session,
+                        params['accessToken'],
+                        params['workspaceId'],
+                        params['conflictId'],
+                        params['resolution'],
+                      ),
+        ),
+      },
+    );
     connectors['supportTicket'] = _i1.EndpointConnector(
       name: 'supportTicket',
       endpoint: endpoints['supportTicket']!,
@@ -5922,7 +5999,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['supportTicket'] as _i31.SupportTicketEndpoint)
+                  (endpoints['supportTicket'] as _i32.SupportTicketEndpoint)
                       .list(
                         session,
                         params['accessToken'],
@@ -5959,7 +6036,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['supportTicket'] as _i31.SupportTicketEndpoint)
+                  (endpoints['supportTicket'] as _i32.SupportTicketEndpoint)
                       .setStatus(
                         session,
                         params['accessToken'],
@@ -5992,7 +6069,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['task'] as _i32.TaskEndpoint).list(
+              ) async => (endpoints['task'] as _i33.TaskEndpoint).list(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -6046,7 +6123,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['task'] as _i32.TaskEndpoint).create(
+              ) async => (endpoints['task'] as _i33.TaskEndpoint).create(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -6086,7 +6163,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['task'] as _i32.TaskEndpoint).setStatus(
+              ) async => (endpoints['task'] as _i33.TaskEndpoint).setStatus(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -6117,7 +6194,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['task'] as _i32.TaskEndpoint).delete(
+              ) async => (endpoints['task'] as _i33.TaskEndpoint).delete(
                 session,
                 params['accessToken'],
                 params['workspaceId'],
@@ -6168,7 +6245,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['tillDisplay'] as _i33.TillDisplayEndpoint)
+              ) async => (endpoints['tillDisplay'] as _i34.TillDisplayEndpoint)
                   .pushState(
                     session,
                     params['accessToken'],
@@ -6192,7 +6269,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['tillDisplay'] as _i33.TillDisplayEndpoint)
+              ) async => (endpoints['tillDisplay'] as _i34.TillDisplayEndpoint)
                   .getState(
                     session,
                     params['workspaceId'],
@@ -6238,7 +6315,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 _i1.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['waitlist'] as _i34.WaitlistEndpoint).joinWaitlist(
+                  (endpoints['waitlist'] as _i35.WaitlistEndpoint).joinWaitlist(
                     session,
                     params['email'],
                     params['source'],
@@ -6303,7 +6380,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i35.WhatsAppTemplateEndpoint)
+                          as _i36.WhatsAppTemplateEndpoint)
                       .createTemplate(
                         session,
                         params['accessToken'],
@@ -6356,7 +6433,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i35.WhatsAppTemplateEndpoint)
+                          as _i36.WhatsAppTemplateEndpoint)
                       .createProductListTemplate(
                         session,
                         params['accessToken'],
@@ -6387,7 +6464,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i35.WhatsAppTemplateEndpoint)
+                          as _i36.WhatsAppTemplateEndpoint)
                       .listTemplatesForWorkspace(
                         session,
                         params['accessToken'],
@@ -6419,7 +6496,7 @@ class Endpoints extends _i1.EndpointDispatch {
                 Map<String, dynamic> params,
               ) async =>
                   (endpoints['whatsAppTemplate']
-                          as _i35.WhatsAppTemplateEndpoint)
+                          as _i36.WhatsAppTemplateEndpoint)
                       .refreshTemplateStatus(
                         session,
                         params['accessToken'],
@@ -6466,7 +6543,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i36.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i37.WorkspaceEndpoint)
                   .createWorkspace(
                     session,
                     params['accessToken'],
@@ -6489,7 +6566,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i36.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i37.WorkspaceEndpoint)
                   .listMyWorkspaces(
                     session,
                     params['accessToken'],
@@ -6513,7 +6590,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i36.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i37.WorkspaceEndpoint)
                   .getWorkspace(
                     session,
                     params['accessToken'],
@@ -6568,7 +6645,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i36.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i37.WorkspaceEndpoint)
                   .updateWorkspace(
                     session,
                     params['accessToken'],
@@ -6599,7 +6676,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i36.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i37.WorkspaceEndpoint)
                   .getBillingSummary(
                     session,
                     params['accessToken'],
@@ -6634,7 +6711,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['workspace'] as _i36.WorkspaceEndpoint)
+              ) async => (endpoints['workspace'] as _i37.WorkspaceEndpoint)
                   .initiateUpgrade(
                     session,
                     params['accessToken'],

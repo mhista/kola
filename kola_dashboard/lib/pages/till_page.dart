@@ -33,15 +33,21 @@
 //
 // ── WHERE THIS DELIBERATELY DEVIATES FROM THE EXPORT, AND WHY ─────────
 //
-// 1. OFFLINE QUEUE. The export's state carries `queued`/`online` as if
-//    an offline sale queue already exists. It does not — that needs a
-//    service worker or local persistence layer with its own retry/
-//    conflict story, a real feature in its own right. This page shows
-//    REAL online/offline status (the browser's navigator.onLine) and
-//    completes sales only while online; SaleEndpoint.ringUpSale already
-//    accepts a clientReference for idempotency whenever the queue is
-//    built (see sale_repository.dart's header), so nothing here blocks
-//    that follow-up.
+// 1. OFFLINE QUEUE — BUILT, Phase 11g (2026-08-31), not the gap this
+//    note used to describe. A sale charged while offline (or while a
+//    request transport-fails — see ErrorText.isOffline) is written to
+//    `OfflineSaleQueue` (local storage, Phase 11g-b) instead of lost,
+//    shown as a visibly-marked "queued" receipt (`_CompletedSale
+//    .queued`), and drained automatically once reconnected via the same
+//    idempotent `clientReference` ringUpSale already accepted before
+//    anything here sent one (`_drainQueue`, Phase 11g-d). The four
+//    connection states, the "N sales waiting to sync" banner, last-known
+//    catalog browsing while offline, and stock-conflict resolution for
+//    two tills selling the same last unit are all real too — see
+//    docs/DEVELOPMENT_PLAN.md's Phase 11g section for the full build and
+//    its named, still-open gap (background sync only runs while this
+//    page itself is open — closing the tab pauses draining, doesn't
+//    lose anything).
 //
 // 2. BARCODE SCANNER. The export's own "scan" button does not decode a
 //    real camera feed either — its click handler is a hardcoded
@@ -69,6 +75,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:math' show max;
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -84,6 +91,8 @@ import '../services/error_text.dart';
 import '../services/feature_gate.dart';
 import '../services/imagekit_url.dart';
 import '../services/money_format.dart';
+import '../services/offline_catalog_cache.dart';
+import '../services/offline_sale_queue.dart';
 import '../theme.dart';
 
 class _CartLine {
@@ -107,11 +116,25 @@ class _CartLine {
 /// be cleared, and the receipt screen (here and on Documents) must keep
 /// showing what was actually sold, not whatever the cart holds later.
 class _CompletedSale {
-  _CompletedSale({required this.sale, required this.lines, required this.paidLabel});
+  _CompletedSale({
+    required this.sale,
+    required this.lines,
+    required this.paidLabel,
+    this.queued = false,
+  });
 
   final Sale sale;
   final List<_CartLine> lines;
   final String paidLabel;
+
+  /// Phase 11g-c. True when this sale exists only in the local offline
+  /// queue (`OfflineSaleQueue`) and has not reached the server yet —
+  /// [sale] is a client-built snapshot (`id` null, `reference` is the
+  /// queue's own `clientReference`) rather than the row `ringUpSale`
+  /// would have returned. The receipt still renders fully — the brief's
+  /// "print or share a receipt" must keep working offline — but visibly
+  /// marked, never presented as if it were confirmed.
+  final bool queued;
 }
 
 class TillPage extends StatefulComponent {
@@ -147,11 +170,41 @@ class TillPage extends StatefulComponent {
 
 enum _Screen { sell, payment, receipt }
 
+/// Phase 11g-c. DESIGN_BRIEF_COMMERCE.md §1's own four named states —
+/// see `_TillPageState._connStatus`.
+enum _ConnStatus { online, offlineWorking, syncing, syncProblem }
+
+extension on _ConnStatus {
+  String get label => switch (this) {
+        _ConnStatus.online => 'Online',
+        _ConnStatus.offlineWorking => 'Offline, working',
+        _ConnStatus.syncing => 'Syncing',
+        _ConnStatus.syncProblem => 'Sync problem',
+      };
+
+  /// A calm dot colour per state — success/warning/accent/danger, never
+  /// red for the expected "offline, working" state. The brief is
+  /// explicit: "Not a red alert — offline is expected."
+  String get dotColor => switch (this) {
+        _ConnStatus.online => KolaVar.success,
+        _ConnStatus.offlineWorking => KolaVar.warning,
+        _ConnStatus.syncing => KolaVar.accent,
+        _ConnStatus.syncProblem => KolaVar.danger,
+      };
+}
+
 class _TillPageState extends State<TillPage> {
   List<Product> _products = const [];
   Map<int, ProductMedia> _mainImages = const {};
   bool _loading = true;
   String? _loadError;
+
+  /// Phase 11g-f. Non-null exactly when `_products` is currently showing
+  /// `OfflineCatalogCache`'s last-known snapshot rather than a live
+  /// fetch — see `_catalogStalenessNotice`'s own header for where this
+  /// is shown and DESIGN_BRIEF_COMMERCE.md §1 for why it must never be
+  /// silent about being stale.
+  DateTime? _catalogAsOf;
 
   /// Driven by the real viewport, not a manual switch — see the file
   /// header. Updated live on resize, same convention app_shell.dart
@@ -175,6 +228,36 @@ class _TillPageState extends State<TillPage> {
   web.EventListener? _onlineListener;
   web.EventListener? _offlineListener;
   web.EventListener? _resizeListener;
+
+  /// Phase 11g-c/d. `_queuedCount` mirrors `OfflineSaleQueue.pendingCount`
+  /// — kept as its own field rather than read fresh on every build so a
+  /// change (a sale queued here, or a sync completing elsewhere) can
+  /// drive a `setState` the normal way. `_syncing`/`_syncProblem` exist
+  /// now so `_connStatus`'s four-state mapping is complete, but nothing
+  /// sets them true yet — that's 11g-d's sync engine; until it lands
+  /// this page only ever shows Online/Offline-working/queued-count,
+  /// which is still strictly more correct than the single online/offline
+  /// dot it replaces.
+  int _queuedCount = 0;
+  bool _syncing = false;
+  bool _syncProblem = false;
+
+  /// Guards `_drainQueue` against overlapping runs — the periodic timer
+  /// below and the `online` event listener can both fire close together
+  /// (a flaky connection can bounce online/offline within seconds), and
+  /// two concurrent drains could both read the same queued entry before
+  /// either has removed it, syncing it twice. `clientReference`'s
+  /// server-side idempotency would still stop that becoming a real
+  /// double sale, but there's no reason to depend on that as the ONLY
+  /// safeguard when a simple flag avoids the race entirely.
+  bool _draining = false;
+  Timer? _syncRetryTimer;
+
+  /// After this many failed attempts on the SAME queued sale, stop
+  /// quietly retrying every pass and surface `Sync problem` instead —
+  /// per the brief, still not frightening, just honest that something
+  /// needs a look rather than a transient blip.
+  static const _syncProblemThreshold = 3;
 
   bool _showScanner = false;
   String _scanInput = '';
@@ -205,11 +288,19 @@ class _TillPageState extends State<TillPage> {
   String? _chargeError;
   _CompletedSale? _completed;
 
+  /// Phase 11g-e. Open stock conflicts for this workspace — see
+  /// `_conflictBanner`'s own header. Loaded alongside products and
+  /// refreshed after every successful sync pass (`_drainQueue`), since
+  /// that's the only moment a new one can appear.
+  List<StockConflict> _conflicts = const [];
+  final Set<int> _resolvingConflicts = {};
+
   @override
   void initState() {
     super.initState();
     _view = web.window.innerWidth >= KolaBreak.tablet ? 'tablet' : 'phone';
     _online = web.window.navigator.onLine;
+    _queuedCount = OfflineSaleQueue.pendingCount;
     // Explicit `return;` at the end of each closure, deliberately.
     // Without one, a block-bodied closure with no return statement at
     // all infers as `Null Function(Event)` rather than
@@ -218,7 +309,15 @@ class _TillPageState extends State<TillPage> {
     // accident (their early-exit branches happen to contain a bare
     // `return;`); this makes it deliberate instead of coincidental.
     _onlineListener = (web.Event _) {
-      if (mounted) setState(() => _online = true);
+      if (mounted) {
+        setState(() => _online = true);
+        // The moment the browser says the connection is back is exactly
+        // the moment to try draining — waiting for the next periodic
+        // tick would mean up to `_syncRetryInterval` of visible delay
+        // for something the brief wants to feel immediate ("6 sales
+        // waiting to sync" clearing as soon as it's true).
+        unawaited(_drainQueue());
+      }
       return;
     }.toJS;
     _offlineListener = (web.Event _) {
@@ -241,8 +340,31 @@ class _TillPageState extends State<TillPage> {
     }.toJS;
     web.window.addEventListener('resize', _resizeListener);
 
+    // Phase 11g-d. Two reasons this is a periodic timer and not purely
+    // event-driven: (1) navigator.onLine's own `online` event is not
+    // fully reliable — the brief's own framing (a market stall on
+    // failing mobile data) is exactly the case where the browser never
+    // clearly transitions states at all; a timer is the real safety net
+    // under the event listener, not a redundant belt-and-braces. (2) a
+    // failed sync needs to retry again later even while `_online` never
+    // changed — a request can time out on a technically-"online" but
+    // too-degraded connection. `_syncRetryInterval` is short enough that
+    // "it will retry" (the brief's own promise) is true within a
+    // reasonable wait, long enough not to hammer a connection that's
+    // already struggling.
+    _syncRetryTimer = Timer.periodic(_syncRetryInterval, (_) => unawaited(_drainQueue()));
+
+    // Catches sales left queued from a previous tab/session (the tab
+    // was closed, or the app reloaded, before they synced) — the queue
+    // is on disk (localStorage), not in memory, so it outlives any one
+    // page load. Runs on every load, not only when one exists, but
+    // `_drainQueue` itself is a no-op when the queue is empty.
+    unawaited(_drainQueue());
+
     _load();
   }
+
+  static const _syncRetryInterval = Duration(seconds: 20);
 
   @override
   void dispose() {
@@ -255,9 +377,95 @@ class _TillPageState extends State<TillPage> {
     if (_resizeListener != null) {
       web.window.removeEventListener('resize', _resizeListener);
     }
+    _syncRetryTimer?.cancel();
     _scanPollTimer?.cancel();
     _camera?.stop();
     super.dispose();
+  }
+
+  /// Phase 11g-d — the sync engine. Drains `OfflineSaleQueue` in order,
+  /// one entry at a time, via the same idempotent `ringUpSale` every
+  /// synced sale already goes through — a retried entry that actually
+  /// reached the server on an earlier, response-lost attempt resolves
+  /// to that same Sale rather than creating a second one (see
+  /// `sale_repository.dart`'s `findByClientReference`).
+  ///
+  /// STOPS AT THE FIRST FAILURE IN A PASS, DELIBERATELY. Two reasons:
+  /// or­dering (a later sale should never sync ahead of an earlier one
+  /// from the same till — continuing past a failed entry to try the
+  /// next would let that happen), and cost (if the first failure is a
+  /// transport failure, every later entry in this pass would fail
+  /// identically; there is nothing to gain from trying them all now
+  /// instead of on the next timer tick).
+  ///
+  /// NAMED SCOPE CUT: this only runs while `till_page.dart` itself is
+  /// open. Closing the tab with sales still queued pauses syncing until
+  /// it's reopened — the queue is not lost (it's on disk), but nothing
+  /// drains it in the background. A true background sync (the Service
+  /// Worker Background Sync API, or a periodic sync registered from
+  /// sw.js) is real, separate follow-up work, not attempted here — most
+  /// realistically a cashier's device stays on the till screen through
+  /// an outage since that is the screen they need, but "most
+  /// realistically" is a real gap worth naming rather than silently
+  /// accepting.
+  Future<void> _drainQueue() async {
+    if (_draining) return;
+    var pending = OfflineSaleQueue.list();
+    if (pending.isEmpty) {
+      if (mounted && (_syncing || _syncProblem || _queuedCount != 0)) {
+        setState(() {
+          _syncing = false;
+          _syncProblem = false;
+          _queuedCount = 0;
+        });
+      }
+      return;
+    }
+
+    _draining = true;
+    if (mounted) setState(() => _syncing = true);
+
+    var syncedAny = false;
+    for (final entry in pending) {
+      try {
+        await component.client.sale.ringUpSale(
+          component.accessToken,
+          component.workspaceId,
+          linesJson: entry.linesJson,
+          paymentMethod: entry.paymentMethod,
+          cashReceivedMinor: entry.cashReceivedMinor,
+          clientReference: entry.clientReference,
+          customerPhone: entry.customerPhone,
+          customerName: entry.customerName,
+        );
+        OfflineSaleQueue.markSynced(entry.clientReference);
+        syncedAny = true;
+      } catch (e) {
+        OfflineSaleQueue.markFailed(entry.clientReference, ErrorText.of(e));
+        break;
+      }
+    }
+
+    pending = OfflineSaleQueue.list();
+    _draining = false;
+    if (!mounted) return;
+    setState(() {
+      _queuedCount = pending.length;
+      _syncing = false;
+      _syncProblem = pending.any((e) => e.attempts >= _syncProblemThreshold);
+    });
+
+    // Once anything actually lands, the server's stock counts are ahead
+    // of this page's optimistic local decrements (see
+    // `_applyOptimisticStockDecrement`) — refresh to pick up whatever
+    // the server itself computed. A sync is also the ONLY moment a new
+    // stock conflict can appear (see stock_conflict.spy.yaml's header
+    // on when SaleEndpoint.ringUpSale creates one) — reload the banner
+    // right alongside.
+    if (syncedAny) {
+      unawaited(_silentRefreshProducts());
+      unawaited(_loadConflicts());
+    }
   }
 
   Future<void> _load() async {
@@ -275,17 +483,66 @@ class _TillPageState extends State<TillPage> {
         includeArchived: false,
       );
       if (!mounted) return;
+      final visible = [for (final p in products) if (p.status != 'archived') p];
       setState(() {
-        _products = [for (final p in products) if (p.status != 'archived') p];
+        _products = visible;
+        _catalogAsOf = null; // null means "this is live", not stale
         _loading = false;
       });
+      // Phase 11g-f. Every live fetch refreshes the fallback a future
+      // offline load will use — deliberately the FULL list (archived
+      // items included) rather than `visible`, so a product an owner
+      // un-archives while offline (unlikely, but the catalog import
+      // path doesn't rule it out) isn't missing from the cache either;
+      // the same `p.status != 'archived'` filter applied above is
+      // re-applied wherever the cache is read.
+      OfflineCatalogCache.save(component.workspaceId, products);
       unawaited(_hydrateMedia());
+      unawaited(_loadConflicts());
     } catch (e) {
       if (!mounted) return;
+      // Phase 11g-f. A transport failure with something already cached
+      // falls back to the last-known catalog instead of a bare error
+      // screen — DESIGN_BRIEF_COMMERCE.md §1: "look up any product... See
+      // correct price and last-known stock" must work with zero
+      // connection, and this is the moment that's tested (a hard
+      // reload/first load of the till while offline, not just a sale
+      // attempted mid-session). Any other failure (a real rejection) still
+      // shows the normal error state — there is nothing "last known" about
+      // a workspace access failure.
+      if (ErrorText.isOffline(e)) {
+        final cached = OfflineCatalogCache.load(component.workspaceId);
+        if (cached != null) {
+          setState(() {
+            _products = [for (final p in cached.products) if (p.status != 'archived') p];
+            _catalogAsOf = cached.fetchedAt;
+            _loading = false;
+            _loadError = null;
+          });
+          unawaited(_hydrateMedia());
+          return;
+        }
+      }
       setState(() {
         _loadError = ErrorText.of(e);
         _loading = false;
       });
+    }
+  }
+
+  /// Phase 11g-e. Failure here is silent on purpose — same posture as
+  /// `_hydrateMedia`: a conflict banner that fails to load is a missed
+  /// convenience, not a reason to block the till from ringing up sales.
+  Future<void> _loadConflicts() async {
+    try {
+      final conflicts = await component.client.stockConflict.listOpen(
+        component.accessToken,
+        component.workspaceId,
+      );
+      if (!mounted) return;
+      setState(() => _conflicts = conflicts);
+    } catch (_) {
+      // Swallowed — see doc comment above.
     }
   }
 
@@ -306,10 +563,17 @@ class _TillPageState extends State<TillPage> {
       if (!mounted) return;
       setState(() {
         _products = [for (final p in products) if (p.status != 'archived') p];
+        _catalogAsOf = null; // a live fetch just landed — no longer stale
       });
+      OfflineCatalogCache.save(component.workspaceId, products);
       unawaited(_hydrateMedia());
     } catch (_) {
-      // Deliberately swallowed — see doc comment above.
+      // Deliberately swallowed — see doc comment above. Notably this
+      // does NOT fall back to the cache the way `_load` does: this is a
+      // background refresh with something already on screen (either a
+      // live catalog or, itself, an already-shown cached one) —
+      // overwriting either with a DIFFERENT stale snapshot on a silent
+      // background call would be a regression, not a recovery.
     }
   }
 
@@ -457,7 +721,25 @@ class _TillPageState extends State<TillPage> {
   bool get _completeDisabled {
     if (_payMethod == null || _charging) return true;
     if (_payMethod == 'Cash' && _changeMinor < 0) return true;
+    // Deliberately NOT gated on `_online` — DESIGN_BRIEF_COMMERCE.md §1
+    // is explicit that a sale must complete with zero connection.
+    // Charging while offline queues instead of calling the server; see
+    // `_completeSale`.
     return false;
+  }
+
+  /// Phase 11g-c. Four states, not a binary dot — DESIGN_BRIEF_COMMERCE
+  /// .md §1's own naming: "Online · Offline, working · Syncing (n) ·
+  /// Sync problem." `_syncing`/`_syncProblem` are always false until
+  /// 11g-d's sync engine lands (see their own field comments), so today
+  /// this only ever resolves to `online` or `offlineWorking` — a
+  /// strict superset of the single dot it replaces, not a regression
+  /// while the sync engine is still being built.
+  _ConnStatus get _connStatus {
+    if (_syncProblem) return _ConnStatus.syncProblem;
+    if (_syncing) return _ConnStatus.syncing;
+    if (!_online) return _ConnStatus.offlineWorking;
+    return _ConnStatus.online;
   }
 
   Future<void> _completeSale() async {
@@ -466,27 +748,55 @@ class _TillPageState extends State<TillPage> {
       _charging = true;
       _chargeError = null;
     });
+
+    final method = _payMethod!.toLowerCase();
+    final cashReceived = method == 'cash' ? _cashReceivedMinor : null;
+    // Sent as a JSON-encoded String, not List<SaleLineInput> and not
+    // parallel List<int?>/List<String> arrays either (that was the
+    // previous attempt) — Serverpod can't deserialize ANY List<...> as
+    // a direct endpoint parameter on this install, only scalars (see
+    // sale_endpoint.dart's ringUpSale header for the full story).
+    final linesJson = jsonEncode([
+      for (final l in _cart)
+        {
+          'productId': l.product.id,
+          'name': l.product.name,
+          'unitPriceMinor': l.unitPriceMinor,
+          'quantity': l.quantity,
+        },
+    ]);
+    // Generated up front, before either path is attempted — see
+    // OfflineSaleQueue.newReference's own header on why the online
+    // attempt below must carry the SAME reference the offline fallback
+    // would use, not a fresh one.
+    final reference = OfflineSaleQueue.newReference();
+
+    // Offline-first short-circuit: navigator.onLine already says there
+    // is no connection, so don't spend a doomed round-trip finding that
+    // out — go straight to the queue. The try/catch below is still the
+    // real safety net for the far more common case a flat boolean
+    // misses entirely: navigator.onLine reporting true on a connection
+    // that is actually too degraded to complete a request (a market
+    // stall on failing mobile data, not a clean modem-unplugged
+    // outage).
+    if (!_online) {
+      _queueSale(
+        reference: reference,
+        linesJson: linesJson,
+        method: method,
+        cashReceived: cashReceived,
+      );
+      return;
+    }
+
     try {
-      final method = _payMethod!.toLowerCase();
-      // Sent as a JSON-encoded String, not List<SaleLineInput> and not
-      // parallel List<int?>/List<String> arrays either (that was the
-      // previous attempt) — Serverpod can't deserialize ANY List<...> as
-      // a direct endpoint parameter on this install, only scalars (see
-      // sale_endpoint.dart's ringUpSale header for the full story).
       final sale = await component.client.sale.ringUpSale(
         component.accessToken,
         component.workspaceId,
-        linesJson: jsonEncode([
-          for (final l in _cart)
-            {
-              'productId': l.product.id,
-              'name': l.product.name,
-              'unitPriceMinor': l.unitPriceMinor,
-              'quantity': l.quantity,
-            },
-        ]),
+        linesJson: linesJson,
         paymentMethod: method,
-        cashReceivedMinor: method == 'cash' ? _cashReceivedMinor : null,
+        cashReceivedMinor: cashReceived,
+        clientReference: reference,
       );
       if (!mounted) return;
       setState(() {
@@ -513,11 +823,135 @@ class _TillPageState extends State<TillPage> {
       unawaited(_silentRefreshProducts());
     } catch (e) {
       if (!mounted) return;
+      // A transport failure (the request never reached the server, or
+      // its response never came back) is queued rather than shown as an
+      // error — per the brief, this is Tuesday, not a fault. Anything
+      // else (a KolaException the server actually returned — the
+      // workspace's commerce flag lapsed, a session expired) is a real
+      // rejection and must surface, not be queued to fail identically
+      // forever.
+      if (ErrorText.isOffline(e)) {
+        _queueSale(
+          reference: reference,
+          linesJson: linesJson,
+          method: method,
+          cashReceived: cashReceived,
+        );
+        return;
+      }
       setState(() {
         _charging = false;
         _chargeError = ErrorText.of(e);
       });
     }
+  }
+
+  /// Writes a sale to the local outbox and shows it as a (visibly
+  /// marked) receipt immediately — see `_CompletedSale.queued`'s own
+  /// comment on why the receipt still renders in full. Shared by both
+  /// `_completeSale` call sites above: the `!_online` short-circuit and
+  /// the transport-failure catch branch.
+  void _queueSale({
+    required String reference,
+    required String linesJson,
+    required String method,
+    int? cashReceived,
+  }) {
+    OfflineSaleQueue.enqueue(
+      clientReference: reference,
+      linesJson: linesJson,
+      paymentMethod: method,
+      cashReceivedMinor: cashReceived,
+    );
+
+    // A client-built Sale, not a server response — Sale's own
+    // constructor (kola_client/lib/src/protocol/sale.dart) has no
+    // required field this page can't already compute itself
+    // (subtotal/tax/total from the same workspace tax rate
+    // ringUpSale would apply; `id` stays null, `reference` is this
+    // queue entry's own clientReference until the real one comes back
+    // from a sync). This is what lets the receipt/WhatsApp-share/print
+    // paths downstream treat a queued sale exactly like a synced one
+    // without a second code path — see `_CompletedSale.queued` for the
+    // one place they're told apart.
+    final now = DateTime.now().toUtc();
+    final localSale = Sale(
+      workspaceId: component.workspaceId,
+      reference: reference,
+      clientReference: reference,
+      subtotalMinor: _subtotalMinor,
+      taxRateBps: component.taxRateBps,
+      taxMinor: _taxMinor,
+      totalMinor: _totalMinor,
+      currency: 'NGN', // see _pushDisplay's own comment on this gap
+      paymentMethod: method,
+      cashReceivedMinor: cashReceived,
+      changeMinor: method == 'cash' ? _changeMinor : null,
+      status: 'completed',
+      soldAt: now,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final soldLines = List.of(_cart);
+    if (!mounted) return;
+    setState(() {
+      _completed = _CompletedSale(
+        sale: localSale,
+        lines: soldLines,
+        paidLabel: _payMethod!,
+        queued: true,
+      );
+      _cart.clear();
+      _mobileCartOpen = false;
+      _payMethod = null;
+      _cashReceived = '';
+      _charging = false;
+      _screen = _Screen.receipt;
+      _queuedCount = OfflineSaleQueue.pendingCount;
+    });
+    unawaited(_pushDisplay());
+    // Deliberately NOT _silentRefreshProducts() here, unlike the synced
+    // path above — a queued sale has not touched server-side stock yet;
+    // re-fetching now would overwrite the optimistic decrement just
+    // applied below with the server's still-stale (higher) count.
+    _applyOptimisticStockDecrement(soldLines);
+  }
+
+  /// So the NEXT sale in the same outage sees reduced stock rather than
+  /// the figure from before this one — the brief's "See correct price
+  /// and last-known stock" applies between two offline sales, not just
+  /// between an online sale and the next page load. Clamped at zero,
+  /// matching `ProductRepository.adjustStock`'s own server-side clamp
+  /// (see that method's header) so a locally-displayed number never
+  /// contradicts what the server will show once this syncs. Detecting
+  /// and surfacing a REAL oversell (two tills, one last item) is
+  /// 11g-e's job, not this one — this is purely "don't show the
+  /// original count after it's already been sold."
+  void _applyOptimisticStockDecrement(List<_CartLine> soldLines) {
+    final soldByProduct = <int, int>{};
+    for (final l in soldLines) {
+      final id = l.product.id;
+      if (id == null) continue;
+      soldByProduct.update(id, (v) => v + l.quantity, ifAbsent: () => l.quantity);
+    }
+    if (soldByProduct.isEmpty) return;
+    final updated = [
+      for (final p in _products)
+        if (p.id != null && soldByProduct.containsKey(p.id) && p.stock != null)
+          p.copyWith(stock: max(0, p.stock! - soldByProduct[p.id]!))
+        else
+          p,
+    ];
+    setState(() => _products = updated);
+    // Phase 11g-f: keeps a mid-outage HARD RELOAD honest too — without
+    // this, `_load`'s offline fallback would read the pre-sale stock
+    // count back out of the cache, undoing the very decrement this
+    // method exists to apply. `_catalogAsOf` is deliberately left
+    // unchanged (still whatever it was, live or already-stale) — this
+    // write doesn't make the snapshot any less stale, it just keeps the
+    // stale snapshot internally consistent with sales made against it.
+    OfflineCatalogCache.save(component.workspaceId, updated);
   }
 
   void _voidSale() {
@@ -749,6 +1183,7 @@ class _TillPageState extends State<TillPage> {
       },
       [
         _header(),
+        if (_conflicts.isNotEmpty && _screen == _Screen.sell) _conflictBanner(),
         div(
           attributes: {'style': 'flex:1;min-height:0;overflow:hidden'},
           [if (_view == 'tablet') _tabletBody() else _phoneBody()],
@@ -794,6 +1229,99 @@ class _TillPageState extends State<TillPage> {
         ],
       );
 
+  /// Phase 11g-e. DESIGN_BRIEF_COMMERCE.md §1's exact conflict-copy
+  /// pattern, one card per open conflict, restricted to the Sell screen
+  /// (a cashier mid-payment shouldn't be interrupted by this — it can
+  /// wait the few seconds until they're back at the product grid).
+  /// "Never a merge-conflict UI": no diff view, no timestamps-of-both-
+  /// tills detail, just the plain sentence and two real choices plus a
+  /// quiet dismiss.
+  Component _conflictBanner() => div(
+        attributes: {
+          'style': 'flex:none;padding:10px 20px;background:${KolaVar.warningBg};'
+              'border-bottom:1px solid ${KolaVar.border};display:flex;'
+              'flex-direction:column;gap:8px',
+        },
+        [for (final c in _conflicts) _conflictCard(c)],
+      );
+
+  Component _conflictCard(StockConflict c) {
+    final product = _products.firstWhereOrNull((p) => p.id == c.productId);
+    final name = product?.name ?? 'a product';
+    final busy = c.id != null && _resolvingConflicts.contains(c.id);
+
+    return div(
+      attributes: {
+        'style': 'display:flex;align-items:center;justify-content:space-between;'
+            'gap:12px;flex-wrap:wrap',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.text};'
+                'line-height:1.5;flex:1;min-width:220px',
+          },
+          [
+            // The brief's own example sentence, adapted to whatever this
+            // conflict's real numbers are: "Both tills sold the last red
+            // ankara at 2:15pm. Stock is now −1. Mark one as a backorder,
+            // or adjust the count?"
+            Component.text(
+              'More $name sold than was in stock — short by ${c.oversoldBy}. '
+              'Mark it as a backorder, or adjust the count?',
+            ),
+          ],
+        ),
+        div(
+          attributes: {'style': 'display:flex;gap:6px;flex:none'},
+          [
+            _conflictButton('Backorder', busy, () => _resolveConflict(c, 'backordered')),
+            _conflictButton('Adjust count', busy, () => _resolveConflict(c, 'adjusted')),
+            _conflictButton('Dismiss', busy, () => _resolveConflict(c, 'dismissed'), quiet: true),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Component _conflictButton(String label, bool busy, void Function() onTap, {bool quiet = false}) =>
+      button(
+        attributes: {
+          'type': 'button',
+          if (busy) 'disabled': 'disabled',
+          'style': 'padding:7px 12px;border-radius:${KolaRadius.sm};'
+              'font-size:${KolaType.tiny};font-weight:600;font-family:inherit;'
+              'white-space:nowrap;cursor:${busy ? 'default' : 'pointer'};'
+              '${quiet ? 'background:transparent;border:1px solid ${KolaVar.border};color:${KolaVar.muted}' : 'background:${KolaVar.card};border:1px solid ${KolaVar.border};color:${KolaVar.text}'}',
+        },
+        events: {'click': (_) => busy ? null : onTap()},
+        [Component.text(label)],
+      );
+
+  Future<void> _resolveConflict(StockConflict c, String resolution) async {
+    final id = c.id;
+    if (id == null) return;
+    setState(() => _resolvingConflicts.add(id));
+    try {
+      await component.client.stockConflict.resolve(
+        component.accessToken,
+        component.workspaceId,
+        id,
+        resolution,
+      );
+      if (!mounted) return;
+      setState(() {
+        _conflicts = [for (final x in _conflicts) if (x.id != id) x];
+        _resolvingConflicts.remove(id);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      // A failed resolve just leaves the card showing — the owner can
+      // try again. No separate error UI for this small a surface.
+      setState(() => _resolvingConflicts.remove(id));
+    }
+  }
+
   Component _header() => div(
         attributes: {
           'style': 'display:flex;justify-content:space-between;'
@@ -833,25 +1361,8 @@ class _TillPageState extends State<TillPage> {
                 },
                 [Component.text('Sales Counter')],
               ),
-              div(
-                attributes: {'style': 'display:flex;align-items:center;gap:6px'},
-                [
-                  div(
-                    attributes: {
-                      'style': 'width:7px;height:7px;border-radius:50%;flex:none;'
-                          'background:${_online ? KolaVar.success : KolaVar.warning}',
-                    },
-                    [],
-                  ),
-                  span(
-                    attributes: {
-                      'style': 'font-size:${KolaType.tiny};font-weight:600;white-space:nowrap;'
-                          'color:${_online ? KolaVar.success : KolaVar.warning}',
-                    },
-                    [Component.text(_online ? 'Online' : 'Offline')],
-                  ),
-                ],
-              ),
+              _connStatusBadge(),
+              if (_queuedCount > 0) _queuedCountBadge(),
             ],
           ),
           Link(
@@ -863,6 +1374,57 @@ class _TillPageState extends State<TillPage> {
                   'display:inline-flex;align-items:center;flex:none',
             },
             children: [Component.text('Documents')],
+          ),
+        ],
+      );
+
+  /// Phase 11g-c. Replaces the old plain online/offline dot with
+  /// DESIGN_BRIEF_COMMERCE.md §1's four named states — see
+  /// `_ConnStatus`/`_connStatus`. Still just a dot + label, deliberately
+  /// calm rather than alarm-styled even in the `syncProblem` case (the
+  /// brief: "Sync failure that is not frightening").
+  Component _connStatusBadge() => div(
+        attributes: {'style': 'display:flex;align-items:center;gap:6px'},
+        [
+          div(
+            attributes: {
+              'style': 'width:7px;height:7px;border-radius:50%;flex:none;'
+                  'background:${_connStatus.dotColor}',
+            },
+            [],
+          ),
+          span(
+            attributes: {
+              'style': 'font-size:${KolaType.tiny};font-weight:600;white-space:nowrap;'
+                  'color:${_connStatus.dotColor}',
+            },
+            [
+              Component.text(
+                _connStatus == _ConnStatus.syncing
+                    ? '${_connStatus.label} ($_queuedCount)'
+                    : _connStatus.label,
+              ),
+            ],
+          ),
+        ],
+      );
+
+  /// "6 sales waiting to sync" — per the brief, "the owner must be able
+  /// to see the money is not lost. This is the single most
+  /// anxiety-reducing element in the entire commerce surface." Shown
+  /// whenever anything is queued, independent of whether a sync attempt
+  /// is in progress right now (`_connStatus`'s `syncing` state) — a
+  /// queue can sit unsynced while still offline, and the count must be
+  /// visible then too, not only mid-sync.
+  Component _queuedCountBadge() => span(
+        attributes: {
+          'style': 'font-size:${KolaType.tiny};font-weight:600;white-space:nowrap;'
+              'background:${KolaVar.pill};color:${KolaVar.mutedStrong};'
+              'padding:3px 9px;border-radius:${KolaRadius.pill}',
+        },
+        [
+          Component.text(
+            '$_queuedCount sale${_queuedCount == 1 ? '' : 's'} waiting to sync',
           ),
         ],
       );
@@ -949,33 +1511,68 @@ class _TillPageState extends State<TillPage> {
   // ── Shared: search + categories + grid ────────────────────────────
 
   Component _searchRow() => div(
-        attributes: {'style': 'display:flex;gap:8px;margin-bottom:14px'},
         [
-          input<String>(
-            type: InputType.text,
-            value: _search,
-            onInput: (v) => setState(() => _search = v),
-            attributes: {
-              'placeholder': 'Scan a barcode or search a product…',
-              'style': 'flex:1;background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-                  'border-radius:${KolaRadius.md};padding:14px 16px;color:${KolaVar.text};'
-                  'font-family:inherit;font-size:${KolaType.lead};box-sizing:border-box;'
-                  'min-height:48px',
-            },
-          ),
-          button(
-            attributes: {
-              'type': 'button',
-              'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-                  'border-radius:${KolaRadius.md};width:48px;height:48px;flex:none;'
-                  'cursor:pointer;color:${KolaVar.text};display:flex;align-items:center;'
-                  'justify-content:center',
-            },
-            events: {'click': (_) => _openScanner()},
-            [kolaIcon(Icons.barcode, size: 18, strokeWidth: 1.8)],
+          if (_catalogAsOf != null) _catalogStalenessNotice(),
+          div(
+            attributes: {'style': 'display:flex;gap:8px;margin-bottom:14px'},
+            [
+              input<String>(
+                type: InputType.text,
+                value: _search,
+                onInput: (v) => setState(() => _search = v),
+                attributes: {
+                  'placeholder': 'Scan a barcode or search a product…',
+                  'style': 'flex:1;background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+                      'border-radius:${KolaRadius.md};padding:14px 16px;color:${KolaVar.text};'
+                      'font-family:inherit;font-size:${KolaType.lead};box-sizing:border-box;'
+                      'min-height:48px',
+                },
+              ),
+              button(
+                attributes: {
+                  'type': 'button',
+                  'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+                      'border-radius:${KolaRadius.md};width:48px;height:48px;flex:none;'
+                      'cursor:pointer;color:${KolaVar.text};display:flex;align-items:center;'
+                      'justify-content:center',
+                },
+                events: {'click': (_) => _openScanner()},
+                [kolaIcon(Icons.barcode, size: 18, strokeWidth: 1.8)],
+              ),
+            ],
           ),
         ],
       );
+
+  /// Phase 11g-f. DESIGN_BRIEF_COMMERCE.md §1's exact honesty
+  /// requirement: *"Stock is last known, not certain. Say so plainly
+  /// without making the number feel useless — '12 in stock, as of 9:40
+  /// this morning.'"* Shown once, above the whole grid, rather than
+  /// re-stating it on every single product tile — the brief's own
+  /// example states the AS-OF time once and lets it apply to every
+  /// number below it, which is also the only way this stays readable
+  /// with more than a couple of products on screen.
+  Component _catalogStalenessNotice() => div(
+        attributes: {
+          'style': 'display:flex;align-items:center;gap:6px;'
+              'background:${KolaVar.warningBg};color:${KolaVar.warning};'
+              'border-radius:${KolaRadius.sm};padding:8px 12px;'
+              'font-size:${KolaType.tiny};font-weight:600;margin-bottom:10px',
+        },
+        [
+          Component.text(
+            'Showing last-known prices and stock, as of ${_catalogTime(_catalogAsOf!)}.',
+          ),
+        ],
+      );
+
+  static String _catalogTime(DateTime at) {
+    final local = at.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final suffix = local.hour < 12 ? 'am' : 'pm';
+    return '$hour:$minute$suffix';
+  }
 
   Component _categoryChips() {
     final cats = _categories;
@@ -1442,16 +2039,32 @@ class _TillPageState extends State<TillPage> {
           [
             div(
               attributes: {
-                'style': 'width:44px;height:44px;border-radius:50%;background:${KolaVar.successBg};'
-                    'color:${KolaVar.successBright};display:flex;align-items:center;'
+                'style': 'width:44px;height:44px;border-radius:50%;'
+                    'background:${completed.queued ? KolaVar.warningBg : KolaVar.successBg};'
+                    'color:${completed.queued ? KolaVar.warning : KolaVar.successBright};'
+                    'display:flex;align-items:center;'
                     'justify-content:center;font-size:${KolaType.h2};margin:0 auto 10px',
               },
-              [Component.text('✓')],
+              // Phase 11g-c: '↻' rather than '✓' when queued — this sale
+              // is real and the payment happened, but it isn't ON the
+              // server yet, and a checkmark would say otherwise.
+              [Component.text(completed.queued ? '↻' : '✓')],
             ),
             div(
               attributes: {'style': 'font-size:${KolaType.lead};font-weight:600'},
               [Component.text('Sale complete')],
             ),
+            if (completed.queued)
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                      'margin-top:4px;max-width:260px;margin-left:auto;margin-right:auto',
+                },
+                // Per DESIGN_BRIEF_COMMERCE.md §1: reassuring, never a
+                // stack trace or "failed" wording — the sale is done,
+                // only the sync is pending.
+                [Component.text('Saved on this device. Will sync automatically once you\'re back online.')],
+              ),
           ],
         ),
         div(
@@ -1484,7 +2097,25 @@ class _TillPageState extends State<TillPage> {
         ),
         div(
           attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
-          [_whatsAppButton(completed), _printLink()],
+          [
+            _whatsAppButton(completed),
+            // Phase 11g-g. A queued sale isn't on the Documents page yet
+            // — that page reads synced Sales from the server, and this
+            // one hasn't reached it (see _CompletedSale.queued) — so the
+            // ordinary "Print" link, which just navigates there, would
+            // land on a page with no matching receipt to show, and would
+            // itself need a network fetch to even load while the point
+            // of this screen is that there might be none. A real,
+            // client-side `window.print()` on THIS receipt works
+            // regardless of connectivity or sync state — per
+            // DESIGN_BRIEF_COMMERCE.md §1: "print or share a receipt"
+            // must work with zero connection. Used for every receipt,
+            // not just queued ones — an always-available print button is
+            // strictly better than one that depends on a page navigation
+            // and a fetch succeeding, whether or not this sale has
+            // synced.
+            _printButton(),
+          ],
         ),
       ]);
 
@@ -1500,14 +2131,23 @@ class _TillPageState extends State<TillPage> {
         [kolaIcon(Icons.whatsapp, size: 14, strokeWidth: 1.8), Component.text('Send on WhatsApp')],
       );
 
-  Component _printLink() => Link(
-        to: '/documents',
+  /// Phase 11g-g. Replaces the old `Link(to: '/documents')` — see the
+  /// call site's own comment on why that link doesn't actually serve a
+  /// queued sale, and is strictly worse than a direct print for a
+  /// synced one too (an extra navigation, and a fetch, to print
+  /// something already fully rendered right here). `window.print()` is
+  /// a plain, non-overloaded DOM method — safe to call directly through
+  /// package:web, same reasoning `dom_files.dart`'s header already
+  /// applies to `download`/`click`.
+  Component _printButton() => button(
         attributes: {
+          'type': 'button',
           'style': 'text-align:center;background:${KolaVar.card};border:1px solid ${KolaVar.border};'
               'color:${KolaVar.text};border-radius:${KolaRadius.md};padding:13px;'
-              'font-size:${KolaType.body};text-decoration:none;display:block',
+              'font-size:${KolaType.body};font-family:inherit;cursor:pointer;display:block;width:100%',
         },
-        children: [Component.text('Print')],
+        events: {'click': (_) => web.window.print()},
+        [Component.text('Print')],
       );
 
   Component _newSaleButton() => button(
@@ -1797,16 +2437,25 @@ class _TillPageState extends State<TillPage> {
           [
             div(
               attributes: {
-                'style': 'width:52px;height:52px;border-radius:50%;background:${KolaVar.successBg};'
-                    'color:${KolaVar.successBright};display:flex;align-items:center;'
+                'style': 'width:52px;height:52px;border-radius:50%;'
+                    'background:${completed.queued ? KolaVar.warningBg : KolaVar.successBg};'
+                    'color:${completed.queued ? KolaVar.warning : KolaVar.successBright};'
+                    'display:flex;align-items:center;'
                     'justify-content:center;font-size:${KolaType.h3};margin:0 auto 12px',
               },
-              [Component.text('✓')],
+              [Component.text(completed.queued ? '↻' : '✓')],
             ),
             div(
               attributes: {'style': 'font-size:${KolaType.title};font-weight:600'},
               [Component.text('Sale complete')],
             ),
+            if (completed.queued)
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};margin-top:4px',
+                },
+                [Component.text('Saved on this device. Will sync automatically once you\'re back online.')],
+              ),
           ],
         ),
         div(
@@ -1848,7 +2497,7 @@ class _TillPageState extends State<TillPage> {
           attributes: {
             'style': 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px',
           },
-          [_whatsAppButton(completed), _printLink()],
+          [_whatsAppButton(completed), _printButton()],
         ),
         _newSaleButton(),
       ],
@@ -2124,4 +2773,16 @@ class _TillPageState extends State<TillPage> {
           ),
         ],
       );
+}
+
+/// Phase 11g-e. Same small helper `customers_page.dart` already defines
+/// privately for the identical need — not worth a shared import for one
+/// three-line extension used in exactly two files.
+extension _FirstWhereOrNull<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (final e in this) {
+      if (test(e)) return e;
+    }
+    return null;
+  }
 }

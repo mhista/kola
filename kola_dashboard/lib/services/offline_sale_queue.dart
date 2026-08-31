@@ -140,6 +140,16 @@ abstract class OfflineSaleQueue {
     return 'offline-$ts-$rnd';
   }
 
+  /// A fresh reference, generated BEFORE a sale is attempted rather than
+  /// only once it's known to have failed. This is what lets 11g-c try
+  /// the network call first and fall back to [enqueue] with the SAME
+  /// reference on failure: if that attempt actually reached the server
+  /// before the response was lost (the exact ambiguity a flaky
+  /// connection creates), the eventual sync retry — same reference —
+  /// resolves to the one real Sale via `ringUpSale`'s own idempotency
+  /// guard instead of creating a second one.
+  static String newReference() => _generateReference();
+
   static List<QueuedSale> list() {
     final raw = LocalStorage.getItem(_key);
     if (raw == null || raw.isEmpty) return const [];
@@ -173,9 +183,10 @@ abstract class OfflineSaleQueue {
     int? cashReceivedMinor,
     String? customerPhone,
     String? customerName,
+    String? clientReference,
   }) {
     final entry = QueuedSale(
-      clientReference: _generateReference(),
+      clientReference: clientReference ?? _generateReference(),
       linesJson: linesJson,
       paymentMethod: paymentMethod,
       queuedAt: DateTime.now().toUtc(),

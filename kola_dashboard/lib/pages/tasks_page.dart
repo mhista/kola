@@ -168,6 +168,7 @@ class _TasksPageState extends State<TasksPage> {
         component.accessToken,
         component.workspaceId,
         title,
+        priority: 'medium',
       );
       if (!mounted) return;
       setState(() {
@@ -227,7 +228,6 @@ class _TasksPageState extends State<TasksPage> {
         },
         [
           div(
-            [],
             [
               h1(
                 attributes: {

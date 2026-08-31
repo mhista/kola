@@ -55,13 +55,14 @@ import 'package:kola_client/src/protocol/product_media.dart' as _i39;
 import 'package:kola_client/src/protocol/end_of_day_report.dart' as _i40;
 import 'package:kola_client/src/protocol/sale.dart' as _i41;
 import 'package:kola_client/src/protocol/sale_line.dart' as _i42;
-import 'package:kola_client/src/protocol/task.dart' as _i43;
-import 'package:kola_client/src/protocol/till_display_state.dart' as _i44;
-import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i45;
+import 'package:kola_client/src/protocol/stock_conflict.dart' as _i43;
+import 'package:kola_client/src/protocol/task.dart' as _i44;
+import 'package:kola_client/src/protocol/till_display_state.dart' as _i45;
+import 'package:kola_client/src/protocol/waitlist_signup.dart' as _i46;
 import 'package:kola_client/src/protocol/whatsapp_message_template.dart'
-    as _i46;
-import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i47;
-import 'protocol.dart' as _i48;
+    as _i47;
+import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i48;
+import 'protocol.dart' as _i49;
 
 /// {@category Endpoint}
 class EndpointAdminAccounts extends _i1.EndpointRef {
@@ -3534,6 +3535,60 @@ class EndpointSale extends _i1.EndpointRef {
 }
 
 /// {@category Endpoint}
+class EndpointStockConflict extends _i1.EndpointRef {
+  EndpointStockConflict(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'stockConflict';
+
+  /// Open conflicts for this workspace — till_page.dart's own small
+  /// banner reads this, since a conflict only ever comes from a sale
+  /// made there. Deliberately not folded into WorkspaceFinding's
+  /// deterministic sweep (Phase 12b): a finding is present-or-absent,
+  /// recomputed fresh on every read; a stock conflict is a specific
+  /// incident with a plain-language DECISION to make ("backorder or
+  /// adjust the count"), not a fact to dismiss.
+  _i2.Future<List<_i43.StockConflict>> listOpen(
+    String accessToken,
+    int workspaceId,
+  ) => caller.callServerEndpoint<List<_i43.StockConflict>>(
+    'stockConflict',
+    'listOpen',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+    },
+  );
+
+  /// [resolution] is 'backordered' | 'adjusted' | 'dismissed' — the
+  /// owner's own words from the brief's example ("mark one as a
+  /// backorder, or adjust the count") turned into the two real choices,
+  /// plus a plain dismiss for "never mind, I've already sorted it."
+  /// Neither choice touches Product.stock: it is already at zero (see
+  /// adjustStock's own clamp), which IS the adjusted count in the
+  /// "adjust the count" case, and a backorder is a promise to the
+  /// customer, not a stock number — there is nothing this endpoint
+  /// needs to write to Product either way. This is deliberately a
+  /// smaller action than it might sound: it closes the open question,
+  /// it does not move inventory.
+  _i2.Future<_i43.StockConflict> resolve(
+    String accessToken,
+    int workspaceId,
+    int conflictId,
+    String resolution,
+  ) => caller.callServerEndpoint<_i43.StockConflict>(
+    'stockConflict',
+    'resolve',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'conflictId': conflictId,
+      'resolution': resolution,
+    },
+  );
+}
+
+/// {@category Endpoint}
 class EndpointSupportTicket extends _i1.EndpointRef {
   EndpointSupportTicket(_i1.EndpointCaller caller) : super(caller);
 
@@ -3586,10 +3641,10 @@ class EndpointTask extends _i1.EndpointRef {
 
   /// Every task for a workspace — tasks_page.dart buckets these into
   /// the three kanban columns client-side by status.
-  _i2.Future<List<_i43.Task>> list(
+  _i2.Future<List<_i44.Task>> list(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i43.Task>>(
+  ) => caller.callServerEndpoint<List<_i44.Task>>(
     'task',
     'list',
     {
@@ -3600,7 +3655,7 @@ class EndpointTask extends _i1.EndpointRef {
 
   /// Creates a task by hand — see file header on why this exists even
   /// though the design export itself only shows pre-populated cards.
-  _i2.Future<_i43.Task> create(
+  _i2.Future<_i44.Task> create(
     String accessToken,
     int workspaceId,
     String title, {
@@ -3609,7 +3664,7 @@ class EndpointTask extends _i1.EndpointRef {
     int? sourceFindingId,
     String? assignee,
     DateTime? dueAt,
-  }) => caller.callServerEndpoint<_i43.Task>(
+  }) => caller.callServerEndpoint<_i44.Task>(
     'task',
     'create',
     {
@@ -3625,12 +3680,12 @@ class EndpointTask extends _i1.EndpointRef {
   );
 
   /// Moves a task between columns — 'todo' | 'in_progress' | 'done'.
-  _i2.Future<_i43.Task> setStatus(
+  _i2.Future<_i44.Task> setStatus(
     String accessToken,
     int workspaceId,
     int taskId,
     String status,
-  ) => caller.callServerEndpoint<_i43.Task>(
+  ) => caller.callServerEndpoint<_i44.Task>(
     'task',
     'setStatus',
     {
@@ -3710,8 +3765,8 @@ class EndpointTillDisplay extends _i1.EndpointRef {
   /// a fresh row would represent, rather than an error — the display is
   /// meant to be left open on a screen well before the first sale of
   /// the day, not opened only once a sale is already in progress.
-  _i2.Future<_i44.TillDisplayState> getState(int workspaceId) =>
-      caller.callServerEndpoint<_i44.TillDisplayState>(
+  _i2.Future<_i45.TillDisplayState> getState(int workspaceId) =>
+      caller.callServerEndpoint<_i45.TillDisplayState>(
         'tillDisplay',
         'getState',
         {'workspaceId': workspaceId},
@@ -3732,13 +3787,13 @@ class EndpointWaitlist extends _i1.EndpointRef {
   /// A basic shape check on [email] happens here rather than trusting the
   /// browser's <input type="email"> alone, since this endpoint is public
   /// and reachable by anything, not just our own landing page.
-  _i2.Future<_i45.WaitlistSignup> joinWaitlist(
+  _i2.Future<_i46.WaitlistSignup> joinWaitlist(
     String email,
     String source, {
     String? name,
     String? phone,
     String? businessType,
-  }) => caller.callServerEndpoint<_i45.WaitlistSignup>(
+  }) => caller.callServerEndpoint<_i46.WaitlistSignup>(
     'waitlist',
     'joinWaitlist',
     {
@@ -3765,7 +3820,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// wrapper for the one shape the owner specifically asked for.
   /// Auth-checked here, then delegated to WhatsAppTemplateCreationService
   /// — see this file's header.
-  _i2.Future<_i46.WhatsAppMessageTemplate> createTemplate(
+  _i2.Future<_i47.WhatsAppMessageTemplate> createTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
@@ -3774,7 +3829,7 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
     String language,
     String bodyText,
     List<String> bodyExampleValues,
-  ) => caller.callServerEndpoint<_i46.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i47.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createTemplate',
     {
@@ -3801,14 +3856,14 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// values Meta's review requires for the two placeholders — not sent
   /// to any real customer, only shown to Meta's reviewer alongside the
   /// template.
-  _i2.Future<_i46.WhatsAppMessageTemplate> createProductListTemplate(
+  _i2.Future<_i47.WhatsAppMessageTemplate> createProductListTemplate(
     String accessToken,
     int workspaceId,
     int channelId,
     String businessLabel,
     String customerNameExample,
     String productListExample,
-  ) => caller.callServerEndpoint<_i46.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i47.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'createProductListTemplate',
     {
@@ -3823,10 +3878,10 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
 
   /// Every template submitted for this workspace, newest first — the
   /// dashboard's template status list.
-  _i2.Future<List<_i46.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
+  _i2.Future<List<_i47.WhatsAppMessageTemplate>> listTemplatesForWorkspace(
     String accessToken,
     int workspaceId,
-  ) => caller.callServerEndpoint<List<_i46.WhatsAppMessageTemplate>>(
+  ) => caller.callServerEndpoint<List<_i47.WhatsAppMessageTemplate>>(
     'whatsAppTemplate',
     'listTemplatesForWorkspace',
     {
@@ -3838,11 +3893,11 @@ class EndpointWhatsAppTemplate extends _i1.EndpointRef {
   /// Polls Meta for [templateId]'s current review outcome and persists
   /// any change — see whatsapp_template_service.dart's header on why
   /// this is polling, not a webhook, for now.
-  _i2.Future<_i46.WhatsAppMessageTemplate> refreshTemplateStatus(
+  _i2.Future<_i47.WhatsAppMessageTemplate> refreshTemplateStatus(
     String accessToken,
     int workspaceId,
     int templateId,
-  ) => caller.callServerEndpoint<_i46.WhatsAppMessageTemplate>(
+  ) => caller.callServerEndpoint<_i47.WhatsAppMessageTemplate>(
     'whatsAppTemplate',
     'refreshTemplateStatus',
     {
@@ -4024,12 +4079,12 @@ class EndpointWorkspace extends _i1.EndpointRef {
   /// workspace collecting from ITS OWN customers). [customerEmail] is
   /// the signed-in dashboard user's email — the gateway needs an email
   /// on file for the checkout page/receipt regardless of who's paying.
-  _i2.Future<_i47.KolaBillingCheckout> initiateUpgrade(
+  _i2.Future<_i48.KolaBillingCheckout> initiateUpgrade(
     String accessToken,
     int workspaceId,
     String gateway,
     String customerEmail,
-  ) => caller.callServerEndpoint<_i47.KolaBillingCheckout>(
+  ) => caller.callServerEndpoint<_i48.KolaBillingCheckout>(
     'workspace',
     'initiateUpgrade',
     {
@@ -4061,7 +4116,7 @@ class Client extends _i1.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i48.Protocol(),
+         _i49.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -4099,6 +4154,7 @@ class Client extends _i1.ServerpodClientShared {
     product = EndpointProduct(this);
     report = EndpointReport(this);
     sale = EndpointSale(this);
+    stockConflict = EndpointStockConflict(this);
     supportTicket = EndpointSupportTicket(this);
     task = EndpointTask(this);
     tillDisplay = EndpointTillDisplay(this);
@@ -4165,6 +4221,8 @@ class Client extends _i1.ServerpodClientShared {
 
   late final EndpointSale sale;
 
+  late final EndpointStockConflict stockConflict;
+
   late final EndpointSupportTicket supportTicket;
 
   late final EndpointTask task;
@@ -4208,6 +4266,7 @@ class Client extends _i1.ServerpodClientShared {
     'product': product,
     'report': report,
     'sale': sale,
+    'stockConflict': stockConflict,
     'supportTicket': supportTicket,
     'task': task,
     'tillDisplay': tillDisplay,

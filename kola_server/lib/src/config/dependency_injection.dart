@@ -89,6 +89,7 @@ import 'package:kola_server/src/services/billing/payment_reconciliation_service.
 import 'package:kola_server/src/services/billing/payment_checkout_service.dart';
 import 'package:kola_server/src/services/repository/support_ticket_repository.dart';
 import 'package:kola_server/src/services/repository/task_repository.dart';
+import 'package:kola_server/src/services/repository/stock_conflict_repository.dart';
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
 import 'package:kola_server/src/services/repository/customer_profile_repository.dart';
 import 'package:kola_server/src/services/support/customer_campaign_sweep_service.dart';
@@ -785,6 +786,14 @@ void setupDependencyInjection() {
   // WorkspaceFinding, which is looked up by the dashboard, not here).
   getIt.registerLazySingleton<TaskRepository>(
     () => const TaskRepository(),
+  );
+
+  // Phase 11g-e — the backend behind offline-sync's stock-conflict
+  // resolution surface. Written to by SaleEndpoint.ringUpSale (via
+  // ProductRepository.adjustStock's oversell signal), read by
+  // StockConflictEndpoint / till_page.dart's conflict banner.
+  getIt.registerLazySingleton<StockConflictRepository>(
+    () => const StockConflictRepository(),
   );
 
   // Task #132 / Phase 8b — birthday/anniversary campaigns. The sweep

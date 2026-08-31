@@ -183,6 +183,9 @@ sale:
   - ringUpSale:
   - listSales:
   - getSaleLines:
+stockConflict:
+  - listOpen:
+  - resolve:
 supportTicket:
   - list:
   - setStatus:

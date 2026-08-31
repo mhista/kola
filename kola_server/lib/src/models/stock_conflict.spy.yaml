@@ -1,0 +1,72 @@
+##
+## stock_conflict.spy.yaml — Phase 11g-e: DESIGN_BRIEF_COMMERCE.md §1's
+## conflict-resolution requirement, made real. Its own example is the
+## spec: "Both tills sold the last red ankara at 2:15pm. Stock is now
+## −1. Mark one as a backorder, or adjust the count?" — "NEVER show a
+## merge-conflict UI to a shop owner."
+##
+## WHEN THIS IS CREATED: SaleEndpoint.ringUpSale, the moment
+## ProductRepository.adjustStock reports a decrement would have taken a
+## product's stock below zero — which only becomes possible now that
+## sales can be QUEUED offline and synced later (11g-b/c/d): two tills,
+## both offline, can each independently believe they're selling the last
+## unit. An always-online till could never produce this — Product.stock
+## itself is still clamped at zero server-side (adjustStock's own
+## header), so this row is what carries the "how far below zero" signal
+## a clamped column throws away.
+##
+## THIS IS A PROPOSAL, NOT A FACT THE SYSTEM ACTS ON — same posture as
+## CustomerMergeProposal (Gate 3b, "merges are proposals... the owner
+## confirms"). Detecting an oversell never blocks or reverses the sale
+## that caused it (the money is real, the sale stands); it only surfaces
+## a decision for the owner: was this a backorder, or was the counted
+## stock simply wrong.
+##
+## status: 'open' (default) | 'backordered' | 'adjusted' | 'dismissed'.
+## 'backordered' and 'adjusted' both mean "the owner decided" — they're
+## kept distinct rather than collapsed into one 'resolved' because the
+## brief's own two options are different real-world outcomes worth
+## keeping separate in a later "how often does this happen" read, not
+## because anything today branches on which one it is.
+##
+
+class: StockConflict
+# table: stock_conflicts
+fields:
+  id: int?
+
+  workspaceId: int
+  productId: int
+
+  ## The sync-time sale whose decrement is what pushed stock below zero
+  ## — the SECOND of the two conflicting sales chronologically (the
+  ## first one synced cleanly; this one is what revealed the conflict).
+  ## Nullable only because a Sale row could theoretically be deleted out
+  ## from under this later (no cascade exists either way today) — never
+  ## null at creation time.
+  saleId: int?
+
+  ## How many units short — the brief's "Stock is now −1" example is
+  ## oversoldBy: 1. Always >= 1; this row is never created for anything
+  ## else.
+  oversoldBy: int
+
+  detectedAt: DateTime
+
+  ## 'open' | 'backordered' | 'adjusted' | 'dismissed' — see header.
+  status: String
+
+  resolvedAt: DateTime?
+
+  ## The acting user's Supabase Auth id — same "no email lookup at this
+  ## layer" limitation CustomerEndpoint.resolveMergeProposal already
+  ## documents and accepts for the identical reason.
+  resolvedByEmail: String?
+
+indexes:
+  stock_conflict_workspace_idx:
+    fields: workspaceId
+  stock_conflict_status_idx:
+    fields: workspaceId, status
+  stock_conflict_product_idx:
+    fields: productId
