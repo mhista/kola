@@ -109,6 +109,25 @@ fields:
   # and the owner should confirm.
   supersededBy: int?
 
+  # ── Feed toggle (migration 061) ──────────────────────────────────────
+  # A plain manual owner switch: false means EXCLUDED from retrieval —
+  # kola will not answer from it — even though the document is still
+  # indexed, still shown on the Knowledge page, and unrelated to
+  # supersededBy above.
+  #
+  # WHY THIS IS SEPARATE FROM supersededBy: supersededBy means "a specific
+  # other document replaces this one" and is never set by the owner
+  # directly (see that field's comment — it is a proposal ingestion makes
+  # and the owner confirms). This is the opposite shape: no replacement,
+  # no proposal, just "don't use this right now" — an outdated file the
+  # owner wants kept but not influencing answers, per this field's own
+  # migration header.
+  #
+  # Defaults true so every document that already exists at migration time
+  # keeps answering exactly as before — see 061's header on why false
+  # would be the wrong default.
+  feedingEnabled: bool
+
 indexes:
   knowledge_document_workspace_idx:
     fields: workspaceId

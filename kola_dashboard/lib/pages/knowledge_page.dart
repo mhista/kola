@@ -61,6 +61,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/dom_files.dart';
 import '../services/file_intake.dart';
@@ -386,6 +387,52 @@ class _KnowledgePageState extends State<KnowledgePage>
     await _refresh();
   }
 
+  /// Which document's feed toggle is mid-flight, if any. Blocks a second
+  /// click on the same row while the first is still in transit — the
+  /// same guard _generating already uses for the build-from buttons.
+  int? _togglingId;
+
+  /// Set only on a failed toggle. Deliberately its OWN field rather than
+  /// reusing [_loadError]: [_loadError] swaps the whole Documents tab for
+  /// [_errorState], which would hide every other row's table over one
+  /// row's failed click — a much bigger reaction than the failure
+  /// deserves.
+  String? _toggleError;
+
+  /// Flips a document's feedingEnabled — "Pause"/"Resume" in
+  /// owner-facing terms. The row updates from the server's own returned
+  /// document (not a locally-guessed value), so a failure never leaves
+  /// the toggle showing a state the database doesn't actually have.
+  Future<void> _toggleFeeding(KnowledgeDocument d) async {
+    if (d.id == null || _togglingId != null) return;
+    setState(() {
+      _togglingId = d.id;
+      _toggleError = null;
+    });
+    try {
+      final updated = await component.client.knowledge.setFeedingEnabled(
+        component.accessToken,
+        component.workspaceId,
+        d.id!,
+        !d.feedingEnabled,
+      );
+      if (!mounted) return;
+      setState(() {
+        _docs = [
+          for (final existing in _docs)
+            if (existing.id == updated.id) updated else existing,
+        ];
+        _togglingId = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _togglingId = null;
+        _toggleError = ErrorText.of(e);
+      });
+    }
+  }
+
   Future<void> _runProbe([String? preset]) async {
     final q = (preset ?? _probe).trim();
     if (q.isEmpty) return;
@@ -468,11 +515,30 @@ class _KnowledgePageState extends State<KnowledgePage>
         [
           div(
             attributes: {
-              'style': 'font-family:${KolaFonts.display};'
-                  'font-size:${KolaType.h2};font-weight:700;'
-                  'color:${KolaVar.text};margin-bottom:6px',
+              'style': 'display:flex;align-items:flex-start;'
+                  'justify-content:space-between;gap:12px',
             },
-            [Component.text('Knowledge Center')],
+            [
+              div(
+                attributes: {
+                  'style': 'font-family:${KolaFonts.display};'
+                      'font-size:${KolaType.h2};font-weight:700;'
+                      'color:${KolaVar.text};margin-bottom:6px',
+                },
+                [Component.text('Knowledge Center')],
+              ),
+              const PageHelpButton(
+                pageKey: 'knowledge',
+                body: [
+                  "What kolaa knows, and exactly which passage it would "
+                      "answer a customer's question from. Documents "
+                      "lists everything it's been given; Memory "
+                      "Inspector lets you test a question and see the "
+                      "exact source it would draw from; Add knowledge is "
+                      "where you upload or paste something new.",
+                ],
+              ),
+            ],
           ),
           div(
             attributes: {
@@ -527,6 +593,19 @@ class _KnowledgePageState extends State<KnowledgePage>
   // ── Documents ──────────────────────────────────────────────────────
 
   Component _documentsTab() => div([
+        // A toggle failure gets its own small banner rather than
+        // swapping in [_errorState] — see [_toggleError]'s doc comment.
+        if (_toggleError != null)
+          div(
+            attributes: {
+              'style': 'padding:10px 14px;border-radius:${KolaRadius.md};'
+                  'border:1px solid ${KolaVar.danger};'
+                  'background:${KolaVar.dangerBg};'
+                  'color:${KolaVar.danger};font-size:${KolaType.small};'
+                  'margin-bottom:${KolaSpace.sm}',
+            },
+            [Component.text(_toggleError!)],
+          ),
         if (_docs.isNotEmpty) ...[
           input<String>(
             type: InputType.search,
@@ -646,21 +725,25 @@ class _KnowledgePageState extends State<KnowledgePage>
   Component _docRow(KnowledgeDocument d) {
     final status = _designStatus(d);
     final failed = status == 'failed';
+    final paused = !d.feedingEnabled;
     return div(
       attributes: {
-        // Red left border on a failed row, per the design — the row is
-        // findable by shape, not only by the badge's colour.
+        // Red left border on a failed row, amber on a paused one, per the
+        // design — the row is findable by shape, not only by the badge's
+        // colour. Failed wins when a row is somehow both: a row that
+        // can't be searched at all is the more urgent fact.
         'style': 'display:grid;'
             'grid-template-columns:minmax(200px,3fr) 1.2fr .7fr .8fr 1.4fr;'
             'gap:12px;padding:14px 16px;align-items:start;'
             'border-bottom:1px solid ${KolaVar.border};'
-            'border-left:3px solid ${failed ? KolaVar.danger : 'transparent'}',
+            'border-left:3px solid ${failed ? KolaVar.danger : paused ? KolaVar.warning : 'transparent'}',
       },
       [
         div(
           attributes: {
             'style': 'font-size:${KolaType.body};font-weight:600;'
-                'color:${KolaVar.text};word-break:break-word',
+                'color:${paused ? KolaVar.muted : KolaVar.text};'
+                'word-break:break-word',
           },
           [Component.text(d.title)],
         ),
@@ -696,8 +779,48 @@ class _KnowledgePageState extends State<KnowledgePage>
               },
               [Component.text(d.errorMessage!)],
             ),
+          if (paused)
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.warning};'
+                    'line-height:1.45;margin-top:6px',
+              },
+              [Component.text('Not answering questions')],
+            ),
+          div(
+            attributes: {'style': 'margin-top:8px'},
+            [_feedingToggleButton(d)],
+          ),
         ]),
       ],
+    );
+  }
+
+  /// Pause/Resume for one document's [KnowledgeDocument.feedingEnabled].
+  ///
+  /// Text-labelled rather than an icon: the icon set has an open [eye]
+  /// but no eye-off/pause counterpart, and a mismatched pair (real icon
+  /// for one state, a bare glyph standing in for the other) is worse
+  /// than a plain button both states share.
+  Component _feedingToggleButton(KnowledgeDocument d) {
+    final busy = _togglingId == d.id;
+    final paused = !d.feedingEnabled;
+    return button(
+      attributes: {
+        'type': 'button',
+        if (busy) 'disabled': 'disabled',
+        'style': 'padding:5px 12px;border-radius:${KolaRadius.pill};'
+            'border:1px solid ${KolaVar.border};background:transparent;'
+            'color:${KolaVar.mutedStrong};font-family:inherit;'
+            'font-size:${KolaType.tiny};font-weight:600;'
+            'cursor:${busy ? 'default' : 'pointer'}',
+      },
+      events: {
+        'click': (_) {
+          if (!busy) _toggleFeeding(d);
+        },
+      },
+      [Component.text(busy ? 'Working…' : (paused ? 'Resume' : 'Pause'))],
     );
   }
 
@@ -709,12 +832,13 @@ class _KnowledgePageState extends State<KnowledgePage>
   Component _docCard(KnowledgeDocument d) {
     final status = _designStatus(d);
     final failed = status == 'failed';
+    final paused = !d.feedingEnabled;
     return div(
       attributes: {
         'style': 'border:1px solid ${KolaVar.border};'
             'border-radius:${KolaRadius.md};padding:12px 14px;'
             'margin-bottom:8px;'
-            'border-left:3px solid ${failed ? KolaVar.danger : 'transparent'}',
+            'border-left:3px solid ${failed ? KolaVar.danger : paused ? KolaVar.warning : 'transparent'}',
       },
       [
         div(
@@ -726,7 +850,8 @@ class _KnowledgePageState extends State<KnowledgePage>
             div(
               attributes: {
                 'style': 'font-size:${KolaType.body};font-weight:600;'
-                    'color:${KolaVar.text};word-break:break-word;flex:1',
+                    'color:${paused ? KolaVar.muted : KolaVar.text};'
+                    'word-break:break-word;flex:1',
               },
               [Component.text(d.title)],
             ),
@@ -752,6 +877,18 @@ class _KnowledgePageState extends State<KnowledgePage>
             },
             [Component.text(d.errorMessage!)],
           ),
+        if (paused)
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.tiny};color:${KolaVar.warning};'
+                  'line-height:1.45;margin-top:6px',
+            },
+            [Component.text('Not answering questions')],
+          ),
+        div(
+          attributes: {'style': 'margin-top:8px'},
+          [_feedingToggleButton(d)],
+        ),
       ],
     );
   }

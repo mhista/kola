@@ -126,6 +126,18 @@ const navGroups = <NavGroup>[
       features: [Features.commerceCore, Features.commerceCatalog],
       badge: 'SELL',
     ),
+    // Phase 14a-4. Was a tab inside documents_page.dart's "Documents"
+    // surface (see till_page.dart's old header link) — now its own
+    // sidebar-reachable page (invoices_page.dart), same commerce gate
+    // Sales counter/Catalog already use, since an invoice is the till's
+    // own output in another form.
+    NavItem(
+      label: 'Invoices',
+      icon: Icons.invoice,
+      route: '/invoices',
+      features: [Features.commerceCore, Features.commercePos],
+      badge: 'SELL',
+    ),
   ]),
   NavGroup(label: 'Attention', items: [
     NavItem(
@@ -186,8 +198,14 @@ const navGroups = <NavGroup>[
       route: '/knowledge',
       features: [Features.memoryDocuments],
     ),
+    // 14j: renamed from "Automations" — the route (/errands) and page
+    // file (errand_builder_page.dart) were already "Errand"-named; only
+    // the visible nav label was wrong. Rename only — the bigger scope
+    // question (does Errand Builder become auto-firing on
+    // customer-lifecycle events?) is still open with the owner; see
+    // PHASE_14_HANDOFF.pdf's 14j section.
     NavItem(
-      label: 'Automations',
+      label: 'Errands',
       icon: Icons.workflow,
       route: '/errands',
       features: [Features.errandsBuiltin],
@@ -272,6 +290,15 @@ const profileEntries = <({
   String route,
   bool danger,
 })>[
+  // Phase 14a-5. The owner's own instruction: remove "Documents" from
+  // the Sales Counter header entirely, add "Invoices" here instead — a
+  // walk-in-focused till screen doesn't need a document-browser button
+  // in its own top bar when the sidebar (and now this menu) already
+  // reach it. Not gated here the way NavItem entries are (this list has
+  // no gating mechanism today — see the header note on sidebar.dart), so
+  // it always shows; invoices_page.dart's own load will simply come back
+  // empty for a workspace that hasn't rung up a sale yet.
+  (label: 'Invoices', icon: Icons.invoice, route: '/invoices', danger: false),
   (label: 'Connectors', icon: Icons.plug, route: '/integrations', danger: false),
   (label: 'Settings', icon: Icons.settings, route: '/settings', danger: false),
   (label: 'Billing', icon: Icons.billing, route: '/billing', danger: false),

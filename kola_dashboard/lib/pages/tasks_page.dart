@@ -47,6 +47,9 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/kola_icon.dart';
+import '../components/shell/icons.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
@@ -250,7 +253,27 @@ class _TasksPageState extends State<TasksPage> {
               ),
             ],
           ),
-          _addButton(),
+          div(
+            attributes: {'style': 'display:flex;align-items:center;gap:10px'},
+            [
+              _addButton(),
+              const PageHelpButton(
+                pageKey: 'tasks',
+                body: [
+                  "Things a recommendation, escalation, or observation "
+                      "turned into a real commitment. Cards labeled with "
+                      "a source (Recommendations, Observations, "
+                      "Operations) were spun out of something kola "
+                      "flagged; cards labeled 'Added by you' were "
+                      "created here directly with '+ Add task'.",
+                  "Use each card's 'Move to…' control to move it between "
+                      "To do, In progress and Done — there's no drag and "
+                      "drop yet, so this button is the way to update "
+                      "status.",
+                ],
+              ),
+            ],
+          ),
         ],
       );
 
@@ -317,7 +340,17 @@ class _TasksPageState extends State<TasksPage> {
             'font-family:inherit;font-weight:600;cursor:pointer',
       },
       events: {'click': (_) => setState(() => _addingOpen = true)},
-      [Component.text('+ Add task')],
+      [
+        div(
+          attributes: {
+            'style': 'display:flex;align-items:center;gap:6px',
+          },
+          [
+            kolaIcon(Icons.plus, size: 14),
+            Component.text('Add task'),
+          ],
+        ),
+      ],
     );
   }
 
@@ -405,7 +438,14 @@ class _TasksPageState extends State<TasksPage> {
     final overdue = _isOverdue(t);
     final done = t.status == 'done';
     final priorityColor = _priorityColor[t.priority] ?? KolaVar.muted;
-    final source = t.sourceType == null ? null : _sourceLabel[t.sourceType];
+    // 14f: sourceType == null used to render nothing in this slot, which
+    // read as a bug rather than as "you made this" — every task today is
+    // manually created (see task_endpoint.dart's header; no code path yet
+    // auto-creates a Task from a Recommendation/Observation/Operations
+    // event), so the honest label for the null case is spelled out rather
+    // than left blank.
+    final source =
+        t.sourceType == null ? 'Added by you' : _sourceLabel[t.sourceType];
 
     return div(
       attributes: {
@@ -507,7 +547,18 @@ class _TasksPageState extends State<TasksPage> {
                       if (!busy) _move(t, col.status);
                     },
                   },
-                  [Component.text('→ ${col.label}')],
+                  [
+                    span(
+                      attributes: {
+                        'style': 'display:inline-flex;align-items:center;'
+                            'gap:4px',
+                      },
+                      [
+                        kolaIcon(Icons.arrowRight, size: 12),
+                        Component.text(col.label),
+                      ],
+                    ),
+                  ],
                 ),
           ],
         ),

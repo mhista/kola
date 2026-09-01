@@ -38,6 +38,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
@@ -160,12 +161,28 @@ class _BillingPageState extends State<BillingPage> {
             'padding:28px 20px 40px;display:flex;flex-direction:column;gap:18px',
       },
       [
-        h1(
+        div(
           attributes: {
-            'style': 'font-family:${KolaFonts.display};font-size:${KolaType.h2};'
-                'font-weight:700;color:${KolaVar.text};margin:0',
+            'style': 'display:flex;align-items:flex-start;'
+                'justify-content:space-between;gap:12px',
           },
-          [Component.text('Billing')],
+          [
+            h1(
+              attributes: {
+                'style': 'font-family:${KolaFonts.display};'
+                    'font-size:${KolaType.h2};font-weight:700;'
+                    'color:${KolaVar.text};margin:0',
+              },
+              [Component.text('Billing')],
+            ),
+            const PageHelpButton(
+              pageKey: 'billing',
+              body: [
+                "Your current plan, what it includes, and how much of "
+                    "this billing period's usage you've used so far.",
+              ],
+            ),
+          ],
         ),
         if (_error != null) _errorBanner(),
         if (_pendingCheckoutUrl != null) _checkoutLink(),

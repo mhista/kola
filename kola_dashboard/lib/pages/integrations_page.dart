@@ -74,6 +74,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
@@ -908,11 +909,28 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         [
           div(
             attributes: {
-              'style': 'font-family:${KolaFonts.display};'
-                  'font-size:${KolaType.h2};color:${KolaVar.text};'
-                  'font-weight:700;margin-bottom:6px',
+              'style': 'display:flex;align-items:flex-start;'
+                  'justify-content:space-between;gap:12px',
             },
-            [Component.text('Integrations')],
+            [
+              div(
+                attributes: {
+                  'style': 'font-family:${KolaFonts.display};'
+                      'font-size:${KolaType.h2};color:${KolaVar.text};'
+                      'font-weight:700;margin-bottom:6px',
+                },
+                [Component.text('Integrations')],
+              ),
+              const PageHelpButton(
+                pageKey: 'integrations',
+                body: [
+                  "Connect the tools you already use. kolaa reads from "
+                      "them so you do not have to enter the same thing "
+                      "twice — search or filter below to find one, then "
+                      "connect it.",
+                ],
+              ),
+            ],
           ),
           div(
             attributes: {

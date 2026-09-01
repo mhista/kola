@@ -196,6 +196,46 @@ class KnowledgeEndpoint extends Endpoint {
     throw KolaException(message: result.message ?? 'Could not update that document.');
   }
 
+  /// Toggles whether this document feeds the bot's answers, without
+  /// deleting it — see knowledge_document.spy.yaml's feedingEnabled
+  /// comment and migration 061's header for why this exists as a
+  /// separate switch from status/supersededBy.
+  ///
+  /// Both retrieval RPCs (migration 061) filter on the column this
+  /// writes, so disabling here genuinely stops kola answering from the
+  /// document — this is not a dashboard-only label.
+  Future<KnowledgeDocument> setFeedingEnabled(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int documentId,
+    bool enabled,
+  ) async {
+    await requireWorkspaceAccess(
+      accessToken: accessToken,
+      workspaceId: workspaceId,
+    );
+
+    final existing = await _documents.findByIdScoped(documentId, workspaceId);
+    if (existing == null) {
+      throw KolaException(message: 'That document doesn\'t exist in this workspace.');
+    }
+
+    final updated = await _documents.setFeedingEnabled(
+      id: documentId,
+      workspaceId: workspaceId,
+      enabled: enabled,
+    );
+
+    Log.success(
+      'Set feedingEnabled=$enabled for knowledge document $documentId '
+      '("${existing.title}") in workspace $workspaceId',
+      session: session,
+    );
+
+    return updated;
+  }
+
   /// Runs a real memory search and returns what the bot WOULD retrieve
   /// for [query], scores included.
   ///

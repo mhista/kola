@@ -29,6 +29,7 @@ abstract class KnowledgeDocument
     required this.updatedAt,
     this.effectiveFrom,
     this.supersededBy,
+    required this.feedingEnabled,
   });
 
   factory KnowledgeDocument({
@@ -46,6 +47,7 @@ abstract class KnowledgeDocument
     required DateTime updatedAt,
     DateTime? effectiveFrom,
     int? supersededBy,
+    required bool feedingEnabled,
   }) = _KnowledgeDocumentImpl;
 
   factory KnowledgeDocument.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -72,6 +74,9 @@ abstract class KnowledgeDocument
               jsonSerialization['effectiveFrom'],
             ),
       supersededBy: jsonSerialization['supersededBy'] as int?,
+      feedingEnabled: _i1.BoolJsonExtension.fromJson(
+        jsonSerialization['feedingEnabled'],
+      ),
     );
   }
 
@@ -103,6 +108,8 @@ abstract class KnowledgeDocument
 
   int? supersededBy;
 
+  bool feedingEnabled;
+
   /// Returns a shallow copy of this [KnowledgeDocument]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -121,6 +128,7 @@ abstract class KnowledgeDocument
     DateTime? updatedAt,
     DateTime? effectiveFrom,
     int? supersededBy,
+    bool? feedingEnabled,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -140,6 +148,7 @@ abstract class KnowledgeDocument
       'updatedAt': updatedAt.toJson(),
       if (effectiveFrom != null) 'effectiveFrom': effectiveFrom?.toJson(),
       if (supersededBy != null) 'supersededBy': supersededBy,
+      'feedingEnabled': feedingEnabled,
     };
   }
 
@@ -161,6 +170,7 @@ abstract class KnowledgeDocument
       'updatedAt': updatedAt.toJson(),
       if (effectiveFrom != null) 'effectiveFrom': effectiveFrom?.toJson(),
       if (supersededBy != null) 'supersededBy': supersededBy,
+      'feedingEnabled': feedingEnabled,
     };
   }
 
@@ -188,6 +198,7 @@ class _KnowledgeDocumentImpl extends KnowledgeDocument {
     required DateTime updatedAt,
     DateTime? effectiveFrom,
     int? supersededBy,
+    required bool feedingEnabled,
   }) : super._(
          id: id,
          workspaceId: workspaceId,
@@ -203,6 +214,7 @@ class _KnowledgeDocumentImpl extends KnowledgeDocument {
          updatedAt: updatedAt,
          effectiveFrom: effectiveFrom,
          supersededBy: supersededBy,
+         feedingEnabled: feedingEnabled,
        );
 
   /// Returns a shallow copy of this [KnowledgeDocument]
@@ -224,6 +236,7 @@ class _KnowledgeDocumentImpl extends KnowledgeDocument {
     DateTime? updatedAt,
     Object? effectiveFrom = _Undefined,
     Object? supersededBy = _Undefined,
+    bool? feedingEnabled,
   }) {
     return KnowledgeDocument(
       id: id is int? ? id : this.id,
@@ -242,6 +255,7 @@ class _KnowledgeDocumentImpl extends KnowledgeDocument {
           ? effectiveFrom
           : this.effectiveFrom,
       supersededBy: supersededBy is int? ? supersededBy : this.supersededBy,
+      feedingEnabled: feedingEnabled ?? this.feedingEnabled,
     );
   }
 }

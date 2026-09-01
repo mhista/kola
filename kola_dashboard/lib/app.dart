@@ -78,6 +78,7 @@ import 'pages/api_webhooks_page.dart';
 import 'pages/customers_page.dart';
 import 'pages/till_page.dart';
 import 'pages/documents_page.dart';
+import 'pages/invoices_page.dart';
 
 class DashboardApp extends StatefulComponent {
   const DashboardApp();
@@ -920,14 +921,32 @@ class _DashboardAppState extends State<DashboardApp> {
         ),
         Route(
           path: '/documents',
-          // Kola Documents.dc.html — the receipt/invoice/report surface
-          // linked from Till's header and its post-sale "Print" action.
-          // Same full-bleed, no-shell treatment as /counter.
+          // Kola Documents.dc.html — the receipt/report surface. The A4
+          // invoice tab that used to live here moved out to its own
+          // sidebar page (see /invoices below) — Phase 14a-4.
           builder: (context, state) => DocumentsPage(
             client: _client,
             accessToken: _session!.accessToken,
             workspaceId: _selectedWorkspace!.id!,
             workspaceName: _selectedWorkspace!.name,
+          ),
+        ),
+        // Phase 14a-4. Was a tab inside DocumentsPage; the owner asked
+        // for a standalone, sidebar-reachable invoice section with real
+        // design attention — see invoices_page.dart's own header. WITH
+        // shellFor, unlike /documents and /counter: the owner's own
+        // instruction was "sidebar always visible, never a standalone
+        // full-screen takeover page" for this one.
+        Route(
+          path: '/invoices',
+          builder: (context, state) => shellFor(
+            state,
+            InvoicesPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              workspaceName: _selectedWorkspace!.name,
+            ),
           ),
         ),
       ],

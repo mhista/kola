@@ -74,6 +74,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
 import '../services/imagekit_url.dart';
@@ -385,12 +386,34 @@ class _OperationsPageState extends State<OperationsPage> {
             'border-bottom:1px solid ${KolaVar.border}',
       },
       [
-        h1(
+        div(
           attributes: {
-            'style': 'font-family:${KolaFonts.display};font-size:${KolaType.h2};'
-                'font-weight:700;color:${KolaVar.text};margin:0 0 4px',
+            'style': 'display:flex;align-items:flex-start;'
+                'justify-content:space-between;gap:12px',
           },
-          [Component.text('Operations')],
+          [
+            h1(
+              attributes: {
+                'style': 'font-family:${KolaFonts.display};'
+                    'font-size:${KolaType.h2};font-weight:700;'
+                    'color:${KolaVar.text};margin:0 0 4px',
+              },
+              [Component.text('Operations')],
+            ),
+            const PageHelpButton(
+              pageKey: 'operations',
+              body: [
+                "Escalations are conversations kola couldn't handle on "
+                    "its own and handed to a person — Conversations is "
+                    "every conversation, handled or not, in case you "
+                    "want to check in on one kola is still running.",
+                "Replying here sends as yourself. There's no "
+                    "AI-drafted-and-editable reply yet — that's real, "
+                    "unbuilt work — so for now this composer is a plain "
+                    "reply box, the same one on both tabs.",
+              ],
+            ),
+          ],
         ),
         div(
           attributes: {

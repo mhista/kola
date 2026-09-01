@@ -537,6 +537,9 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/services/admi
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/services/admin_local_storage.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_admin/lib/theme.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/kola_client.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/analytics_daily_point.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/analytics_segment.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/analytics_summary.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/api_key.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/bot.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/broadcast.dart
@@ -555,6 +558,7 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/customer_identity_signal.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/customer_merge_proposal.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/customer_profile.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/customer_summary.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/end_of_day_report.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/errand.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/errand_credential.dart
@@ -585,8 +589,10 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/sale.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/sale_line.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/sale_line_input.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/stock_conflict.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/subscription.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/support_ticket.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/task.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/till_display_item.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/till_display_state.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/usage_record.dart

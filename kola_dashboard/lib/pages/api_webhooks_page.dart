@@ -56,6 +56,7 @@ import 'package:web/web.dart' as web;
 
 import '../components/shell/kola_icon.dart';
 import '../components/shell/icons.dart';
+import '../components/shell/page_help_button.dart';
 import '../config/env.dart';
 import '../services/error_text.dart';
 import '../services/feature_gate.dart';
@@ -411,6 +412,15 @@ class _ApiWebhooksPageState extends State<ApiWebhooksPage> {
                   'text-decoration:none;white-space:nowrap;font-weight:600',
             },
             [Component.text('Full API docs')],
+          ),
+          const PageHelpButton(
+            pageKey: 'api-webhooks',
+            body: [
+              "Programmatic access to your agent and Errands — create "
+                  "an API key to call kola from your own code, or "
+                  "register a webhook to be notified when something "
+                  "happens.",
+            ],
           ),
         ],
       );

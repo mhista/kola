@@ -238,6 +238,35 @@ abstract class Env {
       ? _Env.geminiApiKey
       : Platform.environment['GEMINI_API_KEY'] ?? '';
 
+  // OPTIONAL, DELIBERATELY UNSET BY DEFAULT — root-cause diagnosis (2026-09,
+  // see embedding_orchestrator.dart's header and
+  // gemini_embedding_provider.dart's header) traced the recurring "Today's
+  // limit for processing new knowledge has been reached" upload failure to
+  // a real HTTP 429 from Google, NOT a per-workspace daily counter: EVERY
+  // workspace on the platform shares ONE Gemini key (geminiApiKey above)
+  // for BOTH high-volume chat traffic (AiOrchestrator/GeminiProvider) AND
+  // low-volume embeddings (EmbeddingOrchestrator/GeminiEmbeddingProvider),
+  // and chat traffic starves embeddings' share of the free-tier quota.
+  //
+  // This field lets a business (or Kola, platform-wide) supply a SEPARATE
+  // key dedicated to embeddings only, isolating that traffic from chat's.
+  // Until someone sets GEMINI_EMBEDDING_API_KEY, this stays empty and
+  // EmbeddingOrchestrator falls back to the shared geminiApiKey — meaning
+  // today's behavior is UNCHANGED by this field's mere existence. The
+  // moment a real key is set in the deployment environment, embeddings
+  // isolate from chat automatically, with no further code change needed.
+  // Same @EnviedField/Platform.environment fallback shape as every other
+  // optional key above (e.g. groqApiKey2) — nothing new invented here.
+  @EnviedField(
+    varName: 'GEMINI_EMBEDDING_API_KEY',
+    obfuscate: true,
+    defaultValue: '',
+  )
+  static final String geminiEmbeddingApiKey =
+      _Env.geminiEmbeddingApiKey.isNotEmpty
+      ? _Env.geminiEmbeddingApiKey
+      : Platform.environment['GEMINI_EMBEDDING_API_KEY'] ?? '';
+
   @EnviedField(varName: 'OPENROUTER_API_KEY', obfuscate: true, defaultValue: '')
   static final String openRouterApiKey = _Env.openRouterApiKey.isNotEmpty
       ? _Env.openRouterApiKey

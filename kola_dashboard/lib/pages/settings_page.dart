@@ -46,6 +46,7 @@ import 'package:web/web.dart' as web;
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/error_text.dart';
 import '../services/feature_gate.dart';
 import '../services/local_storage.dart';
@@ -319,11 +320,27 @@ class _SettingsPageState extends State<SettingsPage> {
         [
           div(
             attributes: {
-              'style': 'font-family:${KolaFonts.display};'
-                  'font-size:${KolaType.h2};font-weight:700;'
-                  'color:${KolaVar.text};margin-bottom:4px',
+              'style': 'display:flex;align-items:flex-start;'
+                  'justify-content:space-between;gap:12px',
             },
-            [Component.text('Settings')],
+            [
+              div(
+                attributes: {
+                  'style': 'font-family:${KolaFonts.display};'
+                      'font-size:${KolaType.h2};font-weight:700;'
+                      'color:${KolaVar.text};margin-bottom:4px',
+                },
+                [Component.text('Settings')],
+              ),
+              const PageHelpButton(
+                pageKey: 'settings',
+                body: [
+                  "Your workspace, how kolaa reaches you, and how this "
+                      "dashboard looks — everything here is per-workspace, "
+                      "not per-person.",
+                ],
+              ),
+            ],
           ),
           div(
             attributes: {

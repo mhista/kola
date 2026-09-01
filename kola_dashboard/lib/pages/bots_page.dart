@@ -46,6 +46,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
@@ -163,16 +164,33 @@ class _BotsPageState extends State<BotsPage> {
             ),
           ],
         ),
-        Link(
-          to: '/bots/new',
-          attributes: {
-            'class': 'kola-pressable',
-            'style': 'flex:none;background:${KolaVar.accentFill};'
-                'color:${KolaVar.accentText};border-radius:${KolaRadius.pill};'
-                'padding:9px 18px;font-size:${KolaType.small};'
-                'font-weight:600;text-decoration:none',
-          },
-          children: [Component.text('New agent')],
+        div(
+          attributes: {'style': 'display:flex;align-items:center;gap:10px'},
+          [
+            Link(
+              to: '/bots/new',
+              attributes: {
+                'class': 'kola-pressable',
+                'style': 'flex:none;background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};'
+                    'border-radius:${KolaRadius.pill};padding:9px 18px;'
+                    'font-size:${KolaType.small};font-weight:600;'
+                    'text-decoration:none',
+              },
+              children: [Component.text('New agent')],
+            ),
+            const PageHelpButton(
+              pageKey: 'agents',
+              body: [
+                "Agents are what answer your customers — you need at "
+                    "least one active agent for kola to handle "
+                    "conversations automatically.",
+                "Open an agent to see and edit what it knows, or pause "
+                    "it if you want a person handling everything for a "
+                    "while.",
+              ],
+            ),
+          ],
         ),
       ],
     );

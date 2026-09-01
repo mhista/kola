@@ -42,6 +42,7 @@
 //   Doing this twice is harmless (normalizing a unit vector is identity);
 //   NOT doing it when required is a silent, hard-to-trace quality bug.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -55,6 +56,36 @@ class GeminiEmbeddingProvider implements EmbeddingProvider {
 
   final String apiKey;
   final http.Client _http;
+
+  /// IN-REQUEST BACKOFF ON 429 (2026-09 diagnosis — see this file's header
+  /// and embedding_orchestrator.dart's header on why the "Today's limit
+  /// for processing new knowledge has been reached" failure is really a
+  /// live Gemini rate limit, not a per-workspace daily counter). Gemini's
+  /// per-MINUTE rate limits often clear within seconds, so a short retry
+  /// right here — no new infrastructure, no job queue, nothing persisted —
+  /// resolves a meaningful fraction of 429s inside the SAME ingestion
+  /// attempt, before the caller (DocumentIngestionService) ever sees a
+  /// failure. This is deliberately NOT ConnectorRetry.run: that helper
+  /// requires a ConnectorSyncLogRepository dead-letter sink built for
+  /// connector syncs, which doesn't fit (or belong to) a single HTTP call
+  /// here, so a small local loop is used instead — same
+  /// least-new-infrastructure instinct, applied to a different shape of
+  /// problem.
+  static const _rateLimitRetryDelays = [
+    Duration(seconds: 2),
+    Duration(seconds: 4),
+    Duration(seconds: 8),
+  ];
+
+  /// Process-static, in-memory only (same "one instance, no persistence"
+  /// honesty as PlatformHealthRegistry — see that file's header). Set the
+  /// moment a 429 survives every retry above, so
+  /// AdminPlatformEndpoint.embeddingQuotaInfo can tell kola_admin
+  /// "currently rate-limited" without inventing a real usage counter that
+  /// doesn't exist. Cleared implicitly by time — callers should treat a
+  /// timestamp older than a few minutes as stale, not read this as a
+  /// still-active state flag.
+  static DateTime? lastRateLimitedAt;
 
   /// Google's generally-available text embedding model.
   static const _modelId = 'gemini-embedding-001';
@@ -130,13 +161,15 @@ class GeminiEmbeddingProvider implements EmbeddingProvider {
       ],
     });
 
-    final response = await _http.post(
-      url,
-      headers: const {'Content-Type': 'application/json'},
-      body: body,
-    );
+    final response = await _postWithRateLimitBackoff(url, body);
 
     if (response.statusCode == 429) {
+      // Every retry in [_postWithRateLimitBackoff] was exhausted and it's
+      // still 429 — record it so kola_admin can see the platform is
+      // currently rate-limited (see [lastRateLimitedAt]'s header), then
+      // surface the real reason to the caller rather than a fabricated
+      // "today's limit" story.
+      lastRateLimitedAt = DateTime.now().toUtc();
       throw const EmbeddingQuotaExceededException(
         'Gemini embedding quota exceeded (free tier is 1,500 requests/day). '
         'Ingestion will need to resume later, or the key upgraded.',
@@ -172,6 +205,35 @@ class GeminiEmbeddingProvider implements EmbeddingProvider {
           dimensions: _dimensions,
         ),
     ];
+  }
+
+  /// Posts [body] to [url], retrying ONLY on a 429 with the fixed delays
+  /// in [_rateLimitRetryDelays] (2s, 4s, 8s — up to 3 retries, 4 attempts
+  /// total). Any other status code (200, 4xx other than 429, 5xx) is
+  /// returned immediately on the first attempt — those aren't the
+  /// transient per-minute rate limit this backoff targets, and retrying
+  /// them here would just delay a real failure without fixing it.
+  Future<http.Response> _postWithRateLimitBackoff(
+    Uri url,
+    String body,
+  ) async {
+    http.Response response = await _http.post(
+      url,
+      headers: const {'Content-Type': 'application/json'},
+      body: body,
+    );
+
+    for (final delay in _rateLimitRetryDelays) {
+      if (response.statusCode != 429) return response;
+      await Future.delayed(delay);
+      response = await _http.post(
+        url,
+        headers: const {'Content-Type': 'application/json'},
+        body: body,
+      );
+    }
+
+    return response;
   }
 
   /// L2-normalizes [vector] in place-equivalent fashion. See this file's

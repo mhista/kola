@@ -54,6 +54,11 @@ abstract class Icons {
   static const eye = 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z';
   // Kola Till.dc.html's product-tile placeholder — a product with no
   // photo yet gets this rather than a blank tile.
+  // Added for invoices_page.dart (Phase 14a-4) — a document with a
+  // ruled total line, told apart from [printer] (the action of
+  // printing) and [book] (Knowledge's stacked-pages mark).
+  static const invoice =
+      'M7 3h10v18l-3-2-2 2-2-2-3 2Z M9 8h6 M9 12h6 M9 16h3';
   static const imagePlaceholder =
       'M4 16l4.5-4.5a2 2 0 0 1 2.8 0L16 16 M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 16 M4 4h16v16H4Z';
   static const headset ='M4 13v-1a8 8 0 1 1 16 0v1 M3 13h2v6H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z M21 13h-2v6h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1Z';

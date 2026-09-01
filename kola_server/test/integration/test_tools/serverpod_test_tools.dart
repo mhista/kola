@@ -5168,6 +5168,45 @@ class _KnowledgeEndpoint {
     });
   }
 
+  _i3.Future<_i5.KnowledgeDocument> setFeedingEnabled(
+    _i1.TestSessionBuilder sessionBuilder,
+    String accessToken,
+    int workspaceId,
+    int documentId,
+    bool enabled,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'knowledge',
+            method: 'setFeedingEnabled',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'knowledge',
+          methodName: 'setFeedingEnabled',
+          parameters: _i1.testObjectToJson({
+            'accessToken': accessToken,
+            'workspaceId': workspaceId,
+            'documentId': documentId,
+            'enabled': enabled,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i5.KnowledgeDocument>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
   _i3.Future<List<_i29.KnowledgeSearchHit>> searchMemory(
     _i1.TestSessionBuilder sessionBuilder,
     String accessToken,

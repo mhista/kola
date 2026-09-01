@@ -60,10 +60,18 @@
 //    scanner (these type digits + Enter like a keyboard) works today by
 //    just being pointed at this field.
 //
-// 3. NO CUSTOMER CAPTURE. The export's payment screen has none, so
-//    this page has none either — a walk-in sale with no phone/name is a
-//    complete, normal sale (sale.spy.yaml's own header). Customer
-//    identity from the till is Gate 3b's job, not this screen's.
+// 3. CUSTOMER CAPTURE IS OPTIONAL, NOT ABSENT — updated Phase 14a-3.
+//    The export's payment screen has none at all; this page now has an
+//    optional name field at charge time (`_customerNameField`) and an
+//    optional phone prompt before a WhatsApp send
+//    (`_whatsAppPromptModal`), both because the owner asked for them —
+//    but a walk-in sale with no phone/name typed in either is still a
+//    complete, normal sale (sale.spy.yaml's own header) with no error,
+//    no required field, and no personalized receipt line. Customer
+//    identity from the till is still Gate 3b's job, not this screen's
+//    — these two fields feed it (SaleEndpoint.ringUpSale's own
+//    customerPhone/customerName resolve through CustomerIdentity
+//    Resolver same as before) rather than replacing it.
 //
 // ── SAME SHAPE AS OTHER PAGES ON THIS DESIGN SYSTEM ────────────────────
 //
@@ -86,6 +94,7 @@ import 'package:kola_client/kola_client.dart';
 import '../components/shell/kola_icon.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/mobile_chrome.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/camera_scanner.dart';
 import '../services/error_text.dart';
 import '../services/feature_gate.dart';
@@ -120,12 +129,20 @@ class _CompletedSale {
     required this.sale,
     required this.lines,
     required this.paidLabel,
+    this.customerName,
     this.queued = false,
   });
 
   final Sale sale;
   final List<_CartLine> lines;
   final String paidLabel;
+
+  /// Phase 14a-3. Null/blank when the cashier left the name field empty
+  /// at charge time — a walk-in sale with no name is a complete, normal
+  /// sale (see `_customerName`'s own field comment), and the receipt
+  /// below simply omits its personalized thank-you line rather than
+  /// printing "Thank you, , for shopping with us."
+  final String? customerName;
 
   /// Phase 11g-c. True when this sale exists only in the local offline
   /// queue (`OfflineSaleQueue`) and has not reached the server yet —
@@ -287,6 +304,27 @@ class _TillPageState extends State<TillPage> {
   bool _charging = false;
   String? _chargeError;
   _CompletedSale? _completed;
+
+  /// Phase 14a-2. The till is a front-of-store, walk-in screen — there
+  /// is no logged-in customer whose phone this could default to (see
+  /// this file's old header, "NO CUSTOMER CAPTURE"), so "Send on
+  /// WhatsApp" now prompts for a number before it fires rather than
+  /// always falling back to the OS share-picker. See
+  /// `_whatsAppPromptModal`/`_openWhatsAppReceipt`'s own comments for
+  /// why this stays the existing wa.me deep-link mechanism rather than
+  /// Gate 8's `OutboundMessageService` (a real, separate scope decision
+  /// — named there).
+  bool _whatsAppPromptOpen = false;
+  String _whatsAppPhone = '';
+  String? _whatsAppPhoneError;
+
+  /// Phase 14a-3. Optional — see `_customerNameField`'s own comment.
+  /// Threaded into `ringUpSale`'s existing `customerName` parameter and
+  /// printed on the receipt as a personalized thank-you when given;
+  /// omitted entirely, gracefully, when blank — a walk-in sale with no
+  /// name stays a complete, normal sale (sale_endpoint.dart's own
+  /// documented design).
+  String _customerName = '';
 
   /// Phase 11g-e. Open stock conflicts for this workspace — see
   /// `_conflictBanner`'s own header. Loaded alongside products and
@@ -770,6 +808,12 @@ class _TillPageState extends State<TillPage> {
     // attempt below must carry the SAME reference the offline fallback
     // would use, not a fresh one.
     final reference = OfflineSaleQueue.newReference();
+    // Phase 14a-3. Trimmed once, up front, so both the online path
+    // below and `_queueSale`'s offline path send/store exactly the
+    // same value — null (not empty string) when the cashier left the
+    // field blank, matching `ringUpSale`'s own optional-parameter
+    // contract (see sale_endpoint.dart's header).
+    final customerName = _customerName.trim().isEmpty ? null : _customerName.trim();
 
     // Offline-first short-circuit: navigator.onLine already says there
     // is no connection, so don't spend a doomed round-trip finding that
@@ -785,6 +829,7 @@ class _TillPageState extends State<TillPage> {
         linesJson: linesJson,
         method: method,
         cashReceived: cashReceived,
+        customerName: customerName,
       );
       return;
     }
@@ -797,6 +842,7 @@ class _TillPageState extends State<TillPage> {
         paymentMethod: method,
         cashReceivedMinor: cashReceived,
         clientReference: reference,
+        customerName: customerName,
       );
       if (!mounted) return;
       setState(() {
@@ -804,11 +850,13 @@ class _TillPageState extends State<TillPage> {
           sale: sale,
           lines: List.of(_cart),
           paidLabel: _payMethod!,
+          customerName: customerName,
         );
         _cart.clear();
         _mobileCartOpen = false;
         _payMethod = null;
         _cashReceived = '';
+        _customerName = '';
         _charging = false;
         _screen = _Screen.receipt;
       });
@@ -836,6 +884,7 @@ class _TillPageState extends State<TillPage> {
           linesJson: linesJson,
           method: method,
           cashReceived: cashReceived,
+          customerName: customerName,
         );
         return;
       }
@@ -856,12 +905,14 @@ class _TillPageState extends State<TillPage> {
     required String linesJson,
     required String method,
     int? cashReceived,
+    String? customerName,
   }) {
     OfflineSaleQueue.enqueue(
       clientReference: reference,
       linesJson: linesJson,
       paymentMethod: method,
       cashReceivedMinor: cashReceived,
+      customerName: customerName,
     );
 
     // A client-built Sale, not a server response — Sale's own
@@ -900,12 +951,14 @@ class _TillPageState extends State<TillPage> {
         sale: localSale,
         lines: soldLines,
         paidLabel: _payMethod!,
+        customerName: customerName,
         queued: true,
       );
       _cart.clear();
       _mobileCartOpen = false;
       _payMethod = null;
       _cashReceived = '';
+      _customerName = '';
       _charging = false;
       _screen = _Screen.receipt;
       _queuedCount = OfflineSaleQueue.pendingCount;
@@ -959,6 +1012,7 @@ class _TillPageState extends State<TillPage> {
       _screen = _Screen.sell;
       _payMethod = null;
       _cashReceived = '';
+      _customerName = '';
       _chargeError = null;
     });
     unawaited(_pushDisplay());
@@ -970,6 +1024,7 @@ class _TillPageState extends State<TillPage> {
       _cart.clear();
       _payMethod = null;
       _cashReceived = '';
+      _customerName = '';
       _completed = null;
     });
     unawaited(_pushDisplay());
@@ -1191,6 +1246,7 @@ class _TillPageState extends State<TillPage> {
         _mobileTabBar(),
         if (_showScanner) _scannerModal(),
         if (_pricingProduct != null) _priceEntryModal(_pricingProduct!),
+        if (_whatsAppPromptOpen) _whatsAppPromptModal(),
         if (_moreOpen)
           MobileMoreSheet(
             gate: component.gate,
@@ -1365,15 +1421,23 @@ class _TillPageState extends State<TillPage> {
               if (_queuedCount > 0) _queuedCountBadge(),
             ],
           ),
-          Link(
-            to: '/documents',
-            attributes: {
-              'style': 'background:transparent;border:1px solid ${KolaVar.border};'
-                  'color:${KolaVar.text};border-radius:${KolaRadius.pill};padding:7px 14px;'
-                  'font-size:${KolaType.small};font-family:inherit;text-decoration:none;'
-                  'display:inline-flex;align-items:center;flex:none',
-            },
-            children: [Component.text('Documents')],
+          // Phase 14a-5. The "Documents" button that used to sit here
+          // was removed at the owner's own instruction — a walk-in
+          // sales screen doesn't need a document-browser button in its
+          // own header. "Invoices" now lives in the profile/account
+          // dropdown instead (nav_model.dart's profileEntries), and the
+          // per-sale print/WhatsApp affordances on the receipt screen
+          // below (_printButton/_whatsAppButton) cover what a cashier
+          // actually needs mid-sale.
+          const PageHelpButton(
+            pageKey: 'till',
+            body: [
+              "Ring up a sale, take payment, and print or WhatsApp the "
+                  "receipt — everything a walk-in sale needs, from this "
+                  "one screen.",
+              "Working offline? Sales queue up and sync automatically "
+                  "once the connection badge goes green again.",
+            ],
           ),
         ],
       );
@@ -1908,6 +1972,7 @@ class _TillPageState extends State<TillPage> {
           },
           [Component.text(formatMinor(_totalMinor))],
         ),
+        _customerNameField(),
         div(
           attributes: {
             'style': 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px',
@@ -1924,6 +1989,34 @@ class _TillPageState extends State<TillPage> {
             [Component.text(_chargeError!)],
           ),
       ]);
+
+  /// Phase 14a-3. The owner's own instruction: "add a name field" at
+  /// the charge step, print a personalized thank-you when given, and
+  /// stay a complete normal sale when not — see `_customerName`'s own
+  /// field comment and `_receiptBody`'s thank-you line. Deliberately
+  /// optional (no red asterisk, no validation) — a walk-in sale with no
+  /// name is the common case this whole screen is built for, not an
+  /// error state.
+  Component _customerNameField() => div(
+        attributes: {'style': 'margin-bottom:16px'},
+        [
+          div(
+            attributes: {'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};margin-bottom:6px'},
+            [Component.text('Customer name (optional)')],
+          ),
+          input<String>(
+            type: InputType.text,
+            value: _customerName,
+            onInput: (v) => setState(() => _customerName = v),
+            attributes: {
+              'placeholder': 'e.g. Amaka',
+              'style': 'width:100%;background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+                  'border-radius:${KolaRadius.sm};padding:11px 13px;color:${KolaVar.text};'
+                  'font-family:inherit;font-size:${KolaType.body};box-sizing:border-box',
+            },
+          ),
+        ],
+      );
 
   Component _paymentMethodButton(String method) {
     final active = _payMethod == method;
@@ -2095,29 +2188,41 @@ class _TillPageState extends State<TillPage> {
             ),
           ],
         ),
+        _thankYouNote(completed),
         div(
           attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
           [
             _whatsAppButton(completed),
-            // Phase 11g-g. A queued sale isn't on the Documents page yet
-            // — that page reads synced Sales from the server, and this
-            // one hasn't reached it (see _CompletedSale.queued) — so the
-            // ordinary "Print" link, which just navigates there, would
-            // land on a page with no matching receipt to show, and would
-            // itself need a network fetch to even load while the point
-            // of this screen is that there might be none. A real,
-            // client-side `window.print()` on THIS receipt works
-            // regardless of connectivity or sync state — per
-            // DESIGN_BRIEF_COMMERCE.md §1: "print or share a receipt"
-            // must work with zero connection. Used for every receipt,
-            // not just queued ones — an always-available print button is
-            // strictly better than one that depends on a page navigation
-            // and a fetch succeeding, whether or not this sale has
-            // synced.
-            _printButton(),
+            // Phase 14a-1. See `_printButton`'s own header: a synced
+            // sale navigates to /documents (real print scoping, no
+            // network fetch needed beyond what that page already does
+            // since this IS its most recent sale); a queued sale still
+            // gets the direct client-side print DESIGN_BRIEF_COMMERCE
+            // .md §1 requires ("print or share a receipt" with zero
+            // connection), since /documents has nothing to show it yet.
+            _printButton(completed),
           ],
         ),
       ]);
+
+  /// Phase 14a-3. The owner's own wording, verbatim: "Thank you, {name},
+  /// for shopping with us — we appreciate you 💛". Renders nothing at
+  /// all when `completed.customerName` is null/blank (see that field's
+  /// own comment) — a walk-in sale with no name prints a normal receipt
+  /// with no personalized line, not a broken "Thank you, , for..."
+  /// sentence.
+  Component _thankYouNote(_CompletedSale completed) {
+    final name = completed.customerName?.trim();
+    if (name == null || name.isEmpty) return div([]);
+    return div(
+      attributes: {
+        'style': 'background:${KolaVar.warningBg};border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.md};padding:12px 14px;margin-bottom:14px;'
+            'font-size:${KolaType.small};color:${KolaVar.text};text-align:center;line-height:1.5',
+      },
+      [Component.text('Thank you, $name, for shopping with us — we appreciate you 💛')],
+    );
+  }
 
   Component _whatsAppButton(_CompletedSale completed) => button(
         attributes: {
@@ -2127,19 +2232,42 @@ class _TillPageState extends State<TillPage> {
               'font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;'
               'justify-content:center;gap:6px',
         },
-        events: {'click': (_) => _openWhatsAppReceipt(completed)},
+        events: {'click': (_) => _openWhatsAppPrompt()},
         [kolaIcon(Icons.whatsapp, size: 14, strokeWidth: 1.8), Component.text('Send on WhatsApp')],
       );
 
-  /// Phase 11g-g. Replaces the old `Link(to: '/documents')` — see the
-  /// call site's own comment on why that link doesn't actually serve a
-  /// queued sale, and is strictly worse than a direct print for a
-  /// synced one too (an extra navigation, and a fetch, to print
-  /// something already fully rendered right here). `window.print()` is
-  /// a plain, non-overloaded DOM method — safe to call directly through
-  /// package:web, same reasoning `dom_files.dart`'s header already
-  /// applies to `download`/`click`.
-  Component _printButton() => button(
+  /// Phase 14a-1. Previously called `web.window.print()` directly on
+  /// THIS page — the owner's report: that prints the wrong thing,
+  /// because till_page.dart carries none of documents_page.dart's own
+  /// `#kola-print-area` CSS trick (see that file's `_printStyles`), so
+  /// printing straight from here would grab the whole till chrome
+  /// (header, connection badge, whatever's behind the receipt), not a
+  /// clean document. Fixed the way the owner asked: do what the
+  /// (now-removed, see `_header`) "Documents" button always did — send
+  /// the cashier to the real document surface, which already scopes
+  /// printing correctly.
+  ///
+  /// NOT a `Link` to `/invoices` for a specific invoice id, even though
+  /// invoices_page.dart (Phase 14a-4) now exists: an Invoice requires a
+  /// bill-to name (InvoiceEndpoint.createInvoice's own validation), and
+  /// a walk-in sale may genuinely have none (see this file's header,
+  /// "NO CUSTOMER CAPTURE" — now "optional customer capture" per
+  /// `_customerNameField`, but still optional). Auto-creating an invoice
+  /// on every tap of Print would either invent a bill-to name or throw
+  /// for the common walk-in case. `/documents` needs no name at all and
+  /// shows exactly this sale — right after `ringUpSale`, it IS the most
+  /// recent — with the same real print scoping.
+  ///
+  /// A queued (offline) sale is the one case this can't serve — see
+  /// `_CompletedSale.queued`'s header: it hasn't reached the server, so
+  /// `/documents` (which reads real Sale rows) has nothing to show for
+  /// it. That case keeps the direct client-side `window.print()` this
+  /// page already had — a plain, non-overloaded DOM method, same
+  /// reasoning `dom_files.dart`'s header applies to `download`/`click`
+  /// — printing the receipt screen itself rather than nothing at all.
+  Component _printButton(_CompletedSale completed) {
+    if (completed.queued) {
+      return button(
         attributes: {
           'type': 'button',
           'style': 'text-align:center;background:${KolaVar.card};border:1px solid ${KolaVar.border};'
@@ -2149,6 +2277,21 @@ class _TillPageState extends State<TillPage> {
         events: {'click': (_) => web.window.print()},
         [Component.text('Print')],
       );
+    }
+    // Declarative navigation, per this codebase's own rule (see
+    // create_bot_page.dart's header: "no Router.of(context).push
+    // anywhere in lib/, every transition is a jaspr_router Link").
+    return Link(
+      to: '/documents',
+      attributes: {
+        'style': 'text-align:center;background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+            'color:${KolaVar.text};border-radius:${KolaRadius.md};padding:13px;'
+            'font-size:${KolaType.body};font-family:inherit;cursor:pointer;display:block;width:100%;'
+            'text-decoration:none;box-sizing:border-box',
+      },
+      children: [Component.text('Print')],
+    );
+  }
 
   Component _newSaleButton() => button(
         attributes: {
@@ -2161,13 +2304,152 @@ class _TillPageState extends State<TillPage> {
         [Component.text('New sale')],
       );
 
+  // ── "Send on WhatsApp" phone prompt (Phase 14a-2) ───────────────────
+  //
+  // The till is a front-of-store, walk-in screen — there is no
+  // logged-in customer whose phone this could default to (see the file
+  // header's old "NO CUSTOMER CAPTURE" note). Before this, tapping
+  // "Send on WhatsApp" always opened the bare share picker with no
+  // recipient — real, but not what "send on WhatsApp" implies. This
+  // prompts for a number first, same modal shape `_priceEntryModal`
+  // already uses on this page.
+  //
+  // STAYS ON THE EXISTING wa.me DEEP-LINK MECHANISM, DELIBERATELY NOT
+  // Gate 8's OutboundMessageService (kola_server/lib/src/services/
+  // messaging/outbound_message_service.dart) — named here rather than
+  // silently decided, per this project's own DESIGN_DELTA.md rule.
+  // Gate 8 sends server-side through the workspace's OWN connected
+  // WhatsApp Business channel and is exposed only as an API-key-gated
+  // REST route (`POST /v1/messages`) for external callers, not a
+  // session-authenticated Serverpod endpoint this dashboard's Client
+  // can call — reaching it from here would mean hand-adding a brand
+  // new endpoint method AND a new generated-client method with no Dart
+  // toolchain in this environment to verify either compiles (see this
+  // repo's own standing constraint on generated code). The wa.me link
+  // is the same mechanism this file already shipped and already proved
+  // out (`_digitalTab`'s WhatsApp preview on documents_page.dart uses
+  // the identical approach) — now just targeted at a real number
+  // instead of the bare picker.
+  void _openWhatsAppPrompt() => setState(() {
+        _whatsAppPromptOpen = true;
+        _whatsAppPhone = '';
+        _whatsAppPhoneError = null;
+      });
+
+  void _closeWhatsAppPrompt() => setState(() => _whatsAppPromptOpen = false);
+
+  /// Nigerian format only, per the owner's own scope ("no need for
+  /// exotic international validation") — a local 11-digit number
+  /// starting with 0 is rewritten to the 234 country code wa.me needs
+  /// to open a specific chat; anything already carrying a country code
+  /// (or a number from elsewhere) is passed through digit-stripped and
+  /// unmodified.
+  String _normalizeNgPhone(String raw) {
+    var digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('0') && digits.length == 11) {
+      digits = '234${digits.substring(1)}';
+    }
+    return digits;
+  }
+
+  void _submitWhatsAppPrompt() {
+    final digits = _normalizeNgPhone(_whatsAppPhone);
+    if (digits.length < 10) {
+      setState(() => _whatsAppPhoneError = 'Enter a valid phone number.');
+      return;
+    }
+    final completed = _completed;
+    if (completed == null) return;
+    setState(() => _whatsAppPromptOpen = false);
+    _openWhatsAppReceipt(completed, digits);
+  }
+
+  Component _whatsAppPromptModal() => div(
+        attributes: {
+          'style': 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;'
+              'display:flex;align-items:center;justify-content:center;padding:20px',
+        },
+        events: {'click': (_) => _closeWhatsAppPrompt()},
+        [
+          div(
+            attributes: {
+              'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
+                  'border-radius:${KolaRadius.xl};padding:26px;width:100%;max-width:340px;'
+                  'box-sizing:border-box',
+            },
+            events: {'click': (e) => e.stopPropagation()},
+            [
+              div(
+                attributes: {'style': 'font-size:${KolaType.bodyLg};font-weight:600;margin-bottom:4px'},
+                [Component.text('Send receipt on WhatsApp')],
+              ),
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};margin-bottom:14px',
+                },
+                [Component.text("Enter the customer's WhatsApp number.")],
+              ),
+              input<String>(
+                type: InputType.text,
+                value: _whatsAppPhone,
+                onInput: (v) => setState(() => _whatsAppPhone = v),
+                attributes: {
+                  'placeholder': '0803 123 4567',
+                  'autofocus': 'autofocus',
+                  'style': 'width:100%;background:${KolaVar.bg};border:1px solid ${KolaVar.border};'
+                      'border-radius:${KolaRadius.sm};padding:13px 14px;color:${KolaVar.text};'
+                      'font-family:${KolaFonts.mono};font-size:${KolaType.title};box-sizing:border-box;'
+                      'margin-bottom:10px',
+                },
+                events: {
+                  'keydown': (e) {
+                    final ev = e as web.KeyboardEvent;
+                    if (ev.key == 'Enter') _submitWhatsAppPrompt();
+                  },
+                },
+              ),
+              if (_whatsAppPhoneError != null)
+                div(
+                  attributes: {
+                    'style': 'font-size:${KolaType.tiny};color:${KolaVar.danger};margin-bottom:10px',
+                  },
+                  [Component.text(_whatsAppPhoneError!)],
+                ),
+              button(
+                attributes: {
+                  'type': 'button',
+                  'style': 'width:100%;background:${KolaVar.success};color:${KolaVar.accentText};'
+                      'border:none;border-radius:${KolaRadius.pill};padding:12px;'
+                      'font-size:${KolaType.bodyLg};font-weight:600;font-family:inherit;'
+                      'cursor:pointer;min-height:44px;margin-bottom:8px;display:flex;'
+                      'align-items:center;justify-content:center;gap:6px',
+                },
+                events: {'click': (_) => _submitWhatsAppPrompt()},
+                [kolaIcon(Icons.whatsapp, size: 14, strokeWidth: 1.8), Component.text('Send')],
+              ),
+              button(
+                attributes: {
+                  'type': 'button',
+                  'style': 'width:100%;background:transparent;border:1px solid ${KolaVar.border};'
+                      'color:${KolaVar.muted};border-radius:${KolaRadius.pill};padding:11px;'
+                      'font-size:${KolaType.body};font-family:inherit;cursor:pointer',
+                },
+                events: {'click': (_) => _closeWhatsAppPrompt()},
+                [Component.text('Cancel')],
+              ),
+            ],
+          ),
+        ],
+      );
+
   /// Real, but scope-cut to what a shop can use without the WhatsApp
   /// Business API's template-approval flow: a wa.me deep link opens the
-  /// owner's own WhatsApp with the receipt text pre-filled, ready to
-  /// send from whichever chat they pick. No phone number is captured
-  /// at the till (see the file header), so this always opens the
-  /// picker rather than a fixed contact.
-  void _openWhatsAppReceipt(_CompletedSale completed) {
+  /// owner's own WhatsApp with the receipt text pre-filled, addressed to
+  /// [phoneDigits] (see `_normalizeNgPhone`) — Phase 14a-2, previously
+  /// always opened the bare picker with no recipient (see this method's
+  /// call sites' own header for why this stays wa.me rather than moving
+  /// to Gate 8's server-side send).
+  void _openWhatsAppReceipt(_CompletedSale completed, String phoneDigits) {
     final buffer = StringBuffer()
       ..writeln('${component.workspaceName} — receipt ${completed.sale.reference}')
       ..writeln();
@@ -2178,7 +2460,7 @@ class _TillPageState extends State<TillPage> {
       ..writeln()
       ..writeln('Total: ${formatMinor(completed.sale.totalMinor)}')
       ..writeln('Paid by ${completed.paidLabel}');
-    final url = 'https://wa.me/?text=${Uri.encodeComponent(buffer.toString())}';
+    final url = 'https://wa.me/$phoneDigits?text=${Uri.encodeComponent(buffer.toString())}';
     web.window.open(url, '_blank');
   }
 
@@ -2493,11 +2775,12 @@ class _TillPageState extends State<TillPage> {
             ),
           ],
         ),
+        _thankYouNote(completed),
         div(
           attributes: {
             'style': 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px',
           },
-          [_whatsAppButton(completed), _printButton()],
+          [_whatsAppButton(completed), _printButton(completed)],
         ),
         _newSaleButton(),
       ],

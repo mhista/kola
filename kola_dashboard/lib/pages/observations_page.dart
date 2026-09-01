@@ -47,6 +47,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
@@ -158,13 +159,33 @@ class _ObservationsPageState extends State<ObservationsPage> {
   Component _header() => div(
         attributes: {'style': 'margin-bottom:${KolaSpace.lg}'},
         [
-          h1(
+          div(
             attributes: {
-              'style': 'font-family:${KolaFonts.display};'
-                  'font-size:${KolaType.h2};font-weight:700;'
-                  'color:${KolaVar.text};margin:0 0 4px',
+              'style': 'display:flex;align-items:flex-start;'
+                  'justify-content:space-between;gap:12px',
             },
-            [Component.text('Observations')],
+            [
+              h1(
+                attributes: {
+                  'style': 'font-family:${KolaFonts.display};'
+                      'font-size:${KolaType.h2};font-weight:700;'
+                      'color:${KolaVar.text};margin:0 0 4px',
+                },
+                [Component.text('Observations')],
+              ),
+              const PageHelpButton(
+                pageKey: 'observations',
+                body: [
+                  "What kolaa noticed on its own, from what it counted "
+                      "— not advice, just what it saw. Unlike "
+                      "Recommendations, there's nothing to send or "
+                      "approve here.",
+                  "Each finding shows a confidence score and a 'Show "
+                      "evidence' link back to what it's based on. "
+                      "Dismiss one with 'Not useful' if it isn't.",
+                ],
+              ),
+            ],
           ),
           div(
             attributes: {

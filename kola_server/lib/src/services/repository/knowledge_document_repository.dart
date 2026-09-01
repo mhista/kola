@@ -191,6 +191,47 @@ class KnowledgeDocumentRepository {
     }).eq('id', id);
   }
 
+  /// Updates only the title, leaving content, hash and status untouched.
+  ///
+  /// Used by DocumentIngestionService.reindex when it detects the
+  /// incoming text hashes IDENTICAL to what's already indexed — a pure
+  /// rename (or a no-op re-save) must not pay for a delete-and-re-embed
+  /// it doesn't need, but a genuine title edit still has to land.
+  Future<void> updateTitle(int id, String title) async {
+    _log.info('updateTitle($id)');
+    await supabase.from('knowledge_documents').update({
+      'title': title,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', id);
+  }
+
+  /// Flips the owner's manual on/off switch for whether this document
+  /// feeds the bot's answers (migration 061). Independent of `status` and
+  /// `superseded_by` — a fully-indexed, un-superseded document can still
+  /// be excluded here on nothing but the owner's say-so. Both retrieval
+  /// RPCs filter on this column directly (see migration 061), so this
+  /// write is what actually stops — or resumes — a document grounding an
+  /// answer, not just a label in the dashboard.
+  Future<KnowledgeDocument> setFeedingEnabled({
+    required int id,
+    required int workspaceId,
+    required bool enabled,
+  }) async {
+    _log.info('setFeedingEnabled($id, workspaceId=$workspaceId, enabled=$enabled)');
+    final response = await supabase
+        .from('knowledge_documents')
+        .update({
+          'feeding_enabled': enabled,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', id)
+        .eq('workspace_id', workspaceId)
+        .select()
+        .single();
+
+    return _dto.fromRow(response);
+  }
+
   /// Deletes a document. Its chunks go with it via ON DELETE CASCADE
   /// (migration 017) — deliberately enforced by the database rather than
   /// a second Dart call, so there is no code path that can orphan chunks

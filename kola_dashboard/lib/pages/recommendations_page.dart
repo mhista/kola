@@ -42,6 +42,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
@@ -154,13 +155,34 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
   Component _header() => div(
         attributes: {'style': 'margin-bottom:${KolaSpace.lg}'},
         [
-          h1(
+          div(
             attributes: {
-              'style': 'font-family:${KolaFonts.display};'
-                  'font-size:${KolaType.h2};font-weight:700;'
-                  'color:${KolaVar.text};margin:0 0 4px',
+              'style': 'display:flex;align-items:flex-start;'
+                  'justify-content:space-between;gap:12px',
             },
-            [Component.text('Recommendations')],
+            [
+              h1(
+                attributes: {
+                  'style': 'font-family:${KolaFonts.display};'
+                      'font-size:${KolaType.h2};font-weight:700;'
+                      'color:${KolaVar.text};margin:0 0 4px',
+                },
+                [Component.text('Recommendations')],
+              ),
+              const PageHelpButton(
+                pageKey: 'recommendations',
+                body: [
+                  "What's worth acting on, worst first — sales and "
+                      "growth opportunities kola has spotted. Every one "
+                      "is advice only today: kola doesn't send or "
+                      "execute anything on your behalf yet, so the "
+                      "action is always yours to take.",
+                  "Use the buttons on each card to defer it, reject it, "
+                      "or mark it done once you've acted on it "
+                      "elsewhere.",
+                ],
+              ),
+            ],
           ),
           div(
             attributes: {

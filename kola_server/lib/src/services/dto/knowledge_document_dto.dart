@@ -28,6 +28,12 @@ class KnowledgeDocumentDto extends BaseDto<KnowledgeDocument> {
       errorMessage: row['error_message'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
+      // Defensive fallback to true rather than a bare cast: this column
+      // is new (migration 061) and a straight `as bool` would throw on
+      // any row read before that migration has been applied, which is a
+      // worse failure than briefly assuming "feeds normally" — the same
+      // direction migration 061's own default takes.
+      feedingEnabled: row['feeding_enabled'] as bool? ?? true,
     );
   }
 
@@ -45,6 +51,7 @@ class KnowledgeDocumentDto extends BaseDto<KnowledgeDocument> {
       'chunk_count': model.chunkCount,
       'error_message': model.errorMessage,
       'updated_at': model.updatedAt.toIso8601String(),
+      'feeding_enabled': model.feedingEnabled,
     };
   }
 }

@@ -59,6 +59,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/kola_icon.dart';
 import '../components/shell/icons.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/error_text.dart';
 import '../theme.dart';
 
@@ -330,11 +331,31 @@ class _CustomersPageState extends State<CustomersPage> {
         [
           div(
             attributes: {
-              'style': 'font-family:${KolaFonts.display};'
-                  'font-size:${KolaType.h2};color:${KolaVar.text};'
-                  'font-weight:700;margin-bottom:6px',
+              'style': 'display:flex;align-items:flex-start;'
+                  'justify-content:space-between;gap:12px',
             },
-            [Component.text('Customers')],
+            [
+              div(
+                attributes: {
+                  'style': 'font-family:${KolaFonts.display};'
+                      'font-size:${KolaType.h2};color:${KolaVar.text};'
+                      'font-weight:700;margin-bottom:6px',
+                },
+                [Component.text('Customers')],
+              ),
+              const PageHelpButton(
+                pageKey: 'customers',
+                body: [
+                  "Everyone the business has talked to, with what "
+                      "they've bought and asked about. Use the search "
+                      "and filter chips to narrow to top spenders or "
+                      "customers new this month.",
+                  "Open a customer to see their lifetime value, order "
+                      "history, saved dates, and any notes you've kept "
+                      "on them.",
+                ],
+              ),
+            ],
           ),
           div(
             attributes: {

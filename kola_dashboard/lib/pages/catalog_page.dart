@@ -52,6 +52,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../components/shell/page_help_button.dart';
 import '../components/product_editor.dart';
 import '../services/error_text.dart';
 import '../services/imagekit_url.dart';
@@ -448,6 +449,17 @@ class _CatalogPageState extends State<CatalogPage>
             },
             events: {'click': (_) => _openEditor(null)},
             [Component.text('New product')],
+          ),
+          const PageHelpButton(
+            pageKey: 'catalog',
+            body: [
+              "What you sell. kolaa quotes prices and checks stock from "
+                  "this, instead of passing every question to you — keep "
+                  "it accurate and it answers customers accurately.",
+              "'Import a list' brings in many products at once from a "
+                  "file, with a chance to check the columns before "
+                  "anything is created; 'New product' adds one by hand.",
+            ],
           ),
         ],
       );

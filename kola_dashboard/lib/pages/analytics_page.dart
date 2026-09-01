@@ -21,6 +21,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/error_text.dart';
 import '../services/dom_files.dart';
@@ -200,6 +201,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             },
             events: {'click': (_) => _exportCsv()},
             [Component.text('Export CSV')],
+          ),
+          const PageHelpButton(
+            pageKey: 'analytics',
+            body: [
+              "Self-serve exploration for channel and revenue trends "
+                  "over time. Pick a period above, then explore the "
+                  "charts and tables below.",
+              "'Export CSV' downloads exactly what's on screen for the "
+                  "selected period, for whenever you want the raw "
+                  "numbers outside the dashboard.",
+            ],
           ),
         ],
       );

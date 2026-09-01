@@ -30,6 +30,7 @@ import 'package:kola_server/src/services/admin/platform_health_registry.dart';
 import 'package:kola_server/src/services/admin/require_admin_level.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
 import 'package:kola_server/src/services/memory/embedding_orchestrator.dart';
+import 'package:kola_server/src/services/memory/providers/gemini_embedding_provider.dart';
 
 class AdminPlatformEndpoint extends Endpoint {
   AiOrchestrator get _ai => getIt<AiOrchestrator>();
@@ -65,6 +66,22 @@ class AdminPlatformEndpoint extends Endpoint {
     if (!_embeddings.isAvailable) {
       return 'unavailable|no embedding provider configured (set GEMINI_API_KEY)';
     }
-    return 'available|${_embeddings.activeModel}|${_embeddings.dimensions}|dailyCap=1500|usageTracked=false';
+    // rateLimitedRecently — a SMALL, LOW-RISK addition on top of the
+    // existing static info below: GeminiEmbeddingProvider.lastRateLimitedAt
+    // is an honest, in-memory, single-instance timestamp (same shape as
+    // PlatformHealthRegistry, see that file's header) of the last 429 that
+    // survived its own in-request backoff — see that field's header and
+    // the 2026-09 diagnosis referenced there. "Recently" is a fixed
+    // 10-minute window rather than a live still-limited check, because
+    // there is no cheap way to know the rate limit has cleared without
+    // spending a real request to find out.
+    final lastRateLimit = GeminiEmbeddingProvider.lastRateLimitedAt;
+    final rateLimitedRecently = lastRateLimit != null &&
+        DateTime.now().toUtc().difference(lastRateLimit) <
+            const Duration(minutes: 10);
+    final rateLimitNote = rateLimitedRecently
+        ? 'rateLimitedRecently=true|lastRateLimitedAt=${lastRateLimit.toIso8601String()}'
+        : 'rateLimitedRecently=false';
+    return 'available|${_embeddings.activeModel}|${_embeddings.dimensions}|dailyCap=1500|usageTracked=false|$rateLimitNote';
   }
 }

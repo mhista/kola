@@ -45,7 +45,26 @@ class EmbeddingOrchestrator {
               // embeddings endpoint, and OpenRouter does not proxy
               // embeddings. This is a one-entry list on purpose, not an
               // oversight — see embedding_provider.dart's header.
-              GeminiEmbeddingProvider(apiKey: Env.geminiApiKey),
+              //
+              // KEY CHOICE — Env.geminiEmbeddingApiKey falls back to
+              // Env.geminiApiKey (2026-09 diagnosis of the "Today's limit
+              // for processing new knowledge has been reached" upload
+              // failure): that message was NOT a real per-workspace daily
+              // counter, it was an HTTP 429 from Google caused by EVERY
+              // workspace on the platform sharing ONE Gemini key across
+              // BOTH chat (AiOrchestrator/GeminiProvider — high volume)
+              // AND embeddings (this class — low volume, gets starved).
+              // geminiEmbeddingApiKey lets a dedicated key be set for
+              // embeddings only, isolating that traffic from chat's. It
+              // is empty by default, so this falls straight back to the
+              // shared geminiApiKey and behavior is UNCHANGED until an
+              // operator actually sets GEMINI_EMBEDDING_API_KEY — see
+              // env.dart's field for the full reasoning.
+              GeminiEmbeddingProvider(
+                apiKey: Env.geminiEmbeddingApiKey.isNotEmpty
+                    ? Env.geminiEmbeddingApiKey
+                    : Env.geminiApiKey,
+              ),
             ];
 
   final List<EmbeddingProvider> _providers;

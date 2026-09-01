@@ -142,6 +142,7 @@ knowledge:
   - addDocument:
   - deleteDocument:
   - updateDocument:
+  - setFeedingEnabled:
   - searchMemory:
   - askWorkspace:
   - addDocumentFromFile:

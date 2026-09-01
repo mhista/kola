@@ -42,6 +42,7 @@ import '../components/ask_kola.dart';
 import '../components/next_step_hint.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/kola_icon.dart';
+import '../components/shell/page_help_button.dart';
 import '../services/feature_gate.dart';
 import '../services/local_storage.dart';
 import '../services/error_text.dart';
@@ -125,6 +126,18 @@ class _OverviewPageState extends State<OverviewPage> {
   Set<String> _dismissed = const {};
 
   static const _dismissedKey = 'kola_dismissed_hints';
+
+  // 14b. 'Needs your attention' and 'Automations running' used to render
+  // every row the query returned, unbounded — confirmed during the
+  // owner's live review as the source of a 10+ row list during the
+  // knowledge-upload-failure incident. Capped at [_listCap] with an
+  // inline "Show N more" toggle rather than a link to a real full-list
+  // page: Recommendations/Observations exist as destinations but a
+  // capped attention row mixes both kinds, and there is no full-list
+  // page for Automations at all yet (see PHASE_14_HANDOFF.pdf's 14b).
+  static const _listCap = 5;
+  bool _attentionExpanded = false;
+  bool _automationsExpanded = false;
 
   @override
   void initState() {
@@ -368,10 +381,33 @@ class _OverviewPageState extends State<OverviewPage> {
         ),
         div(
           attributes: {
-            'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
-                'white-space:nowrap',
+            'style': 'display:flex;align-items:center;gap:10px',
           },
-          [Component.text(_formatDate(now))],
+          [
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                    'white-space:nowrap',
+              },
+              [Component.text(_formatDate(now))],
+            ),
+            const PageHelpButton(
+              pageKey: 'overview',
+              body: [
+                "Your morning briefing. What needs you right now, one "
+                    "recommendation worth acting on, and what changed "
+                    "today — kola pulls this from every conversation, "
+                    "sale and escalation happening across the business, "
+                    "so you're never hunting for it.",
+                "The four cards up top are your always-visible vitals. "
+                    "Below them, 'Needs your attention' surfaces the "
+                    "things kola thinks you should look at, 'What kolaa "
+                    "knows' shows what it's learned recently, and "
+                    "'Automations running' lists what's active right "
+                    "now.",
+              ],
+            ),
+          ],
         ),
       ],
     );
@@ -751,7 +787,12 @@ class _OverviewPageState extends State<OverviewPage> {
           'Needs your attention',
           // .skip(1) — the first one is the card above. Repeating it
           // immediately underneath would read as two different problems.
-          _findingsList(attention.skip(1).toList()),
+          _cappedList(
+            items: attention.skip(1).toList(),
+            expanded: _attentionExpanded,
+            onExpand: () => setState(() => _attentionExpanded = true),
+            builder: _findingsList,
+          ),
         )
       else if (attention.isEmpty)
         _allClear(),
@@ -777,45 +818,53 @@ class _OverviewPageState extends State<OverviewPage> {
   Component _automations() {
     final active = _errands.where((e) => e.status == 'active').toList();
 
-    return div(
-      attributes: {
-        'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:4px 0',
-      },
-      [
-        if (active.isEmpty)
-          div(
-            attributes: {
-              'style': 'padding:12px 16px;font-size:${KolaType.small};'
-                  'color:${KolaVar.muted}',
-            },
-            [Component.text('No automations are switched on right now.')],
-          )
-        else
-          for (var i = 0; i < active.length; i++)
-            div(
-              attributes: {
-                'style': 'display:flex;align-items:center;gap:10px;'
-                    'padding:11px 16px;font-size:${KolaType.body};'
-                    'color:${KolaVar.text};'
-                    '${i > 0 ? 'border-top:1px solid ${KolaVar.border}' : ''}',
-              },
-              [
-                span(
-                  attributes: {
-                    'style': 'width:6px;height:6px;flex:none;'
-                        'border-radius:${KolaRadius.circle};'
-                        'background:${KolaVar.success}',
-                  },
-                  [],
-                ),
-                span(attributes: {'style': 'flex:1;min-width:0'},
-                    [Component.text(active[i].name)]),
-              ],
-            ),
-      ],
+    return _cappedList(
+      items: active,
+      expanded: _automationsExpanded,
+      onExpand: () => setState(() => _automationsExpanded = true),
+      builder: _automationsList,
     );
   }
+
+  Component _automationsList(List<Errand> active) => div(
+        attributes: {
+          'style': 'background:${KolaVar.card};'
+              'border:1px solid ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};padding:4px 0',
+        },
+        [
+          if (active.isEmpty)
+            div(
+              attributes: {
+                'style': 'padding:12px 16px;font-size:${KolaType.small};'
+                    'color:${KolaVar.muted}',
+              },
+              [Component.text('No automations are switched on right now.')],
+            )
+          else
+            for (var i = 0; i < active.length; i++)
+              div(
+                attributes: {
+                  'style': 'display:flex;align-items:center;gap:10px;'
+                      'padding:11px 16px;font-size:${KolaType.body};'
+                      'color:${KolaVar.text};'
+                      '${i > 0 ? 'border-top:1px solid ${KolaVar.border}' : ''}',
+                },
+                [
+                  span(
+                    attributes: {
+                      'style': 'width:6px;height:6px;flex:none;'
+                          'border-radius:${KolaRadius.circle};'
+                          'background:${KolaVar.success}',
+                    },
+                    [],
+                  ),
+                  span(attributes: {'style': 'flex:1;min-width:0'},
+                      [Component.text(active[i].name)]),
+                ],
+              ),
+        ],
+      );
 
   /// Set up, connected, nothing has come in yet.
   ///
@@ -1138,6 +1187,47 @@ class _OverviewPageState extends State<OverviewPage> {
           ),
         ],
       );
+
+  /// 14b. Renders [builder] against at most [_listCap] of [items] (or all
+  /// of them, once [onExpand] has fired), plus a "Show N more" toggle
+  /// when there is more than the built list. Generic over the row type
+  /// so it works for both the findings list (`_findingsList`) and the
+  /// automations list (`_automations`'s own row-builder) without a
+  /// second copy of the same cap/expand logic.
+  Component _cappedList<T>({
+    required List<T> items,
+    required bool expanded,
+    required void Function() onExpand,
+    required Component Function(List<T>) builder,
+  }) {
+    final overflow = items.length - _listCap;
+    final visible = expanded || overflow <= 0
+        ? items
+        : items.take(_listCap).toList();
+
+    return div(
+      attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
+      [
+        builder(visible),
+        if (!expanded && overflow > 0)
+          button(
+            attributes: {
+              'type': 'button',
+              'style': 'align-self:flex-start;background:transparent;'
+                  'border:none;color:${KolaVar.accent};'
+                  'font-size:${KolaType.small};font-weight:600;'
+                  'font-family:inherit;cursor:pointer;padding:4px 2px',
+            },
+            events: {'click': (_) => onExpand()},
+            [
+              Component.text(
+                overflow == 1 ? 'Show 1 more' : 'Show $overflow more',
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 
   /// Everything else, as rows.
   Component _findingsList(List<WorkspaceFinding> items) => div(

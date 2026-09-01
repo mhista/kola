@@ -56,6 +56,7 @@ import 'package:kola_client/kola_client.dart';
 
 import '../theme.dart';
 import '../components/back_link.dart';
+import '../components/shell/page_help_button.dart';
 
 /// One selectable template card — the built-in handlers that are still
 /// registered as Errands (BuiltinErrandExecutor.registrableHandlerKeys
@@ -600,6 +601,19 @@ class _ErrandBuilderPageState extends State<ErrandBuilderPage> {
               },
               [
                 backLink(),
+                const PageHelpButton(
+                  pageKey: 'errands',
+                  body: [
+                    "Errands are tools kola can call mid-conversation — "
+                        "the AI decides when to use one and figures out "
+                        "what values to pass, rather than you triggering "
+                        "it by hand.",
+                    "Pick a built-in template on the left for common "
+                        "cases (payment links, tickets, reminders), or "
+                        "build a custom one that calls a webhook or "
+                        "database credential you supply.",
+                  ],
+                ),
               ],
             ),
             div(

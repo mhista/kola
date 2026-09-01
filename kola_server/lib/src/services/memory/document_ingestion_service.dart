@@ -171,6 +171,11 @@ class DocumentIngestionService {
         chunkCount: 0,
         createdAt: now,
         updatedAt: now,
+        // A brand new document always feeds — see migration 061's header
+        // on why the toggle defaults true. There is no owner action yet
+        // for turning it off at creation time; that only happens later,
+        // explicitly, through KnowledgeEndpoint.setFeedingEnabled.
+        feedingEnabled: true,
       ),
     );
 
@@ -255,6 +260,54 @@ class DocumentIngestionService {
       );
     }
 
+    // ── SKIP THE RE-EMBED WHEN THE CONTENT HASN'T ACTUALLY CHANGED ──────
+    //
+    // This is the gap ingestText's dedupe never covered: ingestText only
+    // runs BEFORE a document exists, so it only ever protects the
+    // "create a new document" path. reindex is the "same document, new
+    // text" path — knowledge_page.dart's _generateFrom hits it every
+    // single time the owner presses "Generate knowledge" (even when the
+    // catalog hasn't changed since the last press), and
+    // ingestFromConnector hits it on every periodic re-sync of an
+    // unchanged source. Both used to unconditionally delete every chunk
+    // and pay for a fresh embedding call — exactly the waste this file's
+    // header describes hashing BEFORE embedding to avoid, just missed on
+    // this one path.
+    //
+    // Hashed with the SAME normalization ingestText uses (chunk first,
+    // join chunk contents) so a whitespace-only difference from
+    // re-chunking doesn't read as a real change, and compared against
+    // the row's OWN previous hash — not any other document's — so this
+    // is a true "did THIS document's content change" check, not a
+    // workspace-wide dedupe.
+    final pieces = _chunker.chunk(text);
+    if (pieces.isNotEmpty) {
+      final normalizedForHash = pieces.map((p) => p.content).join('\n');
+      final hash = sha256.convert(utf8.encode(normalizedForHash)).toString();
+
+      if (hash == existing.contentHash) {
+        final trimmedTitle = title.trim().isEmpty ? existing.title : title.trim();
+        if (trimmedTitle != existing.title) {
+          // Content is identical but the owner did rename it — that
+          // still has to land, it just doesn't need chunks touched.
+          await _documents.updateTitle(documentId, trimmedTitle);
+        }
+
+        _log.info(
+          'Skipping re-embed for document $documentId ("${existing.title}") '
+          'in workspace $workspaceId — content unchanged (hash '
+          '${hash.substring(0, 12)}…). No embedding call made.',
+        );
+
+        return IngestionResult(
+          status: IngestionStatus.indexed,
+          document: existing.copyWith(title: trimmedTitle),
+          chunkCount: existing.chunkCount,
+          message: 'Content unchanged — nothing to re-embed.',
+        );
+      }
+    }
+
     await _chunks.deleteByDocument(documentId);
     await _documents.deleteScoped(documentId, workspaceId);
 
@@ -323,8 +376,18 @@ class DocumentIngestionService {
   String _ownerFacingReason(Object error) {
     final text = error.toString();
     if (text.contains('quota') || text.contains('429')) {
-      return "Today's limit for processing new knowledge has been reached. "
-          'This document is saved and will need to be re-processed later.';
+      // NOT a per-workspace daily limit — see gemini_embedding_provider
+      // .dart's header and embedding_orchestrator.dart's header for the
+      // 2026-09 diagnosis. This is a shared-key rate limit that clears on
+      // its own, usually within minutes; GeminiEmbeddingProvider already
+      // retries with backoff before this is ever thrown, so by the time
+      // an owner sees this, the short retry already failed too. The old
+      // wording ("Today's limit... has been reached") implied a real
+      // per-workspace daily counter that does not exist, and told owners
+      // to expect a whole day's wait, which is both wrong and needlessly
+      // discouraging.
+      return 'High demand right now — this document is saved and will be '
+          'retried automatically. No action needed.';
     }
     if (text.contains('SocketException') || text.contains('Failed host lookup')) {
       return 'Could not reach the service that processes knowledge. '

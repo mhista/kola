@@ -1768,6 +1768,30 @@ final class _Env {
     ).map((int i) => _envieddatageminiApiKey[i] ^ _enviedkeygeminiApiKey[i]),
   );
 
+  // GEMINI_EMBEDDING_API_KEY: no real value exists yet in any .env this
+  // generated file was built from (same situation as openRouterApiKey/
+  // stripeSecretKey/smtpHost immediately around this block) — empty
+  // key/data arrays XOR to an empty string, honestly representing "unset"
+  // rather than fabricating obfuscated bytes for a secret that doesn't
+  // exist. Safe to regenerate for real the next time `dart run
+  // build_runner build` runs against a .env that sets this var — see
+  // env.dart's geminiEmbeddingApiKey field header.
+  static const List<int> _enviedkeygeminiEmbeddingApiKey = <int>[];
+
+  static const List<int> _envieddatageminiEmbeddingApiKey = <int>[];
+
+  static final String geminiEmbeddingApiKey = String.fromCharCodes(
+    List<int>.generate(
+      _envieddatageminiEmbeddingApiKey.length,
+      (int i) => i,
+      growable: false,
+    ).map(
+      (int i) =>
+          _envieddatageminiEmbeddingApiKey[i] ^
+          _enviedkeygeminiEmbeddingApiKey[i],
+    ),
+  );
+
   static const List<int> _enviedkeyopenRouterApiKey = <int>[];
 
   static const List<int> _envieddataopenRouterApiKey = <int>[];

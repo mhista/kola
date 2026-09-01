@@ -4435,6 +4435,43 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['text'],
                   ),
         ),
+        'setFeedingEnabled': _i1.MethodConnector(
+          name: 'setFeedingEnabled',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'documentId': _i1.ParameterDescription(
+              name: 'documentId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'enabled': _i1.ParameterDescription(
+              name: 'enabled',
+              type: _i1.getType<bool>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['knowledge'] as _i24.KnowledgeEndpoint)
+                  .setFeedingEnabled(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['documentId'],
+                    params['enabled'],
+                  ),
+        ),
         'searchMemory': _i1.MethodConnector(
           name: 'searchMemory',
           params: {
