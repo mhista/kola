@@ -115,6 +115,20 @@ class SaleRepository {
     return (response as List).map((r) => _lineDto.fromRow(r as Map<String, dynamic>)).toList();
   }
 
+  /// Phase 14g — every line across many sales in one round trip, for
+  /// Intelligence's top-products-by-revenue/margin/velocity table.
+  /// `listLines` is per-sale and would mean one request per sale in the
+  /// period; this is the bulk sibling, same `.inFilter` pattern
+  /// product_repository.dart already uses for variants.
+  Future<List<SaleLine>> listLinesForSales(List<int> saleIds) async {
+    if (saleIds.isEmpty) return const [];
+    final response = await supabase
+        .from('sale_lines')
+        .select()
+        .inFilter('sale_id', saleIds);
+    return (response as List).map((r) => _lineDto.fromRow(r as Map<String, dynamic>)).toList();
+  }
+
   Future<List<Sale>> listByWorkspace({
     required int workspaceId,
     int limit = 50,

@@ -1,0 +1,40 @@
+##
+## intelligence_summary.spy.yaml — Phase 14g. NOT A TABLE — a wire-only
+## OUTPUT type, same convention as analytics_summary.spy.yaml /
+## end_of_day_report.spy.yaml. Backs `/intelligence`, the curated
+## narrative sibling of `/analytics` that analytics_endpoint.dart's own
+## header named as deliberately NOT built in Phase 13e — "it needs an
+## AI-reasoning layer this codebase deliberately doesn't have yet."
+##
+## See intelligence_endpoint.dart's own header for what closes that gap
+## and what stays a named cut this pass (customer-segment bars are
+## composed on the DASHBOARD from CustomerEndpoint.listCustomersWithSummary,
+## not duplicated here; a "Correlation spotted → Timeline" callout is
+## not built at all — there is no Timeline page to link to yet).
+##
+
+class: IntelligenceSummary
+fields:
+  workspaceId: int
+  periodDays: int
+  currency: String
+
+  revenueMinor: int
+
+  ## Null when there's no comparable prior period (a workspace younger
+  ## than 2x periodDays) — never a fabricated 0%, same rule
+  ## analytics_segment.spy.yaml's deltaPct already follows.
+  revenueDeltaPct: double?
+
+  ## Highest-revenue products first. Capped server-side (see the
+  ## endpoint) rather than sending every product in the catalog.
+  topProducts: List<IntelligenceProduct>
+
+  ## A real, plain-English paragraph synthesizing the numbers above —
+  ## via a real AiOrchestrator model call when one succeeds, or an
+  ## honest templated sentence assembled from these same real numbers
+  ## when every configured provider fails. [narrativeIsTemplate] tells
+  ## the caller which, so the dashboard can label a template-sourced
+  ## narrative rather than presenting it as model-written.
+  narrative: String
+  narrativeIsTemplate: bool

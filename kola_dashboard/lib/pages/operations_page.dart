@@ -116,6 +116,14 @@ class _OperationsPageState extends State<OperationsPage> {
   String _reply = '';
   bool _sending = false;
 
+  // 14e. A real AI-drafted reply, fetched on request rather than
+  // automatically on every conversation open — an unconfigured/rate-
+  // limited provider cascade means this can be slow or fall back to a
+  // template, and firing it silently for every conversation the owner
+  // merely glances at would be wasted latency and provider calls for
+  // drafts nobody asked for.
+  bool _draftLoading = false;
+
   // ── Customer context chips (Phase 13c) ────────────────────────────
   //
   // Keyed by customerId, not conversationId — two conversations can
@@ -209,6 +217,7 @@ class _OperationsPageState extends State<OperationsPage> {
       _messages = const [];
       _messagesLoading = true;
       _reply = '';
+      _draftFailed = false;
       if (showDetail) _showDetailOnMobile = true;
     });
 
@@ -298,6 +307,41 @@ class _OperationsPageState extends State<OperationsPage> {
       setState(() {
         _sending = false;
         _error = 'Could not send that reply: $e';
+      });
+    }
+  }
+
+  /// 14e. Fetches ConversationEndpoint.draftReply and drops the result
+  /// straight into the (now controlled) reply field — editable, not
+  /// sent. A failure here is non-fatal to the page: the owner can still
+  /// type a reply by hand, same as before this feature existed, so it
+  /// surfaces as a small inline note rather than the page's main error
+  /// banner (which would read as "Operations is broken").
+  bool _draftFailed = false;
+
+  Future<void> _suggestReply() async {
+    final convo = _selected;
+    if (convo == null || _draftLoading || _sending) return;
+    setState(() {
+      _draftLoading = true;
+      _draftFailed = false;
+    });
+    try {
+      final draft = await component.client.conversation.draftReply(
+        component.accessToken,
+        component.workspaceId,
+        convo.id!,
+      );
+      if (!mounted || _selected?.id != convo.id) return;
+      setState(() {
+        _reply = draft;
+        _draftLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _draftLoading = false;
+        _draftFailed = true;
       });
     }
   }
@@ -407,10 +451,10 @@ class _OperationsPageState extends State<OperationsPage> {
                     "its own and handed to a person — Conversations is "
                     "every conversation, handled or not, in case you "
                     "want to check in on one kola is still running.",
-                "Replying here sends as yourself. There's no "
-                    "AI-drafted-and-editable reply yet — that's real, "
-                    "unbuilt work — so for now this composer is a plain "
-                    "reply box, the same one on both tabs.",
+                "Tap 'Suggest a reply' and kola drafts one from the "
+                    "conversation so far — it lands in the box below for "
+                    "you to edit or replace before sending, never sent "
+                    "automatically. Same composer on both tabs.",
               ],
             ),
           ],
@@ -886,45 +930,92 @@ class _OperationsPageState extends State<OperationsPage> {
 
     return div(
       attributes: {
-        'style': 'flex:none;padding:12px 16px;'
-            'border-top:1px solid ${KolaVar.border};'
-            'display:flex;gap:8px;align-items:center',
+        'style': 'flex:none;border-top:1px solid ${KolaVar.border}',
       },
       [
-        input<String>(
-          type: InputType.text,
+        // 14e. "kola suggests" — a real AI-drafted reply the owner edits
+        // before sending, fetched on request via
+        // ConversationEndpoint.draftReply. Shown above the input rather
+        // than auto-filling it silently, so it's visible that the text
+        // came from a suggestion, not that the owner typed it.
+        div(
           attributes: {
-            'placeholder': 'Reply as yourself…',
-            'aria-label': 'Your reply',
-            'style': 'flex:1;min-width:0;background:${KolaVar.card};'
-                'border:1px solid ${KolaVar.border};'
-                'border-radius:${KolaRadius.pill};padding:10px 16px;'
-                'color:${KolaVar.text};font-family:inherit;'
-                'font-size:${KolaType.body};outline:none',
+            'style': 'padding:10px 16px 0;display:flex;'
+                'align-items:center;gap:8px',
           },
-          onInput: (v) => _reply = v,
-          events: {
-            'keydown': (e) {
-              // Was `(e as dynamic).key`, which throws — so pressing
-              // Enter to send a reply did nothing at all. See
-              // command_palette.dart and dom_files.dart.
-              if ((e as web.KeyboardEvent).key == 'Enter') _send();
-            },
-          },
+          [
+            button(
+              attributes: {
+                'type': 'button',
+                if (_draftLoading || _sending) 'disabled': '',
+                'style': 'background:transparent;'
+                    'border:1px solid ${KolaVar.border};'
+                    'color:${KolaVar.mutedStrong};'
+                    'border-radius:${KolaRadius.pill};padding:6px 12px;'
+                    'font-size:${KolaType.tiny};font-family:inherit;'
+                    'display:inline-flex;align-items:center;gap:6px;'
+                    'cursor:${_draftLoading ? 'default' : 'pointer'}',
+              },
+              events: {'click': (_) => _suggestReply()},
+              [
+                kolaIcon(Icons.sparkles, size: 12),
+                Component.text(
+                  _draftLoading ? 'kola is drafting…' : 'Suggest a reply',
+                ),
+              ],
+            ),
+            if (_draftFailed)
+              span(
+                attributes: {
+                  'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+                },
+                [Component.text("Couldn't draft one — reply below by hand.")],
+              ),
+          ],
         ),
-        button(
+        div(
           attributes: {
-            'class': 'kola-pressable',
-            'type': 'button',
-            'style': 'flex:none;width:38px;height:38px;'
-                'border-radius:${KolaRadius.circle};border:none;'
-                'background:${KolaVar.accentFill};color:${KolaVar.accentText};'
-                'display:flex;align-items:center;justify-content:center;'
-                '${_sending ? 'opacity:0.6' : ''}',
-            'aria-label': 'Send reply',
+            'style': 'padding:10px 16px 12px;'
+                'display:flex;gap:8px;align-items:center',
           },
-          events: {'click': (_) => _send()},
-          [kolaIcon(Icons.arrowRight, size: 16, strokeWidth: 2)],
+          [
+            input<String>(
+              type: InputType.text,
+              attributes: {
+                'placeholder': 'Reply as yourself…',
+                'aria-label': 'Your reply',
+                'style': 'flex:1;min-width:0;background:${KolaVar.card};'
+                    'border:1px solid ${KolaVar.border};'
+                    'border-radius:${KolaRadius.pill};padding:10px 16px;'
+                    'color:${KolaVar.text};font-family:inherit;'
+                    'font-size:${KolaType.body};outline:none',
+              },
+              value: _reply,
+              onInput: (v) => setState(() => _reply = v),
+              events: {
+                'keydown': (e) {
+                  // Was `(e as dynamic).key`, which throws — so pressing
+                  // Enter to send a reply did nothing at all. See
+                  // command_palette.dart and dom_files.dart.
+                  if ((e as web.KeyboardEvent).key == 'Enter') _send();
+                },
+              },
+            ),
+            button(
+              attributes: {
+                'class': 'kola-pressable',
+                'type': 'button',
+                'style': 'flex:none;width:38px;height:38px;'
+                    'border-radius:${KolaRadius.circle};border:none;'
+                    'background:${KolaVar.accentFill};color:${KolaVar.accentText};'
+                    'display:flex;align-items:center;justify-content:center;'
+                    '${_sending ? 'opacity:0.6' : ''}',
+                'aria-label': 'Send reply',
+              },
+              events: {'click': (_) => _send()},
+              [kolaIcon(Icons.arrowRight, size: 16, strokeWidth: 2)],
+            ),
+          ],
         ),
       ],
     );

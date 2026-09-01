@@ -100,6 +100,7 @@ conversation:
   - getMessages:
   - sendHumanReply:
   - closeConversation:
+  - draftReply:
 customer:
   - listCustomers:
   - listCustomersWithSummary:
@@ -130,6 +131,8 @@ feature:
 finding:
   - listFindings:
   - dismissFinding:
+intelligence:
+  - getIntelligence:
 invoice:
   - createInvoice:
   - listInvoices:

@@ -177,9 +177,10 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
                       "is advice only today: kola doesn't send or "
                       "execute anything on your behalf yet, so the "
                       "action is always yours to take.",
-                  "Use the buttons on each card to defer it, reject it, "
-                      "or mark it done once you've acted on it "
-                      "elsewhere.",
+                  "Use 'Mark done' on a card once you've acted on it "
+                      "elsewhere — kola doesn't send or execute anything "
+                      "itself yet, so there's nothing to approve or "
+                      "reject here, only to note as handled.",
                 ],
               ),
             ],
@@ -278,7 +279,18 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
             'style': 'display:flex;align-items:center;gap:10px;'
                 'margin-bottom:10px',
           },
-          [_kindBadge(), _severityLabel(f.severity)],
+          [
+            _kindBadge(),
+            // 14c: the export's confidence dot-meter + score, missing
+            // here before this pass even though the data has carried a
+            // real `confidence` field since migration 034 and
+            // observations_page.dart already renders it — see this
+            // file's own _confidenceDots/_confidenceLabel below, copied
+            // from that page's identical shape rather than re-invented.
+            _confidenceDots(f.confidence),
+            _confidenceLabel(f.confidence),
+            _severityLabel(f.severity),
+          ],
         ),
         div(
           attributes: {
@@ -354,6 +366,52 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
                   'color:${KolaVar.muted}',
             },
             [Component.text('advice only')],
+          ),
+        ],
+      );
+
+  /// 14c. Same three-dot confidence indicator the export specifies —
+  /// copied from observations_page.dart's identical helper rather than
+  /// shared, since these are private State methods; kept in sync by
+  /// eye until enough pages need it to justify pulling it into a
+  /// components/ file.
+  Component _confidenceDots(double confidence) {
+    final List<String> colors;
+    if (confidence >= 0.8) {
+      colors = [KolaVar.success, KolaVar.success, KolaVar.success];
+    } else if (confidence >= 0.5) {
+      colors = [KolaVar.warning, KolaVar.warning, KolaVar.border];
+    } else {
+      colors = [KolaVar.danger, KolaVar.border, KolaVar.border];
+    }
+    return div(
+      attributes: {'style': 'display:flex;gap:3px'},
+      [
+        for (final c in colors)
+          span(
+            attributes: {
+              'style': 'width:6px;height:6px;'
+                  'border-radius:${KolaRadius.circle};background:$c',
+            },
+            [],
+          ),
+      ],
+    );
+  }
+
+  /// "Counted, not guessed" for the deterministic 1.0 case (every
+  /// detector today) rather than a fake-precise "100% confident" — same
+  /// wording observations_page.dart and overview_page.dart's
+  /// _topRecommendation already settled on for the identical reason.
+  Component _confidenceLabel(double confidence) => span(
+        attributes: {
+          'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+        },
+        [
+          Component.text(
+            confidence >= 1.0
+                ? 'Counted, not guessed'
+                : '${(confidence * 100).round()}% confident',
           ),
         ],
       );

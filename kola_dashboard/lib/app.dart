@@ -55,6 +55,7 @@ import 'pages/recommendations_page.dart';
 import 'pages/tasks_page.dart';
 import 'pages/automation_runs_page.dart';
 import 'pages/analytics_page.dart';
+import 'pages/intelligence_page.dart';
 import 'pages/dashboard_home_page.dart';
 import 'pages/bots_page.dart';
 import 'pages/billing_page.dart';
@@ -719,6 +720,23 @@ class _DashboardAppState extends State<DashboardApp> {
           builder: (context, state) => shellFor(
             state,
             AnalyticsPage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+              gate: _gate,
+            ),
+          ),
+        ),
+        // Phase 14g — Business Intelligence, the AI-reasoning sibling of
+        // Analytics that Phase 13e deliberately left unbuilt. nav_model.dart
+        // has pointed at /intelligence since that phase; this is the first
+        // page/route to actually back it. See intelligence_page.dart's own
+        // header.
+        Route(
+          path: '/intelligence',
+          builder: (context, state) => shellFor(
+            state,
+            IntelligencePage(
               client: _client,
               accessToken: _session!.accessToken,
               workspaceId: _selectedWorkspace!.id!,

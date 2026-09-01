@@ -1,0 +1,24 @@
+##
+## intelligence_product.spy.yaml — Phase 14g. NOT A TABLE — a wire-only
+## OUTPUT type nested inside IntelligenceSummary, same convention as
+## analytics_daily_point.spy.yaml. One row in the Intelligence page's
+## top-products table: real units sold (velocity) and revenue over the
+## period, from SaleLine — both always present. Margin is the one field
+## that can legitimately be missing: it needs Product.costMinor, which
+## is optional (a product an owner never priced out its own cost for),
+## and a missing cost must render as "cost not set", never as a
+## fabricated ₦0 margin. See intelligence_endpoint.dart's own header.
+##
+
+class: IntelligenceProduct
+fields:
+  productId: int?
+  name: String
+
+  unitsSold: int
+  revenueMinor: int
+
+  ## Null when the product's costMinor was never set — see this file's
+  ## header. Never derive a margin from a missing cost.
+  marginMinor: int?
+  marginPct: double?

@@ -41,6 +41,8 @@ import 'package:kola_server/src/services/repository/errand_entity_mapping_reposi
 import 'package:kola_server/src/services/errand/errand_dispatch_service.dart';
 import 'package:kola_server/src/services/errand/connector_capability_registry.dart';
 import 'package:kola_server/src/services/ai/ai_orchestrator.dart';
+import 'package:kola_server/src/services/ai/draft_reply_service.dart';
+import 'package:kola_server/src/services/ai/intelligence_narrative_service.dart';
 import 'package:kola_server/src/services/assistant/workspace_answer_service.dart';
 import 'package:kola_server/src/services/observation/workspace_sweep_service.dart';
 import 'package:kola_server/src/services/repository/workspace_finding_repository.dart';
@@ -345,6 +347,21 @@ void setupDependencyInjection() {
   // everything else here: cheap to construct (just reads Env for API
   // keys), no need for more than one instance server-wide.
   getIt.registerLazySingleton<AiOrchestrator>(() => AiOrchestrator());
+
+  // Phase 14e — real AI-drafted replies for Operations' composer, with
+  // a template fallback. Depends only on AiOrchestrator (registered
+  // just above), same cascade every other AI-backed feature already
+  // gets for free — see draft_reply_service.dart's own header.
+  getIt.registerLazySingleton<DraftReplyService>(
+    () => DraftReplyService(aiOrchestrator: getIt<AiOrchestrator>()),
+  );
+
+  // Phase 14g — the narrative layer behind /intelligence, same
+  // AiOrchestrator-with-template-fallback shape as DraftReplyService
+  // just above.
+  getIt.registerLazySingleton<IntelligenceNarrativeService>(
+    () => IntelligenceNarrativeService(aiOrchestrator: getIt<AiOrchestrator>()),
+  );
 
   // ── PHASE 10 — RELEASE CONTROL ────────────────────────────────────────────
   //

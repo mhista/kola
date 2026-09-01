@@ -19,11 +19,13 @@ import 'package:kola_server/src/services/repository/conversation_repository.dart
 import 'package:kola_server/src/services/repository/message_repository.dart';
 import 'package:kola_server/src/services/messaging/telegram/telegram_bot_registry.dart';
 import 'package:kola_server/src/services/messaging/whatsapp/whatsapp_bot_registry.dart';
+import 'package:kola_server/src/services/ai/draft_reply_service.dart';
 import 'package:kola_server/kola_logger.dart';
 
 class ConversationEndpoint extends Endpoint {
   ConversationRepository get _conversations => getIt<ConversationRepository>();
   MessageRepository get _messages => getIt<MessageRepository>();
+  DraftReplyService get _drafts => getIt<DraftReplyService>();
 
   /// Every escalated conversation for a workspace, most recently active
   /// first — the inbox's main queue.
@@ -136,6 +138,45 @@ class ConversationEndpoint extends Endpoint {
     );
 
     return updated;
+  }
+
+  /// Phase 14e. A real AI-drafted reply for the human to edit before
+  /// sending — the seam this file's own header long named as "no
+  /// endpoint that produces one." Tries a real model completion first
+  /// (via DraftReplyService, which itself goes through AiOrchestrator's
+  /// Groq→Gemini→OpenRouter cascade) and only falls back to an honest
+  /// template if every configured provider fails. The dashboard's own
+  /// composer decides what to do with the text — this endpoint never
+  /// sends anything itself, same as [sendHumanReply] being a separate,
+  /// explicit step.
+  ///
+  /// Deliberately returns just the drafted String rather than a new
+  /// generated model carrying an isTemplate flag — keeping this one
+  /// primitive return type means this method needed no new .spy.yaml
+  /// and no schema migration, which matched the smallest real change
+  /// for what the composer UI actually needs to show an editable draft.
+  Future<String> draftReply(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int conversationId,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+    final conversation = await _requireConversationInWorkspace(conversationId, workspaceId);
+    final thread = await _messages.listByConversation(conversationId);
+
+    final draft = await _drafts.draft(
+      thread: thread,
+      customerDisplayName: conversation.displayName,
+    );
+
+    Log.info(
+      'DraftReply generated (isTemplate=${draft.isTemplate})',
+      data: {'workspaceId': workspaceId, 'conversationId': conversationId},
+      session: session,
+    );
+
+    return draft.text;
   }
 
   Future<Conversation> _requireConversationInWorkspace(int conversationId, int workspaceId) async {
