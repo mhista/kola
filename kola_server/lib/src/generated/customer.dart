@@ -21,6 +21,7 @@ abstract class Customer
     required this.firstSeenSource,
     required this.firstSeenAt,
     this.mergedIntoId,
+    this.notes,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -32,6 +33,7 @@ abstract class Customer
     required String firstSeenSource,
     required DateTime firstSeenAt,
     int? mergedIntoId,
+    String? notes,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _CustomerImpl;
@@ -46,6 +48,7 @@ abstract class Customer
         jsonSerialization['firstSeenAt'],
       ),
       mergedIntoId: jsonSerialization['mergedIntoId'] as int?,
+      notes: jsonSerialization['notes'] as String?,
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
@@ -67,6 +70,8 @@ abstract class Customer
 
   int? mergedIntoId;
 
+  String? notes;
+
   DateTime createdAt;
 
   DateTime updatedAt;
@@ -81,6 +86,7 @@ abstract class Customer
     String? firstSeenSource,
     DateTime? firstSeenAt,
     int? mergedIntoId,
+    String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
   });
@@ -94,6 +100,7 @@ abstract class Customer
       'firstSeenSource': firstSeenSource,
       'firstSeenAt': firstSeenAt.toJson(),
       if (mergedIntoId != null) 'mergedIntoId': mergedIntoId,
+      if (notes != null) 'notes': notes,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
     };
@@ -109,6 +116,7 @@ abstract class Customer
       'firstSeenSource': firstSeenSource,
       'firstSeenAt': firstSeenAt.toJson(),
       if (mergedIntoId != null) 'mergedIntoId': mergedIntoId,
+      if (notes != null) 'notes': notes,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
     };
@@ -130,6 +138,7 @@ class _CustomerImpl extends Customer {
     required String firstSeenSource,
     required DateTime firstSeenAt,
     int? mergedIntoId,
+    String? notes,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : super._(
@@ -139,6 +148,7 @@ class _CustomerImpl extends Customer {
          firstSeenSource: firstSeenSource,
          firstSeenAt: firstSeenAt,
          mergedIntoId: mergedIntoId,
+         notes: notes,
          createdAt: createdAt,
          updatedAt: updatedAt,
        );
@@ -154,6 +164,7 @@ class _CustomerImpl extends Customer {
     String? firstSeenSource,
     DateTime? firstSeenAt,
     Object? mergedIntoId = _Undefined,
+    Object? notes = _Undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -164,6 +175,7 @@ class _CustomerImpl extends Customer {
       firstSeenSource: firstSeenSource ?? this.firstSeenSource,
       firstSeenAt: firstSeenAt ?? this.firstSeenAt,
       mergedIntoId: mergedIntoId is int? ? mergedIntoId : this.mergedIntoId,
+      notes: notes is String? ? notes : this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

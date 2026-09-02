@@ -67,6 +67,22 @@ class CustomerRepository {
         .eq('id', id);
   }
 
+  /// Phase 14h. [notes] null or blank clears the column back to null
+  /// rather than storing an empty string — see customer.spy.yaml's
+  /// field doc on why "never written" and "written, then emptied" are
+  /// kept indistinguishable in storage; the dashboard has no use for
+  /// telling them apart, and null is the simpler state to render.
+  Future<void> setNotes(int id, String? notes) async {
+    final trimmed = notes?.trim();
+    await supabase
+        .from('customers')
+        .update({
+          'notes': (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', id);
+  }
+
   /// Confirming a merge proposal only ever sets this — never touches
   /// conversations/payment_transactions/sales. See migration 039's
   /// header on why.

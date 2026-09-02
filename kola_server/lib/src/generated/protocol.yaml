@@ -105,6 +105,7 @@ customer:
   - listCustomers:
   - listCustomersWithSummary:
   - getCustomerDetail:
+  - updateCustomerNotes:
   - listMergeProposals:
   - resolveMergeProposal:
 customerProfile:

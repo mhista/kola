@@ -184,6 +184,31 @@ class CustomerEndpoint extends Endpoint {
     );
   }
 
+  /// Phase 14h — the Customers detail panel's free-text Notes field.
+  /// Owner-written only; nothing automated ever calls this. Returns the
+  /// updated Customer so the dashboard can patch its already-loaded
+  /// CustomerDetail in place instead of re-fetching the whole thing.
+  Future<Customer> updateCustomerNotes(
+    Session session,
+    String accessToken,
+    int workspaceId,
+    int customerId,
+    String? notes,
+  ) async {
+    await _require(accessToken, workspaceId);
+
+    final resolved = await _customers.resolveCanonical(customerId);
+    if (resolved == null) {
+      throw KolaException(message: 'Customer $customerId not found.');
+    }
+    await _customers.setNotes(resolved.id!, notes);
+    final updated = await _customers.findById(resolved.id!);
+    if (updated == null) {
+      throw KolaException(message: 'Customer ${resolved.id} not found.');
+    }
+    return updated;
+  }
+
   /// The merge-review queue — PART V: "Merges are proposals, not
   /// facts... the owner confirms."
   Future<List<CustomerMergeProposal>> listMergeProposals(

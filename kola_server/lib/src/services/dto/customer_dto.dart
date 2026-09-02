@@ -18,6 +18,7 @@ class CustomerDto extends BaseDto<Customer> {
       firstSeenSource: row['first_seen_source'] as String,
       firstSeenAt: DateTime.parse(row['first_seen_at'] as String),
       mergedIntoId: row['merged_into_id'] as int?,
+      notes: row['notes'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
     );
@@ -32,6 +33,7 @@ class CustomerDto extends BaseDto<Customer> {
       'first_seen_source': model.firstSeenSource,
       'first_seen_at': model.firstSeenAt.toIso8601String(),
       'merged_into_id': model.mergedIntoId,
+      'notes': model.notes,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
   }

@@ -3206,6 +3206,43 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['customerId'],
                   ),
         ),
+        'updateCustomerNotes': _i1.MethodConnector(
+          name: 'updateCustomerNotes',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'customerId': _i1.ParameterDescription(
+              name: 'customerId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+            'notes': _i1.ParameterDescription(
+              name: 'notes',
+              type: _i1.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['customer'] as _i18.CustomerEndpoint)
+                  .updateCustomerNotes(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                    params['customerId'],
+                    params['notes'],
+                  ),
+        ),
         'listMergeProposals': _i1.MethodConnector(
           name: 'listMergeProposals',
           params: {

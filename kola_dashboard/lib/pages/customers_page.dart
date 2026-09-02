@@ -24,14 +24,13 @@
 // and deleting working code just because the export drew a simpler
 // link would be the subtraction DESIGN_DELTA.md forbids.
 //
-// ── THREE NAMED GAPS, READ BEFORE EXTENDING ────────────────────────────
+// ── NAMED GAPS, READ BEFORE EXTENDING ────────────────────────────────
 //
-// 1. NOTES. The export's detail panel has a free-text "Notes" section
-//    ("Prefers deliveries after 5pm..."). Customer has no notes field,
-//    and nothing anywhere in this codebase lets an owner annotate a
-//    customer. Not rendered — a fabricated always-empty section would
-//    be worse than omitting it. Real, separate future work: a
-//    `Customer.notes` column plus a small edit endpoint.
+// 1. NOTES — CLOSED, Phase 14h (2026-09-02). `Customer.notes` (migration
+//    062) plus `CustomerEndpoint.updateCustomerNotes` now back a real,
+//    editable free-text field in the detail panel below. Owner-written
+//    only — nothing automated sets it, and it is never sent to or read
+//    by the customer.
 //
 // 2. PHONE/CHANNEL ON THE LIST ROW. The export's list row shows a
 //    channel per customer ("35m ago · WhatsApp"). Cheaply available
@@ -99,6 +98,12 @@ class _CustomersPageState extends State<CustomersPage> {
   DateTime? _detailBirthday;
   bool _showFullTimeline = false;
 
+  // Phase 14h — free-text notes. Draft is local state so typing doesn't
+  // round-trip to the server on every keystroke; saved explicitly.
+  String _notesDraft = '';
+  bool _notesSaving = false;
+  String? _notesError;
+
   final Set<int> _busyProposals = {};
 
   @override
@@ -147,6 +152,8 @@ class _CustomersPageState extends State<CustomersPage> {
       _detail = null;
       _detailBirthday = null;
       _showFullTimeline = false;
+      _notesDraft = '';
+      _notesError = null;
     });
     try {
       final detail = await component.client.customer.getCustomerDetail(
@@ -158,6 +165,7 @@ class _CustomersPageState extends State<CustomersPage> {
       setState(() {
         _detail = detail;
         _detailLoading = false;
+        _notesDraft = detail.customer.notes ?? '';
       });
       unawaited(_loadBirthday(detail));
     } catch (e) {
@@ -202,7 +210,49 @@ class _CustomersPageState extends State<CustomersPage> {
         _detail = null;
         _detailError = null;
         _detailBirthday = null;
+        _notesDraft = '';
+        _notesError = null;
       });
+
+  /// Phase 14h. Saves the current draft as this customer's note — an
+  /// all-blank draft clears it (see CustomerRepository.setNotes). Patches
+  /// the already-loaded CustomerDetail in place with the endpoint's
+  /// returned Customer rather than re-fetching the whole detail.
+  Future<void> _saveNotes() async {
+    final detail = _detail;
+    final customerId = detail?.customer.id;
+    if (detail == null || customerId == null || _notesSaving) return;
+    setState(() {
+      _notesSaving = true;
+      _notesError = null;
+    });
+    try {
+      final updated = await component.client.customer.updateCustomerNotes(
+        component.accessToken,
+        component.workspaceId,
+        customerId,
+        _notesDraft,
+      );
+      if (!mounted || _detail?.customer.id != customerId) return;
+      setState(() {
+        _detail = CustomerDetail(
+          customer: updated,
+          signals: detail.signals,
+          conversations: detail.conversations,
+          payments: detail.payments,
+          sales: detail.sales,
+        );
+        _notesDraft = updated.notes ?? '';
+        _notesSaving = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _notesSaving = false;
+        _notesError = ErrorText.of(e);
+      });
+    }
+  }
 
   Future<void> _resolveProposal(CustomerMergeProposal proposal, bool approve) async {
     final id = proposal.id;
@@ -863,6 +913,66 @@ class _CustomersPageState extends State<CustomersPage> {
                       span([Component.text(o.$3)]),
                     ],
                   ),
+            ],
+          ),
+          _detailLabel('Notes'),
+          div(
+            attributes: {'style': 'margin-bottom:16px'},
+            [
+              textarea(
+                [Component.text(_notesDraft)],
+                rows: 3,
+                onInput: (v) => setState(() => _notesDraft = v),
+                attributes: {
+                  'aria-label': 'Notes about this customer',
+                  'placeholder': 'Prefers deliveries after 5pm…',
+                  'style': 'width:100%;box-sizing:border-box;padding:9px 11px;'
+                      'border-radius:${KolaRadius.sm};'
+                      'border:1px solid ${KolaVar.border};'
+                      'background:${KolaVar.bg};color:${KolaVar.text};'
+                      'font-size:${KolaType.small};font-family:inherit;'
+                      'resize:vertical',
+                },
+              ),
+              div(
+                attributes: {
+                  'style': 'display:flex;justify-content:space-between;'
+                      'align-items:center;margin-top:6px;gap:8px',
+                },
+                [
+                  span(
+                    attributes: {
+                      'style': 'font-size:${KolaType.tiny};'
+                          'color:${_notesError != null ? KolaVar.danger : KolaVar.muted}',
+                    },
+                    [
+                      Component.text(
+                        _notesError ??
+                            (_notesSaving
+                                ? 'Saving…'
+                                : (_notesDraft.trim() == (_detail?.customer.notes ?? '').trim()
+                                    ? 'Owner-written · not sent to the customer'
+                                    : 'Unsaved changes')),
+                      ),
+                    ],
+                  ),
+                  button(
+                    attributes: {
+                      'type': 'button',
+                      'style': 'flex:none;background:${KolaVar.accent};'
+                          'color:${KolaVar.accentText};border:none;'
+                          'border-radius:${KolaRadius.sm};padding:6px 14px;'
+                          'font-size:${KolaType.tiny};font-weight:600;'
+                          'font-family:inherit;'
+                          '${_notesSaving || _notesDraft.trim() == (_detail?.customer.notes ?? '').trim() ? 'opacity:0.5;cursor:default' : 'cursor:pointer'}',
+                      if (_notesSaving || _notesDraft.trim() == (_detail?.customer.notes ?? '').trim())
+                        'disabled': 'true',
+                    },
+                    events: {'click': (_) => _saveNotes()},
+                    [Component.text('Save')],
+                  ),
+                ],
+              ),
             ],
           ),
           button(

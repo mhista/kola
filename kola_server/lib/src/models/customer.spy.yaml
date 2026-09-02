@@ -32,6 +32,12 @@ fields:
   ## Null unless this customer has been merged into another. See header.
   mergedIntoId: int?
 
+  ## Free-text owner annotation ("Prefers deliveries after 5pm...").
+  ## Backed by migration 062. Manually written/edited only — nothing
+  ## automated ever sets this. Null means never written, distinct from
+  ## an intentionally-cleared empty note (see CustomerRepository.setNotes).
+  notes: String?
+
   createdAt: DateTime
   updatedAt: DateTime
 

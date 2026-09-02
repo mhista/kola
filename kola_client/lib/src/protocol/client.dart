@@ -1926,6 +1926,26 @@ class EndpointCustomer extends _i1.EndpointRef {
     },
   );
 
+  /// Phase 14h — the Customers detail panel's free-text Notes field.
+  /// Owner-written only; nothing automated ever calls this. Returns the
+  /// updated Customer so the dashboard can patch its already-loaded
+  /// CustomerDetail in place instead of re-fetching the whole thing.
+  _i2.Future<_i20.Customer> updateCustomerNotes(
+    String accessToken,
+    int workspaceId,
+    int customerId,
+    String? notes,
+  ) => caller.callServerEndpoint<_i20.Customer>(
+    'customer',
+    'updateCustomerNotes',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
+      'customerId': customerId,
+      'notes': notes,
+    },
+  );
+
   /// The merge-review queue — PART V: "Merges are proposals, not
   /// facts... the owner confirms."
   _i2.Future<List<_i23.CustomerMergeProposal>> listMergeProposals(
