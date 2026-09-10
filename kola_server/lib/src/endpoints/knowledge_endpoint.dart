@@ -101,19 +101,26 @@ class KnowledgeEndpoint extends Endpoint {
     }
 
     // Plan cap, checked BEFORE ingestion so a rejected document never
-    // burns embedding quota.
+    // burns embedding quota. Every workspace has a document cap now, not
+    // just cappedFree/paused — CORRECTED 2026-09-09, fullTrial/paid
+    // check against the higher PlanLimits.growthKnowledgeDocumentCap
+    // instead of being unbounded. See plan_limits.dart's header.
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace != null) {
       final tier = _trialStateMachine.effectiveTier(workspace);
-      if (tier == EffectiveTier.cappedFree || tier == EffectiveTier.paused) {
-        final existing = await _documents.countByWorkspace(workspaceId);
-        if (existing >= PlanLimits.cappedFreeKnowledgeDocumentCap) {
-          throw KolaException(
-        message:             'This workspace is on the free plan, which stores up to '
-            '${PlanLimits.cappedFreeKnowledgeDocumentCap} knowledge documents. '
-            'Delete one, or upgrade to add more.',
-          );
-        }
+      final isFreeTier = tier == EffectiveTier.cappedFree || tier == EffectiveTier.paused;
+      final cap = isFreeTier
+          ? PlanLimits.cappedFreeKnowledgeDocumentCap
+          : PlanLimits.growthKnowledgeDocumentCap;
+      final existing = await _documents.countByWorkspace(workspaceId);
+      if (existing >= cap) {
+        throw KolaException(
+          message: isFreeTier
+              ? 'This workspace is on the free plan, which stores up to '
+                  '$cap knowledge documents. Delete one, or upgrade to add more.'
+              : 'This workspace is on the Growth plan, which stores up to '
+                  '$cap knowledge documents. Delete one, or contact support if you need more.',
+        );
       }
     }
 

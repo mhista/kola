@@ -20,15 +20,15 @@
 
 set -e
 
-SUPABASE_URL="${SUPABASE_URL:-}"
-SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
+# SUPABASE DEFAULTS (2026-09-09): hardcoded rather than required, so a
+# plain ./build.sh (or ./deploy.sh, which sources these same defaults —
+# see that script's own note) just works. Safe to hardcode: this is the
+# anon/public key, protected by Row Level Security, not by secrecy — see
+# the comment above. Override by exporting your own values before
+# running this script, same as always.
+SUPABASE_URL="${SUPABASE_URL:-https://jwyrmptiehkkizwjbqtg.supabase.co}"
+SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3eXJtcHRpZWhra2l6d2picXRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE0NzEsImV4cCI6MjEwMDIwNzQ3MX0.jqjS8ZDrdSNj1hT01PTMoEFDFQITA9MoQyQJn4EagBY}"
 LAUNCH_MODE="${LAUNCH_MODE:-waitlist}"
-
-if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
-  echo "❌ Missing env vars: SUPABASE_URL and SUPABASE_ANON_KEY required"
-  echo "   Export them or edit this script with your Supabase project values."
-  exit 1
-fi
 
 echo "📦 Installing dependencies..."
 dart pub get

@@ -7,6 +7,12 @@
 // Step 2 mentions the sales counter deliberately: it's the fastest way a
 // business teaches kolaa anything, and it's what makes the intelligence
 // layers work later.
+//
+// STEP 1 REWORDED 2026-09-09: used to lead with "WhatsApp, Telegram,"
+// before naming a single real connector, which made messaging read as
+// the product rather than one entry point into it. Now leads with the
+// business systems (payments, spreadsheets, calendar) and mentions
+// messaging channels as where customers reach it, not what it is.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -16,7 +22,8 @@ class HowItWorksSection extends StatelessComponent {
   const HowItWorksSection();
 
   static const _steps = [
-    ('01', 'Connect', 'WhatsApp, Telegram, your payment gateway, your spreadsheets.'),
+    ('01', 'Connect', 'Your payment gateway, spreadsheets, calendar and storefront — '
+        'customers reach it on WhatsApp or Telegram.'),
     ('02', 'It learns', 'Paste in price lists and policies, or just start selling — '
         'every sale teaches it something.'),
     ('03', 'It works', 'Answers customers, rings up sales, tracks orders, drafts the '

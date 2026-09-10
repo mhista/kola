@@ -47,6 +47,11 @@ fields:
   issuedAt: DateTime
   dueAt: DateTime?
 
+  ## Phase 14L / migration 063 — invoice_payment_reminder_sweep_service.dart's
+  ## dedupe. Null means never reminded. See that migration's header.
+  lastPaymentReminderSentAt: DateTime?
+  paymentRemindersSent: int
+
   createdAt: DateTime
   updatedAt: DateTime
 

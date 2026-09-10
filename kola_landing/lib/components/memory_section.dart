@@ -6,6 +6,12 @@
 // The right-hand card is a real artefact from the product, not a
 // decorative illustration — it shows a stored section, its source, and a
 // match score, which is precisely what the Memory inspector renders.
+//
+// ADDED 2026-09-09: a line naming that this same memory answers the
+// owner directly from the dashboard, not only customer-facing chat —
+// closes a gap flagged in the landing redesign audit, where the
+// owner-side "Ask kolaa" assistant was shipped but never described
+// anywhere on the page.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -56,6 +62,18 @@ class MemorySection extends StatelessComponent {
                     'from them forever. Every answer names the exact document and '
                     'section it came from, so "the AI got that wrong" becomes '
                     'something you can check, not argue about.',
+                  ),
+                ],
+              ),
+              p(
+                attributes: {
+                  'style': 'font-size:15.5px;color:${KolaColors.textMuted};'
+                      'line-height:1.6;margin:0 0 16px',
+                },
+                [
+                  Component.text(
+                    'It is not only for customers — ask kolaa the same questions '
+                    'yourself from your dashboard, and get the same cited answers.',
                   ),
                 ],
               ),

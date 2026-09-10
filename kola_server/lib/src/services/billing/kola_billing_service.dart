@@ -1,8 +1,11 @@
 // kola_billing_service.dart
 //
 // Task #148 — Kola's OWN SaaS subscription checkout: a workspace paying
-// KOLA ₦10,000/month (PlanLimits.paidPlanMonthlyPriceKobo — CONFIRMED
-// WITH THE USER 2026-07-27) to upgrade off the free/capped tier.
+// KOLA ₦15,000/month as of 2026-09-09 (originally ₦10,000/month,
+// CONFIRMED WITH THE USER 2026-07-27; see PlanPricing.nigeria in
+// plan_pricing.dart, the actual authoritative source — this service
+// prices per region, not off the old flat PlanLimits.paidPlanMonthlyPriceKobo
+// constant) to upgrade off the free/capped tier.
 //
 // WHY THIS DOESN'T REUSE PaymentCheckoutService: that file is explicitly
 // "start a checkout against a workspace's OWN connected gateway" — it

@@ -126,6 +126,8 @@ errand:
   - testWebhookErrand:
   - getEntityMapping:
   - setEntityMapping:
+event:
+  - listTimeline:
 feature:
   - listEnabledFeatures:
   - isFeatureEnabled:

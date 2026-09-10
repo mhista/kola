@@ -38,3 +38,23 @@ fields:
   ## narrative rather than presenting it as model-written.
   narrative: String
   narrativeIsTemplate: bool
+
+  ## Phase 14/174. A short, honest sentence linking a real revenue move
+  ## to a real preceding spike in Operations-tagged events (the closest
+  ## real proxy this codebase has for "complaint/escalation" — see
+  ## intelligence_endpoint.dart's own header on why: there is no
+  ## dedicated complaint/escalation eventType anywhere on the event bus
+  ## today). Null when the check finds nothing worth naming — a
+  ## workspace with flat revenue, or no Operations events in the window
+  ## — same "absence over a fabricated finding" rule this codebase
+  ## applies everywhere else. This is what un-defers the export's
+  ## "Correlation spotted" callout, once event data was real enough to
+  ## check.
+  correlationCallout: String?
+
+  ## Phase 14/174. Completed-sale COUNT by day of week over the same
+  ## period as [revenueMinor], index 0 = Monday .. 6 = Sunday — the
+  ## "Orders by day" chart. A plain count over Sale.soldAt.weekday,
+  ## always present (an all-zero week is a real, honest answer, not a
+  ## missing one).
+  ordersByWeekday: List<int>

@@ -198,18 +198,43 @@ const navGroups = <NavGroup>[
       route: '/knowledge',
       features: [Features.memoryDocuments],
     ),
-    // 14j: renamed from "Automations" — the route (/errands) and page
-    // file (errand_builder_page.dart) were already "Errand"-named; only
-    // the visible nav label was wrong. Rename only — the bigger scope
-    // question (does Errand Builder become auto-firing on
-    // customer-lifecycle events?) is still open with the owner; see
-    // PHASE_14_HANDOFF.pdf's 14j section.
-    NavItem(
-      label: 'Errands',
-      icon: Icons.workflow,
-      route: '/errands',
-      features: [Features.errandsBuiltin],
-    ),
+    // 14L, 2026-09-10 — the owner's own call, verbatim: "for the errands,
+    // it should not have a page of its own, thus it should auto fire."
+    // This NavItem (the template-picker "Errand Builder" as a first-class
+    // Build-group destination) is removed for exactly that reason —
+    // resolving 14j's open question above.
+    //
+    // NOT a full deletion of errand_builder_page.dart, though — see that
+    // file's own header (updated this pass) for why. Short version: 5 of
+    // its 6 built-in templates (createSupportTicket, recordCustomerProfile,
+    // sendOtp, verifyOtp, createProductListTemplate) are the ONLY way a
+    // workspace ever gets a real, active Errand row for those handler
+    // keys, and errand_tool_registry.dart's buildTools() only offers a
+    // handler to the AI as a callable tool when such a row exists
+    // (checked directly in errand_tool_registry.dart/
+    // inbound_message_handler.dart — listActiveByWorkspace() is a real DB
+    // read, not a static list). Deleting the page outright would silently
+    // strip a workspace's ability to ever turn those capabilities on —
+    // a regression the owner did not ask for. The custom webhook/
+    // dbCredential flow on the same page is also untouched (out of scope
+    // — the owner's complaint was about the built-in template picker).
+    //
+    // What DID change: this is no longer a top-level nav destination.
+    // It is reached instead from bot_detail_dev_page.dart's Errands tab
+    // ("Manage errands" link) — the page that already displays a bot's
+    // active Errands read-only, so pairing it with the one real way to
+    // add/edit one is a more honest home than a generic sidebar item.
+    // automation_runs_page.dart (Phase 13d) is unaffected either way — it
+    // is still linked from each row's own "History" pill on
+    // errand_builder_page.dart, which still exists.
+    //
+    // The three concrete auto-fire cases the owner named are handled
+    // elsewhere, not by this page: birthday/anniversary reminders were
+    // already fully auto-firing before this pass (customer_campaign_
+    // sweep_service.dart, wired in server.dart). Overdue-invoice payment
+    // reminders are new this pass — see invoice_payment_reminder_sweep_
+    // service.dart. "Ticket-logging per customer" stays genuinely
+    // ambiguous — see docs/DEVELOPMENT_PLAN.md's 14L entry.
     NavItem(
       label: 'Integrations',
       icon: Icons.plug,

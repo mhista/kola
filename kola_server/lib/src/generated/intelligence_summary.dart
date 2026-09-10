@@ -25,6 +25,8 @@ abstract class IntelligenceSummary
     required this.topProducts,
     required this.narrative,
     required this.narrativeIsTemplate,
+    this.correlationCallout,
+    required this.ordersByWeekday,
   });
 
   factory IntelligenceSummary({
@@ -36,6 +38,8 @@ abstract class IntelligenceSummary
     required List<_i2.IntelligenceProduct> topProducts,
     required String narrative,
     required bool narrativeIsTemplate,
+    String? correlationCallout,
+    required List<int> ordersByWeekday,
   }) = _IntelligenceSummaryImpl;
 
   factory IntelligenceSummary.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -52,6 +56,10 @@ abstract class IntelligenceSummary
       narrative: jsonSerialization['narrative'] as String,
       narrativeIsTemplate: _i1.BoolJsonExtension.fromJson(
         jsonSerialization['narrativeIsTemplate'],
+      ),
+      correlationCallout: jsonSerialization['correlationCallout'] as String?,
+      ordersByWeekday: _i3.Protocol().deserialize<List<int>>(
+        jsonSerialization['ordersByWeekday'],
       ),
     );
   }
@@ -72,6 +80,10 @@ abstract class IntelligenceSummary
 
   bool narrativeIsTemplate;
 
+  String? correlationCallout;
+
+  List<int> ordersByWeekday;
+
   /// Returns a shallow copy of this [IntelligenceSummary]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -84,6 +96,8 @@ abstract class IntelligenceSummary
     List<_i2.IntelligenceProduct>? topProducts,
     String? narrative,
     bool? narrativeIsTemplate,
+    String? correlationCallout,
+    List<int>? ordersByWeekday,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -97,6 +111,8 @@ abstract class IntelligenceSummary
       'topProducts': topProducts.toJson(valueToJson: (v) => v.toJson()),
       'narrative': narrative,
       'narrativeIsTemplate': narrativeIsTemplate,
+      if (correlationCallout != null) 'correlationCallout': correlationCallout,
+      'ordersByWeekday': ordersByWeekday.toJson(),
     };
   }
 
@@ -114,6 +130,8 @@ abstract class IntelligenceSummary
       ),
       'narrative': narrative,
       'narrativeIsTemplate': narrativeIsTemplate,
+      if (correlationCallout != null) 'correlationCallout': correlationCallout,
+      'ordersByWeekday': ordersByWeekday.toJson(),
     };
   }
 
@@ -135,6 +153,8 @@ class _IntelligenceSummaryImpl extends IntelligenceSummary {
     required List<_i2.IntelligenceProduct> topProducts,
     required String narrative,
     required bool narrativeIsTemplate,
+    String? correlationCallout,
+    required List<int> ordersByWeekday,
   }) : super._(
          workspaceId: workspaceId,
          periodDays: periodDays,
@@ -144,6 +164,8 @@ class _IntelligenceSummaryImpl extends IntelligenceSummary {
          topProducts: topProducts,
          narrative: narrative,
          narrativeIsTemplate: narrativeIsTemplate,
+         correlationCallout: correlationCallout,
+         ordersByWeekday: ordersByWeekday,
        );
 
   /// Returns a shallow copy of this [IntelligenceSummary]
@@ -159,6 +181,8 @@ class _IntelligenceSummaryImpl extends IntelligenceSummary {
     List<_i2.IntelligenceProduct>? topProducts,
     String? narrative,
     bool? narrativeIsTemplate,
+    Object? correlationCallout = _Undefined,
+    List<int>? ordersByWeekday,
   }) {
     return IntelligenceSummary(
       workspaceId: workspaceId ?? this.workspaceId,
@@ -172,6 +196,11 @@ class _IntelligenceSummaryImpl extends IntelligenceSummary {
           topProducts ?? this.topProducts.map((e0) => e0.copyWith()).toList(),
       narrative: narrative ?? this.narrative,
       narrativeIsTemplate: narrativeIsTemplate ?? this.narrativeIsTemplate,
+      correlationCallout: correlationCallout is String?
+          ? correlationCallout
+          : this.correlationCallout,
+      ordersByWeekday:
+          ordersByWeekday ?? this.ordersByWeekday.map((e0) => e0).toList(),
     );
   }
 }

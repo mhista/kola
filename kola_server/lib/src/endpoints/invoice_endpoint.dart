@@ -116,6 +116,7 @@ class InvoiceEndpoint extends Endpoint {
           : paymentInstructions!.trim(),
       issuedAt: now,
       dueAt: dueAt,
+      paymentRemindersSent: 0,
       createdAt: now,
       updatedAt: now,
     );

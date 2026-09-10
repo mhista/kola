@@ -103,22 +103,23 @@ import 'package:kola_server/src/generated/customer.dart' as _i88;
 import 'package:kola_server/src/generated/customer_summary.dart' as _i89;
 import 'package:kola_server/src/generated/customer_merge_proposal.dart' as _i90;
 import 'package:kola_server/src/generated/errand_execution_log.dart' as _i91;
-import 'package:kola_server/src/generated/workspace_finding.dart' as _i92;
-import 'package:kola_server/src/generated/invoice.dart' as _i93;
-import 'package:kola_server/src/generated/knowledge_search_hit.dart' as _i94;
+import 'package:kola_server/src/generated/event.dart' as _i92;
+import 'package:kola_server/src/generated/workspace_finding.dart' as _i93;
+import 'package:kola_server/src/generated/invoice.dart' as _i94;
+import 'package:kola_server/src/generated/knowledge_search_hit.dart' as _i95;
 import 'package:kola_server/src/generated/payment_gateway_credential.dart'
-    as _i95;
-import 'package:kola_server/src/generated/api_key.dart' as _i96;
-import 'package:kola_server/src/generated/webhook_endpoint.dart' as _i97;
-import 'package:kola_server/src/generated/product.dart' as _i98;
-import 'package:kola_server/src/generated/product_variant.dart' as _i99;
-import 'package:kola_server/src/generated/product_media.dart' as _i100;
-import 'package:kola_server/src/generated/sale.dart' as _i101;
-import 'package:kola_server/src/generated/sale_line.dart' as _i102;
-import 'package:kola_server/src/generated/stock_conflict.dart' as _i103;
-import 'package:kola_server/src/generated/task.dart' as _i104;
+    as _i96;
+import 'package:kola_server/src/generated/api_key.dart' as _i97;
+import 'package:kola_server/src/generated/webhook_endpoint.dart' as _i98;
+import 'package:kola_server/src/generated/product.dart' as _i99;
+import 'package:kola_server/src/generated/product_variant.dart' as _i100;
+import 'package:kola_server/src/generated/product_media.dart' as _i101;
+import 'package:kola_server/src/generated/sale.dart' as _i102;
+import 'package:kola_server/src/generated/sale_line.dart' as _i103;
+import 'package:kola_server/src/generated/stock_conflict.dart' as _i104;
+import 'package:kola_server/src/generated/task.dart' as _i105;
 import 'package:kola_server/src/generated/whatsapp_message_template.dart'
-    as _i105;
+    as _i106;
 export 'analytics_daily_point.dart';
 export 'analytics_segment.dart';
 export 'analytics_summary.dart';
@@ -721,6 +722,9 @@ class Protocol extends _i1.SerializationManagerServer {
               .toList()
           as T;
     }
+    if (t == List<int>) {
+      return (data as List).map((e) => deserialize<int>(e)).toList() as T;
+    }
     if (t == List<_i51.PublicCatalogItem>) {
       return (data as List)
               .map((e) => deserialize<_i51.PublicCatalogItem>(e))
@@ -735,9 +739,6 @@ class Protocol extends _i1.SerializationManagerServer {
     }
     if (t == List<String>) {
       return (data as List).map((e) => deserialize<String>(e)).toList() as T;
-    }
-    if (t == List<int>) {
-      return (data as List).map((e) => deserialize<int>(e)).toList() as T;
     }
     if (t == List<_i67.WorkspaceAnswerAction>) {
       return (data as List)
@@ -859,25 +860,29 @@ class Protocol extends _i1.SerializationManagerServer {
               .toList()
           as T;
     }
-    if (t == List<_i92.WorkspaceFinding>) {
+    if (t == List<_i92.Event>) {
+      return (data as List).map((e) => deserialize<_i92.Event>(e)).toList()
+          as T;
+    }
+    if (t == List<_i93.WorkspaceFinding>) {
       return (data as List)
-              .map((e) => deserialize<_i92.WorkspaceFinding>(e))
+              .map((e) => deserialize<_i93.WorkspaceFinding>(e))
               .toList()
           as T;
     }
-    if (t == List<_i93.Invoice>) {
-      return (data as List).map((e) => deserialize<_i93.Invoice>(e)).toList()
+    if (t == List<_i94.Invoice>) {
+      return (data as List).map((e) => deserialize<_i94.Invoice>(e)).toList()
           as T;
     }
-    if (t == List<_i94.KnowledgeSearchHit>) {
+    if (t == List<_i95.KnowledgeSearchHit>) {
       return (data as List)
-              .map((e) => deserialize<_i94.KnowledgeSearchHit>(e))
+              .map((e) => deserialize<_i95.KnowledgeSearchHit>(e))
               .toList()
           as T;
     }
-    if (t == List<_i95.PaymentGatewayCredential>) {
+    if (t == List<_i96.PaymentGatewayCredential>) {
       return (data as List)
-              .map((e) => deserialize<_i95.PaymentGatewayCredential>(e))
+              .map((e) => deserialize<_i96.PaymentGatewayCredential>(e))
               .toList()
           as T;
     }
@@ -896,56 +901,56 @@ class Protocol extends _i1.SerializationManagerServer {
               : null)
           as T;
     }
-    if (t == List<_i96.ApiKey>) {
-      return (data as List).map((e) => deserialize<_i96.ApiKey>(e)).toList()
+    if (t == List<_i97.ApiKey>) {
+      return (data as List).map((e) => deserialize<_i97.ApiKey>(e)).toList()
           as T;
     }
-    if (t == List<_i97.WebhookEndpoint>) {
+    if (t == List<_i98.WebhookEndpoint>) {
       return (data as List)
-              .map((e) => deserialize<_i97.WebhookEndpoint>(e))
+              .map((e) => deserialize<_i98.WebhookEndpoint>(e))
               .toList()
           as T;
     }
-    if (t == List<_i98.Product>) {
-      return (data as List).map((e) => deserialize<_i98.Product>(e)).toList()
+    if (t == List<_i99.Product>) {
+      return (data as List).map((e) => deserialize<_i99.Product>(e)).toList()
           as T;
     }
-    if (t == List<_i99.ProductVariant>) {
+    if (t == List<_i100.ProductVariant>) {
       return (data as List)
-              .map((e) => deserialize<_i99.ProductVariant>(e))
+              .map((e) => deserialize<_i100.ProductVariant>(e))
               .toList()
           as T;
     }
     if (t == List<int?>) {
       return (data as List).map((e) => deserialize<int?>(e)).toList() as T;
     }
-    if (t == List<_i100.ProductMedia>) {
+    if (t == List<_i101.ProductMedia>) {
       return (data as List)
-              .map((e) => deserialize<_i100.ProductMedia>(e))
+              .map((e) => deserialize<_i101.ProductMedia>(e))
               .toList()
           as T;
     }
-    if (t == List<_i101.Sale>) {
-      return (data as List).map((e) => deserialize<_i101.Sale>(e)).toList()
+    if (t == List<_i102.Sale>) {
+      return (data as List).map((e) => deserialize<_i102.Sale>(e)).toList()
           as T;
     }
-    if (t == List<_i102.SaleLine>) {
-      return (data as List).map((e) => deserialize<_i102.SaleLine>(e)).toList()
+    if (t == List<_i103.SaleLine>) {
+      return (data as List).map((e) => deserialize<_i103.SaleLine>(e)).toList()
           as T;
     }
-    if (t == List<_i103.StockConflict>) {
+    if (t == List<_i104.StockConflict>) {
       return (data as List)
-              .map((e) => deserialize<_i103.StockConflict>(e))
+              .map((e) => deserialize<_i104.StockConflict>(e))
               .toList()
           as T;
     }
-    if (t == List<_i104.Task>) {
-      return (data as List).map((e) => deserialize<_i104.Task>(e)).toList()
+    if (t == List<_i105.Task>) {
+      return (data as List).map((e) => deserialize<_i105.Task>(e)).toList()
           as T;
     }
-    if (t == List<_i105.WhatsAppMessageTemplate>) {
+    if (t == List<_i106.WhatsAppMessageTemplate>) {
       return (data as List)
-              .map((e) => deserialize<_i105.WhatsAppMessageTemplate>(e))
+              .map((e) => deserialize<_i106.WhatsAppMessageTemplate>(e))
               .toList()
           as T;
     }

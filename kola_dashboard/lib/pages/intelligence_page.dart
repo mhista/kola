@@ -23,14 +23,39 @@
 //      current calendar month) — copied rather than re-derived, so the
 //      two pages never quietly disagree about what "Top" means.
 //
-// ── ONE NAMED CUT ──────────────────────────────────────────────────────
+// ── PHASE 14/174 UPDATE ──────────────────────────────────────────────────
 //
-// The export's "Correlation spotted" callout (a revenue move explained
-// by a specific linked Timeline event) is not built — there is no
-// Timeline page anywhere in this codebase to link to, and real
-// cross-metric correlation detection is separate, larger, deferred
-// work. See intelligence_endpoint.dart's own header for the same note
+// The "Correlation spotted" cut this header used to name is un-deferred
+// — the Timeline page now exists, and intelligence_endpoint.dart computes
+// a real (deliberately simple) correlationCallout. Rendered as _correlation
+// Card below, linking to /timeline, whenever the server found something
+// real to say (null renders nothing — no fabricated finding on a flat
+// week).
+//
+// Also added this pass: the "Orders by day" weekday bar chart
+// (_ordersByDayChart, real IntelligenceSummary.ordersByWeekday) and a
+// Customer Satisfaction card (_satisfactionCard) — an honest
+// "not enough data yet" state built from real workspace age, matching
+// the design's own copy pattern, since there is no rating/CSAT field
+// anywhere in this codebase (grepped: none).
+//
+// ── TWO GAPS STILL NAMED, NOT SHIPPED ────────────────────────────────────
+//
+// "Response time" (a big number + "-N% vs last period") is SKIPPED
+// entirely — grepped this codebase for any existing average-response-
+// time computation (responseTime/avgResponse/firstResponse) and found
+// none. Computing one is a real, separate aggregation over Message
+// timestamps, out of this pass's scope — not shipped with an invented
+// number. See intelligence_endpoint.dart's own header for the same note
 // server-side.
+//
+// The design's own Day 1/Week 1/Month 6 segmented control is
+// deliberately NOT added to this page either, for the same reason
+// overview_page.dart's header already gives for Overview's identical
+// control: "In production nobody chooses how much data they have" —
+// this page already has a real period control (_periodChips, 7/30/90
+// days), which is the actual production equivalent of that design-tool
+// affordance.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -49,12 +74,20 @@ class IntelligencePage extends StatefulComponent {
     required this.accessToken,
     required this.workspaceId,
     required this.gate,
+    required this.workspaceCreatedAt,
   });
 
   final Client client;
   final String accessToken;
   final int workspaceId;
   final FeatureGate gate;
+
+  /// Phase 14/174 — the Customer Satisfaction card's real signal (see
+  /// this file's header). Passed in rather than fetched: app.dart
+  /// already holds the selected Workspace in full, same "caller
+  /// already has it in hand" reasoning overview_page.dart's own
+  /// `sellsCatalogItems` doc comment gives.
+  final DateTime workspaceCreatedAt;
 
   @override
   State<IntelligencePage> createState() => _IntelligencePageState();
@@ -205,6 +238,13 @@ class _IntelligencePageState extends State<IntelligencePage> {
                   "Top products are ranked by revenue for the period; "
                       "margin shows 'cost not set' for any product "
                       "without a cost price on its catalog entry.",
+                  "'Correlation spotted' only appears when kola finds a "
+                      "real link between a revenue drop and a rise in "
+                      "escalated conversations — it stays quiet on a "
+                      "flat week rather than reaching for a finding. "
+                      "Customer satisfaction shows real workspace age "
+                      "instead of a score until there's enough rated "
+                      "conversation data to trust.",
                 ],
               ),
             ],
@@ -266,11 +306,186 @@ class _IntelligencePageState extends State<IntelligencePage> {
 
   List<Component> _content() => [
         _narrativeCard(),
+        _correlationCard(),
         _revenueChart(),
+        _ordersByDayChart(),
         _topProductsTable(),
         _customerSegmentBars(),
+        _satisfactionCard(),
         _suggestions(),
       ];
+
+  /// Phase 14/174 — the un-deferred "Correlation spotted" callout. Only
+  /// intelligence_endpoint.dart decides whether there's something real
+  /// to say (see that file's own header on the two-condition check);
+  /// this renders nothing at all when it found nothing, same as every
+  /// other "absence over fabrication" card on this page.
+  Component _correlationCard() {
+    final callout = _intelligence?.correlationCallout;
+    if (callout == null) return const Component.text('');
+    return div(
+      attributes: {
+        'style': 'background:${KolaVar.warningBg};'
+            'border:1px solid ${KolaVar.warning};'
+            'border-radius:${KolaRadius.lg};padding:16px 20px;'
+            'margin-bottom:${KolaSpace.lg};display:flex;'
+            'align-items:baseline;gap:10px;flex-wrap:wrap;'
+            'justify-content:space-between',
+      },
+      [
+        div(
+          [
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};font-weight:700;'
+                    'color:${KolaVar.muted};letter-spacing:0.02em;'
+                    'margin-bottom:4px',
+              },
+              [Component.text('CORRELATION SPOTTED')],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.small};color:${KolaVar.text};'
+                    'line-height:1.5',
+              },
+              [Component.text(callout)],
+            ),
+          ],
+        ),
+        Link(
+          to: '/timeline',
+          attributes: {
+            'style': 'font-size:${KolaType.small};font-weight:600;'
+                'color:${KolaVar.accent};text-decoration:none;flex:none',
+          },
+          children: [Component.text('→ Open Timeline')],
+        ),
+      ],
+    );
+  }
+
+  static const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  /// Phase 14/174 — real day-of-week distribution over
+  /// IntelligenceSummary.ordersByWeekday (index 0 = Monday). Names the
+  /// slowest day by count alone — a plain, real observation, not a
+  /// statistical claim.
+  Component _ordersByDayChart() {
+    final intel = _intelligence;
+    if (intel == null || intel.ordersByWeekday.length != 7) {
+      return const Component.text('');
+    }
+    final counts = intel.ordersByWeekday;
+    final total = counts.fold<int>(0, (a, b) => a + b);
+    if (total == 0) return const Component.text('');
+
+    final maxCount = counts.fold<int>(0, (a, b) => a > b ? a : b);
+    var slowestIndex = 0;
+    for (var i = 1; i < counts.length; i++) {
+      if (counts[i] < counts[slowestIndex]) slowestIndex = i;
+    }
+
+    return div(
+      attributes: {
+        'style': 'border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};padding:20px;'
+            'margin-bottom:${KolaSpace.lg}',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                'margin-bottom:14px',
+          },
+          [Component.text('Orders by day — last ${intel.periodDays} days')],
+        ),
+        div(
+          attributes: {
+            'style': 'display:flex;align-items:flex-end;gap:8px;height:90px;'
+                'margin-bottom:8px',
+          },
+          [
+            for (var i = 0; i < 7; i++)
+              div(
+                attributes: {'style': 'flex:1;display:flex;flex-direction:column;'
+                    'align-items:center;justify-content:flex-end;gap:4px;height:100%'},
+                [
+                  div(
+                    attributes: {
+                      'title': '${counts[i]}',
+                      'style': 'width:100%;border-radius:3px 3px 0 0;'
+                          'background:${i == slowestIndex && counts[i] < maxCount ? KolaVar.warning : KolaVar.accentFill};'
+                          'height:${maxCount == 0 ? 0 : (counts[i] / maxCount * 100).clamp(counts[i] == 0 ? 0 : 4, 100)}%',
+                    },
+                    [],
+                  ),
+                  span(
+                    attributes: {
+                      'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+                    },
+                    [Component.text(_weekdayLabels[i])],
+                  ),
+                ],
+              ),
+          ],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+          },
+          [
+            Component.text(
+              '${_weekdayLabels[slowestIndex]}s are the slowest day this period '
+              '(${counts[slowestIndex]} order${counts[slowestIndex] == 1 ? '' : 's'}).',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Phase 14/174 — honest "not enough data yet" state. No rating/CSAT
+  /// field exists anywhere in this codebase (grepped: none), so this
+  /// never renders a score — only real workspace age, matching the
+  /// design's own copy pattern almost verbatim.
+  Component _satisfactionCard() {
+    final ageDays = DateTime.now().toUtc().difference(
+          component.workspaceCreatedAt.toUtc(),
+        ).inDays;
+    final ageText = ageDays < 14
+        ? (ageDays <= 1 ? '1 day' : '$ageDays days')
+        : '${(ageDays / 7).floor()} week${(ageDays / 7).floor() == 1 ? '' : 's'}';
+
+    return div(
+      attributes: {
+        'style': 'border:1px dashed ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};padding:20px;'
+            'margin-bottom:${KolaSpace.lg}',
+      },
+      [
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                'margin-bottom:8px',
+          },
+          [Component.text('Customer satisfaction')],
+        ),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.mutedStrong};'
+                'line-height:1.55',
+          },
+          [
+            Component.text(
+              'This workspace is $ageText old — not enough conversations '
+              "rated yet to show a trend without it looking misleadingly "
+              'precise. Check back in a few weeks.',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Component _narrativeCard() {
     final intel = _intelligence;
@@ -563,6 +778,25 @@ class _IntelligencePageState extends State<IntelligencePage> {
     }
     final noCost = intel.topProducts.where((p) => p.marginPct == null).toList();
 
+    // Phase 14/174 — a real, numbers-driven bullet reusing
+    // ordersByWeekday rather than a new computation: the same slowest-
+    // day figure _ordersByDayChart already shows, turned into a
+    // deep-link suggestion.
+    String? slowDaySuggestion;
+    if (intel.ordersByWeekday.length == 7 &&
+        intel.ordersByWeekday.fold<int>(0, (a, b) => a + b) > 0) {
+      final counts = intel.ordersByWeekday;
+      var slowestIndex = 0;
+      for (var i = 1; i < counts.length; i++) {
+        if (counts[i] < counts[slowestIndex]) slowestIndex = i;
+      }
+      if (counts[slowestIndex] == 0) {
+        slowDaySuggestion =
+            "No orders at all on ${_weekdayLabels[slowestIndex]}s this period "
+            "— worth checking staffing or hours for that day";
+      }
+    }
+
     return div(
       attributes: {
         'style': 'border:1px solid ${KolaVar.border};'
@@ -590,6 +824,8 @@ class _IntelligencePageState extends State<IntelligencePage> {
                     "— margin can't be shown until it does",
                 '/catalog',
               ),
+            if (slowDaySuggestion != null)
+              _suggestionRow(slowDaySuggestion, '/operations'),
           ],
         ),
       ],

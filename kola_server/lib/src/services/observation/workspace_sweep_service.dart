@@ -54,6 +54,7 @@ import 'package:kola_server/src/services/repository/product_repository.dart';
 import 'package:kola_server/src/services/repository/support_ticket_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_connector_repository.dart';
 import 'package:kola_server/src/services/repository/workspace_finding_repository.dart';
+import 'package:kola_server/src/services/repository/invoice_repository.dart';
 import 'package:kola_server/src/services/billing/payment_reconciliation_service.dart';
 
 final _log = Logger('WorkspaceSweepService');
@@ -90,13 +91,15 @@ class WorkspaceSweepService {
     required WorkspaceConnectorRepository connectors,
     required SupportTicketRepository tickets,
     required PaymentReconciliationService reconciliation,
+    required InvoiceRepository invoices,
   })  : _findings = findings,
         _products = products,
         _conversations = conversations,
         _documents = documents,
         _connectors = connectors,
         _tickets = tickets,
-        _reconciliation = reconciliation;
+        _reconciliation = reconciliation,
+        _invoices = invoices;
 
   final WorkspaceFindingRepository _findings;
   final ProductRepository _products;
@@ -105,6 +108,7 @@ class WorkspaceSweepService {
   final WorkspaceConnectorRepository _connectors;
   final SupportTicketRepository _tickets;
   final PaymentReconciliationService _reconciliation;
+  final InvoiceRepository _invoices;
 
   /// Above this, individual product findings collapse into one counted
   /// finding.
@@ -131,6 +135,7 @@ class WorkspaceSweepService {
       _detectKnowledge,
       _detectSetup,
       _detectPaymentReconciliation,
+      _detectInvoices,
     ]) {
       try {
         detected.addAll(await detector(workspaceId));
@@ -398,6 +403,65 @@ class WorkspaceSweepService {
               'Check Sales for the ones missing a payment.',
         ),
     ];
+  }
+
+  // ── Invoices (Phase 14L) ────────────────────────────────────────────
+  //
+  // Deliberately narrower than it looks: this only fires for an overdue
+  // invoice InvoicePaymentReminderSweepService could NOT automatically
+  // remind — no customerId at all, or a customerId with no resolvable
+  // WhatsApp/Telegram conversation (see that service's header for the
+  // full reasoning). An invoice that sweep DID successfully remind is
+  // not surfaced here too — a finding for an already-handled invoice
+  // would be noise duplicating a reminder that already went out.
+  //
+  // Re-derives "overdue" itself (status not in ('paid') and due_at in
+  // the past — same rule as invoices_page.dart's client-side derivation,
+  // migration 047's header) rather than reading that sweep's own
+  // decision: the two run on independent schedules (this one on-demand
+  // per Overview load, that one on its own daily Timer), so there is no
+  // shared, already-computed answer to reuse.
+  //
+  // N+1-SHAPED ON PURPOSE FOR NOW, same trade-off customer_profile_
+  // repository.dart's listWithUpcomingDates already names: one
+  // listByCustomer call per overdue invoice. Fine at today's per-
+  // workspace invoice volume; revisit if that ever stops being true.
+  Future<List<DetectedFinding>> _detectInvoices(int workspaceId) async {
+    final invoices = await _invoices.listByWorkspace(workspaceId: workspaceId, limit: 200);
+    final now = DateTime.now().toUtc();
+
+    final overdue = invoices.where((inv) {
+      if (inv.status == 'paid') return false;
+      final dueAt = inv.dueAt;
+      return dueAt != null && dueAt.isBefore(now);
+    });
+
+    final out = <DetectedFinding>[];
+    for (final inv in overdue) {
+      if (inv.id == null) continue;
+
+      var hasChannel = false;
+      if (inv.customerId != null) {
+        final conversations = await _conversations.listByCustomer(inv.customerId!);
+        hasChannel = conversations.any(
+          (c) => c.workspaceId == workspaceId && (c.platformType == 'whatsapp' || c.platformType == 'telegram'),
+        );
+      }
+      if (hasChannel) continue; // the reminder sweep already has this one covered
+
+      final outstanding = inv.totalMinor - inv.paidMinor;
+      out.add(DetectedFinding(
+        kind: FindingKinds.invoiceOverdue,
+        fingerprint: '${FindingKinds.invoiceOverdue}:${inv.id}',
+        title: 'Invoice ${inv.reference} is overdue',
+        detail: '${_money(outstanding, inv.currency)} owed by ${inv.billToName}, '
+            'due ${FindingKinds.since(inv.dueAt!, now)} ago. kola has no way to '
+            'reach this customer automatically — follow up yourself.',
+        subjectType: 'invoice',
+        subjectId: inv.id,
+      ));
+    }
+    return out;
   }
 
   /// Matches ReportEndpoint's own minor-units formatter for NGN — same

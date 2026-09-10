@@ -1,8 +1,14 @@
 // pricing_section.dart
 //
-// Two plans. Numbers are the real ones from PlanLimits — ₦10,000/month,
-// 50 messages/day, 1 bot, 3 errands, 5 knowledge documents — not
-// illustrative figures.
+// Two plans. Numbers are the real ones from kola_server's PlanLimits —
+// not illustrative figures. Free is cappedFreeDailyMessageCap (50),
+// cappedFreeErrandCap (3), cappedFreeKnowledgeDocumentCap (5). Growth
+// (renamed from "Pro" 2026-09-09, alongside the landing redesign that
+// pulled WhatsApp/Telegram down from being the headline capability) is
+// growthDailyMessageCap (1,000), growthErrandCap (25),
+// growthKnowledgeDocumentCap (200) — generous, but a real ceiling now,
+// not "unlimited" with nothing behind it. See plan_limits.dart's header
+// for why Growth wasn't capped at all before this.
 //
 // THE BOTTOM NOTE used to announce Meta's 1 October 2026 pricing change.
 // Removed deliberately: telling a prospect that messaging is about to get
@@ -39,17 +45,26 @@ class PricingSection extends StatelessComponent {
   // cappedFreeBotCap server-side (Bot stays the internal identifier, see
   // agent_lifecycle_events.dart's header for why). Same word, two
   // audiences, same discipline as everywhere else in this rename.
+  //
+  // Free is one channel (WhatsApp OR Telegram, not both), no paid
+  // connectors — a real trial of the product, not a token teaser.
   static const _free = [
     'Sales counter, offline included',
+    'WhatsApp or Telegram, one channel',
     '50 customer messages / day',
-    '1 agent, 3 errands',
+    '1 agent, 3 automations',
     '5 knowledge documents',
   ];
 
-  static const _pro = [
-    'Everything in Free, uncapped',
-    'Unlimited agents and errands',
-    'Full knowledge base',
+  // Growth is every channel and connector at once, with real (generous)
+  // caps instead of an unqualified "unlimited" — see this file's header.
+  static const _growth = [
+    'Everything in Free, all channels at once',
+    'Paystack, Flutterwave, Sheets, Excel, Calendar, Bumpa',
+    '1,000 customer messages / day',
+    'Up to 25 automations',
+    'Up to 200 knowledge documents',
+    'The dashboard AI assistant, with citations',
     'Priority support',
   ];
 
@@ -98,11 +113,11 @@ class PricingSection extends StatelessComponent {
               featured: false,
             ),
             _plan(
-              name: s.planPro,
-              sub: s.planProSub,
-              price: region.formattedProPrice,
+              name: s.planGrowth,
+              sub: s.planGrowthSub,
+              price: region.formattedGrowthPrice,
               suffix: '/mo',
-              features: _pro,
+              features: _growth,
               featured: true,
             ),
           ],

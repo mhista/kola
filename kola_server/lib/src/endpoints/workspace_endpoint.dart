@@ -315,8 +315,9 @@ class WorkspaceEndpoint extends Endpoint {
   /// Shape:
   ///   { plan, status, effectiveTier,
   ///     trialFullAccessEndsAt, trialEndsAt (null unless 'trialing'),
-  ///     messagesToday, messagesDailyCap (null unless capped),
-  ///     activeErrandCount, errandCap (null unless capped),
+  ///     messagesToday, messagesDailyCap (cappedFree/growth number,
+  ///       never null as of 2026-09-09 — see plan_limits.dart),
+  ///     activeErrandCount, errandCap (same, never null),
   ///     messagesThisMonth, errandCallsThisMonth }
   Future<String> getBillingSummary(
     Session session,
@@ -332,6 +333,18 @@ class WorkspaceEndpoint extends Endpoint {
 
     final tier = _trialStateMachine.effectiveTier(workspace);
     final isCapped = tier == EffectiveTier.cappedFree || tier == EffectiveTier.paused;
+    // CORRECTED (2026-09-09): fullTrial/paid ("Growth") workspaces now
+    // have real caps too (see plan_limits.dart's header), so these are
+    // never null anymore — cappedFree/paused get the free-tier number,
+    // fullTrial/paid get the growth number. The dashboard's _meter
+    // already renders either as a real progress bar; null used to mean
+    // "show as unlimited," which is no longer true for any tier.
+    final messagesDailyCap = isCapped
+        ? PlanLimits.cappedFreeDailyMessageCap
+        : PlanLimits.growthDailyMessageCap;
+    final errandCap = isCapped
+        ? PlanLimits.cappedFreeErrandCap
+        : PlanLimits.growthErrandCap;
 
     final now = DateTime.now().toUtc();
     final firstOfMonth = DateTime.utc(now.year, now.month, 1);
@@ -369,9 +382,9 @@ class WorkspaceEndpoint extends Endpoint {
       'trialFullAccessEndsAt': workspace.status == 'trialing' ? workspace.trialFullAccessEndsAt.toIso8601String() : null,
       'trialEndsAt': workspace.status == 'trialing' ? workspace.trialEndsAt.toIso8601String() : null,
       'messagesToday': messagesToday,
-      'messagesDailyCap': isCapped ? PlanLimits.cappedFreeDailyMessageCap : null,
+      'messagesDailyCap': messagesDailyCap,
       'activeErrandCount': activeErrandCount,
-      'errandCap': isCapped ? PlanLimits.cappedFreeErrandCap : null,
+      'errandCap': errandCap,
       'messagesThisMonth': messagesThisMonth,
       'errandCallsThisMonth': errandCallsThisMonth,
       // The dashboard's "Upgrade" card renders from these — it never

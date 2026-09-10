@@ -322,7 +322,10 @@ class BotEndpoint extends Endpoint {
   /// is capped at PlanLimits.cappedFreeKnowledgeSeedCharCap characters —
   /// see that constant's own comment on why, unlike the message/Errand
   /// caps, this particular number is a placeholder, not a confirmed
-  /// product decision.
+  /// product decision. A fullTrial/paid workspace is capped too now, at
+  /// the higher PlanLimits.growthKnowledgeSeedCharCap — CORRECTED
+  /// 2026-09-09, see plan_limits.dart's header for why paid is no longer
+  /// unlimited here.
   Future<Bot> setKnowledgeSeed(
     Session session,
     String accessToken,
@@ -345,12 +348,18 @@ class BotEndpoint extends Endpoint {
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace != null) {
       final tier = _trialStateMachine.effectiveTier(workspace);
-      if ((tier == EffectiveTier.cappedFree || tier == EffectiveTier.paused) &&
-          trimmed.length > PlanLimits.cappedFreeKnowledgeSeedCharCap) {
+      final isFreeTier = tier == EffectiveTier.cappedFree || tier == EffectiveTier.paused;
+      final cap = isFreeTier
+          ? PlanLimits.cappedFreeKnowledgeSeedCharCap
+          : PlanLimits.growthKnowledgeSeedCharCap;
+      if (trimmed.length > cap) {
         throw KolaException(
-        message:           'This workspace is on the free plan, which allows up to '
-          '${PlanLimits.cappedFreeKnowledgeSeedCharCap} characters of knowledge per bot. '
-          'Shorten this or upgrade to add more.',
+          message: isFreeTier
+              ? 'This workspace is on the free plan, which allows up to '
+                  '$cap characters of knowledge per bot. Shorten this or upgrade to add more.'
+              : 'This workspace is on the Growth plan, which allows up to '
+                  '$cap characters of knowledge per bot. Shorten this, or contact support if '
+                  'you need more.',
         );
       }
     }

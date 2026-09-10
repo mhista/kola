@@ -105,7 +105,7 @@ class Strings {
   String get timelineEyebrow => 'Business timeline';
   String get securityTitle => 'Built to hold real business data.';
   String get integrationsTitle =>
-      'Connects to what you already use — more added regularly';
+      'Your payments, spreadsheets, calendar and storefront — one memory, more added regularly';
   String get faqTitle => 'Questions, answered.';
 
   // ── Pricing ───────────────────────────────────────────────────────
@@ -113,9 +113,9 @@ class Strings {
   String get pricingWaitlistNote =>
       'Launching soon — join the waitlist to lock in this pricing';
   String get planFree => 'Free';
-  String get planFreeSub => 'Everything you need to start';
-  String get planPro => 'Pro';
-  String get planProSub => '48-hour full trial, then step-down';
+  String get planFreeSub => 'One channel, real limits';
+  String get planGrowth => 'Growth';
+  String get planGrowthSub => '48-hour full trial, then step-down';
   String get planPopular => 'Most popular';
   String get pricingNoSurprisesTitle => 'No surprises on the bill.';
   String get pricingNoSurprisesBody =>
@@ -135,9 +135,9 @@ class Strings {
 
   // ── Footer ────────────────────────────────────────────────────────
   String get footerBlurb =>
-      'kolaa connects your tools, remembers everything, runs your counter, '
-      'and gets the next step done — on WhatsApp and Telegram, no '
-      'developer required.';
+      'kolaa connects your payments, spreadsheets, calendar and storefront, '
+      'remembers everything, runs your counter, and gets the next step done '
+      '— on WhatsApp, Telegram, or your dashboard, no developer required.';
   String get footerRights =>
       '© 2026 kolaa. Made for businesses that never open a laptop.';
 

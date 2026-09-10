@@ -84,22 +84,32 @@ class EventRepository {
     return (_dto.fromRow(inserted.first as Map<String, dynamic>), true);
   }
 
-  /// Every event for a workspace, oldest first, optionally narrowed by
-  /// type and/or a starting point — the query PART V's "replay" and the
-  /// future Timeline both need: "everything that happened, in order,
-  /// optionally since some point."
+  /// Every event for a workspace, oldest first by default, optionally
+  /// narrowed by type and/or a starting point — the query PART V's
+  /// "replay" needs: "everything that happened, in order, optionally
+  /// since some point."
+  ///
+  /// [ascending] added for event_endpoint.dart's listTimeline (the
+  /// Timeline page, Phase 14/174): a human reading a timeline wants the
+  /// newest [limit] events, not the oldest [limit] — with the default
+  /// `ascending: true` and a workspace with more than [limit] events
+  /// total, `.limit()` after an ascending sort would silently return
+  /// the OLDEST slice instead. Defaults to true so every existing
+  /// caller (event_bus.dart's own replay-of-recent-history check,
+  /// agent_orchestrator.dart) keeps its current behavior unchanged.
   Future<List<Event>> listByWorkspace({
     required int workspaceId,
     String? eventType,
     DateTime? since,
     int limit = 200,
+    bool ascending = true,
   }) async {
     _log.fine('listByWorkspace($workspaceId, type=$eventType, since=$since)');
     var query = supabase.from('events').select().eq('workspace_id', workspaceId);
     if (eventType != null) query = query.eq('event_type', eventType);
     if (since != null) query = query.gte('occurred_at', since.toIso8601String());
 
-    final response = await query.order('occurred_at', ascending: true).limit(limit);
+    final response = await query.order('occurred_at', ascending: ascending).limit(limit);
     return (response as List)
         .map((row) => _dto.fromRow(row as Map<String, dynamic>))
         .toList();

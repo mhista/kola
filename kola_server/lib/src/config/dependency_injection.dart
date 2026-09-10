@@ -95,6 +95,7 @@ import 'package:kola_server/src/services/repository/stock_conflict_repository.da
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
 import 'package:kola_server/src/services/repository/customer_profile_repository.dart';
 import 'package:kola_server/src/services/support/customer_campaign_sweep_service.dart';
+import 'package:kola_server/src/services/billing/invoice_payment_reminder_sweep_service.dart';
 import 'package:kola_server/src/services/repository/otp_code_repository.dart';
 import 'package:kola_server/src/services/otp/otp_service.dart';
 import 'package:kola_server/src/services/repository/whatsapp_message_template_repository.dart';
@@ -528,6 +529,8 @@ void setupDependencyInjection() {
       connectors: getIt<WorkspaceConnectorRepository>(),
       tickets: getIt<SupportTicketRepository>(),
       reconciliation: getIt<PaymentReconciliationService>(),
+      // Phase 14L — _detectInvoices' invoiceOverdue finding.
+      invoices: getIt<InvoiceRepository>(),
     ),
   );
 
@@ -835,6 +838,23 @@ void setupDependencyInjection() {
     ),
   );
 
+  // Phase 14L — overdue-invoice payment reminders, one of the owner's
+  // own named "auto-fire" examples. Same dependency shape as
+  // CustomerCampaignSweepService just above (deliberately — see
+  // invoice_payment_reminder_sweep_service.dart's header, closely
+  // modeled on that service), plus InvoiceRepository for the unpaid-
+  // invoice source list.
+  getIt.registerLazySingleton<InvoicePaymentReminderSweepService>(
+    () => InvoicePaymentReminderSweepService(
+      invoices: getIt<InvoiceRepository>(),
+      conversations: getIt<ConversationRepository>(),
+      workspaces: getIt<WorkspaceRepository>(),
+      channels: getIt<ChannelRepository>(),
+      whatsAppTemplateRepo: getIt<WhatsAppMessageTemplateRepository>(),
+      whatsAppTemplates: getIt<WhatsAppTemplateCreationService>(),
+    ),
+  );
+
   // Phase 8b — OTP delivery via email, the last of the three "templated
   // Errand library" sub-features (see otp_service.dart's header for why
   // email, and why its parameters mirror asami_server's own auth_service.dart).
@@ -860,8 +880,9 @@ void setupDependencyInjection() {
     () => WhatsAppTemplateCreationService(),
   );
 
-  // Task #148 — Kola's own SaaS subscription checkout (₦10,000/month,
-  // CONFIRMED WITH THE USER 2026-07-27) — see kola_billing_service.dart's
+  // Task #148 — Kola's own SaaS subscription checkout (₦15,000/month as
+  // of 2026-09-09, originally ₦10,000/month, CONFIRMED WITH THE USER
+  // 2026-07-27) — see kola_billing_service.dart's
   // header for why this is fully separate from PaymentCheckoutService.
   getIt.registerLazySingleton<KolaBillingCheckoutRepository>(
     () => const KolaBillingCheckoutRepository(),

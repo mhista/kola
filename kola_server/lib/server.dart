@@ -62,6 +62,7 @@ import 'package:kola_server/src/services/notifications/kola_notifier_bot.dart';
 import 'package:kola_server/src/services/billing/trial_sweep_service.dart';
 import 'package:kola_server/src/services/support/support_ticket_sla_sweep_service.dart';
 import 'package:kola_server/src/services/support/customer_campaign_sweep_service.dart';
+import 'package:kola_server/src/services/billing/invoice_payment_reminder_sweep_service.dart';
 import 'package:kola_server/src/services/connectors/connector_sync_sweep_service.dart';
 import 'package:kola_server/src/services/connectors/google/google_oauth_callback_route.dart';
 import 'package:kola_server/src/services/connectors/microsoft/microsoft_oauth_callback_route.dart';
@@ -491,6 +492,32 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
       } catch (e) {
         PlatformHealthRegistry.record('customer_campaign_sweep', ok: false, summary: '$e');
         Log.error('Customer campaign sweep failed', error: e);
+      }
+    });
+
+    // 7b. Phase 14L — overdue-invoice payment reminder sweep. The
+    //     owner's own named auto-fire example ("auto-generating payment
+    //     links") — see invoice_payment_reminder_sweep_service.dart's
+    //     header for why this sends a reminder over an existing
+    //     conversation channel rather than a fresh gateway checkout link
+    //     (no stored customer email to build one from). Same "daily,
+    //     run once immediately, then on a fixed interval" shape as the
+    //     birthday sweep directly above — an overdue invoice, like a
+    //     birthday, only needs day-granularity detection, and the
+    //     service's own _minGap/​_maxReminders caps prevent daily nagging.
+    final invoicePaymentReminderSweep = getIt<InvoicePaymentReminderSweepService>();
+    Log.startupInfo('Running initial invoice payment reminder sweep...');
+    final remindedNow = await invoicePaymentReminderSweep.sweepOnce();
+    Log.startupSuccess('Invoice payment reminder sweep complete — $remindedNow reminder(s) sent');
+    PlatformHealthRegistry.record('invoice_payment_reminder_sweep', ok: true, summary: '$remindedNow reminder(s)');
+    Timer.periodic(const Duration(hours: 24), (_) async {
+      try {
+        final reminded = await invoicePaymentReminderSweep.sweepOnce();
+        PlatformHealthRegistry.record('invoice_payment_reminder_sweep', ok: true, summary: '$reminded reminder(s)');
+        if (reminded > 0) Log.info('Invoice payment reminder sweep: $reminded reminder(s) sent');
+      } catch (e) {
+        PlatformHealthRegistry.record('invoice_payment_reminder_sweep', ok: false, summary: '$e');
+        Log.error('Invoice payment reminder sweep failed', error: e);
       }
     });
 

@@ -365,6 +365,7 @@ class _BotDetailDevPageState extends State<BotDetailDevPage>
         _sectionLabel('ERRANDS'),
         _muted('No errands yet. An errand is a tool this agent can call '
             'mid-conversation.'),
+        _manageErrandsLink(),
       ]);
     }
     return _card([
@@ -384,8 +385,33 @@ class _BotDetailDevPageState extends State<BotDetailDevPage>
           ],
         ),
       for (var i = 0; i < _errands.length; i++) _errandRow(i, _errands[i]),
+      _manageErrandsLink(),
     ]);
   }
+
+  // 14L, 2026-09-10 — the only entry point left into errand_builder_page.dart
+  // (create a builtin/webhook/dbCredential Errand) now that it is no
+  // longer a top-level nav destination — see nav_model.dart's comment.
+  // Routes to /errands, not /bots/:id/errands: Errands are workspace-
+  // scoped, not bot-scoped (errand_builder_page.dart's own header already
+  // established this — no method on EndpointErrand takes a botId).
+  Component _manageErrandsLink() => div(
+        attributes: {'style': 'margin-top:14px'},
+        [
+          Link(
+            to: '/errands',
+            attributes: {
+              'style': 'display:inline-flex;align-items:center;gap:6px;'
+                  'background:${KolaVar.pill};'
+                  'border:1px solid ${KolaVar.border};'
+                  'border-radius:100px;padding:7px 14px;'
+                  'text-decoration:none;font-size:12.5px;font-weight:600;'
+                  'color:${KolaVar.text}',
+            },
+            children: [Component.text('Manage errands')],
+          ),
+        ],
+      );
 
   Component _errandRow(int i, Errand e) {
     final open = _selectedIdx == i;

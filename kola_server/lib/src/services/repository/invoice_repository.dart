@@ -100,6 +100,47 @@ class InvoiceRepository {
     return _dto.fromRow(response);
   }
 
+  /// Phase 14L — every invoice not yet fully paid, ACROSS EVERY
+  /// WORKSPACE, for InvoicePaymentReminderSweepService's background
+  /// Timer. Deliberately global (no workspaceId param) — same precedent
+  /// as SupportTicketRepository.listOpenPastDeadline /
+  /// CustomerProfileRepository.listWithUpcomingDates (see that file's
+  /// header): a background sweep needs every candidate row across every
+  /// workspace in one query, not a workspace-by-workspace loop. Not
+  /// filtered by due_at here — "overdue" is derived (status not in
+  /// ('paid') and due_at in the past, same rule as invoices_page.dart's
+  /// client-side derivation and migration 047's header) and the caller
+  /// already needs every unpaid row's dueAt to decide that, so filtering
+  /// again server-side would just be the same comparison twice.
+  ///
+  /// The per-workspace equivalent WorkspaceSweepService's _detectInvoices
+  /// needs instead is just [listByWorkspace] above, filtered in Dart —
+  /// same "workspace-scoped detector reuses the plain list + Dart filter"
+  /// shape _detectTickets already uses for SupportTicketRepository.
+  Future<List<Invoice>> listUnpaid() async {
+    final response = await supabase
+        .from('invoices')
+        .select()
+        .neq('status', 'paid')
+        .order('due_at', ascending: true);
+    return (response as List).map((r) => _dto.fromRow(r as Map<String, dynamic>)).toList();
+  }
+
+  /// Phase 14L — records that InvoicePaymentReminderSweepService actually
+  /// sent a reminder for [invoiceId] just now. See migration 063's header
+  /// for why this is its own pair of columns rather than reusing
+  /// updated_at (which every other write on this row also touches).
+  Future<void> markReminderSent(int workspaceId, int invoiceId, {required int remindersSentNow}) async {
+    await supabase
+        .from('invoices')
+        .update({
+          'last_payment_reminder_sent_at': DateTime.now().toUtc().toIso8601String(),
+          'payment_reminders_sent': remindersSentNow,
+        })
+        .eq('id', invoiceId)
+        .eq('workspace_id', workspaceId);
+  }
+
   /// Same shape as SaleRepository.generateReference — not a "sequential
   /// invoice #889" (the export's own mock number). A real sequential
   /// series needs a per-workspace counter with its own concurrency story

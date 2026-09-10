@@ -33,6 +33,8 @@
 //   knowledge.listDocuments     → what kolaa has been taught
 //   bot.listBotsForWorkspace    → whether setup is actually finished
 
+import 'dart:convert';
+
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr_router/jaspr_router.dart';
@@ -107,6 +109,13 @@ class _OverviewPageState extends State<OverviewPage> {
   List<Bot> _bots = const [];
   List<Errand> _errands = const [];
   List<ConnectorStatus> _connectors = const [];
+
+  /// Phase 14/174 — "Changed today"'s own small preview read. Capped at
+  /// [_timelinePreviewCap] server-side (the `limit` argument), not
+  /// client-truncated from a bigger list — no point fetching more than
+  /// this section will ever show.
+  List<Event> _timelineEvents = const [];
+  static const _timelinePreviewCap = 5;
 
   /// Whether a messaging channel is live, for the day-one card's step 2.
   ///
@@ -269,6 +278,16 @@ class _OverviewPageState extends State<OverviewPage> {
                 .listSales(token, id, limit: 50, offset: 0)
                 .catchError((_) => const <Sale>[])
             : Future.value(const <Sale>[]),
+
+        // Eleventh read: "Changed today"'s preview (Phase 14/174).
+        // Additive — same catchError-to-empty posture as findings/
+        // products above, so a hiccup on this one read cannot blank the
+        // whole briefing.
+        gate.isEnabled(Features.timeline)
+            ? component.client.event
+                .listTimeline(token, id, limit: _timelinePreviewCap)
+                .catchError((_) => const <Event>[])
+            : Future.value(const <Event>[]),
       ]);
 
       if (!mounted) return;
@@ -283,6 +302,7 @@ class _OverviewPageState extends State<OverviewPage> {
         _products = results[7].cast<Product>();
         _findings = results[8].cast<WorkspaceFinding>();
         _recentSales = results[9].cast<Sale>();
+        _timelineEvents = results[10].cast<Event>();
         _phase = _Phase.ready;
       });
     } catch (e) {
@@ -402,9 +422,11 @@ class _OverviewPageState extends State<OverviewPage> {
                 "The four cards up top are your always-visible vitals. "
                     "Below them, 'Needs your attention' surfaces the "
                     "things kola thinks you should look at, 'What kolaa "
-                    "knows' shows what it's learned recently, and "
+                    "knows' shows what it's learned recently, "
                     "'Automations running' lists what's active right "
-                    "now.",
+                    "now, and 'Changed today' previews the most recent "
+                    "real activity — open the full Timeline for "
+                    "everything, filterable by category.",
               ],
             ),
           ],
@@ -798,6 +820,12 @@ class _OverviewPageState extends State<OverviewPage> {
         _allClear(),
       _section('What kolaa knows', _knowledgeSummary()),
       if (_errands.isNotEmpty) _section('Automations running', _automations()),
+      // Phase 14/174. Only rendered when there is something real to
+      // show — an empty "Changed today" heading over blank space reads
+      // as a failure to load, same reasoning _allClear() already uses
+      // for "Needs your attention".
+      if (component.gate.isEnabled(Features.timeline) && _timelineEvents.isNotEmpty)
+        _changedToday(),
 
       // The composer. Sticky, so it stays reachable however far the
       // briefing scrolls — it is the primary action on this screen.
@@ -1481,6 +1509,109 @@ class _OverviewPageState extends State<OverviewPage> {
           ),
       ],
     );
+  }
+
+  /// Phase 14/174. A small preview of the real Timeline (event_endpoint
+  /// .dart's listTimeline, capped at [_timelinePreviewCap]) — time +
+  /// title only, per the design: "no dots/tags needed at this small
+  /// scale" (those live on the full /timeline page). The section
+  /// header carries the "View full timeline →" link the design shows.
+  Component _changedToday() => div(
+        attributes: {'style': 'display:flex;flex-direction:column;gap:10px'},
+        [
+          div(
+            attributes: {
+              'style': 'display:flex;align-items:baseline;'
+                  'justify-content:space-between;gap:10px',
+            },
+            [
+              div(
+                attributes: {
+                  'style': 'font-size:${KolaType.body};font-weight:700;'
+                      'color:${KolaVar.muted};letter-spacing:0.02em',
+                },
+                [Component.text('Changed today')],
+              ),
+              Link(
+                to: '/timeline',
+                attributes: {
+                  'style': 'font-size:${KolaType.small};font-weight:600;'
+                      'color:${KolaVar.accent};text-decoration:none',
+                },
+                children: [Component.text('View full timeline →')],
+              ),
+            ],
+          ),
+          div(
+            attributes: {
+              'style': 'display:flex;flex-direction:column;'
+                  'border:1px solid ${KolaVar.border};'
+                  'border-radius:${KolaRadius.lg};overflow:hidden;'
+                  'background:${KolaVar.card}',
+            },
+            [
+              for (var i = 0; i < _timelineEvents.length; i++)
+                _changedTodayRow(_timelineEvents[i], i),
+            ],
+          ),
+        ],
+      );
+
+  Component _changedTodayRow(Event e, int index) => div(
+        attributes: {
+          'style': 'display:flex;align-items:center;gap:10px;'
+              'padding:10px 14px;font-size:${KolaType.small};'
+              'color:${KolaVar.text};'
+              '${index > 0 ? 'border-top:1px solid ${KolaVar.border}' : ''}',
+        },
+        [
+          span(
+            attributes: {
+              'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+                  'width:44px;flex:none;font-variant-numeric:tabular-nums',
+            },
+            [Component.text(_shortTime(e.occurredAt))],
+          ),
+          span(
+            attributes: {'style': 'flex:1;min-width:0'},
+            [Component.text(_timelineTitle(e))],
+          ),
+        ],
+      );
+
+  static String _shortTime(DateTime utc) {
+    final local = utc.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = local.hour < 12 ? 'am' : 'pm';
+    return '$hour:$minute$period';
+  }
+
+  /// A small, deliberately plainer copy of timeline_page.dart's own
+  /// [_describe] title logic — this preview only needs the title, not
+  /// the category/dot/amount the full page also renders, and the two
+  /// switches are short enough that sharing them isn't worth a new
+  /// shared file for two call sites (same "copy at two, extract at
+  /// three" call intelligence_page.dart's own header already makes).
+  static String _timelineTitle(Event e) {
+    Map<String, dynamic> payload;
+    try {
+      final decoded = jsonDecode(e.payloadJson);
+      payload = decoded is Map<String, dynamic> ? decoded : const {};
+    } catch (_) {
+      payload = const {};
+    }
+    return switch (e.eventType) {
+      'sale_completed' => 'Sale completed',
+      'payment_confirmed' => 'Payment confirmed',
+      'new_conversation' => 'New conversation started',
+      'agent_drafted' => '${payload['name'] ?? 'An agent'} was drafted',
+      'agent_published' => '${payload['name'] ?? 'An agent'} went live',
+      'agent_paused' => '${payload['name'] ?? 'An agent'} was paused',
+      'errand_executed' => 'An errand ran',
+      'errand_rows_mapped_to_customers' => 'Customers matched from an import',
+      _ => e.eventType.replaceAll('_', ' '),
+    };
   }
 
   Component _section(String title, Component body) => div(

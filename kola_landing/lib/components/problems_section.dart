@@ -3,6 +3,14 @@
 // The before-state, named specifically. Deliberately concrete rather
 // than generic SaaS pain — a shop owner anywhere should recognise her
 // own week here, not a category. Nothing in it is region-specific.
+//
+// REBALANCED 2026-09-09: the first card used to name WhatsApp
+// specifically ("one WhatsApp thread at a time") — now channel-neutral,
+// since the underlying problem (repetitive questions) isn't a WhatsApp
+// problem, it's a not-having-one-memory problem. The fourth card now
+// names the scattered-tools version of that same problem explicitly,
+// which is what the connector breadth (Paystack, Sheets, Excel,
+// Calendar, Bumpa...) actually solves.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -15,7 +23,7 @@ class ProblemsSection extends StatelessComponent {
     (
       'The same question, forty times a day',
       'Every customer asks about price, stock and delivery separately, one '
-          'WhatsApp thread at a time.',
+          'message at a time.',
     ),
     (
       'A message missed overnight is a sale lost',
@@ -27,8 +35,9 @@ class ProblemsSection extends StatelessComponent {
     ),
     (
       "The business runs on one person's memory",
-      'Prices, policies and customer history live in someone’s head, not '
-          'somewhere anyone can check.',
+      'Prices live in a spreadsheet, payments in a gateway, orders in a '
+          'storefront, and none of it talks to the others — or to whoever '
+          "covers when that one person isn't around.",
     ),
   ];
 

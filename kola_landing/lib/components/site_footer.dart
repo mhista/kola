@@ -75,9 +75,9 @@ class SiteFooter extends StatelessComponent {
               },
               [
                 Component.text(
-                  'kolaa connects your tools, remembers everything, runs your counter, '
-                  'and gets the next step done — on WhatsApp and Telegram, no '
-                  'developer required.',
+                  'kolaa connects your payments, spreadsheets, calendar and storefront, '
+                  'remembers everything, runs your counter, and gets the next step done '
+                  '— on WhatsApp, Telegram, or your dashboard, no developer required.',
                 ),
               ],
             ),

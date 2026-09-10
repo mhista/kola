@@ -4,6 +4,14 @@
 // than three sections, because none of them is shipping at launch —
 // giving each a full section would over-promise relative to what a
 // visitor can actually use on day one.
+//
+// REWORDED 2026-09-09: each card now names what it actually pulls from —
+// payments, sales and messages for intelligence; every connector for
+// shared agent context; real connector-native actions (collect a
+// payment, book a slot, check a transaction) for automations — instead
+// of staying abstract. This is the section that should convince a
+// visitor kolaa is a business intelligence layer with a chat interface,
+// not a chat interface with some reports bolted on.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -14,11 +22,15 @@ class CapabilitiesSection extends StatelessComponent {
 
   static const _caps = [
     ('Business intelligence', 'Explains, not just charts',
-        'Every number comes with a sentence: why it moved, and what to do about it.'),
+        'Every number comes with a sentence: why it moved, and what to do about it — '
+            'pulled from your payments, sales and messages together, not one spreadsheet '
+            'at a time.'),
     ('Agents', 'Specialists, one shared memory',
-        'Different jobs, same business context — nothing has to be re-explained.'),
+        'Different jobs, same business context, gathered from every connector — nothing '
+            'has to be re-explained.'),
     ('Automations', 'Multi-step, with your sign-off',
-        'kolaa drafts the workflow; you approve before anything goes out.'),
+        'Collect a payment, book a slot, check a transaction, draft the next step — '
+            'kolaa proposes it, you approve before anything goes out.'),
   ];
 
   @override

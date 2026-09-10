@@ -333,8 +333,9 @@ abstract class Env {
   // per-customer checkout (PaymentEndpoint) never uses these, it uses
   // that workspace's OWN connected credential instead. As of task #148,
   // these ARE used for one thing: KolaBillingService, Kola's own SaaS
-  // subscription checkout (₦10,000/month — CONFIRMED WITH THE USER
-  // 2026-07-27). ALWAYS the secret key, never the public key — the
+  // subscription checkout (₦15,000/month as of 2026-09-09, originally
+  // ₦10,000/month — CONFIRMED WITH THE USER 2026-07-27). ALWAYS the
+  // secret key, never the public key — the
   // public key is safe for a client to hold, the secret key is not and
   // must never reach kola_dashboard.
   @EnviedField(varName: 'PAYSTACK_SECRET_KEY', obfuscate: true, defaultValue: '')

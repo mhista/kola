@@ -56,6 +56,15 @@ abstract class FindingKinds {
   // holds — see PaymentReconciliationService's own header.
   static const paymentUnmatched = 'payment_unmatched';
 
+  // ── Invoices (Phase 14L) ──────────────────────────────────────────
+  // Fires ONLY for an overdue invoice InvoicePaymentReminderSweepService
+  // could not automatically remind (no linked customer, or that
+  // customer has no WhatsApp/Telegram conversation to send over) — see
+  // that service's header. An invoice it DID successfully remind is not
+  // also raised here; a finding for a handled invoice would be noise
+  // duplicating a reminder that already went out.
+  static const invoiceOverdue = 'invoice_overdue';
+
   /// Severity, 1 = highest.
   ///
   /// ── THE ORDER IS AN OPINION AND IT SHOULD BE ARGUED WITH ─────────
@@ -86,6 +95,12 @@ abstract class FindingKinds {
         paymentUnmatched => 2,
         ticketDueSoon => 2,
         productOutOfStock => 2,
+        // Real money owed, no automatic way left to chase it — ranked
+        // with paymentUnmatched/ticketDueSoon/productOutOfStock, not
+        // above them: unlike ticketOverdue, nobody is waiting on kola
+        // right now, but unlike a quality gap it is money already earned
+        // and not yet collected.
+        invoiceOverdue => 2,
         documentFailed => 3,
         noChannelConnected => 3,
         knowledgeEmpty => 3,

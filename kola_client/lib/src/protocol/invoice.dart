@@ -33,6 +33,8 @@ abstract class Invoice implements _i1.SerializableModel {
     this.paymentInstructions,
     required this.issuedAt,
     this.dueAt,
+    this.lastPaymentReminderSentAt,
+    required this.paymentRemindersSent,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -57,6 +59,8 @@ abstract class Invoice implements _i1.SerializableModel {
     String? paymentInstructions,
     required DateTime issuedAt,
     DateTime? dueAt,
+    DateTime? lastPaymentReminderSentAt,
+    required int paymentRemindersSent,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _InvoiceImpl;
@@ -86,6 +90,13 @@ abstract class Invoice implements _i1.SerializableModel {
       dueAt: jsonSerialization['dueAt'] == null
           ? null
           : _i1.DateTimeJsonExtension.fromJson(jsonSerialization['dueAt']),
+      lastPaymentReminderSentAt:
+          jsonSerialization['lastPaymentReminderSentAt'] == null
+          ? null
+          : _i1.DateTimeJsonExtension.fromJson(
+              jsonSerialization['lastPaymentReminderSentAt'],
+            ),
+      paymentRemindersSent: jsonSerialization['paymentRemindersSent'] as int,
       createdAt: _i1.DateTimeJsonExtension.fromJson(
         jsonSerialization['createdAt'],
       ),
@@ -133,6 +144,10 @@ abstract class Invoice implements _i1.SerializableModel {
 
   DateTime? dueAt;
 
+  DateTime? lastPaymentReminderSentAt;
+
+  int paymentRemindersSent;
+
   DateTime createdAt;
 
   DateTime updatedAt;
@@ -160,6 +175,8 @@ abstract class Invoice implements _i1.SerializableModel {
     String? paymentInstructions,
     DateTime? issuedAt,
     DateTime? dueAt,
+    DateTime? lastPaymentReminderSentAt,
+    int? paymentRemindersSent,
     DateTime? createdAt,
     DateTime? updatedAt,
   });
@@ -187,6 +204,9 @@ abstract class Invoice implements _i1.SerializableModel {
         'paymentInstructions': paymentInstructions,
       'issuedAt': issuedAt.toJson(),
       if (dueAt != null) 'dueAt': dueAt?.toJson(),
+      if (lastPaymentReminderSentAt != null)
+        'lastPaymentReminderSentAt': lastPaymentReminderSentAt?.toJson(),
+      'paymentRemindersSent': paymentRemindersSent,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
     };
@@ -221,6 +241,8 @@ class _InvoiceImpl extends Invoice {
     String? paymentInstructions,
     required DateTime issuedAt,
     DateTime? dueAt,
+    DateTime? lastPaymentReminderSentAt,
+    required int paymentRemindersSent,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : super._(
@@ -243,6 +265,8 @@ class _InvoiceImpl extends Invoice {
          paymentInstructions: paymentInstructions,
          issuedAt: issuedAt,
          dueAt: dueAt,
+         lastPaymentReminderSentAt: lastPaymentReminderSentAt,
+         paymentRemindersSent: paymentRemindersSent,
          createdAt: createdAt,
          updatedAt: updatedAt,
        );
@@ -271,6 +295,8 @@ class _InvoiceImpl extends Invoice {
     Object? paymentInstructions = _Undefined,
     DateTime? issuedAt,
     Object? dueAt = _Undefined,
+    Object? lastPaymentReminderSentAt = _Undefined,
+    int? paymentRemindersSent,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -298,6 +324,10 @@ class _InvoiceImpl extends Invoice {
           : this.paymentInstructions,
       issuedAt: issuedAt ?? this.issuedAt,
       dueAt: dueAt is DateTime? ? dueAt : this.dueAt,
+      lastPaymentReminderSentAt: lastPaymentReminderSentAt is DateTime?
+          ? lastPaymentReminderSentAt
+          : this.lastPaymentReminderSentAt,
+      paymentRemindersSent: paymentRemindersSent ?? this.paymentRemindersSent,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

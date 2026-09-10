@@ -28,14 +28,20 @@
 // (a paused workspace still gets a record of what the customer said;
 // it just gets no reply), before any AI/security-filter work happens.
 //
-// PHASE 5 PLAN LIMITS — CAPPEDFREE'S DAILY MESSAGE CAP: a cappedFree
-// workspace (days 3–14 of trial) isn't silent like a paused one — PRD.md
-// §10 stage 2 says the bot "keeps working, just at a visibly reduced
-// ceiling." Once that ceiling (PlanLimits.cappedFreeDailyMessageCap) is
-// hit for the day, the customer gets one consistent notice back instead
-// of an AI reply, rather than silence or an unlimited bot — checked
-// right alongside the paused check below, same "before any AI work"
+// PHASE 5 PLAN LIMITS — DAILY MESSAGE CAP: a cappedFree workspace (days
+// 3–14 of trial) isn't silent like a paused one — PRD.md §10 stage 2
+// says the bot "keeps working, just at a visibly reduced ceiling." Once
+// that ceiling (PlanLimits.cappedFreeDailyMessageCap) is hit for the
+// day, the customer gets one consistent notice back instead of an AI
+// reply, rather than silence or an unlimited bot — checked right
+// alongside the paused check below, same "before any AI work"
 // placement.
+//
+// CORRECTED (2026-09-09): fullTrial/paid ("Growth") workspaces used to
+// have NO daily cap at all here. They now check against the higher, but
+// still real, PlanLimits.growthDailyMessageCap — see plan_limits.dart's
+// header for why. Same enforcement point, same "notice instead of
+// silence" behavior, different ceiling and notice copy per tier.
 //
 // PHASE 3D — SECURITY FILTER WIRED IN HERE: every inbound message is
 // checked (SecurityFilter.checkInboundMessage) BEFORE it's ever handed
@@ -367,11 +373,16 @@ class InboundMessageHandler {
       return null;
     }
 
-    // Phase 5 plan limits — cappedFree's daily message cap (see this
+    // Phase 5 plan limits — daily message cap, every tier (see this
     // file's header). sumUsageInRange is called AFTER incrementUsage
     // above, so today's own count already includes the message that
     // just tripped the cap, not just the messages before it.
-    if (tier == EffectiveTier.cappedFree) {
+    final int? dailyCap = tier == EffectiveTier.cappedFree
+        ? PlanLimits.cappedFreeDailyMessageCap
+        : (tier == EffectiveTier.fullTrial || tier == EffectiveTier.paid)
+            ? PlanLimits.growthDailyMessageCap
+            : null; // paused never reaches here — already returned above
+    if (dailyCap != null) {
       final today = DateTime.now().toUtc();
       final todayUsage = await _usageRecords.sumUsageInRange(
         workspaceId: workspaceId,
@@ -379,14 +390,17 @@ class InboundMessageHandler {
         from: today,
         to: today,
       );
-      if (todayUsage > PlanLimits.cappedFreeDailyMessageCap) {
+      if (todayUsage > dailyCap) {
         Log.info(
-          'InboundMessageHandler: workspace $workspaceId hit its cappedFree daily message cap '
-          '(${PlanLimits.cappedFreeDailyMessageCap}) — sending cap notice instead of an AI reply',
+          'InboundMessageHandler: workspace $workspaceId hit its ${tier?.name ?? "unknown"} daily message cap '
+          '($dailyCap) — sending cap notice instead of an AI reply',
         );
-        const capText =
-            "You've reached today's message limit on the free plan. "
-            "The bot will reply again once the limit resets, or upgrade for unlimited replies.";
+        final capText = tier == EffectiveTier.cappedFree
+            ? "You've reached today's message limit on the free plan. "
+                "The bot will reply again once the limit resets, or upgrade for a much higher ceiling."
+            : "You've reached today's fair-use message limit on the Growth plan. "
+                "The bot will reply again once the limit resets tomorrow — contact support if you "
+                "need a higher ceiling.";
         await _messages.create(
           conversationId: conversationId,
           direction: 'outbound',

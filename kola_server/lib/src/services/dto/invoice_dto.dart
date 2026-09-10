@@ -31,6 +31,10 @@ class InvoiceDto extends BaseDto<Invoice> {
       paymentInstructions: row['payment_instructions'] as String?,
       issuedAt: DateTime.parse(row['issued_at'] as String),
       dueAt: row['due_at'] == null ? null : DateTime.parse(row['due_at'] as String),
+      lastPaymentReminderSentAt: row['last_payment_reminder_sent_at'] == null
+          ? null
+          : DateTime.parse(row['last_payment_reminder_sent_at'] as String),
+      paymentRemindersSent: row['payment_reminders_sent'] as int,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
     );

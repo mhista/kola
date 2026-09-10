@@ -34,15 +34,42 @@
 // from the first. This endpoint is additive: only what neither of those
 // already provides.
 //
-// ── ONE NAMED CUT ──────────────────────────────────────────────────────
+// ── PHASE 14/174 UPDATE: THE "CORRELATION SPOTTED" CUT IS UN-DEFERRED ──
 //
-// The export's "Correlation spotted" callout, linking a revenue move to
-// a specific event on the Timeline, is NOT built — there is no Timeline
-// page in this codebase yet (confirmed: no /timeline route), so there
-// is nothing real to link to, and cross-metric correlation detection
-// (as opposed to narrating numbers already computed) is a materially
-// larger, separate piece of work. Named here rather than faked with a
-// plausible-sounding but unfounded "correlation."
+// The gap this header used to name — "there is no Timeline page in this
+// codebase yet, so there is nothing real to link to" — is closed:
+// event_endpoint.dart/timeline_page.dart now exist. [correlationCallout]
+// below is the real (deliberately simple, not statistical) check the
+// export's callout needed: did revenue fall THIS period vs. the prior
+// one, AND did escalated conversations (this codebase's one real
+// complaint/escalation signal — Conversation.status == 'escalated',
+// same field ConversationRepository.listEscalatedByWorkspace already
+// reads) rise over the same two windows. Both real, both already
+// computed elsewhere in this file/endpoint family — no new revenue or
+// escalation pipeline was built for this, per the brief's own
+// instruction to reuse rather than duplicate. Null whenever either
+// condition doesn't hold, same "absence over a fabricated finding"
+// rule as [revenueDeltaPct] itself.
+//
+// ── TWO NAMED GAPS THAT REMAIN ──────────────────────────────────────────
+//
+// 1. RESPONSE TIME. The design shows a "Response time" card (a big
+//    number + "-N% vs last period"). Grepped for any existing average-
+//    response-time computation anywhere in this codebase
+//    (responseTime/response_time/avgResponse/firstResponse) — zero
+//    matches. No real number exists to show. Rather than compute a
+//    first-response-time metric under this pass's scope (a genuinely
+//    separate aggregation over Message.createdAt pairs, not a small
+//    addition), this card is SKIPPED entirely — not shipped with a
+//    fabricated figure, not shipped as a fake "coming soon" card either.
+//
+// 2. CUSTOMER SATISFACTION. Also grepped (rating/csat/satisfaction) —
+//    no rating/CSAT field exists on Conversation or SupportTicket
+//    anywhere in this codebase. intelligence_page.dart renders this
+//    card as an honest "not enough data yet" state using workspace age
+//    (a real signal, passed in from app.dart) — see that file's own
+//    comment. Nothing added here server-side for it: there is no real
+//    number to compute.
 
 import 'package:serverpod/serverpod.dart';
 import 'package:kola_server/src/generated/protocol.dart';
@@ -50,6 +77,7 @@ import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/auth/workspace_access.dart';
 import 'package:kola_server/src/services/repository/sale_repository.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
+import 'package:kola_server/src/services/repository/conversation_repository.dart';
 import 'package:kola_server/src/services/ai/intelligence_narrative_service.dart';
 
 const _validPeriods = {7, 30, 90};
@@ -57,6 +85,7 @@ const _validPeriods = {7, 30, 90};
 class IntelligenceEndpoint extends Endpoint {
   SaleRepository get _sales => getIt<SaleRepository>();
   ProductRepository get _products => getIt<ProductRepository>();
+  ConversationRepository get _conversations => getIt<ConversationRepository>();
   IntelligenceNarrativeService get _narratives =>
       getIt<IntelligenceNarrativeService>();
 
@@ -82,9 +111,15 @@ class IntelligenceEndpoint extends Endpoint {
     final results = await Future.wait([
       _sales.listByWorkspaceAndRange(workspaceId: workspaceId, from: priorStart, to: periodEnd),
       _products.listByWorkspace(workspaceId, includeArchived: true),
+      // Phase 14/174 — the correlation check's escalation signal. All
+      // conversations regardless of window, filtered in memory below by
+      // the same current/prior split everything else here uses (same
+      // shape as AnalyticsEndpoint's own allConvos read).
+      _conversations.listByWorkspace(workspaceId),
     ]);
     final allSales = (results[0] as List<Sale>).where((s) => s.status == 'completed').toList();
     final allProducts = results[1] as List<Product>;
+    final allConversations = results[2] as List<Conversation>;
     final productById = {
       for (final p in allProducts)
         if (p.id != null) p.id!: p,
@@ -153,6 +188,39 @@ class IntelligenceEndpoint extends Endpoint {
     // on every load.
     final cappedTopProducts = topProducts.take(8).toList();
 
+    // ── Orders by day — real weekday distribution, current period only ─
+    //
+    // Dart's DateTime.weekday is 1 (Monday) .. 7 (Sunday); index 0..6
+    // here so the dashboard can zip it straight against a fixed
+    // Mon..Sun label list without re-deriving the same offset twice.
+    final ordersByWeekday = List<int>.filled(7, 0);
+    for (final s in currentSales) {
+      ordersByWeekday[s.soldAt.toUtc().weekday - 1]++;
+    }
+
+    // ── Correlation spotted — Phase 14/174, see this file's own header
+    // for what this is and is not (a simple two-condition check, not
+    // statistics). Escalated conversations are this codebase's one
+    // real complaint/escalation signal; Conversation carries no
+    // dedicated "escalatedAt" column, so updatedAt (stamped whenever
+    // status transitions — see conversation_repository.dart's own
+    // setStatus) stands in as "when this became a complaint", same
+    // honest-approximation posture as WorkspaceFinding's firstSeenAt.
+    final escalated = allConversations.where((c) => c.status == 'escalated').toList();
+    final currentEscalations = escalated.where((c) => inCurrent(c.updatedAt)).length;
+    final priorEscalations = escalated.where((c) => inPrior(c.updatedAt)).length;
+
+    String? correlationCallout;
+    if (revenueDeltaPct != null &&
+        revenueDeltaPct < 0 &&
+        currentEscalations > priorEscalations &&
+        currentEscalations > 0) {
+      correlationCallout = 'Revenue is down ${revenueDeltaPct.abs().toStringAsFixed(1)}% '
+          'this period, alongside a rise in escalated conversations '
+          '($priorEscalations → $currentEscalations) — worth checking whether '
+          'the two are related.';
+    }
+
     final narrative = await _narratives.narrate(
       periodDays: periodDays,
       currency: currency,
@@ -170,6 +238,8 @@ class IntelligenceEndpoint extends Endpoint {
       topProducts: cappedTopProducts,
       narrative: narrative.text,
       narrativeIsTemplate: narrative.isTemplate,
+      correlationCallout: correlationCallout,
+      ordersByWeekday: ordersByWeekday,
     );
   }
 }

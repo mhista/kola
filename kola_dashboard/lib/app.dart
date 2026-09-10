@@ -28,7 +28,15 @@
 //   /bots/new          → CreateBotPage
 //   /bots/:id          → BotDetailChatPage
 //   /bots/:id/code     → BotDetailDevPage
-//   /errands           → ErrandBuilderPage
+//   /errands           → ErrandBuilderPage      (14L, 2026-09-10 — no
+//                          longer in the Build nav group; the owner asked
+//                          for no standalone "Errands" page. Route kept
+//                          alive — createSupportTicket/recordCustomerProfile/
+//                          sendOtp/verifyOtp/createProductListTemplate
+//                          still need it to become real Errand rows, see
+//                          nav_model.dart's comment — now reached via a
+//                          "Manage errands" link on bot_detail_dev_page.dart's
+//                          Errands tab instead)
 //   /knowledge         → KnowledgePage
 //   /conversations     → ConversationsPage      (DEVELOPMENT_PLAN.md's
 //                          own "still pending" Phase 4e item)
@@ -80,6 +88,7 @@ import 'pages/customers_page.dart';
 import 'pages/till_page.dart';
 import 'pages/documents_page.dart';
 import 'pages/invoices_page.dart';
+import 'pages/timeline_page.dart';
 
 class DashboardApp extends StatefulComponent {
   const DashboardApp();
@@ -649,6 +658,24 @@ class _DashboardAppState extends State<DashboardApp> {
             ),
           ),
         ),
+        // Phase 14/174 — nav_model.dart's navPrimary has pointed
+        // 'Timeline' here since it was written; no page/route ever
+        // backed it (confirmed via grep for '/timeline' before this
+        // pass). Backed by the new EventEndpoint. Un-gated at the
+        // route level like every other page here — Features.timeline
+        // controls whether the NAV ITEM shows, not whether the route
+        // exists, same posture as every other entry below.
+        Route(
+          path: '/timeline',
+          builder: (context, state) => shellFor(
+            state,
+            TimelinePage(
+              client: _client,
+              accessToken: _session!.accessToken,
+              workspaceId: _selectedWorkspace!.id!,
+            ),
+          ),
+        ),
         // Operations — the inbox. Absorbs what used to be the
         // Conversations page; see operations_page.dart's header and the
         // redirect stub in `Kola Conversations.dc.html`.
@@ -741,6 +768,11 @@ class _DashboardAppState extends State<DashboardApp> {
               accessToken: _session!.accessToken,
               workspaceId: _selectedWorkspace!.id!,
               gate: _gate,
+              // Phase 14/174 — the Customer Satisfaction card's honest
+              // "not enough data yet" copy needs a real signal to
+              // reference; workspace age is the one this codebase
+              // already has in hand at this call site (no new fetch).
+              workspaceCreatedAt: _selectedWorkspace!.createdAt,
             ),
           ),
         ),

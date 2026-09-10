@@ -1,16 +1,29 @@
 // plan_limits.dart — the numeric caps trial_state_machine.dart's own
 // header explicitly declined to define ("inventing them here would be a
-// guess dressed up as a decision"). Two of the three numbers below ARE
-// real decisions now — confirmed directly with the user rather than
-// guessed — the third is still an engineering placeholder. See each
+// guess dressed up as a decision"). Two of the three cappedFree numbers
+// below ARE real decisions — confirmed directly with the user rather
+// than guessed — the rest are engineering placeholders. See each
 // constant's own comment for which is which.
 //
-// SCOPE: these apply to EffectiveTier.cappedFree (PRD.md §10 stage 2,
-// days 3–14 of trial) and, per the enforcement call sites' own choice,
-// to EffectiveTier.paused too — a paused workspace's dashboard writes
-// shouldn't be MORE permissive than a still-capped one just because it
-// stopped replying on live channels. fullTrial and paid are always
-// unlimited by these constants; nothing here gates them.
+// SCOPE: the cappedFree* constants apply to EffectiveTier.cappedFree
+// (PRD.md §10 stage 2, days 3–14 of trial) and, per the enforcement
+// call sites' own choice, to EffectiveTier.paused too — a paused
+// workspace's dashboard writes shouldn't be MORE permissive than a
+// still-capped one just because it stopped replying on live channels.
+//
+// CORRECTED (2026-09-09): fullTrial and paid ("Growth") used to be
+// unlimited by these constants — nothing gated them at all. The user
+// asked for Growth to have real, if generous, caps rather than being
+// marketed as unlimited with no enforcement behind it (see the landing
+// page redesign that prompted this). The growth* constants below now
+// cover fullTrial and paid the same way the cappedFree* ones cover
+// cappedFree/paused — every enforcement call site checks one pair or
+// the other, never neither. None of the growth* numbers were
+// individually confirmed with the user the way cappedFreeDailyMessageCap
+// and cappedFreeErrandCap were; they're set generously above the free
+// caps so a real trading business is unlikely to hit them in practice,
+// while still being a real ceiling rather than an empty promise.
+// Revisit once there's real Growth-tier usage data to size against.
 
 class PlanLimits {
   const PlanLimits._();
@@ -65,6 +78,32 @@ class PlanLimits {
   /// Revisit alongside real pricing.
   static const int cappedFreeKnowledgeDocumentCap = 5;
 
+  // ── GROWTH (fullTrial / paid) ────────────────────────────────────────
+  // See this file's header (2026-09-09 note) for why these exist now.
+
+  /// Daily inbound-message cap for fullTrial/paid ("Growth") workspaces.
+  /// 20x cappedFree's 50/day — generous enough that a real trading
+  /// business shouldn't notice it, while still protecting against a
+  /// runaway integration or abuse driving unbounded per-message AI/
+  /// channel cost. See inbound_message_handler.dart for enforcement.
+  static const int growthDailyMessageCap = 1000;
+
+  /// Max ACTIVE Errands a fullTrial/paid workspace may have. Well above
+  /// cappedFree's 3 — enough room for every connector-native capability
+  /// (payments, calendar, transaction lookups) plus a real set of
+  /// business-specific custom Errands. See errand_endpoint.dart.
+  static const int growthErrandCap = 25;
+
+  /// Max characters in Bot.knowledgeSeed for a fullTrial/paid workspace.
+  /// 10x cappedFree's 2,000 — see bot_endpoint.dart's setKnowledgeSeed.
+  static const int growthKnowledgeSeedCharCap = 20000;
+
+  /// Max indexed KnowledgeDocuments for a fullTrial/paid workspace. Well
+  /// above cappedFree's 5 — business memory is a core sell for the paid
+  /// plan, so this is sized to feel like real capacity, not a token
+  /// bump. See knowledge_endpoint.dart.
+  static const int growthKnowledgeDocumentCap = 200;
+
   /// PHASE 9. Max characters of raw text in ONE document, any plan.
   ///
   /// Not a plan limit but a sanity bound, which is why it isn't named
@@ -89,14 +128,18 @@ class PlanLimits {
   /// Kept because it IS still the correct Nigerian price and removing it
   /// would silently change behaviour anywhere it is still read. The real
   /// risk it guards against is someone reaching for a familiar constant
-  /// and charging every customer in the world ₦10,000 — hence this note
-  /// rather than a quiet deletion.
+  /// and charging every customer in the world the Nigerian price — hence
+  /// this note rather than a quiet deletion.
   ///
-  /// Kola's own paid ("pro") plan price — CONFIRMED WITH THE USER
-  /// (2026-07-27), not a guess, unlike the general PRD.md §10 note that
-  /// pricing numbers were "explicitly not final." In kobo (NGN's minor
-  /// unit), same convention PaymentTransaction.amountKobo already uses —
-  /// ₦10,000/month. See kola_billing_service.dart for where this is
+  /// Kola's own paid ("Growth") plan price. Originally ₦10,000/month,
+  /// CONFIRMED WITH THE USER (2026-07-27); UPDATED WITH THE USER
+  /// (2026-09-09) to ₦15,000/month alongside the landing page redesign
+  /// and the growth* caps above — must be kept in sync with
+  /// PlanPricing.nigeria in plan_pricing.dart by hand, since this field
+  /// is a legacy read path that duplicates rather than derives from it.
+  /// In kobo (NGN's minor unit), same convention
+  /// PaymentTransaction.amountKobo already uses. See
+  /// kola_billing_service.dart for where the real (regional) price is
   /// actually charged.
-  static const int paidPlanMonthlyPriceKobo = 1000000;
+  static const int paidPlanMonthlyPriceKobo = 1500000;
 }

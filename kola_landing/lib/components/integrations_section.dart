@@ -3,6 +3,14 @@
 // Pill chips, centred. Only tools that are actually connected today are
 // listed — a logo wall of things that don't work yet is the same class
 // of overstatement as a fabricated testimonial.
+//
+// REBALANCED 2026-09-09: WhatsApp/Telegram used to sit first and were
+// the only named connectors — "Spreadsheets" stood in for what's
+// actually five separate live connectors (Google Sheets, OneDrive
+// Excel, Google Calendar, Paystack, Flutterwave, Bumpa). Messaging
+// channels are now two chips among many, not the row's anchor — this
+// section should read as "kolaa plugs into your whole business," not
+// "kolaa is a WhatsApp bot."
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -16,12 +24,15 @@ class IntegrationsSection extends StatelessComponent {
   // them. That is different from writing product copy AROUND a provider,
   // which ties the whole pitch to one market.
   static const _integrations = [
-    ('💬', 'WhatsApp'),
-    ('✈️', 'Telegram'),
-    ('💳', 'Stripe'),
     ('💳', 'Paystack'),
     ('💳', 'Flutterwave'),
-    ('📊', 'Spreadsheets'),
+    ('💳', 'Stripe'),
+    ('📊', 'Google Sheets'),
+    ('📗', 'OneDrive Excel'),
+    ('📅', 'Google Calendar'),
+    ('🛍️', 'Bumpa'),
+    ('💬', 'WhatsApp'),
+    ('✈️', 'Telegram'),
     ('🖨️', 'Receipt printers'),
     ('🔔', 'Slack'),
   ];
@@ -39,7 +50,7 @@ class IntegrationsSection extends StatelessComponent {
             'style': 'font-size:13px;letter-spacing:0.06em;text-transform:uppercase;'
                 'color:${KolaColors.textFaint};margin-bottom:24px',
           },
-          [Component.text('Connects to what you already use \u2014 more added regularly')],
+          [Component.text('Your payments, spreadsheets, calendar and storefront \u2014 one memory, more added regularly')],
         ),
         div(
           attributes: {

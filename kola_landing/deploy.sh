@@ -19,30 +19,32 @@
 #   1. Install Node.js (https://nodejs.org) — needed for Wrangler CLI
 #   2. npm install -g wrangler
 #   3. wrangler login          ← opens browser, signs in to Cloudflare
-#   4. Get your Supabase ANON key:
-#        <your Supabase project> → Settings → API → "Project API keys"
-#        → copy the "anon / public" key (NOT service_role)
-#   5. In Supabase, create the RLS policy waitlist_api_service.dart's
-#      header comment documents — anon must be allowed to INSERT into
-#      waitlist_signups (and only insert, never select).
 #
-# FIRST DEPLOY (creates the Cloudflare Pages project):
-#   SUPABASE_URL=https://xxxx.supabase.co SUPABASE_ANON_KEY=eyJh... ./deploy.sh
+# SUPABASE_URL / SUPABASE_ANON_KEY now default to the live project (see
+# ── Config below) — a plain ./deploy.sh just works. Override by
+# exporting your own values first if you ever need a different Supabase
+# project. If you do change the anon key, make sure the RLS policy
+# waitlist_api_service.dart's header comment documents is live on that
+# project — anon must be allowed to INSERT into waitlist_signups (and
+# only insert, never select).
 #
-# SUBSEQUENT DEPLOYS (just re-run):
-#   SUPABASE_URL=https://xxxx.supabase.co SUPABASE_ANON_KEY=eyJh... ./deploy.sh
+# DEPLOY (creates the Cloudflare Pages project on first run, updates it
+# on every run after):
+#   ./deploy.sh
 #
-# LAUNCH_MODE (optional, defaults to "waitlist"): set to "launched" at
-# real launch — build-time-only flag, no runtime UI control. Example:
-#   LAUNCH_MODE=launched SUPABASE_URL=... SUPABASE_ANON_KEY=... ./deploy.sh
+# LAUNCH_MODE (optional, now defaults to "launched" — see ── Config):
+# override with LAUNCH_MODE=waitlist ./deploy.sh to go back to the
+# waitlist page. Build-time-only flag, no runtime UI control.
 # ============================================================================
 
 set -e
 
 # ── Config ────────────────────────────────────────────────────────────────────
-SUPABASE_URL="${SUPABASE_URL:-}"
-SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
-LAUNCH_MODE="${LAUNCH_MODE:-waitlist}"
+# Defaulted for the same reason build.sh's are — see that script's own
+# note. Both safe to hardcode: anon key is public-by-design.
+SUPABASE_URL="${SUPABASE_URL:-https://jwyrmptiehkkizwjbqtg.supabase.co}"
+SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3eXJtcHRpZWhra2l6d2picXRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE0NzEsImV4cCI6MjEwMDIwNzQ3MX0.jqjS8ZDrdSNj1hT01PTMoEFDFQITA9MoQyQJn4EagBY}"
+LAUNCH_MODE="${LAUNCH_MODE:-launched}"
 PROJECT_NAME="${PROJECT_NAME:-kola-landing}"
 
 # ── BRANCH: THE REASON A "SUCCESSFUL" DEPLOY CHANGED NOTHING ──────────────────
@@ -65,20 +67,6 @@ PROJECT_NAME="${PROJECT_NAME:-kola-landing}"
 # Verified 15 Aug 2026: main.* served the renamed copy and the apex served
 # the old one, at the same moment.
 BRANCH="${BRANCH:-production}"
-
-# ── Validate ──────────────────────────────────────────────────────────────────
-if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
-  echo ""
-  echo "❌  SUPABASE_URL and/or SUPABASE_ANON_KEY are not set."
-  echo ""
-  echo "    Get the anon key from your Supabase project:"
-  echo "    Settings → API → Project API keys → anon (public) row"
-  echo ""
-  echo "    Then run:"
-  echo "    SUPABASE_URL=https://xxxx.supabase.co SUPABASE_ANON_KEY=eyJh... ./deploy.sh"
-  echo ""
-  exit 1
-fi
 
 # ── Check wrangler ────────────────────────────────────────────────────────────
 if ! command -v wrangler &>/dev/null && ! command -v npx &>/dev/null; then

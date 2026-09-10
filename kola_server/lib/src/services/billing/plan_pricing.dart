@@ -62,37 +62,47 @@ class RegionalPrice {
 }
 
 abstract class PlanPricing {
-  /// Nigeria — ₦10,000/month. CONFIRMED WITH THE USER (2026-07-27). The
-  /// only price here that is commercially settled.
+  /// Nigeria — ₦15,000/month. Originally ₦10,000/month, CONFIRMED WITH
+  /// THE USER (2026-07-27); UPDATED WITH THE USER (2026-09-09) alongside
+  /// the landing page redesign and the new Growth-tier caps in
+  /// plan_limits.dart. Still the only price here that is commercially
+  /// settled — see kola_landing/lib/i18n/region.dart, which MUST change
+  /// together with this (this file's own header).
   static const nigeria = RegionalPrice(
-    regionCode: 'NG', currency: 'NGN', amountMinor: 1000000, gateway: 'paystack',
+    regionCode: 'NG', currency: 'NGN', amountMinor: 1500000, gateway: 'paystack',
   );
 
   // ── EVERYTHING BELOW IS A PLACEHOLDER ──────────────────────────────
   // Set at rough purchasing-power parity with the Nigerian price, NOT
   // converted from it, and NOT commercially confirmed. Treat every one
   // as provisional and revisit before it bills a real customer.
+  //
+  // Rescaled 2026-09-09 by the same 1.5x the Nigeria price moved
+  // (₦10,000 → ₦15,000), then rounded to a clean number in each
+  // currency — kept proportional to Nigeria rather than re-guessed from
+  // scratch, since nothing about the relative purchasing-power
+  // reasoning changed, only the anchor.
   static const kenya = RegionalPrice(
-    regionCode: 'KE', currency: 'KES', amountMinor: 90000, gateway: 'stripe',
+    regionCode: 'KE', currency: 'KES', amountMinor: 135000, gateway: 'stripe',
   );
   static const ghana = RegionalPrice(
-    regionCode: 'GH', currency: 'GHS', amountMinor: 9000, gateway: 'stripe',
+    regionCode: 'GH', currency: 'GHS', amountMinor: 13500, gateway: 'stripe',
   );
   static const southAfrica = RegionalPrice(
-    regionCode: 'ZA', currency: 'ZAR', amountMinor: 13000, gateway: 'stripe',
+    regionCode: 'ZA', currency: 'ZAR', amountMinor: 19500, gateway: 'stripe',
   );
   static const brazil = RegionalPrice(
-    regionCode: 'BR', currency: 'BRL', amountMinor: 3500, gateway: 'stripe',
+    regionCode: 'BR', currency: 'BRL', amountMinor: 5250, gateway: 'stripe',
   );
   static const india = RegionalPrice(
-    regionCode: 'IN', currency: 'INR', amountMinor: 50000, gateway: 'stripe',
+    regionCode: 'IN', currency: 'INR', amountMinor: 75000, gateway: 'stripe',
   );
 
   /// Every market not listed above. Deliberately not named after one
   /// country — naming it 'US' would invite pricing the whole world like
   /// the United States.
   static const international = RegionalPrice(
-    regionCode: 'XX', currency: 'USD', amountMinor: 1200, gateway: 'stripe',
+    regionCode: 'XX', currency: 'USD', amountMinor: 1800, gateway: 'stripe',
   );
 
   static const all = [

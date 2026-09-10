@@ -47,6 +47,24 @@
 // Errands are scoped to a workspace, not a bot (confirmed — no method
 // on EndpointErrand takes a botId), so this page needs only
 // [workspaceId], not a bot selector.
+//
+// 14L, 2026-09-10 — NO LONGER A TOP-LEVEL NAV DESTINATION. The owner's
+// own words: "for the errands, it should not have a page of its own,
+// thus it should auto fire." nav_model.dart's Build group no longer
+// lists this page; it is reached instead via a "Manage errands" link on
+// bot_detail_dev_page.dart's Errands tab. The route ('/errands' in
+// app.dart) is unchanged and this file's functionality is untouched —
+// see nav_model.dart's comment on why deleting it outright would have
+// been a real regression: createSupportTicket, recordCustomerProfile,
+// sendOtp, verifyOtp and createProductListTemplate all need a real,
+// active Errand row (created here) before errand_tool_registry.dart
+// will ever offer them to the AI as callable tools. Only the page's
+// standing as a first-class nav item went away, not the page itself.
+// The birthday/payment-link/ticket-logging auto-fire cases the owner
+// raised alongside this are handled elsewhere entirely (see
+// customer_campaign_sweep_service.dart and
+// invoice_payment_reminder_sweep_service.dart) — this file was never
+// how those worked.
 
 import 'dart:convert';
 import 'package:jaspr/jaspr.dart';

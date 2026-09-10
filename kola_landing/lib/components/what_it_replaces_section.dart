@@ -77,7 +77,7 @@ class WhatItReplacesSection extends StatelessComponent {
                 'max-width:560px;margin:0 auto 40px;line-height:1.6',
           },
           [
-            Component.text(s.replacesSubtitle(region.formattedProPrice)),
+            Component.text(s.replacesSubtitle(region.formattedGrowthPrice)),
           ],
         ),
         for (final (title, before, after) in _rows)

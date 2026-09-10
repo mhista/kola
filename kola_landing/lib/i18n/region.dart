@@ -10,6 +10,11 @@
 // payment provider exactly the same way. The geography was in the copy,
 // not the product.
 //
+// THIS FILE MUST AGREE WITH kola_server's plan_pricing.dart — see that
+// file's header. If they drift, a customer is shown one number here and
+// billed another there, which is the worst class of pricing bug there
+// is, because it looks like deception rather than a mistake.
+//
 // PRICING IS REGIONAL BY PURCHASING POWER, not a single converted price.
 // The model Spotify, Netflix and JetBrains use, and the right one here:
 // a number that works in Lagos is trivial in London, and a number that
@@ -26,7 +31,7 @@ class Region {
     required this.name,
     required this.currencyCode,
     required this.currencySymbol,
-    required this.proPrice,
+    required this.growthPrice,
     required this.symbolLeads,
   });
 
@@ -39,19 +44,19 @@ class Region {
   final String currencyCode;
   final String currencySymbol;
 
-  /// Pro plan, per month, in MAJOR units (not minor/cents) — this is a
+  /// Growth plan, per month, in MAJOR units (not minor/cents) — this is a
   /// display value. The server holds the authoritative minor-unit amount
-  /// it actually charges; this must never be the number a payment is
-  /// built from.
-  final num proPrice;
+  /// it actually charges (PlanPricing in plan_pricing.dart); this must
+  /// never be the number a payment is built from.
+  final num growthPrice;
 
   /// Whether the symbol precedes the amount. False for most European
   /// conventions, which write "10 €".
   final bool symbolLeads;
 
-  /// Formatted with thousands separators — "₦10,000", "$12", "1 200 KES".
-  String get formattedProPrice {
-    final whole = proPrice.round();
+  /// Formatted with thousands separators — "₦15,000", "$18", "1 350 KES".
+  String get formattedGrowthPrice {
+    final whole = growthPrice.round();
     final digits = whole.toString();
     final buf = StringBuffer();
     for (var i = 0; i < digits.length; i++) {
@@ -66,42 +71,46 @@ class Region {
 abstract class Regions {
   // Prices below are DISPLAY PLACEHOLDERS outside Nigeria and are not yet
   // confirmed commercially. Only the Nigerian price is settled. They are
-  // set at rough purchasing-power parity with ₦10,000 rather than a
-  // market-rate conversion of it — see this file's header.
+  // set at rough purchasing-power parity with ₦15,000 rather than a
+  // market-rate conversion of it — see this file's header. Updated
+  // 2026-09-09 alongside the Growth-tier rename and cap changes: the
+  // Nigeria anchor moved ₦10,000 → ₦15,000 (1.5x), and every placeholder
+  // region moved the same 1.5x, rounded to a clean number, to stay
+  // proportional rather than re-guessed from scratch.
   static const nigeria = Region(
     code: 'NG', name: 'Nigeria',
     currencyCode: 'NGN', currencySymbol: '₦',
-    proPrice: 10000, symbolLeads: true,
+    growthPrice: 15000, symbolLeads: true,
   );
 
   static const kenya = Region(
     code: 'KE', name: 'Kenya',
     currencyCode: 'KES', currencySymbol: 'KSh',
-    proPrice: 900, symbolLeads: true,
+    growthPrice: 1350, symbolLeads: true,
   );
 
   static const ghana = Region(
     code: 'GH', name: 'Ghana',
     currencyCode: 'GHS', currencySymbol: '₵',
-    proPrice: 90, symbolLeads: true,
+    growthPrice: 135, symbolLeads: true,
   );
 
   static const southAfrica = Region(
     code: 'ZA', name: 'South Africa',
     currencyCode: 'ZAR', currencySymbol: 'R',
-    proPrice: 130, symbolLeads: true,
+    growthPrice: 195, symbolLeads: true,
   );
 
   static const brazil = Region(
     code: 'BR', name: 'Brazil',
     currencyCode: 'BRL', currencySymbol: r'R$',
-    proPrice: 35, symbolLeads: true,
+    growthPrice: 52.5, symbolLeads: true,
   );
 
   static const india = Region(
     code: 'IN', name: 'India',
     currencyCode: 'INR', currencySymbol: '₹',
-    proPrice: 500, symbolLeads: true,
+    growthPrice: 750, symbolLeads: true,
   );
 
   /// Everywhere not listed above. Deliberately NOT called "United
@@ -111,7 +120,7 @@ abstract class Regions {
   static const international = Region(
     code: 'XX', name: 'International',
     currencyCode: 'USD', currencySymbol: r'$',
-    proPrice: 12, symbolLeads: true,
+    growthPrice: 18, symbolLeads: true,
   );
 
   static const all = [

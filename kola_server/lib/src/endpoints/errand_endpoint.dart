@@ -113,25 +113,32 @@ class ErrandEndpoint extends Endpoint {
     }
   }
 
-  /// Phase 5 plan limits — a cappedFree or paused workspace may have at
-  /// most PlanLimits.cappedFreeErrandCap ACTIVE Errands (confirmed with
-  /// the user, not guessed — see plan_limits.dart). Called from every
-  /// create* method below, right after requireWorkspaceAccess, so a
-  /// workspace over its cap fails fast with a clear message instead of
-  /// creating the Errand and only then having nowhere to enforce the cap
-  /// retroactively. fullTrial/paid workspaces are never gated here.
+  /// Phase 5 plan limits — every workspace has a cap on ACTIVE Errands,
+  /// not just cappedFree/paused ones. cappedFree/paused check against
+  /// PlanLimits.cappedFreeErrandCap (confirmed with the user, not
+  /// guessed); fullTrial/paid check against the higher
+  /// PlanLimits.growthErrandCap — CORRECTED 2026-09-09, see
+  /// plan_limits.dart's header for why paid is no longer unlimited here.
+  /// Called from every create* method below, right after
+  /// requireWorkspaceAccess, so a workspace over its cap fails fast with
+  /// a clear message instead of creating the Errand and only then having
+  /// nowhere to enforce the cap retroactively.
   Future<void> _assertErrandCapNotExceeded(int workspaceId) async {
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace == null) return; // caller's own findByIdScoped calls will surface this properly
     final tier = _trialStateMachine.effectiveTier(workspace);
-    if (tier != EffectiveTier.cappedFree && tier != EffectiveTier.paused) return;
+    final isFreeTier = tier == EffectiveTier.cappedFree || tier == EffectiveTier.paused;
+    final cap = isFreeTier ? PlanLimits.cappedFreeErrandCap : PlanLimits.growthErrandCap;
 
     final activeCount = (await _errands.listActiveByWorkspace(workspaceId)).length;
-    if (activeCount >= PlanLimits.cappedFreeErrandCap) {
+    if (activeCount >= cap) {
       throw KolaException(
-        message:         'This workspace is on the free plan, which allows up to '
-        '${PlanLimits.cappedFreeErrandCap} active Errands. Disable an existing '
-        'Errand or upgrade to add more.',
+        message: isFreeTier
+            ? 'This workspace is on the free plan, which allows up to '
+                '$cap active Errands. Disable an existing Errand or upgrade to add more.'
+            : 'This workspace is on the Growth plan, which allows up to '
+                '$cap active Errands. Disable an existing Errand, or contact support if you '
+                'need a higher ceiling.',
       );
     }
   }
