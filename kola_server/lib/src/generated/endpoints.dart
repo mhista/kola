@@ -6921,6 +6921,31 @@ class Endpoints extends _i1.EndpointDispatch {
                     params['customerEmail'],
                   ),
         ),
+        'listBillingHistory': _i1.MethodConnector(
+          name: 'listBillingHistory',
+          params: {
+            'accessToken': _i1.ParameterDescription(
+              name: 'accessToken',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'workspaceId': _i1.ParameterDescription(
+              name: 'workspaceId',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['workspace'] as _i39.WorkspaceEndpoint)
+                  .listBillingHistory(
+                    session,
+                    params['accessToken'],
+                    params['workspaceId'],
+                  ),
+        ),
       },
     );
   }

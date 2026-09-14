@@ -66,6 +66,59 @@ class ConnectorSyncSweepService {
   final WorkspaceConnectorRepository _genericConnectors;
   final ConnectorSyncLogRepository _syncLog;
 
+  /// 2026-09-14 fix — the gap: [WorkspaceConnectorRepository.markError]
+  /// existed and was never called from this sweep. A dead OAuth refresh
+  /// token (revoked, expired) failed every sweep forever with nothing
+  /// but a log line — `status` stayed 'connected', so nothing told the
+  /// owner the connector needed reconnecting except stumbling onto it
+  /// manually via a connector-specific action elsewhere.
+  ///
+  /// This matches on the error TEXT to decide "dead credential" vs.
+  /// "transient blip" — same classify-don't-extract technique
+  /// error_text.dart's own header defends for the identical reason: a
+  /// wrong classification costs one sweep either retrying a dead token
+  /// once more or marking a momentary failure as needing reconnect,
+  /// never a wrong message shown anywhere. A real
+  /// `error is OAuthException`-style type would be cleaner but none of
+  /// the OAuth services in this codebase throw one yet (both
+  /// GoogleOAuthService.refreshAccessToken and its Microsoft twin throw
+  /// a plain unclassified Exception on any non-2xx response) — worth
+  /// revisiting once they do.
+  ///
+  /// Deliberately NOT called for a transient failure (timeout, 500, one
+  /// malformed sheet): those must keep retrying next sweep exactly as
+  /// before this fix, or a real one-off blip would strand a fine
+  /// connector in 'error' needing a needless manual reconnect.
+  static bool _looksLikeDeadCredential(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('invalid_grant') ||
+        lower.contains('invalid_token') ||
+        lower.contains('token has been expired or revoked') ||
+        lower.contains('unauthorized') ||
+        lower.contains('401');
+  }
+
+  /// Flips the connector to 'error' (see [WorkspaceConnectorRepository
+  /// .markError]'s own header on why that never touches the stored
+  /// credential) only when [_looksLikeDeadCredential] recognizes the
+  /// failure. `listAllByKey` only fetches `status = 'connected'` rows,
+  /// so once marked this connector stops being swept at all until the
+  /// owner reconnects — the correct outcome for a token that is not
+  /// coming back on its own, not an accident of this call.
+  Future<void> _markErrorIfDeadCredential({
+    required int workspaceId,
+    required String connectorKey,
+    required String message,
+    required String reconnectHint,
+  }) async {
+    if (!_looksLikeDeadCredential(message)) return;
+    await _genericConnectors.markError(workspaceId, connectorKey, reconnectHint);
+    Log.warning(
+      'ConnectorSyncSweepService: $connectorKey for workspace $workspaceId '
+      'marked as needing reconnect (dead credential): $message',
+    );
+  }
+
   /// Runs every registered pull-based adapter for every workspace
   /// connected to it. Returns how many workspace-connector pairs synced
   /// without error, for server.dart's own startup/interval log line —
@@ -304,9 +357,29 @@ class ConnectorSyncSweepService {
             '(${spreadsheetIds.length} sheet(s)) — $recordsSeen seen, $recordsChanged changed',
           );
         }
-        if (anySucceeded) succeeded++;
+        if (anySucceeded) {
+          succeeded++;
+        } else if (errors.isNotEmpty) {
+          // Every sheet failed the same run — one bad sheet wouldn't do
+          // that, a dead refresh token would. See
+          // _markErrorIfDeadCredential's header.
+          await _markErrorIfDeadCredential(
+            workspaceId: workspaceId,
+            connectorKey: 'google_sheets',
+            message: errors.join('; '),
+            reconnectHint: 'Google access has expired or been revoked — '
+                'reconnect Google Sheets to resume syncing.',
+          );
+        }
       } catch (e) {
         Log.error('ConnectorSyncSweepService: Google Sheets sync failed for workspace $workspaceId', error: e);
+        await _markErrorIfDeadCredential(
+          workspaceId: workspaceId,
+          connectorKey: 'google_sheets',
+          message: '$e',
+          reconnectHint: 'Google access has expired or been revoked — '
+              'reconnect Google Sheets to resume syncing.',
+        );
       }
     }
 
@@ -387,6 +460,13 @@ class ConnectorSyncSweepService {
         succeeded++;
       } catch (e) {
         Log.error('ConnectorSyncSweepService: Google Drive sync failed for workspace $workspaceId', error: e);
+        await _markErrorIfDeadCredential(
+          workspaceId: workspaceId,
+          connectorKey: 'google_drive',
+          message: '$e',
+          reconnectHint: 'Google access has expired or been revoked — '
+              'reconnect Google Drive to resume syncing.',
+        );
       }
     }
 
@@ -475,6 +555,13 @@ class ConnectorSyncSweepService {
         succeeded++;
       } catch (e) {
         Log.error('ConnectorSyncSweepService: OneDrive Excel sync failed for workspace $workspaceId', error: e);
+        await _markErrorIfDeadCredential(
+          workspaceId: workspaceId,
+          connectorKey: 'onedrive_excel',
+          message: '$e',
+          reconnectHint: 'Microsoft access has expired or been revoked — '
+              'reconnect OneDrive Excel to resume syncing.',
+        );
       }
     }
 
@@ -550,6 +637,13 @@ class ConnectorSyncSweepService {
         succeeded++;
       } catch (e) {
         Log.error('ConnectorSyncSweepService: Bumpa sync failed for workspace $workspaceId', error: e);
+        await _markErrorIfDeadCredential(
+          workspaceId: workspaceId,
+          connectorKey: 'bumpa',
+          message: '$e',
+          reconnectHint: 'Bumpa credentials were rejected — reconnect Bumpa '
+              'to resume syncing.',
+        );
       }
     }
 
@@ -622,6 +716,13 @@ class ConnectorSyncSweepService {
         succeeded++;
       } catch (e) {
         Log.error('ConnectorSyncSweepService: Notion sync failed for workspace $workspaceId', error: e);
+        await _markErrorIfDeadCredential(
+          workspaceId: workspaceId,
+          connectorKey: 'notion',
+          message: '$e',
+          reconnectHint: 'The Notion integration token was rejected — '
+              'reconnect Notion to resume syncing.',
+        );
       }
     }
 

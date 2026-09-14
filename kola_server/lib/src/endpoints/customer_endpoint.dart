@@ -66,11 +66,24 @@ class CustomerEndpoint extends Endpoint {
       _sales.listByWorkspaceAndRange(workspaceId: workspaceId, from: from, to: to),
       _payments.listCompletedByWorkspaceAndRange(workspaceId: workspaceId, from: from, to: to),
       _conversations.listByWorkspace(workspaceId),
+      // Phase 14/186 — the export's "Search by name or phone…" (see
+      // customer_identity_signal_repository.dart's own header on this
+      // method). One bulk fetch, not one per customer.
+      _signals.listByWorkspaceAndType(workspaceId: workspaceId, signalType: 'phone'),
     ]);
     final customers = results[0] as List<Customer>;
     final sales = (results[1] as List<Sale>).where((s) => s.status == 'completed');
     final payments = results[2] as List<PaymentTransaction>;
     final conversations = results[3] as List<Conversation>;
+    final phoneSignals = results[4] as List<CustomerIdentitySignal>;
+    // A customer with more than one recorded phone signal (rare, but
+    // possible after a merge) collapses to whichever this loop sees
+    // last — order isn't guaranteed here, and which one wins doesn't
+    // matter: this value only feeds search matching, never display: the
+    // detail panel's own signals list remains the authoritative full set.
+    final phoneByCustomer = <int, String>{
+      for (final s in phoneSignals) s.customerId: s.normalizedValue,
+    };
 
     // saleId -> the reconciled payment's own customerId (which may be
     // null if that payment arrived unresolved). PaymentReconciliationService
@@ -89,13 +102,22 @@ class CustomerEndpoint extends Endpoint {
     final ltvByCustomer = <int, int>{};
     final ordersByCustomer = <int, int>{};
     final lastActivityByCustomer = <int, DateTime>{};
+    // Phase 14/186 — the export's "Last contact {time} · {channel}" list
+    // row. Whichever source (Sale/PaymentTransaction/Conversation) wins
+    // [touch]'s recency check also names the channel — no second query:
+    // every source this needed was already being fetched and looped over
+    // for [lastActivityByCustomer]. Replaces the previous "not cheaply
+    // available for a whole list at once" cut named in this endpoint's
+    // own history — the data was already in memory, it just wasn't kept.
+    final lastChannelByCustomer = <int, String>{};
     var currency = 'NGN';
 
-    void touch(int? customerId, DateTime at) {
+    void touch(int? customerId, DateTime at, String channel) {
       if (customerId == null) return;
       final current = lastActivityByCustomer[customerId];
       if (current == null || at.isAfter(current)) {
         lastActivityByCustomer[customerId] = at;
+        lastChannelByCustomer[customerId] = channel;
       }
     }
 
@@ -107,23 +129,23 @@ class CustomerEndpoint extends Endpoint {
         // Counted via its matching payment below instead — see the map
         // comment above on why this is only safe when that payment
         // itself resolved a customerId.
-        touch(s.customerId, s.soldAt);
+        touch(s.customerId, s.soldAt, 'Till');
         continue;
       }
       ltvByCustomer.update(s.customerId!, (v) => v + s.totalMinor, ifAbsent: () => s.totalMinor);
       ordersByCustomer.update(s.customerId!, (v) => v + 1, ifAbsent: () => 1);
-      touch(s.customerId, s.soldAt);
+      touch(s.customerId, s.soldAt, 'Till');
       currency = s.currency;
     }
     for (final p in payments) {
       if (p.customerId == null) continue;
       ltvByCustomer.update(p.customerId!, (v) => v + p.amountKobo, ifAbsent: () => p.amountKobo);
       ordersByCustomer.update(p.customerId!, (v) => v + 1, ifAbsent: () => 1);
-      touch(p.customerId, p.createdAt);
+      touch(p.customerId, p.createdAt, _gatewayLabel(p.gateway));
       currency = p.currency;
     }
     for (final c in conversations) {
-      touch(c.customerId, c.lastMessageAt);
+      touch(c.customerId, c.lastMessageAt, _channelLabel(c.platformType));
     }
 
     final summaries = [
@@ -134,6 +156,8 @@ class CustomerEndpoint extends Endpoint {
           orderCount: c.id == null ? 0 : (ordersByCustomer[c.id] ?? 0),
           currency: currency,
           lastActivityAt: c.id == null ? null : lastActivityByCustomer[c.id],
+          lastActivityChannel: c.id == null ? null : lastChannelByCustomer[c.id],
+          phone: c.id == null ? null : phoneByCustomer[c.id],
         ),
     ];
 
@@ -272,5 +296,41 @@ class CustomerEndpoint extends Endpoint {
       throw KolaException(message: 'Customers is not available on this workspace yet.');
     }
     return member;
+  }
+
+  /// 'whatsapp' → 'WhatsApp', etc. — same small known-set mapping
+  /// analytics_endpoint.dart's own `_channelLabel` uses; duplicated
+  /// rather than shared for one label helper (see this codebase's own
+  /// customers_page.dart `_sourceLabel` for the same call, made once
+  /// already on the dashboard side).
+  static String _channelLabel(String platformType) {
+    const known = {
+      'whatsapp': 'WhatsApp',
+      'telegram': 'Telegram',
+      'instagram': 'Instagram',
+      'instagram_shop': 'Instagram',
+      'facebook_catalog': 'Facebook',
+      'messenger': 'Messenger',
+    };
+    final hit = known[platformType];
+    if (hit != null) return hit;
+    if (platformType.isEmpty) return platformType;
+    return platformType[0].toUpperCase() + platformType.substring(1);
+  }
+
+  /// 'paystack' → 'Paystack', etc. — a payment gateway is the honest
+  /// "how we last heard from them" answer when the most recent activity
+  /// was a payment rather than a conversation.
+  static String _gatewayLabel(String gateway) {
+    const known = {
+      'paystack': 'Paystack',
+      'flutterwave': 'Flutterwave',
+      'monnify': 'Monnify',
+      'fincra': 'Fincra',
+    };
+    final hit = known[gateway];
+    if (hit != null) return hit;
+    if (gateway.isEmpty) return gateway;
+    return gateway[0].toUpperCase() + gateway.substring(1);
   }
 }

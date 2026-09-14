@@ -51,6 +51,25 @@
 // condition doesn't hold, same "absence over a fabricated finding"
 // rule as [revenueDeltaPct] itself.
 //
+// ── PHASE 14/186 UPDATE: VELOCITY, THE LAST REAL GAP ON THE TABLE ─────
+//
+// The design's "Top products" table has a fourth column this pass
+// previously left off entirely — "Velocity" ("Sells out in 2 days" /
+// "Steady" / "Slow mover" / "Out of stock 3 days"). Re-checked against
+// DESIGN_DELTA.md's own rule ("there is no endpoint yet" is not a
+// legitimate reason to cut): Product.stock and Product.lowStockThreshold
+// are both real fields already fetched into this endpoint's
+// [productById] map, and WorkspaceFindingRepository already tracks
+// exactly when a product went out of stock (firstSeenAt on the
+// `product_out_of_stock:<id>` finding — see workspace_sweep_service.dart)
+// for the Overview's own "N days" copy. Nothing here needed a new
+// migration or a new detector; it needed wiring the two together.
+// [_classifyVelocity] below is that wiring, with its thresholds named
+// and documented rather than pretended-precise. `null` on both
+// [IntelligenceProduct.velocityLabel]/[velocityTone] means the product
+// isn't stock-tracked (Product.stock == null) — a service has no honest
+// sell-through classification, and DESIGN_DELTA.md forbids inventing one.
+//
 // ── TWO NAMED GAPS THAT REMAIN ──────────────────────────────────────────
 //
 // 1. RESPONSE TIME. The design shows a "Response time" card (a big
@@ -60,8 +79,11 @@
 //    matches. No real number exists to show. Rather than compute a
 //    first-response-time metric under this pass's scope (a genuinely
 //    separate aggregation over Message.createdAt pairs, not a small
-//    addition), this card is SKIPPED entirely — not shipped with a
-//    fabricated figure, not shipped as a fake "coming soon" card either.
+//    addition), intelligence_page.dart renders this card as an honest
+//    "not measured yet" state — same posture, and same card position in
+//    the design's own row 1, as the Customer Satisfaction card below.
+//    Not skipped outright: DESIGN_DELTA.md treats a missing endpoint as
+//    a work item to name, not a reason to drop the card from the layout.
 //
 // 2. CUSTOMER SATISFACTION. Also grepped (rating/csat/satisfaction) —
 //    no rating/CSAT field exists on Conversation or SupportTicket
@@ -78,14 +100,24 @@ import 'package:kola_server/src/services/auth/workspace_access.dart';
 import 'package:kola_server/src/services/repository/sale_repository.dart';
 import 'package:kola_server/src/services/repository/product_repository.dart';
 import 'package:kola_server/src/services/repository/conversation_repository.dart';
+import 'package:kola_server/src/services/repository/workspace_finding_repository.dart';
+import 'package:kola_server/src/services/observation/finding_kinds.dart';
 import 'package:kola_server/src/services/ai/intelligence_narrative_service.dart';
 
 const _validPeriods = {7, 30, 90};
+
+/// Sell-through thresholds for the "Velocity" column — named and
+/// documented rather than a stored business fact, same posture as the
+/// "top quintile by LTV" customer-segment rule elsewhere in this
+/// codebase. See this file's header for what feeds them.
+const _fastMoverDaysRemaining = 7;
+const _slowMoverDaysRemaining = 60;
 
 class IntelligenceEndpoint extends Endpoint {
   SaleRepository get _sales => getIt<SaleRepository>();
   ProductRepository get _products => getIt<ProductRepository>();
   ConversationRepository get _conversations => getIt<ConversationRepository>();
+  WorkspaceFindingRepository get _findings => getIt<WorkspaceFindingRepository>();
   IntelligenceNarrativeService get _narratives =>
       getIt<IntelligenceNarrativeService>();
 
@@ -116,13 +148,25 @@ class IntelligenceEndpoint extends Endpoint {
       // the same current/prior split everything else here uses (same
       // shape as AnalyticsEndpoint's own allConvos read).
       _conversations.listByWorkspace(workspaceId),
+      // Phase 14/186 — the Velocity column's "out of stock N days" figure.
+      // Open findings only; a resolved one means the product was
+      // restocked, so there's nothing to attribute the current stock=0
+      // read to (see the classifier below, which falls back to a plain
+      // "Out of stock" when no matching finding exists).
+      _findings.listOpen(workspaceId),
     ]);
     final allSales = (results[0] as List<Sale>).where((s) => s.status == 'completed').toList();
     final allProducts = results[1] as List<Product>;
     final allConversations = results[2] as List<Conversation>;
+    final openFindings = results[3] as List<WorkspaceFinding>;
     final productById = {
       for (final p in allProducts)
         if (p.id != null) p.id!: p,
+    };
+    final outOfStockSinceByProduct = {
+      for (final f in openFindings)
+        if (f.kind == FindingKinds.productOutOfStock && f.subjectId != null)
+          f.subjectId!: f.firstSeenAt,
     };
 
     bool inCurrent(DateTime d) => !d.isBefore(periodStart) && d.isBefore(periodEnd);
@@ -173,11 +217,20 @@ class IntelligenceEndpoint extends Endpoint {
       final marginPct = (marginMinor == null || revenue == 0)
           ? null
           : marginMinor / revenue * 100;
+      final velocity = _classifyVelocity(
+        stock: productById[pid]?.stock,
+        unitsSold: units,
+        periodDays: periodDays,
+        outOfStockSince: outOfStockSinceByProduct[pid],
+        now: now,
+      );
       return IntelligenceProduct(
         productId: pid,
         name: nameByProduct[pid] ?? 'Unknown product',
         unitsSold: units,
         revenueMinor: revenue,
+        velocityLabel: velocity?.$1,
+        velocityTone: velocity?.$2,
         marginMinor: marginMinor,
         marginPct: marginPct,
       );
@@ -241,5 +294,48 @@ class IntelligenceEndpoint extends Endpoint {
       correlationCallout: correlationCallout,
       ordersByWeekday: ordersByWeekday,
     );
+  }
+
+  /// The "Velocity" column's label + tone, or null-both when the product
+  /// isn't stock-tracked (see this file's header). [stock] and [unitsSold]
+  /// are real inputs; [_fastMoverDaysRemaining]/[_slowMoverDaysRemaining]
+  /// are the one named, documented judgement call in this classifier —
+  /// everything else is arithmetic over real numbers.
+  ///
+  /// Returns (label, tone) where tone is 'fast' | 'steady' | 'slow' | 'out'.
+  static (String, String)? _classifyVelocity({
+    required int? stock,
+    required int unitsSold,
+    required int periodDays,
+    required DateTime? outOfStockSince,
+    required DateTime now,
+  }) {
+    if (stock == null) return null; // not stock-tracked — see header note
+
+    if (stock <= 0) {
+      if (outOfStockSince != null) {
+        final days = now.difference(outOfStockSince).inDays;
+        return (
+          days <= 0 ? 'Out of stock today' : 'Out of stock $days day${days == 1 ? '' : 's'}',
+          'out',
+        );
+      }
+      // The sweep hasn't run since this went out of stock (or ran and
+      // found no matching finding for some other reason) — still a real,
+      // honest fact, just without a duration attached to it.
+      return ('Out of stock', 'out');
+    }
+
+    if (periodDays <= 0 || unitsSold <= 0) return ('Steady', 'steady');
+
+    final dailyRate = unitsSold / periodDays;
+    final daysRemaining = stock / dailyRate;
+
+    if (daysRemaining <= _fastMoverDaysRemaining) {
+      final days = daysRemaining.ceil().clamp(1, 999);
+      return ('Sells out in $days day${days == 1 ? '' : 's'}', 'fast');
+    }
+    if (daysRemaining >= _slowMoverDaysRemaining) return ('Slow mover', 'slow');
+    return ('Steady', 'steady');
   }
 }

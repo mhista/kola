@@ -22,3 +22,16 @@ fields:
   ## header. Never derive a margin from a missing cost.
   marginMinor: int?
   marginPct: double?
+
+  ## Phase 14/186. The design's "Velocity" column ("Sells out in 2 days" /
+  ## "Steady" / "Slow mover" / "Out of stock 3 days"). Both null together
+  ## when Product.stock is null — a non-stock-tracked product (a service)
+  ## has no honest sell-through classification, and inventing one would
+  ## be exactly the false-fact mistake DESIGN_DELTA.md forbids. When
+  ## present: 'fast' | 'steady' | 'slow' | 'out' — see
+  ## intelligence_endpoint.dart's _classifyVelocity for the thresholds,
+  ## which are named and documented there rather than a stored business
+  ## fact, same posture as the "top quintile by LTV" customer-segment
+  ## rule elsewhere in this codebase.
+  velocityLabel: String?
+  velocityTone: String?

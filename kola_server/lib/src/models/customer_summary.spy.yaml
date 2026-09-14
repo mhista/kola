@@ -25,3 +25,18 @@ fields:
   ## activity recorded anywhere yet (should be rare — a Customer row is
   ## normally created BECAUSE of some activity).
   lastActivityAt: DateTime?
+
+  ## Phase 14/186. The channel behind whichever source [lastActivityAt]
+  ## came from — 'WhatsApp' / 'Telegram' / 'Till' / a payment gateway
+  ## name. Same null-together rule as [lastActivityAt]: no activity, no
+  ## channel. Computed in the SAME loop as [lastActivityAt] in
+  ## CustomerEndpoint.listCustomersWithSummary — nothing new was
+  ## fetched, this was already in memory.
+  lastActivityChannel: String?
+
+  ## Phase 14/186. Backs the Customers page's "Search by name or
+  ## phone…" (the export's own placeholder copy). Null for a customer
+  ## with no recorded phone CustomerIdentitySignal. Search-only — never
+  ## rendered in the list row; the detail panel's own signals list is
+  ## the display-facing source.
+  phone: String?

@@ -73,4 +73,24 @@ class CustomerIdentitySignalRepository {
         .order('first_seen_at', ascending: true);
     return (response as List).map((r) => _dto.fromRow(r as Map<String, dynamic>)).toList();
   }
+
+  /// Every signal of one type across a whole workspace — Phase 14/186,
+  /// backs the Customers page's "Search by name or phone…" (the
+  /// export's own placeholder copy, `Kola Customers.dc.html` line 64).
+  /// Scoped to [signalType] rather than every signal in the workspace:
+  /// the one caller today wants phone numbers only, and there is no
+  /// reason to also pull every WhatsApp/Telegram external-id signal
+  /// along with it. The (workspaceId, signalType, normalizedValue)
+  /// unique index (migration 039) covers this query's leading columns.
+  Future<List<CustomerIdentitySignal>> listByWorkspaceAndType({
+    required int workspaceId,
+    required String signalType,
+  }) async {
+    final response = await supabase
+        .from('customer_identity_signals')
+        .select()
+        .eq('workspace_id', workspaceId)
+        .eq('signal_type', signalType);
+    return (response as List).map((r) => _dto.fromRow(r as Map<String, dynamic>)).toList();
+  }
 }

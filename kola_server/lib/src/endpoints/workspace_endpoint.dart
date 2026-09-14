@@ -23,6 +23,8 @@ import 'package:kola_server/src/services/repository/workspace_member_repository.
 import 'package:kola_server/src/services/repository/owner_notification_settings_repository.dart';
 import 'package:kola_server/src/services/repository/errand_repository.dart';
 import 'package:kola_server/src/services/repository/usage_record_repository.dart';
+import 'package:kola_server/src/services/repository/knowledge_document_repository.dart';
+import 'package:kola_server/src/services/repository/kola_billing_checkout_repository.dart';
 import 'package:kola_server/src/services/features/feature_keys.dart';
 import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/billing/trial_state_machine.dart';
@@ -48,6 +50,8 @@ class WorkspaceEndpoint extends Endpoint {
   ErrandRepository get _errands => getIt<ErrandRepository>();
   UsageRecordRepository get _usageRecords => getIt<UsageRecordRepository>();
   KolaBillingService get _billing => getIt<KolaBillingService>();
+  KnowledgeDocumentRepository get _documents => getIt<KnowledgeDocumentRepository>();
+  KolaBillingCheckoutRepository get _checkouts => getIt<KolaBillingCheckoutRepository>();
 
   /// Creates a new workspace and makes the caller its 'owner'. This is the
   /// very first authenticated write path in the product — the moment
@@ -318,7 +322,8 @@ class WorkspaceEndpoint extends Endpoint {
   ///     messagesToday, messagesDailyCap (cappedFree/growth number,
   ///       never null as of 2026-09-09 — see plan_limits.dart),
   ///     activeErrandCount, errandCap (same, never null),
-  ///     messagesThisMonth, errandCallsThisMonth }
+  ///     messagesThisMonth, errandCallsThisMonth,
+  ///     documentCount, documentCap (real, from PlanLimits) }
   Future<String> getBillingSummary(
     Session session,
     String accessToken,
@@ -369,6 +374,19 @@ class WorkspaceEndpoint extends Endpoint {
     );
     final activeErrandCount = (await _errands.listActiveByWorkspace(workspaceId)).length;
 
+    // Task (Billing page redesign) — real document count against the
+    // real PlanLimits document caps. Both already existed independently
+    // (KnowledgeDocumentRepository.countByWorkspace backs the Knowledge
+    // page's own cap check; cappedFreeKnowledgeDocumentCap/
+    // growthKnowledgeDocumentCap back bot_endpoint's knowledge-seed
+    // enforcement) — this is the first thing that puts them together for
+    // display, same "wire real parts together" shape as the rest of this
+    // method.
+    final documentCount = await _documents.countByWorkspace(workspaceId);
+    final documentCap = isCapped
+        ? PlanLimits.cappedFreeKnowledgeDocumentCap
+        : PlanLimits.growthKnowledgeDocumentCap;
+
     // Price, currency and collecting gateway all come from the
     // workspace's own region — see plan_pricing.dart.
     final regionalPrice = PlanPricing.forRegion(workspace.region);
@@ -387,6 +405,8 @@ class WorkspaceEndpoint extends Endpoint {
       'errandCap': errandCap,
       'messagesThisMonth': messagesThisMonth,
       'errandCallsThisMonth': errandCallsThisMonth,
+      'documentCount': documentCount,
+      'documentCap': documentCap,
       // The dashboard's "Upgrade" card renders from these — it never
       // hardcodes a price, and never assumes a currency.
       //
@@ -451,5 +471,28 @@ class WorkspaceEndpoint extends Endpoint {
     }, session: session);
 
     return checkout;
+  }
+
+  /// Task (Billing page redesign) — Kola Billing.dc.html's "Invoices"
+  /// table. Returns every checkout KolaBillingWebhookHandler has
+  /// independently confirmed paid for this workspace, newest first.
+  ///
+  /// THIS IS THE WORKSPACE'S OWN SUBSCRIPTION PAYMENT HISTORY, not the
+  /// customer-facing Invoice model (invoice.spy.yaml) — that is a
+  /// workspace billing ITS customers, the opposite direction of money.
+  /// See kola_billing_checkout.spy.yaml's header, which draws the same
+  /// line for the table this reads.
+  ///
+  /// No separate "invoice" record was ever generated for these
+  /// payments — a completed KolaBillingCheckout row (gateway, amount,
+  /// paidAt) IS the receipt, so this returns those rows directly rather
+  /// than mapping into a shape that doesn't otherwise exist.
+  Future<List<KolaBillingCheckout>> listBillingHistory(
+    Session session,
+    String accessToken,
+    int workspaceId,
+  ) async {
+    await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
+    return _checkouts.listCompletedByWorkspace(workspaceId);
   }
 }

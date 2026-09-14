@@ -82,6 +82,33 @@ class KolaBillingCheckoutRepository {
     return _dto.fromRow(response);
   }
 
+  /// Every successfully-paid checkout for [workspaceId], newest first —
+  /// the Billing page's "Invoices" table. This row IS the workspace's own
+  /// Kola-subscription payment history: see this model's header on why
+  /// there is no separate "invoice" table for it — `status: 'completed'`
+  /// plus `paidAt` is a real, gateway-confirmed payment record, written
+  /// only by KolaBillingWebhookHandler after independently re-verifying
+  /// with the gateway (never from the webhook body alone).
+  ///
+  /// Deliberately excludes 'pending'/'failed' rows — an abandoned or
+  /// declined checkout is not something the owner paid for, and showing
+  /// it in an "Invoices" list would misstate what was actually charged.
+  Future<List<KolaBillingCheckout>> listCompletedByWorkspace(
+    int workspaceId,
+  ) async {
+    _log.fine('listCompletedByWorkspace($workspaceId)');
+    final response = await supabase
+        .from('kola_billing_checkouts')
+        .select()
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'completed')
+        .order('paid_at', ascending: false);
+
+    return (response as List)
+        .map((row) => _dto.fromRow(row as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<KolaBillingCheckout> markFailed(String reference) async {
     _log.info('markFailed reference=$reference');
     final response = await supabase
