@@ -343,36 +343,21 @@ final webPublicHost = Env.webhookBaseUrl.isNotEmpty
     // scope gates action execution.
     pod.webServer.addRoute(AiQueryRoute(), '/v1/ai/query');
 
-    // DIAGNOSTIC — temporary, tracking the "No deserialization found for
-    // type List<SaleLineInput>" 500 on POST /sale/ringUpSale. That
-    // failure happens INSIDE Serverpod's own request-parameter parsing,
-    // before ANY endpoint method body runs — so logging inside
-    // ringUpSale itself (see sale_endpoint.dart) can never see it, and
-    // hand-editing generated/protocol.dart to add a print there gets
-    // silently wiped the next time `serverpod generate` runs. Middleware
-    // sits outside all generated code and wraps every request, so it's
-    // the one place guaranteed to see this exception no matter where in
-    // the pipeline it's thrown. Safe to delete once this is resolved.
-    pod.server.addMiddleware((innerHandler) {
-      return (request) async {
-        try {
-          return await innerHandler(request);
-        } catch (e, st) {
-          // Log.error (not print) — goes through Talker AND, since no
-          // Serverpod Session exists at this layer yet, still lands in
-          // the container's stdout/Northflank log stream via Talker's
-          // console output, same as every other ❌-tagged line in these
-          // logs.
-          Log.error(
-            'Request failed: ${request.method} ${request.url.path}',
-            error: e,
-            stackTrace: st,
-          );
-          rethrow;
-        }
-      };
-    });
-
+    // 2026-09-17 — REMOVED the temporary diagnostic middleware that lived
+    // here (added to chase the "No deserialization found for type
+    // List<SaleLineInput>" 500 on POST /sale/ringUpSale, since resolved).
+    // It wrapped every request in an outer try/catch that logged and
+    // rethrew, sitting outside Serverpod's own generated request-handling
+    // code. That turned out to have a real cost: an admin's expired
+    // session correctly threw KolaException(code: admin_session_invalid)
+    // from requireAdminLevel, but instead of Serverpod encoding that as a
+    // clean typed error for kola_admin, it escaped as an unhandled error
+    // ("Could not find class name for _KolaExceptionImpl in
+    // serialization") that the browser could only report as a raw,
+    // unreadable NetworkError/statusCode=-1 — see Release control's own
+    // bug report this date. The middleware's own comment already said
+    // "safe to delete once this is resolved" — it was, so it's gone
+    // rather than patched, since nothing here needs a rethrow at all.
     Log.startupSuccess('Starting Serverpod Mini server...');
     await pod.start();
     Log.startupSuccess('Kola server running on port $webPort');
