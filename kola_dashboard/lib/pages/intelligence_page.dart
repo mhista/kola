@@ -1,61 +1,107 @@
-// intelligence_page.dart — Phase 14g. `/intelligence`, confirmed unbuilt
-// this pass — nav_model.dart has pointed here since Phase 13e (gated on
-// `Features.businessIntelligence`) but no route/page ever backed it. See
-// PHASE_14_HANDOFF.pdf's 14g section for the grep that confirmed the
-// gap, and analytics_endpoint.dart's own header for why Phase 13e
-// deliberately scoped this page out — it needed a real AI-reasoning
-// layer this codebase didn't have yet. intelligence_endpoint.dart /
-// intelligence_narrative_service.dart are that layer, built this pass.
+// intelligence_page.dart — Phase 14g, rebuilt Phase 14/186 against
+// `Kola Business Intelligence.dc.html` (the design export) after the
+// owner sent real screenshots of the authoritative UI and asked for an
+// exact match. nav_model.dart has pointed here since Phase 13e (gated on
+// `Features.businessIntelligence`) — see PHASE_14_HANDOFF.pdf's 14g
+// section for the grep that first confirmed the route existed with no
+// page behind it, and analytics_endpoint.dart's own header for why
+// Phase 13e deliberately scoped this page out — it needed a real
+// AI-reasoning layer this codebase didn't have yet.
+// intelligence_endpoint.dart / intelligence_narrative_service.dart are
+// that layer.
 //
 // ── WHAT THIS PAGE COMPOSES FROM, AND WHY ──────────────────────────────
 //
 // Three real fetches, in parallel:
 //   1. IntelligenceEndpoint.getIntelligence — the narrative paragraph,
-//      revenue total + delta, and top products by revenue/velocity/
-//      margin. New this pass.
-//   2. AnalyticsEndpoint.getSummary — the day-by-day revenue chart.
-//      Already real, already built (Phase 13e) — reused rather than
-//      recomputing the same daily aggregation a second way.
-//   3. CustomerEndpoint.listCustomersWithSummary — backs the
-//      Top/New/Regular segment bars, using the EXACT SAME banding rule
-//      customers_page.dart's own `_topCustomerIds`/`_isNewThisMonth`
-//      already define (top LTV quintile; "new" = firstSeenAt in the
-//      current calendar month) — copied rather than re-derived, so the
-//      two pages never quietly disagree about what "Top" means.
+//      revenue total + delta, top products (now including a real
+//      Velocity classification — see below), orders-by-weekday, and the
+//      correlation callout.
+//   2. AnalyticsEndpoint.getSummary — the day-by-day revenue chart AND
+//      (Phase 14/186) the channel segments used for "On WhatsApp — N%
+//      of conversations" below. Already real, already built (Phase
+//      13e) — reused rather than recomputing the same aggregation twice.
+//   3. CustomerEndpoint.listCustomersWithSummary — backs the real
+//      Repeat/First-time revenue split in the Customer segments card.
 //
-// ── PHASE 14/174 UPDATE ──────────────────────────────────────────────────
+// ── PHASE 14/186 — REBUILT AGAINST THE EXPORT, NOT AGAINST THE OLD PAGE ─
 //
-// The "Correlation spotted" cut this header used to name is un-deferred
-// — the Timeline page now exists, and intelligence_endpoint.dart computes
-// a real (deliberately simple) correlationCallout. Rendered as _correlation
-// Card below, linking to /timeline, whenever the server found something
-// real to say (null renders nothing — no fabricated finding on a flat
-// week).
+// DESIGN_DELTA.md's own post-mortem: the export is the specification,
+// consulted first: extract its `state`/data shape, build to THAT list,
+// consult the old page only to salvage working logic. Salvaged from the
+// old page: the real correlation callout, the real orders-by-weekday
+// chart, the honest Customer Satisfaction empty state, and the dynamic
+// (never-fabricated) "What this suggests" deep-links. Corrected against
+// the export:
 //
-// Also added this pass: the "Orders by day" weekday bar chart
-// (_ordersByDayChart, real IntelligenceSummary.ordersByWeekday) and a
-// Customer Satisfaction card (_satisfactionCard) — an honest
-// "not enough data yet" state built from real workspace age, matching
-// the design's own copy pattern, since there is no rating/CSAT field
-// anywhere in this codebase (grepped: none).
+//   • Title was "Intelligence" — the export says "Business Intelligence".
+//   • Subtitle was invented copy — now the export's own line verbatim.
+//   • The old page had NO back-link at all. The export's own "‹
+//     Dashboard" points at an isolated per-page preview file with no
+//     persistent chrome; this app always keeps the sidebar nav on
+//     screen, so — same adaptation recommendations_page.dart and
+//     timeline_page.dart already made — a "Dashboard / Business
+//     Intelligence" breadcrumb replaces the arrow, not a fake extra nav
+//     layer.
+//   • Period toggle was labelled "7d/30d/90d" — the export says
+//     Week/Month/Quarter. Same three real values underneath
+//     (_periodDays 7/30/90), relabelled to match.
+//   • The old page had a standalone "WHAT THIS SUGGESTS" narrative-
+//     paragraph card above the revenue chart. The export has no such
+//     card — instead every chart gets ITS OWN one-line caption (see the
+//     subtitle: "a sentence next to every chart, not just the chart").
+//     [intel.narrative] — the one real synthesized paragraph this
+//     endpoint produces — is now that caption on the Revenue card,
+//     which is exactly what it already describes (revenue + top
+//     products), rather than a seventh card the export doesn't have.
+//   • "Response time" was skipped outright. Re-checked against
+//     DESIGN_DELTA.md: a missing endpoint is a work item to name, not a
+//     license to drop a card from the layout. Still genuinely no
+//     first-response-time computation anywhere in this codebase
+//     (grepped again this pass: responseTime/avgResponse/firstResponse
+//     — zero matches; intelligence_endpoint.dart's own header carries
+//     the same note). So it renders now, honestly, as a "not measured
+//     yet" card in the export's own row-1 position — the same posture
+//     the Customer Satisfaction card already uses, per the export's own
+//     precedent, rather than a fabricated "6m / −40%".
+//   • Top products was missing the Velocity column and showed Revenue
+//     instead of Margin. intelligence_endpoint.dart now computes a real
+//     velocity classification from Product.stock + this period's sales
+//     rate + WorkspaceFinding's real out-of-stock duration (see that
+//     file's own header) — genuinely buildable, so built, per
+//     DESIGN_DELTA.md's central rule. Revenue column dropped (the
+//     export doesn't show it either); Margin now shows the real naira
+//     amount, not just a percentage.
+//   • Customer segments showed "Top / New / Everyone else" — a real
+//     but DIFFERENT card than the export specifies. The export's three
+//     rows are Repeat customers / First-time customers / On WhatsApp,
+//     all "% of revenue" or "% of conversations". Rebuilt against real
+//     data: repeat/first-time is a lifetime orderCount>=2 vs ==1 split
+//     of CustomerSummary.ltvMinor (already fetched); "On WhatsApp" is
+//     AnalyticsSegment.conversations, already computed server-side.
+//     Dropped the export's own unverifiable "...and it's growing" from
+//     the caption — there is no period-over-period comparison behind
+//     that claim, and asserting a trend with nothing to back it is the
+//     exact mistake this file's honesty rules exist to prevent.
+//   • The correlation banner was tinted with the WARNING (amber)
+//     tokens. The export's callout is a green-tinted banner. Recoloured
+//     to the design system's success tokens.
+//   • Added a real top-level empty state ("Business Intelligence needs
+//     a few weeks of activity...", the export's own copy) for a
+//     workspace with genuinely no revenue/orders/products yet — the
+//     "never show a wall of zero cards" rule DESIGN_DELTA.md names
+//     elsewhere, applied here for the first time on this page.
+//   • The export's Day-1/Week-1/Month-6-style Empty/Populated toggle is
+//     a design-tool preview control, not a product feature (see
+//     DESIGN_DELTA.md's Overview note on the identical `age` toggle) —
+//     not built. The real equivalent is the empty state above, driven
+//     by real data rather than a switch.
 //
-// ── TWO GAPS STILL NAMED, NOT SHIPPED ────────────────────────────────────
+// ── ONE GAP STILL NAMED, NOT SHIPPED ─────────────────────────────────────
 //
-// "Response time" (a big number + "-N% vs last period") is SKIPPED
-// entirely — grepped this codebase for any existing average-response-
-// time computation (responseTime/avgResponse/firstResponse) and found
-// none. Computing one is a real, separate aggregation over Message
-// timestamps, out of this pass's scope — not shipped with an invented
-// number. See intelligence_endpoint.dart's own header for the same note
-// server-side.
-//
-// The design's own Day 1/Week 1/Month 6 segmented control is
-// deliberately NOT added to this page either, for the same reason
-// overview_page.dart's header already gives for Overview's identical
-// control: "In production nobody chooses how much data they have" —
-// this page already has a real period control (_periodChips, 7/30/90
-// days), which is the actual production equivalent of that design-tool
-// affordance.
+// "Response time" has no real number behind it anywhere in this
+// codebase — see above. Computing one is a real, separate aggregation
+// over Message timestamps, out of this pass's scope.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
@@ -66,6 +112,7 @@ import '../components/shell/page_help_button.dart';
 import '../services/error_text.dart';
 import '../services/feature_gate.dart';
 import '../services/money_format.dart';
+import '../services/responsive.dart';
 import '../theme.dart';
 
 class IntelligencePage extends StatefulComponent {
@@ -82,18 +129,19 @@ class IntelligencePage extends StatefulComponent {
   final int workspaceId;
   final FeatureGate gate;
 
-  /// Phase 14/174 — the Customer Satisfaction card's real signal (see
-  /// this file's header). Passed in rather than fetched: app.dart
-  /// already holds the selected Workspace in full, same "caller
-  /// already has it in hand" reasoning overview_page.dart's own
-  /// `sellsCatalogItems` doc comment gives.
+  /// The Customer Satisfaction card's real signal (see this file's
+  /// header). Passed in rather than fetched: app.dart already holds the
+  /// selected Workspace in full, same "caller already has it in hand"
+  /// reasoning overview_page.dart's own `sellsCatalogItems` doc comment
+  /// gives.
   final DateTime workspaceCreatedAt;
 
   @override
   State<IntelligencePage> createState() => _IntelligencePageState();
 }
 
-class _IntelligencePageState extends State<IntelligencePage> {
+class _IntelligencePageState extends State<IntelligencePage>
+    with ResponsiveViewport<IntelligencePage> {
   bool _loading = true;
   String? _error;
   int _periodDays = 30;
@@ -105,7 +153,14 @@ class _IntelligencePageState extends State<IntelligencePage> {
   @override
   void initState() {
     super.initState();
+    initResponsive();
     _load();
+  }
+
+  @override
+  void dispose() {
+    disposeResponsive();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -155,28 +210,6 @@ class _IntelligencePageState extends State<IntelligencePage> {
     _load();
   }
 
-  // ── Customer segments — SAME rule customers_page.dart defines ──────
-  //
-  // Copied rather than shared via a helper file: two call sites is not
-  // yet enough to justify extracting one, and copying keeps each file
-  // readable without a jump. If a third page needs this banding, that's
-  // the moment to pull it into services/.
-  Set<int> get _topCustomerIds {
-    final withRevenue = [
-      for (final s in _customers)
-        if (s.ltvMinor > 0 && s.customer.id != null) s,
-    ]..sort((a, b) => b.ltvMinor.compareTo(a.ltvMinor));
-    if (withRevenue.isEmpty) return const {};
-    final count = (withRevenue.length * 0.2).ceil().clamp(1, withRevenue.length);
-    return {for (final s in withRevenue.take(count)) s.customer.id!};
-  }
-
-  bool _isNewThisMonth(Customer c) {
-    final now = DateTime.now().toUtc();
-    final seen = c.firstSeenAt.toUtc();
-    return seen.year == now.year && seen.month == now.month;
-  }
-
   @override
   Component build(BuildContext context) {
     return div(
@@ -185,12 +218,98 @@ class _IntelligencePageState extends State<IntelligencePage> {
             'width:100%;box-sizing:border-box',
       },
       [
+        _breadcrumb(),
         _header(),
         if (_error != null) _errorBanner(),
-        if (_loading) _skeleton() else ..._content(),
+        if (_loading)
+          _skeleton()
+        else if (_error != null && _intelligence == null)
+          _errorRetryState()
+        else
+          ..._content(),
       ],
     );
   }
+
+  /// 2026-09-14 fix: a failed fetch used to fall straight into
+  /// [_content], which reads a null [_intelligence] as "genuinely no
+  /// data yet" and rendered [_emptyStateCard] — the honest empty state
+  /// meant for a brand-new workspace — directly underneath the error
+  /// banner above. A real failure and "not enough data yet" are
+  /// different situations with different fixes (retry vs. wait), so
+  /// they need different states. This one only shows when the fetch
+  /// actually failed AND left nothing to display; a failed *reload*
+  /// (period switch) that still has a previous [_intelligence] falls
+  /// through to [_content] instead, so the page keeps showing the last
+  /// good data under the error banner rather than blanking out.
+  Component _errorRetryState() => div(
+        attributes: {
+          'style': 'text-align:center;padding:48px 20px;'
+              'border:1px dashed ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg}',
+        },
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.lead};font-weight:600;'
+                  'color:${KolaVar.text};margin-bottom:8px',
+            },
+            [Component.text("Couldn't load Business Intelligence")],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'max-width:380px;margin:0 auto 16px',
+            },
+            [
+              Component.text(
+                'The numbers above failed to load — this is not the same '
+                "as having no data yet. Try again once it's likely to "
+                'work.',
+              ),
+            ],
+          ),
+          button(
+            attributes: {
+              'type': 'button',
+              'style': 'padding:9px 18px;border-radius:${KolaRadius.sm};'
+                  'border:none;background:${KolaVar.accentFill};'
+                  'color:${KolaVar.accentText};font-family:inherit;'
+                  'font-size:${KolaType.body};font-weight:600;'
+                  'cursor:pointer',
+            },
+            events: {'click': (_) => _load()},
+            [Component.text('Try again')],
+          ),
+        ],
+      );
+
+  /// "Dashboard / Business Intelligence" — same adaptation of the
+  /// export's "‹ Dashboard" link that recommendations_page.dart and
+  /// timeline_page.dart already made for this persistent-shell app;
+  /// copied for consistency rather than re-invented. See this file's
+  /// header.
+  Component _breadcrumb() => div(
+        attributes: {
+          'style': 'display:flex;align-items:center;gap:6px;'
+              'font-size:${KolaType.small};color:${KolaVar.muted};'
+              'margin-bottom:${KolaSpace.smd}',
+        },
+        [
+          Link(
+            to: '/',
+            attributes: {
+              'style': 'color:${KolaVar.muted};text-decoration:none',
+            },
+            children: [Component.text('Dashboard')],
+          ),
+          span([Component.text('/')]),
+          span(
+            attributes: {'style': 'color:${KolaVar.mutedStrong}'},
+            [Component.text('Business Intelligence')],
+          ),
+        ],
+      );
 
   Component _header() => div(
         attributes: {
@@ -207,7 +326,7 @@ class _IntelligencePageState extends State<IntelligencePage> {
                       'font-size:${KolaType.h2};font-weight:700;'
                       'color:${KolaVar.text};margin:0 0 4px',
                 },
-                [Component.text('Intelligence')],
+                [Component.text('Business Intelligence')],
               ),
               div(
                 attributes: {
@@ -216,8 +335,8 @@ class _IntelligencePageState extends State<IntelligencePage> {
                 },
                 [
                   Component.text(
-                    "The curated read on the business — what changed, what's "
-                    "driving it, and what to look at next.",
+                    'How the business is doing, and why — a sentence next '
+                    'to every chart, not just the chart.',
                   ),
                 ],
               ),
@@ -237,20 +356,25 @@ class _IntelligencePageState extends State<IntelligencePage> {
                       "built from the same numbers, labeled as such.",
                   "Top products are ranked by revenue for the period; "
                       "margin shows 'cost not set' for any product "
-                      "without a cost price on its catalog entry.",
+                      "without a cost price on its catalog entry. "
+                      "Velocity compares current stock to this period's "
+                      "sell-through rate — blank for anything not "
+                      "stock-tracked, like a service.",
                   "'Correlation spotted' only appears when kola finds a "
                       "real link between a revenue drop and a rise in "
                       "escalated conversations — it stays quiet on a "
                       "flat week rather than reaching for a finding. "
-                      "Customer satisfaction shows real workspace age "
-                      "instead of a score until there's enough rated "
-                      "conversation data to trust.",
+                      "Response time and customer satisfaction show an "
+                      "honest 'not measured yet' state instead of a "
+                      "number until there's real data to trust.",
                 ],
               ),
             ],
           ),
         ],
       );
+
+  static const _periodLabels = {7: 'Week', 30: 'Month', 90: 'Quarter'};
 
   Component _periodChips() => div(
         attributes: {'style': 'display:flex;gap:6px'},
@@ -272,7 +396,7 @@ class _IntelligencePageState extends State<IntelligencePage> {
             'font-weight:600;cursor:pointer',
       },
       events: {'click': (_) => _setPeriod(days)},
-      [Component.text('${days}d')],
+      [Component.text(_periodLabels[days] ?? '${days}d')],
     );
   }
 
@@ -304,29 +428,97 @@ class _IntelligencePageState extends State<IntelligencePage> {
         ],
       );
 
-  List<Component> _content() => [
-        _narrativeCard(),
-        _correlationCard(),
-        _revenueChart(),
-        _ordersByDayChart(),
-        _topProductsTable(),
-        _customerSegmentBars(),
-        _satisfactionCard(),
-        _suggestions(),
-      ];
+  /// The export's own "Not enough data yet" empty state (`isEmptyView`),
+  /// but driven by real computed emptiness rather than the design-tool
+  /// toggle — see this file's header. True only when there is
+  /// genuinely nothing to show a story about yet.
+  bool get _hasAnyActivity {
+    final intel = _intelligence;
+    final analytics = _analytics;
+    if (intel == null) return false;
+    if (intel.revenueMinor > 0) return true;
+    if (intel.topProducts.isNotEmpty) return true;
+    if (intel.ordersByWeekday.any((c) => c > 0)) return true;
+    if (analytics != null && analytics.dailyRevenue.any((p) => p.grossMinor > 0)) {
+      return true;
+    }
+    return false;
+  }
 
-  /// Phase 14/174 — the un-deferred "Correlation spotted" callout. Only
+  List<Component> _content() {
+    if (!_hasAnyActivity) return [_emptyStateCard()];
+    return [
+      _correlationCard(),
+      _rowGrid([_revenueCard(), _responseTimeCard()], columns: '1.4fr 1fr'),
+      _rowGrid([_ordersByDayChart(), _satisfactionCard()]),
+      _rowGrid(
+        [_topProductsTable(), _customerSegmentsCard()],
+        columns: '1.3fr 1fr',
+      ),
+      _suggestions(),
+    ];
+  }
+
+  Component _emptyStateCard() => div(
+        attributes: {
+          'style': 'text-align:center;padding:48px 20px;'
+              'border:1px dashed ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg}',
+        },
+        [
+          div(
+            attributes: {'style': 'font-size:26px;margin-bottom:12px'},
+            [Component.text('🌱')],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.lead};font-weight:600;'
+                  'color:${KolaVar.text};margin-bottom:8px',
+            },
+            [Component.text('Not enough data yet')],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'max-width:380px;margin:0 auto',
+            },
+            [
+              Component.text(
+                'Business Intelligence needs a few weeks of activity '
+                'before its story is worth telling.',
+              ),
+            ],
+          ),
+        ],
+      );
+
+  /// A two-card row, matching the export's `grid-template-columns`.
+  /// Collapses to one column on mobile via the shared
+  /// [ResponsiveViewport] helper rather than a hand-rolled check (task
+  /// #32) — the export's own Customers page does the same collapse for
+  /// the identical reason.
+  Component _rowGrid(List<Component> cards, {String columns = '1fr 1fr'}) => div(
+        attributes: {
+          'style': 'display:grid;'
+              'grid-template-columns:${isMobile ? '1fr' : columns};'
+              'gap:16px;margin-bottom:${KolaSpace.lg}',
+        },
+        cards,
+      );
+
+  /// Phase 14/186 — the un-deferred "Correlation spotted" callout, now
+  /// tinted with the design system's SUCCESS tokens (the export's own
+  /// banner is green, not amber — see this file's header). Only
   /// intelligence_endpoint.dart decides whether there's something real
-  /// to say (see that file's own header on the two-condition check);
-  /// this renders nothing at all when it found nothing, same as every
-  /// other "absence over fabrication" card on this page.
+  /// to say; this renders nothing at all when it found nothing, same as
+  /// every other "absence over fabrication" card on this page.
   Component _correlationCard() {
     final callout = _intelligence?.correlationCallout;
     if (callout == null) return const Component.text('');
     return div(
       attributes: {
-        'style': 'background:${KolaVar.warningBg};'
-            'border:1px solid ${KolaVar.warning};'
+        'style': 'background:${KolaVar.successBg};'
+            'border:1px solid ${KolaVar.success};'
             'border-radius:${KolaRadius.lg};padding:16px 20px;'
             'margin-bottom:${KolaSpace.lg};display:flex;'
             'align-items:baseline;gap:10px;flex-wrap:wrap;'
@@ -338,14 +530,14 @@ class _IntelligencePageState extends State<IntelligencePage> {
             div(
               attributes: {
                 'style': 'font-size:${KolaType.tiny};font-weight:700;'
-                    'color:${KolaVar.muted};letter-spacing:0.02em;'
+                    'color:${KolaVar.successBright};letter-spacing:0.02em;'
                     'margin-bottom:4px',
               },
               [Component.text('CORRELATION SPOTTED')],
             ),
             div(
               attributes: {
-                'style': 'font-size:${KolaType.small};color:${KolaVar.text};'
+                'style': 'font-size:${KolaType.small};color:${KolaVar.successBright};'
                     'line-height:1.5',
               },
               [Component.text(callout)],
@@ -355,187 +547,39 @@ class _IntelligencePageState extends State<IntelligencePage> {
         Link(
           to: '/timeline',
           attributes: {
-            'style': 'font-size:${KolaType.small};font-weight:600;'
-                'color:${KolaVar.accent};text-decoration:none;flex:none',
+            'style': 'background:${KolaVar.success};'
+                'color:${KolaVar.accentText};font-size:${KolaType.small};'
+                'font-weight:600;text-decoration:none;flex:none;'
+                'border-radius:${KolaRadius.pill};padding:8px 16px;'
+                'white-space:nowrap',
           },
-          children: [Component.text('→ Open Timeline')],
+          children: [Component.text('Open Timeline')],
         ),
       ],
     );
   }
 
-  static const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  Component _cardTitle(String text) => div(
+        attributes: {
+          'style': 'font-size:${KolaType.body};font-weight:700;'
+              'color:${KolaVar.text};margin-bottom:2px',
+        },
+        [Component.text(text)],
+      );
 
-  /// Phase 14/174 — real day-of-week distribution over
-  /// IntelligenceSummary.ordersByWeekday (index 0 = Monday). Names the
-  /// slowest day by count alone — a plain, real observation, not a
-  /// statistical claim.
-  Component _ordersByDayChart() {
-    final intel = _intelligence;
-    if (intel == null || intel.ordersByWeekday.length != 7) {
-      return const Component.text('');
-    }
-    final counts = intel.ordersByWeekday;
-    final total = counts.fold<int>(0, (a, b) => a + b);
-    if (total == 0) return const Component.text('');
+  Component _cardCaption(String text) => div(
+        attributes: {
+          'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
+              'margin-bottom:14px;line-height:1.45',
+        },
+        [Component.text(text)],
+      );
 
-    final maxCount = counts.fold<int>(0, (a, b) => a > b ? a : b);
-    var slowestIndex = 0;
-    for (var i = 1; i < counts.length; i++) {
-      if (counts[i] < counts[slowestIndex]) slowestIndex = i;
-    }
-
-    return div(
-      attributes: {
-        'style': 'border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:20px;'
-            'margin-bottom:${KolaSpace.lg}',
-      },
-      [
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                'margin-bottom:14px',
-          },
-          [Component.text('Orders by day — last ${intel.periodDays} days')],
-        ),
-        div(
-          attributes: {
-            'style': 'display:flex;align-items:flex-end;gap:8px;height:90px;'
-                'margin-bottom:8px',
-          },
-          [
-            for (var i = 0; i < 7; i++)
-              div(
-                attributes: {'style': 'flex:1;display:flex;flex-direction:column;'
-                    'align-items:center;justify-content:flex-end;gap:4px;height:100%'},
-                [
-                  div(
-                    attributes: {
-                      'title': '${counts[i]}',
-                      'style': 'width:100%;border-radius:3px 3px 0 0;'
-                          'background:${i == slowestIndex && counts[i] < maxCount ? KolaVar.warning : KolaVar.accentFill};'
-                          'height:${maxCount == 0 ? 0 : (counts[i] / maxCount * 100).clamp(counts[i] == 0 ? 0 : 4, 100)}%',
-                    },
-                    [],
-                  ),
-                  span(
-                    attributes: {
-                      'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
-                    },
-                    [Component.text(_weekdayLabels[i])],
-                  ),
-                ],
-              ),
-          ],
-        ),
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
-          },
-          [
-            Component.text(
-              '${_weekdayLabels[slowestIndex]}s are the slowest day this period '
-              '(${counts[slowestIndex]} order${counts[slowestIndex] == 1 ? '' : 's'}).',
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// Phase 14/174 — honest "not enough data yet" state. No rating/CSAT
-  /// field exists anywhere in this codebase (grepped: none), so this
-  /// never renders a score — only real workspace age, matching the
-  /// design's own copy pattern almost verbatim.
-  Component _satisfactionCard() {
-    final ageDays = DateTime.now().toUtc().difference(
-          component.workspaceCreatedAt.toUtc(),
-        ).inDays;
-    final ageText = ageDays < 14
-        ? (ageDays <= 1 ? '1 day' : '$ageDays days')
-        : '${(ageDays / 7).floor()} week${(ageDays / 7).floor() == 1 ? '' : 's'}';
-
-    return div(
-      attributes: {
-        'style': 'border:1px dashed ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:20px;'
-            'margin-bottom:${KolaSpace.lg}',
-      },
-      [
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                'margin-bottom:8px',
-          },
-          [Component.text('Customer satisfaction')],
-        ),
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.small};color:${KolaVar.mutedStrong};'
-                'line-height:1.55',
-          },
-          [
-            Component.text(
-              'This workspace is $ageText old — not enough conversations '
-              "rated yet to show a trend without it looking misleadingly "
-              'precise. Check back in a few weeks.',
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Component _narrativeCard() {
-    final intel = _intelligence;
-    if (intel == null) return const Component.text('');
-    return div(
-      attributes: {
-        'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:20px;'
-            'margin-bottom:${KolaSpace.lg}',
-      },
-      [
-        div(
-          attributes: {
-            'style': 'display:flex;align-items:center;gap:8px;'
-                'margin-bottom:10px',
-          },
-          [
-            div(
-              attributes: {
-                'style': 'font-size:${KolaType.small};font-weight:700;'
-                    'color:${KolaVar.muted};letter-spacing:0.02em',
-              },
-              [Component.text('WHAT THIS SUGGESTS')],
-            ),
-            if (intel.narrativeIsTemplate)
-              span(
-                attributes: {
-                  'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                      'background:${KolaVar.pill};border-radius:${KolaRadius.pill};'
-                      'padding:2px 8px',
-                  'title': 'Every AI provider was unavailable, so this is a '
-                      'plain sentence built from the real numbers below, '
-                      'not a model-written summary.',
-                },
-                [Component.text('templated — AI unavailable')],
-              ),
-          ],
-        ),
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.bodyLg};color:${KolaVar.text};'
-                'line-height:1.6',
-          },
-          [Component.text(intel.narrative)],
-        ),
-      ],
-    );
-  }
-
-  Component _revenueChart() {
+  /// Row 1, left. Title + real narrative caption ("a sentence next to
+  /// every chart, not just the chart" — the page's own subtitle) +
+  /// chart + a real revenue/delta stat line. See this file's header for
+  /// why [intel.narrative] lives here rather than in a standalone card.
+  Component _revenueCard() {
     final analytics = _analytics;
     final intel = _intelligence;
     if (analytics == null || intel == null) return const Component.text('');
@@ -547,52 +591,11 @@ class _IntelligencePageState extends State<IntelligencePage> {
     return div(
       attributes: {
         'style': 'border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:20px;'
-            'margin-bottom:${KolaSpace.lg}',
+            'border-radius:${KolaRadius.lg};padding:18px 20px',
       },
       [
-        div(
-          attributes: {
-            'style': 'display:flex;align-items:baseline;justify-content:space-between;'
-                'gap:10px;margin-bottom:14px;flex-wrap:wrap',
-          },
-          [
-            div(
-              attributes: {
-                'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
-              },
-              [Component.text('Revenue — last ${intel.periodDays} days')],
-            ),
-            div(
-              attributes: {
-                'style': 'display:flex;align-items:baseline;gap:8px',
-              },
-              [
-                div(
-                  attributes: {
-                    'style': 'font-family:${KolaFonts.display};'
-                        'font-size:${KolaType.h3};font-weight:700;'
-                        'color:${KolaVar.text}',
-                  },
-                  [Component.text(formatMinor(intel.revenueMinor))],
-                ),
-                if (intel.revenueDeltaPct != null)
-                  span(
-                    attributes: {
-                      'style': 'font-size:${KolaType.small};font-weight:600;'
-                          'color:${intel.revenueDeltaPct! >= 0 ? KolaVar.success : KolaVar.danger}',
-                    },
-                    [
-                      Component.text(
-                        '${intel.revenueDeltaPct! >= 0 ? '+' : ''}'
-                        '${intel.revenueDeltaPct!.toStringAsFixed(1)}% vs prior period',
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ],
-        ),
+        _cardTitle('Revenue, last ${intel.periodDays} days'),
+        _cardCaption(intel.narrative),
         if (analytics.dailyRevenue.isNotEmpty)
           div(
             attributes: {
@@ -611,10 +614,179 @@ class _IntelligencePageState extends State<IntelligencePage> {
                 ),
             ],
           ),
+        div(
+          attributes: {
+            'style': 'display:flex;align-items:baseline;gap:8px;margin-top:8px',
+          },
+          [
+            div(
+              attributes: {
+                'style': 'font-family:${KolaFonts.display};'
+                    'font-size:${KolaType.h3};font-weight:700;'
+                    'color:${KolaVar.text}',
+              },
+              [Component.text(formatMinor(intel.revenueMinor))],
+            ),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+              },
+              [
+                Component.text(
+                  'this period'
+                  '${intel.revenueDeltaPct == null ? '' : ', ${intel.revenueDeltaPct! >= 0 ? '+' : ''}${intel.revenueDeltaPct!.toStringAsFixed(1)}% vs prior'}',
+                ),
+              ],
+            ),
+          ],
+        ),
       ],
     );
   }
 
+  /// Row 1, right. Real position from the export, honest content: see
+  /// this file's header on why this is a "not measured yet" card rather
+  /// than a skipped one or a fabricated "6m".
+  Component _responseTimeCard() => div(
+        attributes: {
+          'style': 'border:1px dashed ${KolaVar.border};'
+              'border-radius:${KolaRadius.lg};padding:18px 20px;'
+              'display:flex;flex-direction:column;justify-content:center',
+        },
+        [
+          _cardTitle('Response time'),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.mutedStrong};'
+                  'line-height:1.55',
+            },
+            [
+              Component.text(
+                "Not measured yet — this workspace doesn't track reply "
+                'timing yet, so there is no honest number to show. Once '
+                "it's tracked, this will show how quickly conversations "
+                'get a first reply.',
+              ),
+            ],
+          ),
+        ],
+      );
+
+  static const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  /// Row 2, left. Real day-of-week distribution over
+  /// IntelligenceSummary.ordersByWeekday (index 0 = Monday). Names the
+  /// slowest day by count alone — a plain, real observation, not a
+  /// statistical claim — never the export's hardcoded "Wednesdays".
+  Component _ordersByDayChart() {
+    final intel = _intelligence;
+    if (intel == null || intel.ordersByWeekday.length != 7) {
+      return const Component.text('');
+    }
+    final counts = intel.ordersByWeekday;
+    final total = counts.fold<int>(0, (a, b) => a + b);
+    if (total == 0) return const Component.text('');
+
+    final maxCount = counts.fold<int>(0, (a, b) => a > b ? a : b);
+    var slowestIndex = 0;
+    for (var i = 1; i < counts.length; i++) {
+      if (counts[i] < counts[slowestIndex]) slowestIndex = i;
+    }
+
+    return div(
+      attributes: {
+        'style': 'border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};padding:18px 20px',
+      },
+      [
+        _cardTitle('Orders by day'),
+        _cardCaption(
+          '${_weekdayLabels[slowestIndex]}s are the slowest day this period '
+          '(${counts[slowestIndex]} order${counts[slowestIndex] == 1 ? '' : 's'}).',
+        ),
+        div(
+          attributes: {
+            'style': 'display:flex;align-items:flex-end;gap:8px;height:80px;'
+                'margin-bottom:6px',
+          },
+          [
+            for (var i = 0; i < 7; i++)
+              div(
+                attributes: {'style': 'flex:1;display:flex;flex-direction:column;'
+                    'align-items:center;justify-content:flex-end;gap:4px;height:100%'},
+                [
+                  div(
+                    attributes: {
+                      'title': '${counts[i]}',
+                      'style': 'width:100%;border-radius:3px 3px 0 0;'
+                          'background:${i == slowestIndex && counts[i] < maxCount ? KolaVar.warning : KolaVar.accentFill};'
+                          'height:${maxCount == 0 ? 0 : (counts[i] / maxCount * 100).clamp(counts[i] == 0 ? 0 : 4, 100)}%',
+                    },
+                    [],
+                  ),
+                ],
+              ),
+          ],
+        ),
+        div(
+          attributes: {'style': 'display:flex;gap:8px'},
+          [
+            for (final label in _weekdayLabels)
+              div(
+                attributes: {
+                  'style': 'flex:1;text-align:center;font-size:${KolaType.tiny};'
+                      'color:${KolaVar.muted}',
+                },
+                [Component.text(label)],
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Row 2, right. Honest "not enough data yet" state built from real
+  /// workspace age. No rating/CSAT field exists anywhere in this
+  /// codebase (grepped: none) — see intelligence_endpoint.dart's own
+  /// header — so this never renders a score.
+  Component _satisfactionCard() {
+    final ageDays = DateTime.now().toUtc().difference(
+          component.workspaceCreatedAt.toUtc(),
+        ).inDays;
+    final ageText = ageDays < 14
+        ? (ageDays <= 1 ? '1 day' : '$ageDays days')
+        : '${(ageDays / 7).floor()} week${(ageDays / 7).floor() == 1 ? '' : 's'}';
+
+    return div(
+      attributes: {
+        'style': 'border:1px dashed ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};padding:18px 20px;'
+            'display:flex;flex-direction:column;justify-content:center',
+      },
+      [
+        _cardTitle('Customer satisfaction'),
+        div(
+          attributes: {
+            'style': 'font-size:${KolaType.small};color:${KolaVar.mutedStrong};'
+                'line-height:1.55',
+          },
+          [
+            Component.text(
+              'This workspace is $ageText old — not enough conversations '
+              "rated yet to show a trend without it looking misleadingly "
+              'precise. Check back in a few weeks.',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Row 3, left. Columns match the export exactly: Product / Sold /
+  /// Margin / Velocity — no Revenue column (the export doesn't show
+  /// one either). Margin is a real naira amount now, not just a
+  /// percentage; Velocity is the real classification
+  /// intelligence_endpoint.dart now computes — see this file's header.
   Component _topProductsTable() {
     final intel = _intelligence;
     if (intel == null) return const Component.text('');
@@ -624,7 +796,7 @@ class _IntelligencePageState extends State<IntelligencePage> {
           'style': 'text-align:center;padding:32px 20px;'
               'border:1px dashed ${KolaVar.border};'
               'border-radius:${KolaRadius.lg};color:${KolaVar.muted};'
-              'font-size:${KolaType.small};margin-bottom:${KolaSpace.lg}',
+              'font-size:${KolaType.small}',
         },
         [
           Component.text(
@@ -637,22 +809,33 @@ class _IntelligencePageState extends State<IntelligencePage> {
     return div(
       attributes: {
         'style': 'border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};overflow:hidden;'
-            'margin-bottom:${KolaSpace.lg}',
+            'border-radius:${KolaRadius.lg};overflow:hidden',
       },
       [
         div(
+          attributes: {'style': 'padding:16px 20px 12px'},
+          [
+            _cardTitle('Top products'),
+            div(
+              attributes: {
+                'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+              },
+              [Component.text('Ranked by margin contribution, not just units sold.')],
+            ),
+          ],
+        ),
+        div(
           attributes: {
-            'style': 'display:grid;grid-template-columns:1.8fr 0.8fr 1fr 1fr;'
-                'gap:8px;padding:10px 16px;background:${KolaVar.pill};'
+            'style': 'display:grid;grid-template-columns:1.4fr 0.7fr 0.9fr 1.1fr;'
+                'gap:8px;padding:9px 20px;background:${KolaVar.pill};'
                 'font-size:${KolaType.tiny};font-weight:700;'
                 'color:${KolaVar.muted};letter-spacing:0.02em',
           },
           [
             Component.text('PRODUCT'),
             Component.text('SOLD'),
-            Component.text('REVENUE'),
             Component.text('MARGIN'),
+            Component.text('VELOCITY'),
           ],
         ),
         for (var i = 0; i < intel.topProducts.length; i++)
@@ -661,11 +844,17 @@ class _IntelligencePageState extends State<IntelligencePage> {
     );
   }
 
+  static String _velocityColor(String? tone) => switch (tone) {
+        'fast' => KolaVar.warning,
+        'out' => KolaVar.danger,
+        _ => KolaVar.muted,
+      };
+
   Component _productRow(IntelligenceProduct p, int index) => div(
         attributes: {
-          'style': 'display:grid;grid-template-columns:1.8fr 0.8fr 1fr 1fr;'
-              'gap:8px;padding:11px 16px;font-size:${KolaType.small};'
-              'color:${KolaVar.text};'
+          'style': 'display:grid;grid-template-columns:1.4fr 0.7fr 0.9fr 1.1fr;'
+              'gap:8px;padding:11px 20px;font-size:${KolaType.small};'
+              'color:${KolaVar.text};align-items:center;'
               '${index > 0 ? 'border-top:1px solid ${KolaVar.border}' : ''}',
         },
         [
@@ -676,77 +865,93 @@ class _IntelligencePageState extends State<IntelligencePage> {
             },
             [Component.text(p.name)],
           ),
-          Component.text('${p.unitsSold}'),
-          Component.text(formatMinor(p.revenueMinor)),
+          span(
+            attributes: {'style': 'color:${KolaVar.muted}'},
+            [Component.text('${p.unitsSold}')],
+          ),
           span(
             attributes: {
-              'style': 'color:${p.marginPct == null ? KolaVar.muted : KolaVar.success}',
+              'style': 'font-family:${KolaFonts.mono};'
+                  'color:${p.marginMinor == null ? KolaVar.muted : KolaVar.successBright}',
             },
             [
               Component.text(
-                p.marginPct == null
-                    ? 'cost not set'
-                    : '${p.marginPct!.toStringAsFixed(0)}%',
+                p.marginMinor == null ? 'cost not set' : formatMinor(p.marginMinor!),
               ),
             ],
+          ),
+          span(
+            attributes: {
+              'style': 'font-size:${KolaType.tiny};color:${_velocityColor(p.velocityTone)}',
+            },
+            [Component.text(p.velocityLabel ?? '—')],
           ),
         ],
       );
 
-  Component _customerSegmentBars() {
-    if (!component.gate.isEnabled(Features.customers) || _customers.isEmpty) {
-      return const Component.text('');
-    }
-    final top = _topCustomerIds;
-    final newCount = _customers.where((s) => _isNewThisMonth(s.customer)).length;
-    final topCount = top.length;
-    final regularCount = (_customers.length - topCount - newCount).clamp(0, _customers.length);
-    final total = _customers.length;
+  /// Row 3, right. Rebuilt against the export's real three rows — see
+  /// this file's header for why the old "Top/New/Everyone" card is
+  /// gone from this position (it was never what the export specified;
+  /// customers_page.dart already covers that segmentation on its own
+  /// page).
+  Component _customerSegmentsCard() {
+    final repeatRevenue = _customers
+        .where((s) => s.orderCount >= 2)
+        .fold<int>(0, (sum, s) => sum + s.ltvMinor);
+    final firstTimeRevenue = _customers
+        .where((s) => s.orderCount == 1)
+        .fold<int>(0, (sum, s) => sum + s.ltvMinor);
+    final totalCustomerRevenue = repeatRevenue + firstTimeRevenue;
 
-    final bars = [
-      ('Top customers', topCount, KolaVar.accent),
-      ('New this month', newCount, KolaVar.success),
-      ('Everyone else', regularCount, KolaVar.muted),
+    final segments = _analytics?.segments ?? const <AnalyticsSegment>[];
+    final totalConvos = segments.fold<int>(0, (sum, s) => sum + s.conversations);
+    final whatsappConvos = segments
+        .where((s) => s.label == 'WhatsApp')
+        .fold<int>(0, (sum, s) => sum + s.conversations);
+
+    final rows = <(String, int, int, String)>[
+      if (totalCustomerRevenue > 0) ...[
+        ('Repeat customers', repeatRevenue, totalCustomerRevenue, 'of revenue'),
+        ('First-time customers', firstTimeRevenue, totalCustomerRevenue, 'of revenue'),
+      ],
+      if (totalConvos > 0 && whatsappConvos > 0)
+        ('On WhatsApp', whatsappConvos, totalConvos, 'of conversations'),
     ];
 
     return div(
       attributes: {
         'style': 'border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:20px;'
-            'margin-bottom:${KolaSpace.lg}',
+            'border-radius:${KolaRadius.lg};padding:16px 20px',
       },
       [
-        div(
-          attributes: {
-            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                'margin-bottom:14px',
-          },
-          [Component.text('Customer mix — $total total')],
+        _cardTitle('Customer segments'),
+        _cardCaption(
+          rows.isEmpty
+              ? 'Not enough order and conversation history yet to break this down.'
+              : 'Repeat customers are worth more.',
         ),
-        div(
-          attributes: {'style': 'display:flex;flex-direction:column;gap:10px'},
-          [
-            for (final (label, count, color) in bars)
-              _segmentBar(label, count, total, color),
-          ],
-        ),
+        if (rows.isNotEmpty)
+          div(
+            attributes: {'style': 'display:flex;flex-direction:column;gap:10px'},
+            [for (final (label, count, total, unit) in rows) _segmentBar(label, count, total, unit)],
+          ),
       ],
     );
   }
 
-  Component _segmentBar(String label, int count, int total, String color) {
+  Component _segmentBar(String label, int count, int total, String unit) {
     final pct = total == 0 ? 0.0 : count / total * 100;
     return div(
       [
         div(
           attributes: {
             'style': 'display:flex;justify-content:space-between;'
-                'font-size:${KolaType.tiny};color:${KolaVar.mutedStrong};'
+                'font-size:${KolaType.small};color:${KolaVar.mutedStrong};'
                 'margin-bottom:4px',
           },
           [
             Component.text(label),
-            Component.text('$count (${pct.toStringAsFixed(0)}%)'),
+            Component.text('${pct.toStringAsFixed(0)}% $unit'),
           ],
         ),
         div(
@@ -757,7 +962,7 @@ class _IntelligencePageState extends State<IntelligencePage> {
           [
             div(
               attributes: {
-                'style': 'height:100%;background:$color;'
+                'style': 'height:100%;background:${KolaVar.accent};'
                     'width:${pct.clamp(0, 100)}%',
               },
               [],
@@ -769,19 +974,18 @@ class _IntelligencePageState extends State<IntelligencePage> {
   }
 
   /// Additive, real deep-links built from the same numbers already on
-  /// screen — not the export's "Correlation spotted" callout (there is
-  /// no Timeline page to send it to; see this file's header).
+  /// screen. Matches the export's own row shape (text + a right-aligned
+  /// coloured link-with-chevron to another real page) but never its
+  /// three fixed sample sentences — every row here is conditional on
+  /// real data, per DESIGN_DELTA.md.
   Component _suggestions() {
     final intel = _intelligence;
     if (intel == null || intel.topProducts.isEmpty) {
       return const Component.text('');
     }
-    final noCost = intel.topProducts.where((p) => p.marginPct == null).toList();
+    final noCost = intel.topProducts.where((p) => p.marginMinor == null).toList();
+    final fastMovers = intel.topProducts.where((p) => p.velocityTone == 'fast').toList();
 
-    // Phase 14/174 — a real, numbers-driven bullet reusing
-    // ordersByWeekday rather than a new computation: the same slowest-
-    // day figure _ordersByDayChart already shows, turned into a
-    // deep-link suggestion.
     String? slowDaySuggestion;
     if (intel.ordersByWeekday.length == 7 &&
         intel.ordersByWeekday.fold<int>(0, (a, b) => a + b) > 0) {
@@ -799,52 +1003,64 @@ class _IntelligencePageState extends State<IntelligencePage> {
 
     return div(
       attributes: {
-        'style': 'border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:20px',
+        'style': 'margin-top:${KolaSpace.sm}',
       },
       [
         div(
           attributes: {
-            'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted};'
-                'margin-bottom:10px',
+            'style': 'font-size:${KolaType.body};font-weight:700;'
+                'color:${KolaVar.mutedStrong};margin-bottom:10px',
           },
-          [Component.text('Where to look next')],
+          [Component.text('What this suggests')],
         ),
         div(
           attributes: {'style': 'display:flex;flex-direction:column;gap:8px'},
           [
             _suggestionRow(
               "See what kola's already flagged for you",
+              'View in Recommendations',
               '/recommendations',
             ),
+            if (fastMovers.isNotEmpty)
+              _suggestionRow(
+                '${fastMovers.first.name} keeps selling out — consider a bigger restock.',
+                'Open Catalog',
+                '/catalog',
+              ),
             if (noCost.isNotEmpty)
               _suggestionRow(
                 "${noCost.length} top-selling product${noCost.length == 1 ? '' : 's'} "
                     "${noCost.length == 1 ? 'has' : 'have'} no cost price set "
                     "— margin can't be shown until it does",
+                'Open Catalog',
                 '/catalog',
               ),
             if (slowDaySuggestion != null)
-              _suggestionRow(slowDaySuggestion, '/operations'),
+              _suggestionRow(slowDaySuggestion, 'Open Operations', '/operations'),
           ],
         ),
       ],
     );
   }
 
-  Component _suggestionRow(String text, String route) => Link(
+  Component _suggestionRow(String text, String cta, String route) => Link(
         to: route,
         attributes: {
           'style': 'display:flex;align-items:center;justify-content:space-between;'
-              'gap:10px;padding:10px 12px;background:${KolaVar.pill};'
+              'gap:12px;padding:13px 16px;background:${KolaVar.card};'
+              'border:1px solid ${KolaVar.border};'
               'border-radius:${KolaRadius.md};text-decoration:none;'
-              'color:${KolaVar.text};font-size:${KolaType.small}',
+              'color:${KolaVar.text};font-size:${KolaType.bodyLg}',
         },
         children: [
-          Component.text(text),
+          span([Component.text(text)]),
           span(
-            attributes: {'style': 'color:${KolaVar.muted};flex:none'},
-            [Component.text('→')],
+            attributes: {
+              'style': 'color:${KolaVar.accent};flex:none;white-space:nowrap;'
+                  'font-size:${KolaType.tiny};display:inline-flex;'
+                  'align-items:center;gap:4px',
+            },
+            [Component.text('$cta →')],
           ),
         ],
       );

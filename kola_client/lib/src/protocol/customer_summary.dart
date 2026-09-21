@@ -21,6 +21,8 @@ abstract class CustomerSummary implements _i1.SerializableModel {
     required this.orderCount,
     required this.currency,
     this.lastActivityAt,
+    this.lastActivityChannel,
+    this.phone,
   });
 
   factory CustomerSummary({
@@ -29,6 +31,8 @@ abstract class CustomerSummary implements _i1.SerializableModel {
     required int orderCount,
     required String currency,
     DateTime? lastActivityAt,
+    String? lastActivityChannel,
+    String? phone,
   }) = _CustomerSummaryImpl;
 
   factory CustomerSummary.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -44,6 +48,8 @@ abstract class CustomerSummary implements _i1.SerializableModel {
           : _i1.DateTimeJsonExtension.fromJson(
               jsonSerialization['lastActivityAt'],
             ),
+      lastActivityChannel: jsonSerialization['lastActivityChannel'] as String?,
+      phone: jsonSerialization['phone'] as String?,
     );
   }
 
@@ -57,6 +63,10 @@ abstract class CustomerSummary implements _i1.SerializableModel {
 
   DateTime? lastActivityAt;
 
+  String? lastActivityChannel;
+
+  String? phone;
+
   /// Returns a shallow copy of this [CustomerSummary]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -66,6 +76,8 @@ abstract class CustomerSummary implements _i1.SerializableModel {
     int? orderCount,
     String? currency,
     DateTime? lastActivityAt,
+    String? lastActivityChannel,
+    String? phone,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -76,6 +88,9 @@ abstract class CustomerSummary implements _i1.SerializableModel {
       'orderCount': orderCount,
       'currency': currency,
       if (lastActivityAt != null) 'lastActivityAt': lastActivityAt?.toJson(),
+      if (lastActivityChannel != null)
+        'lastActivityChannel': lastActivityChannel,
+      if (phone != null) 'phone': phone,
     };
   }
 
@@ -94,12 +109,16 @@ class _CustomerSummaryImpl extends CustomerSummary {
     required int orderCount,
     required String currency,
     DateTime? lastActivityAt,
+    String? lastActivityChannel,
+    String? phone,
   }) : super._(
          customer: customer,
          ltvMinor: ltvMinor,
          orderCount: orderCount,
          currency: currency,
          lastActivityAt: lastActivityAt,
+         lastActivityChannel: lastActivityChannel,
+         phone: phone,
        );
 
   /// Returns a shallow copy of this [CustomerSummary]
@@ -112,6 +131,8 @@ class _CustomerSummaryImpl extends CustomerSummary {
     int? orderCount,
     String? currency,
     Object? lastActivityAt = _Undefined,
+    Object? lastActivityChannel = _Undefined,
+    Object? phone = _Undefined,
   }) {
     return CustomerSummary(
       customer: customer ?? this.customer.copyWith(),
@@ -121,6 +142,10 @@ class _CustomerSummaryImpl extends CustomerSummary {
       lastActivityAt: lastActivityAt is DateTime?
           ? lastActivityAt
           : this.lastActivityAt,
+      lastActivityChannel: lastActivityChannel is String?
+          ? lastActivityChannel
+          : this.lastActivityChannel,
+      phone: phone is String? ? phone : this.phone,
     );
   }
 }

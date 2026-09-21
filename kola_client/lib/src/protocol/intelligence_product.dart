@@ -20,6 +20,8 @@ abstract class IntelligenceProduct implements _i1.SerializableModel {
     required this.revenueMinor,
     this.marginMinor,
     this.marginPct,
+    this.velocityLabel,
+    this.velocityTone,
   });
 
   factory IntelligenceProduct({
@@ -29,6 +31,8 @@ abstract class IntelligenceProduct implements _i1.SerializableModel {
     required int revenueMinor,
     int? marginMinor,
     double? marginPct,
+    String? velocityLabel,
+    String? velocityTone,
   }) = _IntelligenceProductImpl;
 
   factory IntelligenceProduct.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -39,6 +43,8 @@ abstract class IntelligenceProduct implements _i1.SerializableModel {
       revenueMinor: jsonSerialization['revenueMinor'] as int,
       marginMinor: jsonSerialization['marginMinor'] as int?,
       marginPct: (jsonSerialization['marginPct'] as num?)?.toDouble(),
+      velocityLabel: jsonSerialization['velocityLabel'] as String?,
+      velocityTone: jsonSerialization['velocityTone'] as String?,
     );
   }
 
@@ -54,6 +60,10 @@ abstract class IntelligenceProduct implements _i1.SerializableModel {
 
   double? marginPct;
 
+  String? velocityLabel;
+
+  String? velocityTone;
+
   /// Returns a shallow copy of this [IntelligenceProduct]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
@@ -64,6 +74,8 @@ abstract class IntelligenceProduct implements _i1.SerializableModel {
     int? revenueMinor,
     int? marginMinor,
     double? marginPct,
+    String? velocityLabel,
+    String? velocityTone,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -75,6 +87,8 @@ abstract class IntelligenceProduct implements _i1.SerializableModel {
       'revenueMinor': revenueMinor,
       if (marginMinor != null) 'marginMinor': marginMinor,
       if (marginPct != null) 'marginPct': marginPct,
+      if (velocityLabel != null) 'velocityLabel': velocityLabel,
+      if (velocityTone != null) 'velocityTone': velocityTone,
     };
   }
 
@@ -94,6 +108,8 @@ class _IntelligenceProductImpl extends IntelligenceProduct {
     required int revenueMinor,
     int? marginMinor,
     double? marginPct,
+    String? velocityLabel,
+    String? velocityTone,
   }) : super._(
          productId: productId,
          name: name,
@@ -101,6 +117,8 @@ class _IntelligenceProductImpl extends IntelligenceProduct {
          revenueMinor: revenueMinor,
          marginMinor: marginMinor,
          marginPct: marginPct,
+         velocityLabel: velocityLabel,
+         velocityTone: velocityTone,
        );
 
   /// Returns a shallow copy of this [IntelligenceProduct]
@@ -114,6 +132,8 @@ class _IntelligenceProductImpl extends IntelligenceProduct {
     int? revenueMinor,
     Object? marginMinor = _Undefined,
     Object? marginPct = _Undefined,
+    Object? velocityLabel = _Undefined,
+    Object? velocityTone = _Undefined,
   }) {
     return IntelligenceProduct(
       productId: productId is int? ? productId : this.productId,
@@ -122,6 +142,10 @@ class _IntelligenceProductImpl extends IntelligenceProduct {
       revenueMinor: revenueMinor ?? this.revenueMinor,
       marginMinor: marginMinor is int? ? marginMinor : this.marginMinor,
       marginPct: marginPct is double? ? marginPct : this.marginPct,
+      velocityLabel: velocityLabel is String?
+          ? velocityLabel
+          : this.velocityLabel,
+      velocityTone: velocityTone is String? ? velocityTone : this.velocityTone,
     );
   }
 }

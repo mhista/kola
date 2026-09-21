@@ -706,6 +706,11 @@ class _DashboardAppState extends State<DashboardApp> {
               accessToken: _session!.accessToken,
               workspaceId: _selectedWorkspace!.id!,
               gate: _gate,
+              // Phase 15 — same real, already-in-hand signal
+              // intelligence_page.dart's call site already threads
+              // through; backs the empty state's progress dots instead
+              // of a hardcoded "day 3" copied from the export.
+              workspaceCreatedAt: _selectedWorkspace!.createdAt,
             ),
           ),
         ),

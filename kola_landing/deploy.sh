@@ -44,7 +44,7 @@ set -e
 # note. Both safe to hardcode: anon key is public-by-design.
 SUPABASE_URL="${SUPABASE_URL:-https://jwyrmptiehkkizwjbqtg.supabase.co}"
 SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3eXJtcHRpZWhra2l6d2picXRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE0NzEsImV4cCI6MjEwMDIwNzQ3MX0.jqjS8ZDrdSNj1hT01PTMoEFDFQITA9MoQyQJn4EagBY}"
-LAUNCH_MODE="${LAUNCH_MODE:-launched}"
+LAUNCH_MODE="${LAUNCH_MODE:-waitlist}"
 PROJECT_NAME="${PROJECT_NAME:-kola-landing}"
 
 # ── BRANCH: THE REASON A "SUCCESSFUL" DEPLOY CHANGED NOTHING ──────────────────

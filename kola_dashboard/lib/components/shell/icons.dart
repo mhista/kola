@@ -76,6 +76,15 @@ abstract class Icons {
       'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9';
   static const mic = 'M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z M19 12a7 7 0 0 1-14 0 M12 19v3';
   static const more = 'M5 12h.01M12 12h.01M19 12h.01';
+
+  /// Kola Dashboard Shell.dc.html's dark-mode toggle glyph (lines 36-38
+  /// of that export) — a crescent. Paired with [sun].
+  static const moon = 'M21 12.5A9 9 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5Z';
+
+  /// Kola Dashboard Shell.dc.html's light-mode toggle glyph (lines 39-41
+  /// of that export) — a sun with rays. Paired with [moon].
+  static const sun =
+      'M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4 4.2 19.8M19.8 4.2l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z';
   static const paperclip = 'M21 11l-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L16 6';
   static const plug = 'M9 2v6 M15 2v6 M6 8h12v4a6 6 0 0 1-12 0Z M12 18v4';
   static const salesCounter = 'M2 8h20 M2 6h20a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z M6 15h4';

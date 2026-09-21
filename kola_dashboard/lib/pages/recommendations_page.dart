@@ -1,18 +1,25 @@
-// recommendations_page.dart — Phase 13a. `/recommendations`, the second
-// of two previously-404ing sidebar routes fixed in this pass — see
-// observations_page.dart's header for the shared backstory (nav_model.dart
-// always pointed here correctly, app.dart never registered the route,
-// no page file existed).
+// recommendations_page.dart — Phase 13a, restyled Phase 15 (design-parity
+// pass) against `Kola Recommendations.dc.html` read fresh, not from memory.
 //
 // ── A REAL, NAMED SCOPE CUT — READ BEFORE EXTENDING THIS PAGE ─────────
 //
-// Kola Recommendations.dc.html (7.4 KB export) specifies something
-// materially richer than what ships here today: each recommendation
-// carries a `kind` ('executes' | 'advises'), an `impact` line, and —
-// for 'executes' recommendations — a cost-to-send estimate and an
-// "Approve & send" button that actually performs the action (the sample
-// data shows kola sending a delivery-delay apology + credit to 14
-// customers on approval).
+// Kola Recommendations.dc.html specifies something materially richer than
+// what ships here today: each recommendation carries a `kind` ('executes'
+// | 'advises'), an `impact` line, and — for 'executes' recommendations —
+// a cost-to-send estimate and an "Approve & send" button that actually
+// performs the action (the sample data shows kola sending a
+// delivery-delay apology + credit to 14 customers on approval).
+//
+// Re-verified 2026-09-10, not assumed stale: `WorkspaceFinding` (the only
+// model backing this page — `kola_server/lib/src/generated/workspace_finding
+// .dart`) still has no `kind`-as-executes-vs-advises field (its own `kind`
+// is the detector name, e.g. `productLowStock`, `ticketOverdue` — see
+// `finding_kinds.dart` — a different axis entirely), no `impact` field, no
+// `cost` field, and `FindingEndpoint` still exposes only `listFindings` /
+// `dismissFinding` — no defer, no reject, no approve-and-execute. This
+// matches DEVELOPMENT_PLAN.md's Phase 13a note verbatim: the gap is
+// real, documented there before this pass, and still open now — nothing
+// in the codebase closed it in between.
 //
 // docs/DESIGN_DELTA.md's own rule is explicit: "there is no endpoint
 // yet" is not a valid reason to cut a design's scope — that is a work
@@ -24,22 +31,43 @@
 // plain dismissedAt, a cost-estimation step, and something that actually
 // performs the approved action (send a message, apply a credit). That
 // is a genuinely separate, larger piece of work than "wire up a page,"
-// and belongs in its own pass — same reasoning DEVELOPMENT_PLAN.md's
-// Phase 12 already gave for why the AI-reasoning layer over findings is
-// a deliberately unfilled seam, not an oversight.
+// and belongs in its own pass.
 //
 // What ships here instead, honestly: the same WorkspaceFinding data
 // Observations reads (via FindingEndpoint.listFindings), sorted worst
-// first, framed as "what to look at" rather than "what kola noticed" —
-// every row renders as advice-only (no fabricated 'kola will do this'
-// badge, no invented cost, no impact line that was never computed), with
-// a single real action: dismiss. When the executable-recommendation
-// backend above gets built, this page is where the 'executes' badge,
-// cost line and Approve & send button belong — the seam is intentionally
-// left where the export puts it (see _kindBadge below), not removed.
+// first, every row rendered as advice-only (no fabricated 'kola will do
+// this' badge, no invented cost, no impact line that was never computed,
+// no Defer/Reject buttons pretending to be distinct backend states when
+// only one dismiss action exists) — with a single real action: dismiss,
+// labelled "Mark done" per the export's own `advises` action label. When
+// the executable-recommendation backend above gets built, this page is
+// where the 'executes' badge, cost line, impact line, and Defer/Reject/
+// Approve & send buttons belong — the seam is intentionally left where
+// the export puts it (see _kindBadge and the button row below), not
+// removed.
+//
+// ── HEADER LAYOUT ──────────────────────────────────────────────────────
+//
+// The export's own "‹ Dashboard" link points at an isolated per-page
+// preview file with no persistent chrome around it. This app's shell
+// always keeps the sidebar nav on screen, so a literal back-arrow reads
+// as redundant rather than orienting. Same adaptation timeline_page.dart
+// already made and the owner has already seen: a small "Dashboard /
+// Recommendations" breadcrumb, real `Link` to `/`, on its own line above
+// the title — not the arrow glyph, not a fake extra nav layer.
+//
+// The export's top-right "Empty / Populated" toggle is a design-tool
+// preview control (it lets the designer flip between the two states on
+// one static page) — same category as the Overview export's `age`
+// toggle, which DESIGN_DELTA.md is explicit is "a design-tool control,
+// not a feature" and must become real loading/empty/populated states
+// instead of a switch a real owner could click. This page already does
+// that (skeleton while loading, the export's own empty-state copy when
+// there is nothing, the list otherwise) — no manual switch is added.
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/page_help_button.dart';
@@ -134,6 +162,7 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
             'width:100%;box-sizing:border-box',
       },
       [
+        _breadcrumb(),
         _header(),
         if (_error != null) _errorBanner(),
         if (_loading)
@@ -144,7 +173,7 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
           div(
             attributes: {
               'style': 'display:flex;flex-direction:column;'
-                  'gap:${KolaSpace.sm}',
+                  'gap:${KolaSpace.lmd}',
             },
             [for (final f in _findings) _card(f)],
           ),
@@ -152,8 +181,34 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
     );
   }
 
+  /// "Dashboard / Recommendations" — same adaptation of the export's
+  /// "‹ Dashboard" link that timeline_page.dart's own `_breadcrumb`
+  /// already made for this persistent-shell app; copied for consistency
+  /// rather than re-invented.
+  Component _breadcrumb() => div(
+        attributes: {
+          'style': 'display:flex;align-items:center;gap:6px;'
+              'font-size:${KolaType.small};color:${KolaVar.muted};'
+              'margin-bottom:${KolaSpace.smd}',
+        },
+        [
+          Link(
+            to: '/',
+            attributes: {
+              'style': 'color:${KolaVar.muted};text-decoration:none',
+            },
+            children: [Component.text('Dashboard')],
+          ),
+          span([Component.text('/')]),
+          span(
+            attributes: {'style': 'color:${KolaVar.mutedStrong}'},
+            [Component.text('Recommendations')],
+          ),
+        ],
+      );
+
   Component _header() => div(
-        attributes: {'style': 'margin-bottom:${KolaSpace.lg}'},
+        attributes: {'style': 'margin-bottom:${KolaSpace.xxl}'},
         [
           div(
             attributes: {
@@ -190,8 +245,20 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
               'style': 'font-size:${KolaType.small};color:${KolaVar.muted}',
             },
             [
+              // The export's own subtitle — "Some kola can do itself
+              // once you approve. Some are advice. They never look the
+              // same." — describes the two-kind split named in this
+              // file's header, which has no backend yet. Printing it
+              // verbatim would tell a real owner deciding whether to
+              // trust this page that kola can already act for them,
+              // which is false today: see the header comment on why
+              // that crosses from "simplification" into the one thing
+              // that outranks matching the design, a false statement of
+              // present capability. This line stays honest instead.
               Component.text(
-                "What's worth acting on, worst first. Advice today — kola doesn't act on your behalf yet.",
+                "What's worth acting on, worst first. Every one is "
+                    'advice today — kola doesn\'t act on your behalf '
+                    'yet, so the action is always yours.',
               ),
             ],
           ),
@@ -212,7 +279,7 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
   Component _skeleton() => div(
         attributes: {
           'style': 'display:flex;flex-direction:column;'
-              'gap:${KolaSpace.sm}',
+              'gap:${KolaSpace.lmd}',
         },
         [
           for (var i = 0; i < 3; i++)
@@ -227,13 +294,13 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
         ],
       );
 
-  /// The export's own "Nothing to recommend yet" copy.
+  /// The export's own "Nothing to recommend yet" copy, verbatim.
   Component _emptyState() => div(
         attributes: {
           'style': 'background:${KolaVar.card};'
               'border:1px dashed ${KolaVar.border};'
               'border-radius:${KolaRadius.lg};'
-              'padding:${KolaSpace.xl} ${KolaSpace.lg};text-align:center',
+              'padding:${KolaSpace.xxxl} ${KolaSpace.xl};text-align:center',
         },
         [
           div(
@@ -242,14 +309,14 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
           ),
           div(
             attributes: {
-              'style': 'font-size:${KolaType.bodyLg};font-weight:600;'
+              'style': 'font-size:${KolaType.lead};font-weight:600;'
                   'margin-bottom:8px;color:${KolaVar.text}',
             },
             [Component.text('Nothing to recommend yet')],
           ),
           div(
             attributes: {
-              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+              'style': 'font-size:${KolaType.body};color:${KolaVar.muted};'
                   'max-width:380px;margin:0 auto;line-height:1.5',
             },
             [
@@ -281,20 +348,13 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
           },
           [
             _kindBadge(),
-            // 14c: the export's confidence dot-meter + score, missing
-            // here before this pass even though the data has carried a
-            // real `confidence` field since migration 034 and
-            // observations_page.dart already renders it — see this
-            // file's own _confidenceDots/_confidenceLabel below, copied
-            // from that page's identical shape rather than re-invented.
             _confidenceDots(f.confidence),
-            _confidenceLabel(f.confidence),
-            _severityLabel(f.severity),
+            _confidenceScore(f.confidence),
           ],
         ),
         div(
           attributes: {
-            'style': 'font-size:${KolaType.bodyLg};font-weight:600;'
+            'style': 'font-size:${KolaType.lead};font-weight:600;'
                 'margin-bottom:6px;color:${KolaVar.text}',
           },
           [Component.text(f.title)],
@@ -306,26 +366,39 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
                   'line-height:1.5;margin-bottom:8px',
             },
             [
-              Component.text('Reason: '),
+              span(
+                attributes: {
+                  'style': 'color:${KolaVar.mutedStrong};font-weight:600',
+                },
+                [Component.text('Reason: ')],
+              ),
               Component.text(f.detail!),
             ],
           ),
-        // The export's "Expected impact" and "Cost to send" lines are
-        // deliberately absent — neither is computed anywhere server-side
-        // today. See this file's own header on why that is named here
-        // rather than filled with a plausible-looking guess.
+        // The export's "Expected impact" line and, for 'executes' rows,
+        // its "Cost to send" box are deliberately absent — neither
+        // `impact` nor `cost` is computed anywhere server-side today
+        // (re-checked against WorkspaceFinding directly this pass, not
+        // assumed). See this file's header for the full reasoning.
         div(
           attributes: {'style': 'display:flex;gap:8px;margin-top:12px'},
           [
+            // The export's row is Defer / Reject / actionLabel — three
+            // buttons backed by three distinct stored states. Only one
+            // exists here (`WorkspaceFinding.dismissedAt`), so only one
+            // button is real. Rendering Defer and Reject beside it would
+            // imply two more real, distinct outcomes that do not exist
+            // yet — the same "don't fake the branch" rule this file's
+            // header already applies to the kind badge and cost box.
             button(
               attributes: {
                 'type': 'button',
                 if (busy || id == null) 'disabled': '',
-                'style': 'background:transparent;'
-                    'border:1px solid ${KolaVar.border};'
-                    'color:${KolaVar.mutedStrong};'
-                    'border-radius:${KolaRadius.sm};padding:8px 14px;'
-                    'font-size:${KolaType.small};font-family:inherit;'
+                'style': 'background:${KolaVar.accentFill};'
+                    'color:${KolaVar.accentText};border:none;'
+                    'border-radius:${KolaRadius.sm};padding:8px 18px;'
+                    'font-size:${KolaType.small};font-weight:600;'
+                    'font-family:inherit;'
                     'cursor:${busy ? 'default' : 'pointer'}',
               },
               events: {
@@ -370,11 +443,10 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
         ],
       );
 
-  /// 14c. Same three-dot confidence indicator the export specifies —
-  /// copied from observations_page.dart's identical helper rather than
-  /// shared, since these are private State methods; kept in sync by
-  /// eye until enough pages need it to justify pulling it into a
-  /// components/ file.
+  /// The export's own three-dot confidence meter — copied from
+  /// observations_page.dart's identical helper rather than shared, since
+  /// these are private State methods; kept in sync by eye until enough
+  /// pages need it to justify pulling it into a components/ file.
   Component _confidenceDots(double confidence) {
     final List<String> colors;
     if (confidence >= 0.8) {
@@ -399,35 +471,26 @@ class _RecommendationsPageState extends State<RecommendationsPage> {
     );
   }
 
-  /// "Counted, not guessed" for the deterministic 1.0 case (every
-  /// detector today) rather than a fake-precise "100% confident" — same
-  /// wording observations_page.dart and overview_page.dart's
-  /// _topRecommendation already settled on for the identical reason.
-  Component _confidenceLabel(double confidence) => span(
+  /// The export's score slot is a bare number (`{{ r.score }}`, no
+  /// "% confident" suffix, no tier word — unlike Observations' own
+  /// "{tier} confidence · {score}" shape). Every detector today is
+  /// deterministic (confidence 1.0), and printing a manufactured-looking
+  /// "1.00" for a plain counted fact is the "dressing certainty up" this
+  /// codebase has already decided against — same reasoning
+  /// overview_page.dart's _confidenceLabel and observations_page.dart's
+  /// own copy already document. So 1.0 keeps "Counted, not guessed";
+  /// anything less (a future, genuinely probabilistic detector) prints
+  /// the export's own bare-score shape, which is accurate once
+  /// confidence is real.
+  Component _confidenceScore(double confidence) => span(
         attributes: {
-          'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
+          'style': 'font-size:${KolaType.small};color:${KolaVar.muted}',
         },
         [
           Component.text(
             confidence >= 1.0
                 ? 'Counted, not guessed'
-                : '${(confidence * 100).round()}% confident',
-          ),
-        ],
-      );
-
-  Component _severityLabel(int severity) => span(
-        attributes: {
-          'style': 'font-size:${KolaType.tiny};'
-              'color:${severity <= 1 ? KolaVar.danger : KolaVar.muted}',
-        },
-        [
-          Component.text(
-            severity <= 1
-                ? 'High priority'
-                : severity == 2
-                    ? 'Medium priority'
-                    : 'Low priority',
+                : confidence.toStringAsFixed(2),
           ),
         ],
       );

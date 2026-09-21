@@ -118,6 +118,7 @@ import 'package:kola_client/src/protocol/stock_conflict.dart' as _i103;
 import 'package:kola_client/src/protocol/task.dart' as _i104;
 import 'package:kola_client/src/protocol/whatsapp_message_template.dart'
     as _i105;
+import 'package:kola_client/src/protocol/kola_billing_checkout.dart' as _i106;
 export 'analytics_daily_point.dart';
 export 'analytics_segment.dart';
 export 'analytics_summary.dart';
@@ -945,6 +946,12 @@ class Protocol extends _i1.SerializationManager {
     if (t == List<_i105.WhatsAppMessageTemplate>) {
       return (data as List)
               .map((e) => deserialize<_i105.WhatsAppMessageTemplate>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_i106.KolaBillingCheckout>) {
+      return (data as List)
+              .map((e) => deserialize<_i106.KolaBillingCheckout>(e))
               .toList()
           as T;
     }

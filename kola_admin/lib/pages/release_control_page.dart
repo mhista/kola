@@ -24,6 +24,7 @@ import 'package:jaspr/dom.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/admin_shell.dart';
+import '../services/admin_error.dart';
 import '../theme.dart';
 
 class ReleaseControlPage extends StatefulComponent {
@@ -106,18 +107,24 @@ class _ReleaseControlPageState extends State<ReleaseControlPage> {
     }
   }
 
-  bool _isSessionError(Object e) => e.toString().contains('admin_session_invalid');
+  // 2026-09-17 — this page's own private _isSessionError/_describe pair
+  // was the ORIGINAL pattern admin_error.dart's header describes as
+  // having been copied (badly) into every other admin page. This page
+  // itself had never actually been switched over to the shared
+  // isAdminSessionError/describeAdminError it inspired — fixed here, so
+  // there is exactly one place ("Something went wrong: $e") that shows
+  // raw exception text, not six. The page-specific 'feature_externally_
+  // gated' case has no shared-helper equivalent (nothing else needs it)
+  // so it stays local, checked before falling through to the shared
+  // describe.
+  bool _isSessionError(Object e) => isAdminSessionError(e);
 
   String _describe(Object e) {
-    if (_isSessionError(e)) return 'Your session has expired. Please sign in again.';
-    if (e.toString().contains('admin_access_denied')) {
-      return "Your admin level doesn't permit this action.";
-    }
     if (e.toString().contains('feature_externally_gated')) {
       return 'That feature is blocked on something outside the product and '
           "cannot be enabled early — see the flag's externallyGated note.";
     }
-    return 'Something went wrong: $e';
+    return describeAdminError(e);
   }
 
   void _showBanner(String message, {bool isError = false}) {

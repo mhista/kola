@@ -566,6 +566,8 @@ file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/event.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/feature_flag.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/google_drive_spreadsheet.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/intelligence_product.dart
+file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/intelligence_summary.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/invoice.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/knowledge_chunk.dart
 file:///C:/Users/user/Documents/flutter_apps/botigo/kola_client/lib/src/protocol/knowledge_document.dart

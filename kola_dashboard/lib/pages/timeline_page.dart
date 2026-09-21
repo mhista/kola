@@ -35,6 +35,7 @@ import 'dart:convert';
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/page_help_button.dart';
@@ -117,6 +118,7 @@ class _TimelinePageState extends State<TimelinePage> {
             'width:100%;box-sizing:border-box',
       },
       [
+        _breadcrumb(),
         _header(),
         _chipRow(),
         if (_error != null) _errorBanner(),
@@ -124,6 +126,36 @@ class _TimelinePageState extends State<TimelinePage> {
       ],
     );
   }
+
+  /// "Dashboard / Timeline" — `Kola Timeline.dc.html` lines 19-25. The
+  /// export's crumb is referrer-aware (it can read as "Operations /
+  /// Timeline" when you arrived from there, via `document.referrer`,
+  /// which has no equivalent signal in a client-routed SPA). This app
+  /// has exactly one place Timeline is reached from — the Overview's
+  /// "View full timeline →" link, plus the sidebar — so the simpler,
+  /// always-correct crumb is just "Dashboard / Timeline", not a
+  /// fabricated referrer guess.
+  Component _breadcrumb() => div(
+        attributes: {
+          'style': 'display:flex;align-items:center;gap:6px;'
+              'font-size:${KolaType.small};color:${KolaVar.muted};'
+              'margin-bottom:${KolaSpace.smd}',
+        },
+        [
+          Link(
+            to: '/',
+            attributes: {
+              'style': 'color:${KolaVar.muted};text-decoration:none',
+            },
+            children: [Component.text('Dashboard')],
+          ),
+          span([Component.text('/')]),
+          span(
+            attributes: {'style': 'color:${KolaVar.mutedStrong}'},
+            [Component.text('Timeline')],
+          ),
+        ],
+      );
 
   Component _header() => div(
         attributes: {
@@ -146,7 +178,9 @@ class _TimelinePageState extends State<TimelinePage> {
                 attributes: {
                   'style': 'font-size:${KolaType.small};color:${KolaVar.muted}',
                 },
-                [Component.text('Everything that happened, correlated.')],
+                // No trailing period — `Kola Timeline.dc.html` line 30
+                // has none.
+                [Component.text('Everything that happened, correlated')],
               ),
             ],
           ),
@@ -175,14 +209,22 @@ class _TimelinePageState extends State<TimelinePage> {
         [for (final c in _chips) _chip(c)],
       );
 
+  /// `Kola Timeline.dc.html`'s own active-chip colours are a TINTED
+  /// chip, not a filled button: `bg:'#241A14', color:'#C1552E',
+  /// border:'#3A2A1E'` — the same tint-0/accent pair this design system
+  /// already names in theme.dart (`KolaVar.tintSurface(0)` /
+  /// `KolaVar.tintIcon(0)` / `KolaVar.accent`), not the solid
+  /// `accentFill`/`accentText` pair this app's real buttons use. A
+  /// filter chip and a call-to-action button read differently on
+  /// purpose; this was rendering the chip as the latter.
   Component _chip(String label) {
     final active = label == _category;
     return button(
       attributes: {
         'type': 'button',
-        'style': 'background:${active ? KolaVar.accentFill : 'transparent'};'
-            'color:${active ? KolaVar.accentText : KolaVar.mutedStrong};'
-            'border:1px solid ${active ? KolaVar.accentFill : KolaVar.border};'
+        'style': 'background:${active ? KolaVar.tintSurface(0) : 'transparent'};'
+            'color:${active ? KolaVar.accent : KolaVar.mutedStrong};'
+            'border:1px solid ${active ? KolaVar.tintIcon(0) : KolaVar.border};'
             'border-radius:${KolaRadius.pill};padding:7px 14px;'
             'font-size:${KolaType.small};font-family:inherit;'
             'font-weight:600;cursor:pointer',
@@ -403,85 +445,90 @@ class _TimelinePageState extends State<TimelinePage> {
     }
   }
 
+  /// `Kola Timeline.dc.html`'s own colour rule (its script's `dot:`
+  /// line) is purely by CATEGORY, not per specific event: Payments is
+  /// always green, Operations always amber, Inventory always red, and
+  /// everything else (Conversations/Integrations/Customers/Knowledge)
+  /// is the same plain dark dot. Centralised here so every case below
+  /// gets it right by construction instead of each hand-picking a
+  /// colour — which is exactly how `agent_published` previously ended
+  /// up green (a Payments colour on an Integrations row) and
+  /// `errand_executed` ended up plain (missing Operations' amber).
+  static String _dotForCategory(String category) => switch (category) {
+        'Payments' => KolaVar.success,
+        'Operations' => KolaVar.warning,
+        'Inventory' => KolaVar.danger,
+        _ => KolaVar.muted,
+      };
+
+  /// Bold ("significant") vs regular weight, per the export's own
+  /// `RAW` sample data: every `tier: 1` row is Payments, Operations or
+  /// Inventory; every `tier: 2` row is Conversations, Integrations,
+  /// Customers or Knowledge — no exception across all 8 sample events.
+  /// Read as a rule, not a coincidence, and applied here the same way
+  /// [_dotForCategory] applies the colour rule: by category, not by
+  /// hand-picking per event type.
+  static bool _isSignificant(String category) =>
+      category == 'Payments' || category == 'Operations' || category == 'Inventory';
+
   static _Row _describe(Event e) {
     final p = _payload(e);
-    switch (e.eventType) {
-      case 'sale_completed':
-        return _Row(
-          title: 'Sale completed',
-          category: 'Payments',
-          dot: KolaVar.success,
-          bold: true,
-          amountMinor: p['totalMinor'] as int?,
-        );
-      case 'payment_confirmed':
-        return _Row(
-          title: 'Payment confirmed',
-          category: 'Payments',
-          dot: KolaVar.success,
-          bold: true,
-          amountMinor: p['amountKobo'] as int?,
-        );
-      case 'new_conversation':
-        return const _Row(
-          title: 'New conversation started',
-          category: 'Conversations',
-          dot: KolaVar.muted,
-          bold: false,
-        );
-      case 'agent_drafted':
-        return _Row(
-          title: '${p['name'] ?? 'An agent'} was drafted',
-          category: 'Integrations',
-          dot: KolaVar.muted,
-          bold: false,
-        );
-      case 'agent_published':
-        return _Row(
-          title: '${p['name'] ?? 'An agent'} went live',
-          category: 'Integrations',
-          dot: KolaVar.success,
-          bold: true,
-        );
-      case 'agent_paused':
-        return _Row(
-          title: '${p['name'] ?? 'An agent'} was paused',
-          category: 'Integrations',
-          dot: KolaVar.warning,
-          bold: false,
-        );
-      case 'errand_executed':
-        return const _Row(
-          title: 'An errand ran',
-          category: 'Operations',
-          dot: KolaVar.muted,
-          bold: false,
-        );
-      case 'errand_rows_mapped_to_customers':
-        final resolved = p['customersResolved'] as int? ?? 0;
-        return _Row(
-          title: resolved == 1
-              ? '1 customer matched from an import'
-              : '$resolved customers matched from an import',
-          category: 'Customers',
-          dot: KolaVar.muted,
-          bold: false,
-        );
-      default:
-        // A real event type this table hasn't named yet — shown
-        // honestly with its raw type rather than dropped silently, so
-        // a future new eventType is visible on the page (as "unlabeled
-        // activity") the day it starts firing, not invisible until
-        // someone remembers to update this switch.
-        return _Row(
-          title: e.eventType.replaceAll('_', ' '),
-          category: 'Operations',
-          dot: KolaVar.muted,
-          bold: false,
-        );
-    }
+    final (title, category, amountMinor) = switch (e.eventType) {
+      'sale_completed' => ('Sale completed', 'Payments', p['totalMinor'] as int?),
+      'payment_confirmed' => ('Payment confirmed', 'Payments', p['amountKobo'] as int?),
+      'new_conversation' => ('New conversation started', 'Conversations', null),
+      'agent_drafted' => ('${p['name'] ?? 'An agent'} was drafted', 'Integrations', null),
+      'agent_published' => ('${p['name'] ?? 'An agent'} went live', 'Integrations', null),
+      'agent_paused' => ('${p['name'] ?? 'An agent'} was paused', 'Integrations', null),
+      'errand_executed' => ('An errand ran', 'Operations', null),
+      'errand_rows_mapped_to_customers' => (_customersMatchedTitle(p), 'Customers', null),
+      // A real event type this table hasn't named yet — shown honestly
+      // with its raw type rather than dropped silently, so a future new
+      // eventType is visible on the page (as "unlabeled activity") the
+      // day it starts firing, not invisible until someone remembers to
+      // update this switch. Bucketed as Operations for the category
+      // pill (this file's chip row has no catch-all chip to put it
+      // under), but deliberately NOT run through [_isSignificant] below
+      // — an unrecognised event type's real urgency is unknown, and
+      // guessing "important" is worse than under-stating it.
+      _ => (e.eventType.replaceAll('_', ' '), 'Operations', null),
+    };
+    final known = categoryByEventType.containsKey(e.eventType);
+    return _Row(
+      title: title,
+      category: category,
+      dot: _dotForCategory(category),
+      bold: known && _isSignificant(category),
+      amountMinor: amountMinor,
+    );
+  }
+
+  static String _customersMatchedTitle(Map<String, dynamic> p) {
+    final resolved = p['customersResolved'] as int? ?? 0;
+    return resolved == 1
+        ? '1 customer matched from an import'
+        : '$resolved customers matched from an import';
   }
 }
+
+/// Mirrors event_endpoint.dart's own `categoryByEventType` — same
+/// one-copy-of-the-mapping posture this file's header already commits
+/// to for the title/category switch above. Used here only to tell a
+/// REAL, recognised event type from the catch-all default (see
+/// [_TimelinePageState._describe]'s own comment on why an unrecognised
+/// type must not inherit Operations' bold/amber treatment just because
+/// it is bucketed under that category pill).
+const categoryByEventType = <String, String>{
+  'sale_completed': 'Payments',
+  'payment_confirmed': 'Payments',
+  'new_conversation': 'Conversations',
+  'message_sent': 'Conversations',
+  'agent_drafted': 'Integrations',
+  'agent_published': 'Integrations',
+  'agent_paused': 'Integrations',
+  'errand_executed': 'Operations',
+  'errand_rows_mapped_to_customers': 'Customers',
+};
 
 class _DayGroup {
   const _DayGroup({

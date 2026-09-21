@@ -4196,7 +4196,8 @@ class EndpointWorkspace extends _i1.EndpointRef {
   ///     messagesToday, messagesDailyCap (cappedFree/growth number,
   ///       never null as of 2026-09-09 — see plan_limits.dart),
   ///     activeErrandCount, errandCap (same, never null),
-  ///     messagesThisMonth, errandCallsThisMonth }
+  ///     messagesThisMonth, errandCallsThisMonth,
+  ///     documentCount, documentCap (real, from PlanLimits) }
   _i2.Future<String> getBillingSummary(
     String accessToken,
     int workspaceId,
@@ -4229,6 +4230,32 @@ class EndpointWorkspace extends _i1.EndpointRef {
       'workspaceId': workspaceId,
       'gateway': gateway,
       'customerEmail': customerEmail,
+    },
+  );
+
+  /// Task (Billing page redesign) — Kola Billing.dc.html's "Invoices"
+  /// table. Returns every checkout KolaBillingWebhookHandler has
+  /// independently confirmed paid for this workspace, newest first.
+  ///
+  /// THIS IS THE WORKSPACE'S OWN SUBSCRIPTION PAYMENT HISTORY, not the
+  /// customer-facing Invoice model (invoice.spy.yaml) — that is a
+  /// workspace billing ITS customers, the opposite direction of money.
+  /// See kola_billing_checkout.spy.yaml's header, which draws the same
+  /// line for the table this reads.
+  ///
+  /// No separate "invoice" record was ever generated for these
+  /// payments — a completed KolaBillingCheckout row (gateway, amount,
+  /// paidAt) IS the receipt, so this returns those rows directly rather
+  /// than mapping into a shape that doesn't otherwise exist.
+  _i2.Future<List<_i50.KolaBillingCheckout>> listBillingHistory(
+    String accessToken,
+    int workspaceId,
+  ) => caller.callServerEndpoint<List<_i50.KolaBillingCheckout>>(
+    'workspace',
+    'listBillingHistory',
+    {
+      'accessToken': accessToken,
+      'workspaceId': workspaceId,
     },
   );
 }

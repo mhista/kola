@@ -25,8 +25,22 @@
 //                 exactly, including SMS being unavailable.
 //   billing       REAL — defers to /billing rather than duplicating it.
 //
-//   team          Not built. workspace_members exists as a table with no
-//                 endpoint, and enterprise.advanced_roles is locked.
+//   team          Not built. Checked more precisely this pass (Billing+
+//                 Settings audit, 2026-09-10): WorkspaceMemberRepository
+//                 already has full CRUD (listByWorkspace/addMember/
+//                 updateRole/removeMember) — the gap is NOT "no
+//                 endpoint" as this comment previously said. It is that
+//                 WorkspaceMember.userId is a Supabase Auth UUID with no
+//                 email/display-name anywhere on the row, and nothing in
+//                 kola_server calls the Supabase Auth admin API to
+//                 resolve one — so a member list would show opaque
+//                 UUIDs, not names. Inviting someone new is a bigger gap
+//                 still: addMember requires a userId that already has a
+//                 Supabase Auth account, and there is no invite-by-email
+//                 flow anywhere that would create one. Both are real,
+//                 separate follow-ups (an admin-API lookup service; an
+//                 invite/accept flow), not one missing endpoint.
+//                 enterprise.advanced_roles is also locked regardless.
 //   security      Not built. 2FA would be Supabase Auth MFA; nothing is
 //                 wired to it.
 //   data          Not built. No export or erase pipeline exists.

@@ -1,65 +1,82 @@
 // customers_page.dart — Gate 3 / Gate 3b, rebuilt Phase 13f against
-// `Kola Customers.dc.html` (the design export). Previously this page
-// built an entirely different concept — a bare list plus a "unified
-// provenance timeline" — that its own header described as a deliberate
-// choice made for Gate 3b's proof-of-graph purpose, without reference
-// to this export. Checked directly this pass: the export specifies a
-// real CRM list (stat cards, search, sort, Top/New segment chips, a
-// compact detail side panel with lifetime value / orders / saved dates
-// / recent orders) that this page didn't have at all. Rebuilt to match,
-// per DESIGN_DELTA.md's own method: export's state/data extracted
-// first, old page consulted only to salvage working logic.
+// `Kola Customers.dc.html`, then rebuilt again Phase 14/186 after the
+// owner sent real screenshots of the authoritative UI and asked for an
+// exact match. Re-checked directly against the export's own `state`/
+// `renderVals()` this pass rather than against the Phase 13f page.
 //
-// ── WHAT WAS SALVAGED FROM THE OLD PAGE, ON PURPOSE ────────────────────
+// ── WHAT WAS SALVAGED, ON PURPOSE ──────────────────────────────────────
 //
 // The merge-review queue (PART V: "merges are proposals, not facts") is
 // real, valuable, and not in the export at all — kept as an addition,
-// same "adding what's needed is fine, cutting what's shown is not"
-// rule this codebase applies everywhere else. The old page's full
+// same "adding what's needed is fine, cutting what's shown is not" rule
+// this codebase applies everywhere else. The old page's full
 // per-touchpoint timeline (every conversation/payment/sale, one feed,
-// each with a provenance badge) is ALSO kept, but demoted from the
-// whole detail view to a "View full timeline" reveal inside the new
-// compact panel — it's a real capability the export's own "View full
-// conversation history" link gestures at without actually building,
-// and deleting working code just because the export drew a simpler
-// link would be the subtraction DESIGN_DELTA.md forbids.
+// each with a provenance badge) is ALSO kept, reachable via "View full
+// timeline" inside the detail panel — a real capability the export's
+// own "View full conversation history" link gestures at without
+// actually building (it links to Operations, which has no per-customer
+// deep-link target — checked operations_page.dart this pass: no
+// customerId query param support exists). Deleting working code because
+// the export drew a simpler link would be the subtraction
+// DESIGN_DELTA.md forbids.
 //
-// ── NAMED GAPS, READ BEFORE EXTENDING ────────────────────────────────
+// ── PHASE 14/186 — WHAT CHANGED AGAINST THE EXPORT, NOT AGAINST 13f ────
 //
-// 1. NOTES — CLOSED, Phase 14h (2026-09-02). `Customer.notes` (migration
-//    062) plus `CustomerEndpoint.updateCustomerNotes` now back a real,
-//    editable free-text field in the detail panel below. Owner-written
-//    only — nothing automated sets it, and it is never sent to or read
-//    by the customer.
+//   • No back-link existed at all. Same "Dashboard / Customers"
+//     breadcrumb adaptation recommendations_page.dart and
+//     timeline_page.dart already made for this persistent-shell app, in
+//     place of the export's isolated-preview "‹ Dashboard" arrow.
+//   • THE BIGGEST GAP: the export's layout is a PERSISTENT two-column
+//     split — list on the left, a detail panel for "whichever customer
+//     is selected (defaults to the first)" on the right, both on screen
+//     together. The 13f build instead replaced the whole page with a
+//     full-width detail view on click, with no second column ever
+//     rendered. Rebuilt: [_selectedCustomerId] now defaults to the
+//     first customer in the loaded (most-recent-activity-first) list as
+//     soon as it loads, and the detail panel renders in a permanent
+//     right column beside the list — exactly the export's own
+//     `selected` + two-column grid. Mobile collapses to the export's
+//     own second behaviour: a full-screen overlay opened by tapping a
+//     row ([_mobileDetailOpen]), closed by a back button — not a third
+//     invented pattern.
+//   • Search placeholder was "Search by name…"; the export's is "Search
+//     by name or phone…" and means it — CustomerEndpoint now bulk-
+//     fetches phone signals for the whole workspace in the SAME loop
+//     that already computes lastActivityAt (see that endpoint's own
+//     header), so search now matches phone too, not just a relabelled
+//     text box.
+//   • List rows omitted the channel ("Last contact 35m ago · WhatsApp")
+//     — the 13f header named this as "not cheaply available for a
+//     whole list at once." Re-checked this pass: CustomerEndpoint was
+//     already looping every Sale/PaymentTransaction/Conversation to
+//     compute [lastActivityAt]; recording which SOURCE won that loop
+//     was free. `CustomerSummary.lastActivityChannel` is real now, no
+//     new query.
 //
-// 2. PHONE/CHANNEL ON THE LIST ROW. The export's list row shows a
-//    channel per customer ("35m ago · WhatsApp"). Cheaply available
-//    for one customer (its most recent Conversation, already fetched
-//    for the detail panel) but NOT cheaply available for a whole list
-//    of customers at once — CustomerEndpoint.listCustomersWithSummary
-//    deliberately avoids per-customer N+1 fetches for the same reason
-//    it avoids one for lifetime value (see its own header). List rows
-//    here show "Last contact {ago}" without a channel; the detail
-//    panel — which already loads one customer's full history — shows
-//    it correctly.
+// ── NAMED GAPS THAT REMAIN, READ BEFORE EXTENDING ──────────────────────
 //
-// 3. "TOP CUSTOMERS" IS A COMPUTED BAND, NOT A STORED FLAG. The export's
+// 1. NOTES — real. `Customer.notes` (migration 062) plus
+//    `CustomerEndpoint.updateCustomerNotes` back the editable free-text
+//    field in the detail panel below. Owner-written only.
+//
+// 2. "TOP CUSTOMERS" IS A COMPUTED BAND, NOT A STORED FLAG. The export's
 //    `isVip` is a fixture in its sample data. There is no VIP concept
 //    anywhere server-side. This page defines "Top" as the highest-LTV
 //    fifth of customers with any recorded revenue — a defensible,
-//    documented rule (see `_isTop` below), not an invented one, but a
-//    rule this codebase has never been asked to formalize before.
+//    documented rule (see `_topCustomerIds` below), not an invented one.
 
 import 'dart:async';
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
+import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
 
 import '../components/shell/kola_icon.dart';
 import '../components/shell/icons.dart';
 import '../components/shell/page_help_button.dart';
 import '../services/error_text.dart';
+import '../services/responsive.dart';
 import '../theme.dart';
 
 class CustomersPage extends StatefulComponent {
@@ -81,7 +98,8 @@ enum _Sort { recent, ltv, orders }
 
 enum _Segment { all, top, newThisMonth }
 
-class _CustomersPageState extends State<CustomersPage> {
+class _CustomersPageState extends State<CustomersPage>
+    with ResponsiveViewport<CustomersPage> {
   List<CustomerSummary> _summaries = const [];
   List<CustomerMergeProposal> _proposals = const [];
   bool _loading = true;
@@ -98,6 +116,11 @@ class _CustomersPageState extends State<CustomersPage> {
   DateTime? _detailBirthday;
   bool _showFullTimeline = false;
 
+  /// The export's own mobile behaviour: a full-screen overlay opened by
+  /// tapping a list row, closed by its own back button. Desktop never
+  /// sets this — the detail panel is always on screen there.
+  bool _mobileDetailOpen = false;
+
   // Phase 14h — free-text notes. Draft is local state so typing doesn't
   // round-trip to the server on every keystroke; saved explicitly.
   String _notesDraft = '';
@@ -109,7 +132,14 @@ class _CustomersPageState extends State<CustomersPage> {
   @override
   void initState() {
     super.initState();
+    initResponsive();
     _load();
+  }
+
+  @override
+  void dispose() {
+    disposeResponsive();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -130,11 +160,20 @@ class _CustomersPageState extends State<CustomersPage> {
         ),
       ]);
       if (!mounted) return;
+      final summaries = results[0] as List<CustomerSummary>;
       setState(() {
-        _summaries = results[0] as List<CustomerSummary>;
+        _summaries = summaries;
         _proposals = results[1] as List<CustomerMergeProposal>;
         _loading = false;
       });
+      // The export's own default: `selected` is always the first
+      // customer in the list, on screen in the right-hand panel before
+      // anyone clicks anything — never an empty panel with a populated
+      // list beside it.
+      final firstId = summaries.isEmpty ? null : summaries.first.customer.id;
+      if (firstId != null && _selectedCustomerId == null) {
+        unawaited(_openCustomer(firstId));
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -144,7 +183,7 @@ class _CustomersPageState extends State<CustomersPage> {
     }
   }
 
-  Future<void> _openCustomer(int id) async {
+  Future<void> _openCustomer(int id, {bool openMobileOverlay = false}) async {
     setState(() {
       _selectedCustomerId = id;
       _detailLoading = true;
@@ -154,6 +193,7 @@ class _CustomersPageState extends State<CustomersPage> {
       _showFullTimeline = false;
       _notesDraft = '';
       _notesError = null;
+      if (openMobileOverlay) _mobileDetailOpen = true;
     });
     try {
       final detail = await component.client.customer.getCustomerDetail(
@@ -205,14 +245,10 @@ class _CustomersPageState extends State<CustomersPage> {
     }
   }
 
-  void _closeDetail() => setState(() {
-        _selectedCustomerId = null;
-        _detail = null;
-        _detailError = null;
-        _detailBirthday = null;
-        _notesDraft = '';
-        _notesError = null;
-      });
+  /// Mobile-only "back to the list" — never deselects the customer
+  /// (desktop's detail panel would otherwise go blank), only closes the
+  /// full-screen overlay.
+  void _closeMobileDetail() => setState(() => _mobileDetailOpen = false);
 
   /// Phase 14h. Saves the current draft as this customer's note — an
   /// all-blank draft clears it (see CustomerRepository.setNotes). Patches
@@ -280,7 +316,7 @@ class _CustomersPageState extends State<CustomersPage> {
   // ── Segments / sort / filter ──────────────────────────────────────
 
   /// The top fifth (min. 1) of customers with any recorded lifetime
-  /// value, ranked by that value — see this file's header, point 3.
+  /// value, ranked by that value — see this file's header, point 2.
   Set<int> get _topCustomerIds {
     final withRevenue = [
       for (final s in _summaries)
@@ -311,7 +347,9 @@ class _CustomersPageState extends State<CustomersPage> {
     if (q.isNotEmpty) {
       list = [
         for (final s in list)
-          if ((s.customer.displayName ?? '').toLowerCase().contains(q)) s,
+          if ((s.customer.displayName ?? '').toLowerCase().contains(q) ||
+              (s.phone ?? '').toLowerCase().contains(q))
+            s,
       ];
     }
 
@@ -336,45 +374,45 @@ class _CustomersPageState extends State<CustomersPage> {
             'width:100%;box-sizing:border-box',
       },
       [
-        if (_selectedCustomerId != null)
-          _detailView()
+        _breadcrumb(),
+        _header(),
+        if (_loading)
+          _skeleton()
+        else if (_loadError != null)
+          _errorState()
         else ...[
-          _header(),
-          if (_loading)
-            _skeleton()
-          else if (_loadError != null)
-            _errorState()
-          else ...[
-            if (_proposals.isNotEmpty) _mergeQueueSection(),
-            if (_summaries.isEmpty)
-              _emptyState(
-                'This fills in the moment someone messages your connected '
-                'channel, or you ring up a sale at the Sales Counter.',
-              )
-            else ...[
-              _statsRow(),
-              div(
-                attributes: {
-                  'style': 'display:grid;'
-                      'grid-template-columns:1.3fr 1fr;gap:20px;'
-                      'align-items:start',
-                },
-                [
-                  div(
-                    [
-                      _searchAndSort(),
-                      _segmentChips(),
-                      _customerList(),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ],
+          if (_proposals.isNotEmpty) _mergeQueueSection(),
+          if (_summaries.isEmpty) _emptyWorkspaceState() else ..._populatedBody(),
         ],
+        if (isMobile && _mobileDetailOpen) _mobileDetailOverlay(),
       ],
     );
   }
+
+  /// "Dashboard / Customers" — same adaptation of the export's "‹
+  /// Dashboard" link that recommendations_page.dart and
+  /// timeline_page.dart already made for this persistent-shell app.
+  Component _breadcrumb() => div(
+        attributes: {
+          'style': 'display:flex;align-items:center;gap:6px;'
+              'font-size:${KolaType.small};color:${KolaVar.muted};'
+              'margin-bottom:${KolaSpace.smd}',
+        },
+        [
+          Link(
+            to: '/',
+            attributes: {
+              'style': 'color:${KolaVar.muted};text-decoration:none',
+            },
+            children: [Component.text('Dashboard')],
+          ),
+          span([Component.text('/')]),
+          span(
+            attributes: {'style': 'color:${KolaVar.mutedStrong}'},
+            [Component.text('Customers')],
+          ),
+        ],
+      );
 
   Component _header() => div(
         attributes: {'style': 'margin-bottom:${KolaSpace.lg}'},
@@ -422,6 +460,27 @@ class _CustomersPageState extends State<CustomersPage> {
         ],
       );
 
+  List<Component> _populatedBody() => [
+        _statsRow(),
+        div(
+          attributes: {
+            'style': 'display:${isMobile ? 'block' : 'grid'};'
+                'grid-template-columns:1.3fr 1fr;gap:20px;'
+                'align-items:start',
+          },
+          [
+            div(
+              [
+                _searchAndSort(),
+                _segmentChips(),
+                _customerList(),
+              ],
+            ),
+            if (!isMobile) _detailColumn(),
+          ],
+        ),
+      ];
+
   Component _statsRow() {
     final total = _summaries.length;
     final totalLtv = _summaries.fold<int>(0, (sum, s) => sum + s.ltvMinor);
@@ -438,7 +497,8 @@ class _CustomersPageState extends State<CustomersPage> {
 
     return div(
       attributes: {
-        'style': 'display:grid;grid-template-columns:repeat(4,1fr);'
+        'style': 'display:grid;'
+            'grid-template-columns:repeat(${isMobile ? 2 : 4},1fr);'
             'gap:12px;margin-bottom:${KolaSpace.lg}',
       },
       [
@@ -484,7 +544,7 @@ class _CustomersPageState extends State<CustomersPage> {
               input<String>(
                 type: InputType.text,
                 attributes: {
-                  'placeholder': 'Search by name…',
+                  'placeholder': 'Search by name or phone…',
                   'style': 'width:100%;box-sizing:border-box;'
                       'padding:10px 14px;border-radius:${KolaRadius.md};'
                       'border:1px solid ${KolaVar.border};'
@@ -579,21 +639,27 @@ class _CustomersPageState extends State<CustomersPage> {
   Component _customerRow(CustomerSummary s, {required bool isTop}) {
     final c = s.customer;
     final isNew = _isNewThisMonth(c);
+    final isSelected = !isMobile && c.id != null && c.id == _selectedCustomerId;
     final initial = (c.displayName?.trim().isNotEmpty ?? false) ? c.displayName!.trim()[0].toUpperCase() : '?';
 
     return div(
       attributes: {
         'style': 'display:flex;align-items:center;gap:12px;'
             'padding:13px 16px;border-bottom:1px solid ${KolaVar.border};'
-            'cursor:pointer',
+            'cursor:pointer;background:${isSelected ? KolaVar.pill : 'transparent'}',
       },
-      events: {'click': (_) => c.id != null ? _openCustomer(c.id!) : null},
+      events: {
+        'click': (_) => c.id != null
+            ? _openCustomer(c.id!, openMobileOverlay: isMobile)
+            : null,
+      },
       [
         div(
           attributes: {
             'style': 'width:34px;height:34px;border-radius:${KolaRadius.circle};'
-                'background:${KolaVar.pill};display:flex;'
-                'align-items:center;justify-content:center;'
+                'background:${isSelected ? KolaVar.accentFill : KolaVar.pill};'
+                'color:${isSelected ? KolaVar.accentText : KolaVar.text};'
+                'display:flex;align-items:center;justify-content:center;'
                 'font-size:${KolaType.small};font-weight:600;flex:none',
           },
           [Component.text(initial)],
@@ -638,7 +704,10 @@ class _CustomersPageState extends State<CustomersPage> {
               },
               [
                 Component.text(
-                  s.lastActivityAt == null ? 'No activity yet' : 'Last contact ${_ago(s.lastActivityAt!)}',
+                  s.lastActivityAt == null
+                      ? 'No activity yet'
+                      : 'Last contact ${_ago(s.lastActivityAt!)}'
+                          '${s.lastActivityChannel == null ? '' : ' · ${s.lastActivityChannel}'}',
                 ),
               ],
             ),
@@ -761,11 +830,53 @@ class _CustomersPageState extends State<CustomersPage> {
 
   // ── Customer detail ────────────────────────────────────────────────
 
-  Component _detailView() {
+  /// Desktop's persistent right column — the export's own sticky panel.
+  Component _detailColumn() => div(
+        attributes: {'style': 'position:sticky;top:24px'},
+        [_detailPanel()],
+      );
+
+  /// The export's own mobile behaviour — a full-screen overlay with its
+  /// own back button, opened by tapping a list row.
+  Component _mobileDetailOverlay() => div(
+        attributes: {
+          'style': 'position:fixed;inset:0;background:${KolaVar.bg};'
+              'z-index:100;overflow-y:auto',
+        },
+        [
+          div(
+            attributes: {
+              'style': 'max-width:480px;margin:0 auto;padding:20px 16px 40px',
+            },
+            [
+              button(
+                attributes: {
+                  'type': 'button',
+                  'style': 'background:transparent;border:none;'
+                      'color:${KolaVar.muted};cursor:pointer;display:flex;'
+                      'align-items:center;gap:4px;padding:8px 0;'
+                      'font-size:${KolaType.bodyLg};font-family:inherit;'
+                      'min-height:44px',
+                },
+                events: {'click': (_) => _closeMobileDetail()},
+                [kolaIcon(Icons.chevronLeft, size: 16), Component.text('Customers')],
+              ),
+              _detailPanel(),
+            ],
+          ),
+        ],
+      );
+
+  /// The detail panel body — shared by the desktop sticky column and
+  /// the mobile full-screen overlay, matching the export's own
+  /// identical two copies of this markup.
+  Component _detailPanel() {
     if (_detailLoading) return _skeleton();
     if (_detailError != null) return _errorState(inDetail: true);
     final detail = _detail;
-    if (detail == null) return _skeleton();
+    if (detail == null) {
+      return _emptyState('Select a customer to see their details.');
+    }
 
     final summary = _summaries.firstWhereOrNull((s) => s.customer.id == detail.customer.id);
     final latestConvo = detail.conversations.isEmpty
@@ -780,32 +891,8 @@ class _CustomersPageState extends State<CustomersPage> {
     return div([
       div(
         attributes: {
-          'style': 'display:flex;align-items:center;gap:10px;'
-              'margin-bottom:${KolaSpace.lg}',
-        },
-        [
-          button(
-            attributes: {
-              'type': 'button',
-              'style': 'background:transparent;border:none;'
-                  'color:${KolaVar.muted};cursor:pointer;display:flex;padding:4px',
-            },
-            events: {'click': (_) => _closeDetail()},
-            [kolaIcon(Icons.chevronLeft, size: 18)],
-          ),
-          div(
-            attributes: {
-              'style': 'font-family:${KolaFonts.display};'
-                  'font-size:${KolaType.h3};font-weight:700;color:${KolaVar.text}',
-            },
-            [Component.text(detail.customer.displayName ?? 'Unnamed customer')],
-          ),
-        ],
-      ),
-      div(
-        attributes: {
           'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-              'border-radius:${KolaRadius.lg};padding:22px;max-width:420px',
+              'border-radius:${KolaRadius.lg};padding:22px',
         },
         [
           div(
@@ -985,7 +1072,7 @@ class _CustomersPageState extends State<CustomersPage> {
                   'font-family:inherit;cursor:pointer',
             },
             events: {'click': (_) => setState(() => _showFullTimeline = !_showFullTimeline)},
-            [Component.text(_showFullTimeline ? 'Hide full timeline' : 'View full timeline')],
+            [Component.text(_showFullTimeline ? 'Hide full timeline' : 'View full conversation history')],
           ),
         ],
       ),
@@ -1160,6 +1247,62 @@ class _CustomersPageState extends State<CustomersPage> {
       );
 
   // ── Shared states ──────────────────────────────────────────────────
+
+  Component _emptyWorkspaceState() => div(
+        attributes: {
+          'style': 'background:${KolaVar.card};border:1px dashed ${KolaVar.border};'
+              'border-radius:${KolaRadius.xl};padding:48px 28px;'
+              'text-align:center;margin-top:18px',
+        },
+        [
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.title};font-weight:600;'
+                  'color:${KolaVar.text};margin-bottom:8px',
+            },
+            [Component.text('No customers yet')],
+          ),
+          div(
+            attributes: {
+              'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
+                  'max-width:380px;margin:0 auto 20px;line-height:1.5',
+            },
+            [
+              Component.text(
+                'This fills in the moment someone messages your connected '
+                'channel, or you ring up a sale at the Sales Counter.',
+              ),
+            ],
+          ),
+          div(
+            attributes: {
+              'style': 'display:flex;gap:10px;justify-content:center;flex-wrap:wrap',
+            },
+            [
+              Link(
+                to: '/integrations',
+                attributes: {
+                  'style': 'background:${KolaVar.accentFill};'
+                      'color:${KolaVar.accentText};border-radius:${KolaRadius.pill};'
+                      'padding:10px 18px;font-size:${KolaType.bodyLg};'
+                      'font-weight:600;text-decoration:none',
+                },
+                children: [Component.text('Connect a channel')],
+              ),
+              Link(
+                to: '/counter',
+                attributes: {
+                  'style': 'background:transparent;border:1px solid ${KolaVar.border};'
+                      'color:${KolaVar.text};border-radius:${KolaRadius.pill};'
+                      'padding:10px 18px;font-size:${KolaType.bodyLg};'
+                      'font-weight:600;text-decoration:none',
+                },
+                children: [Component.text('Open Sales Counter')],
+              ),
+            ],
+          ),
+        ],
+      );
 
   Component _emptyState(String message) => div(
         attributes: {

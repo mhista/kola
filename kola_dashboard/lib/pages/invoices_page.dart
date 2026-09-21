@@ -682,6 +682,13 @@ class _InvoicesPageState extends State<InvoicesPage> {
         [],
       );
 
+  /// 2026-09-14 fix: this used to show a hardcoded "connection problem"
+  /// line no matter what actually failed — [_loadError] was already
+  /// being captured via [ErrorText.of] in [_load] but never displayed.
+  /// [ErrorText.of] already tells offline apart from a real server/app
+  /// fault (see that file's header), so showing its actual sentence
+  /// here means a non-network failure no longer gets misdiagnosed as
+  /// one on screen.
   Component _errorState() => div(
         attributes: {
           'style': 'border:1px solid ${KolaVar.border};border-radius:${KolaRadius.lg};'
@@ -698,7 +705,7 @@ class _InvoicesPageState extends State<InvoicesPage> {
             attributes: {
               'style': 'font-size:${KolaType.small};color:${KolaVar.muted};line-height:1.55;margin-bottom:12px',
             },
-            [Component.text('This is a connection problem. Nothing here has changed.')],
+            [Component.text(_loadError ?? 'Nothing here has changed.')],
           ),
           button(
             attributes: {

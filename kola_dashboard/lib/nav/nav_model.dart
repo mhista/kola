@@ -242,18 +242,16 @@ const navGroups = <NavGroup>[
       features: [Features.channelWhatsapp],
     ),
   ]),
+  // Phase 14M — the owner's own call: "i think the developer portal is
+  // same as webhooks, so remove it." The 'Developer portal' NavItem
+  // that used to live here pointed at '/developer', which was never a
+  // real route in app.dart — it was gated on Features.developerPortal
+  // (never turned on anywhere) and so never actually rendered for
+  // anyone. Removed outright rather than kept-but-hidden: there was no
+  // real page underneath it to eventually finish, and api_webhooks_page.
+  // dart already covers this whole surface (docs, key management, event
+  // subscriptions) — see that file's own header.
   NavGroup(label: 'Developer', items: [
-    NavItem(
-      label: 'Developer portal',
-      icon: Icons.terminal,
-      route: '/developer',
-      features: [Features.developerPortal],
-    ),
-    // Gated on publicApi, matching PlatformEndpoint._require exactly —
-    // not developerPortal, which is a separate, still-unbuilt page (see
-    // api_webhooks_page.dart's header). Reuses Icons.terminal rather
-    // than inventing a new path — same call as logOut/switchWorkspace
-    // sharing one path in icons.dart; the label tells the two apart.
     NavItem(
       label: 'API & Webhooks',
       icon: Icons.terminal,

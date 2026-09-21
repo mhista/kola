@@ -39,6 +39,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr_router/jaspr_router.dart';
 import 'package:kola_client/kola_client.dart';
+import 'package:web/web.dart' as web;
 
 import '../components/ask_kola.dart';
 import '../components/next_step_hint.dart';
@@ -117,6 +118,13 @@ class _OverviewPageState extends State<OverviewPage> {
   List<Event> _timelineEvents = const [];
   static const _timelinePreviewCap = 5;
 
+  /// Every Operations-category event, read wide (not the 5-row preview
+  /// cap above) so "Automations running" can count today's real
+  /// `errand_executed` rows per errand — see [_todayErrandCounts]. Same
+  /// catchError-to-empty posture as the other additive reads: a hiccup
+  /// here loses the count, not the page.
+  List<Event> _operationsEvents = const [];
+
   /// Whether a messaging channel is live, for the day-one card's step 2.
   ///
   /// Restricted to the two connectors that ARE channels rather than
@@ -136,6 +144,19 @@ class _OverviewPageState extends State<OverviewPage> {
 
   static const _dismissedKey = 'kola_dismissed_hints';
 
+  /// The moon/sun toggle in the design's top bar (Kola Dashboard
+  /// Shell.dc.html lines 35-42). The light/dark mechanism itself is not
+  /// new — settings_page.dart's `_applyTheme` already writes
+  /// `data-theme` on `<html>` and reads/writes this exact localStorage
+  /// key; this is a second, page-local caller of the same real
+  /// mechanism, not a second implementation of it. 'system' has no
+  /// dedicated glyph in the design's two-button toggle, so pressing
+  /// either button here always lands on an explicit 'dark' or 'light' —
+  /// a workspace that wants to follow the OS still sets that from
+  /// Settings, same as today.
+  static const _themeKey = 'kola_theme';
+  String _theme = 'system';
+
   // 14b. 'Needs your attention' and 'Automations running' used to render
   // every row the query returned, unbounded — confirmed during the
   // owner's live review as the source of a 10+ row list during the
@@ -153,6 +174,7 @@ class _OverviewPageState extends State<OverviewPage> {
     super.initState();
     final raw = LocalStorage.getItem(_dismissedKey) ?? '';
     _dismissed = raw.split(',').where((s) => s.isNotEmpty).toSet();
+    _theme = LocalStorage.getItem(_themeKey) ?? 'system';
     _load();
   }
 
@@ -160,6 +182,17 @@ class _OverviewPageState extends State<OverviewPage> {
     final next = {..._dismissed, id};
     LocalStorage.setItem(_dismissedKey, next.join(','));
     setState(() => _dismissed = next);
+  }
+
+  /// Same write settings_page.dart's `_applyTheme` performs — see this
+  /// class's own `_theme` field comment for why this page has its own
+  /// copy of the call rather than a shared widget: the design puts this
+  /// toggle in the shell's top bar, reachable from Overview specifically.
+  void _applyTheme(String value) {
+    LocalStorage.setItem(_themeKey, value);
+    final root = web.document.documentElement;
+    if (root != null) root.setAttribute(KolaTheme.attribute, value);
+    setState(() => _theme = value);
   }
 
   Future<void> _load() async {
@@ -288,6 +321,18 @@ class _OverviewPageState extends State<OverviewPage> {
                 .listTimeline(token, id, limit: _timelinePreviewCap)
                 .catchError((_) => const <Event>[])
             : Future.value(const <Event>[]),
+
+        // Twelfth read: the wide Operations feed "Automations running"
+        // counts today's real errand_executed rows from — see
+        // [_operationsEvents]'s own comment on why this is separate from
+        // the 5-row "Changed today" preview above. Same feature gate:
+        // there is nothing to read if the Timeline feature itself is
+        // off.
+        gate.isEnabled(Features.timeline)
+            ? component.client.event
+                .listTimeline(token, id, category: 'Operations', limit: 200)
+                .catchError((_) => const <Event>[])
+            : Future.value(const <Event>[]),
       ]);
 
       if (!mounted) return;
@@ -303,6 +348,7 @@ class _OverviewPageState extends State<OverviewPage> {
         _findings = results[8].cast<WorkspaceFinding>();
         _recentSales = results[9].cast<Sale>();
         _timelineEvents = results[10].cast<Event>();
+        _operationsEvents = results[11].cast<Event>();
         _phase = _Phase.ready;
       });
     } catch (e) {
@@ -404,6 +450,7 @@ class _OverviewPageState extends State<OverviewPage> {
             'style': 'display:flex;align-items:center;gap:10px',
           },
           [
+            _themeToggle(),
             div(
               attributes: {
                 'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
@@ -421,8 +468,8 @@ class _OverviewPageState extends State<OverviewPage> {
                     "so you're never hunting for it.",
                 "The four cards up top are your always-visible vitals. "
                     "Below them, 'Needs your attention' surfaces the "
-                    "things kola thinks you should look at, 'What kolaa "
-                    "knows' shows what it's learned recently, "
+                    "things kola thinks you should look at, 'What kola "
+                    "learned' shows what it's learned recently, "
                     "'Automations running' lists what's active right "
                     "now, and 'Changed today' previews the most recent "
                     "real activity — open the full Timeline for "
@@ -430,6 +477,54 @@ class _OverviewPageState extends State<OverviewPage> {
               ],
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  /// The moon/sun pill from `Kola Dashboard Shell.dc.html` lines 35-42 —
+  /// a 2-button toggle in a bordered pill, active button on a tinted
+  /// background. Values and colours copied from the export's own
+  /// `darkBg`/`lightBg` (the dark button highlights on [KolaVar.border],
+  /// the light one on [KolaVar.pill] — an asymmetric pair in the
+  /// original, not a typo introduced here).
+  Component _themeToggle() {
+    final isDark = _theme == 'dark';
+    final isLight = _theme == 'light';
+    return div(
+      attributes: {
+        'style': 'display:flex;background:${KolaVar.card};'
+            'border:1px solid ${KolaVar.border};border-radius:${KolaRadius.pill};'
+            'padding:3px',
+      },
+      [
+        button(
+          attributes: {
+            'type': 'button',
+            'aria-label': 'Dark mode',
+            'aria-pressed': '$isDark',
+            'style': 'border:none;width:30px;height:30px;'
+                'border-radius:${KolaRadius.circle};cursor:pointer;'
+                'background:${isDark ? KolaVar.border : 'transparent'};'
+                'color:${isDark ? KolaVar.text : KolaVar.muted};'
+                'display:flex;align-items:center;justify-content:center',
+          },
+          events: {'click': (_) => _applyTheme('dark')},
+          [kolaIcon(Icons.moon, size: 15)],
+        ),
+        button(
+          attributes: {
+            'type': 'button',
+            'aria-label': 'Light mode',
+            'aria-pressed': '$isLight',
+            'style': 'border:none;width:30px;height:30px;'
+                'border-radius:${KolaRadius.circle};cursor:pointer;'
+                'background:${isLight ? KolaVar.pill : 'transparent'};'
+                'color:${isLight ? KolaVar.text : KolaVar.muted};'
+                'display:flex;align-items:center;justify-content:center',
+          },
+          events: {'click': (_) => _applyTheme('light')},
+          [kolaIcon(Icons.sun, size: 15)],
         ),
       ],
     );
@@ -818,7 +913,11 @@ class _OverviewPageState extends State<OverviewPage> {
         )
       else if (attention.isEmpty)
         _allClear(),
-      _section('What kolaa knows', _knowledgeSummary()),
+      // Header copy matches the design's own "What kola learned" exactly
+      // (was "What kolaa knows") — see _knowledgeLines()'s own comment
+      // on why the CONTENT stays the honest document-count summary
+      // rather than the export's two illustrative insight lines.
+      _section('What kola learned', _knowledgeLines()),
       if (_errands.isNotEmpty) _section('Automations running', _automations()),
       // Phase 14/174. Only rendered when there is something real to
       // show — an empty "Changed today" heading over blank space reads
@@ -854,45 +953,93 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  Component _automationsList(List<Errand> active) => div(
-        attributes: {
-          'style': 'background:${KolaVar.card};'
-              'border:1px solid ${KolaVar.border};'
-              'border-radius:${KolaRadius.lg};padding:4px 0',
-        },
-        [
-          if (active.isEmpty)
+  /// Today's real `errand_executed` count per errand, from
+  /// [_operationsEvents] (a wide, unfiltered-by-date Operations read —
+  /// see that field's own comment). Payload carries `errandId`, set at
+  /// emit time by errand_dispatch_service.dart's own `dispatch()`.
+  Map<int, int> _todayErrandCounts() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final counts = <int, int>{};
+    for (final e in _operationsEvents) {
+      if (e.eventType != 'errand_executed') continue;
+      final local = e.occurredAt.toLocal();
+      if (DateTime(local.year, local.month, local.day) != today) continue;
+      Map<String, dynamic> payload;
+      try {
+        final decoded = jsonDecode(e.payloadJson);
+        payload = decoded is Map<String, dynamic> ? decoded : const {};
+      } catch (_) {
+        payload = const {};
+      }
+      final errandId = payload['errandId'];
+      if (errandId is int) counts.update(errandId, (v) => v + 1, ifAbsent: () => 1);
+    }
+    return counts;
+  }
+
+  /// The design's own copy shape is "{name} — {N} handled today"
+  /// (`Order status replies — 22 handled today`) alongside one workflow
+  /// line with no count (`Payment confirmation → stock update`). This
+  /// build has real per-errand names and, via [_todayErrandCounts], a
+  /// real count of today's runs — so every ACTIVE errand renders the
+  /// design's counted template with its own real name and count, rather
+  /// than literally reusing the export's two fixed sample lines (which
+  /// name specific automations this workspace may not even have). A
+  /// count of zero falls back to the plain name, never "0 handled
+  /// today" — same never-show-a-zero rule this file applies everywhere
+  /// else.
+  Component _automationsList(List<Errand> active) {
+    final counts = _todayErrandCounts();
+    return div(
+      attributes: {
+        'style': 'background:${KolaVar.card};'
+            'border:1px solid ${KolaVar.border};'
+            'border-radius:${KolaRadius.lg};padding:4px 0',
+      },
+      [
+        if (active.isEmpty)
+          div(
+            attributes: {
+              'style': 'padding:12px 16px;font-size:${KolaType.small};'
+                  'color:${KolaVar.muted}',
+            },
+            [Component.text('No automations are switched on right now.')],
+          )
+        else
+          for (var i = 0; i < active.length; i++)
             div(
               attributes: {
-                'style': 'padding:12px 16px;font-size:${KolaType.small};'
-                    'color:${KolaVar.muted}',
+                'style': 'display:flex;align-items:center;gap:10px;'
+                    'padding:11px 16px;font-size:${KolaType.body};'
+                    'color:${KolaVar.text};'
+                    '${i > 0 ? 'border-top:1px solid ${KolaVar.border}' : ''}',
               },
-              [Component.text('No automations are switched on right now.')],
-            )
-          else
-            for (var i = 0; i < active.length; i++)
-              div(
-                attributes: {
-                  'style': 'display:flex;align-items:center;gap:10px;'
-                      'padding:11px 16px;font-size:${KolaType.body};'
-                      'color:${KolaVar.text};'
-                      '${i > 0 ? 'border-top:1px solid ${KolaVar.border}' : ''}',
-                },
-                [
-                  span(
-                    attributes: {
-                      'style': 'width:6px;height:6px;flex:none;'
-                          'border-radius:${KolaRadius.circle};'
-                          'background:${KolaVar.success}',
-                    },
-                    [],
-                  ),
-                  span(attributes: {'style': 'flex:1;min-width:0'},
-                      [Component.text(active[i].name)]),
-                ],
-              ),
-        ],
-      );
+              [
+                span(
+                  attributes: {
+                    'style': 'width:6px;height:6px;flex:none;'
+                        'border-radius:${KolaRadius.circle};'
+                        'background:${KolaVar.success}',
+                  },
+                  [],
+                ),
+                span(
+                  attributes: {'style': 'flex:1;min-width:0'},
+                  [
+                    Component.text(
+                      switch (counts[active[i].id]) {
+                        final n? when n > 0 => '${active[i].name} — $n handled today',
+                        _ => active[i].name,
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+      ],
+    );
+  }
 
   /// Set up, connected, nothing has come in yet.
   ///
@@ -994,34 +1141,15 @@ class _OverviewPageState extends State<OverviewPage> {
     final gate = component.gate;
 
     final stats = <({String label, String value, String? note})>[
-      // ── NEVER A ZERO ─────────────────────────────────────────────────
+      // ── ORDER MATCHES THE DESIGN'S FIRST SLOT ──────────────────────────
       //
-      // "Conversations 0 / Waiting on you 0 / Documents learned 0" was
-      // three zeros across the top of the first screen a new owner sees.
-      // A zero is a measurement, and it reads as a verdict: it says the
-      // product ran and found nothing, when the truth is that nothing
-      // has happened YET. Those are different facts and the second one
-      // is encouraging.
+      // Kola Dashboard Shell.dc.html's healthStats leads with "Revenue
+      // this week". There is no revenue metric in this build (see this
+      // file's header — commerce and intelligence are locked at launch
+      // scope), but "Sales this week" is the same real-money concept
+      // this codebase CAN measure honestly, so it takes the design's
+      // first position rather than trailing behind Conversations.
       //
-      // So a count of zero becomes an em-dash plus the condition that
-      // starts it counting — the same treatment the commerce
-      // placeholders below already use, which is why they read fine and
-      // these did not.
-      _stat('Conversations', _conversations.length,
-          'Starts counting when a customer first messages you.'),
-      if (gate.isEnabled(Features.memoryDocuments))
-        _stat('Documents learned', _documents.length,
-            'Add a price list or FAQ and it appears here.'),
-
-      // "Waiting on you" DELIBERATELY REMOVED.
-      //
-      // It was the fourth of five cards and the least load-bearing. When
-      // it is zero it says nothing; when it is not, the "Needs your
-      // attention" section directly below lists the same items with far
-      // more detail — who is waiting and for how long — so the card was
-      // a worse duplicate of something already on screen. The design's
-      // own header carries three cards, not five.
-
       // Sales this week — real once commerce.pos is released (migration
       // 046). Previously gated on commerce.core, which migration 030
       // released to every workspace years before a till existed; that
@@ -1043,6 +1171,48 @@ class _OverviewPageState extends State<OverviewPage> {
           value: '—',
           note: 'Starts counting when the sales counter arrives.',
         ),
+
+      // ── NEVER A ZERO ─────────────────────────────────────────────────
+      //
+      // "Conversations 0 / Waiting on you 0 / Documents learned 0" was
+      // three zeros across the top of the first screen a new owner sees.
+      // A zero is a measurement, and it reads as a verdict: it says the
+      // product ran and found nothing, when the truth is that nothing
+      // has happened YET. Those are different facts and the second one
+      // is encouraging.
+      //
+      // So a count of zero becomes an em-dash plus the condition that
+      // starts it counting — the same treatment the commerce
+      // placeholders below already use, which is why they read fine and
+      // these did not.
+      //
+      // Second slot — the design's own second card is "Conversations",
+      // unchanged here.
+      _stat('Conversations', _conversations.length,
+          'Starts counting when a customer first messages you.'),
+      if (gate.isEnabled(Features.memoryDocuments))
+        _stat('Documents learned', _documents.length,
+            'Add a price list or FAQ and it appears here.'),
+
+      // "Waiting on you" DELIBERATELY REMOVED.
+      //
+      // It was the fourth of five cards and the least load-bearing. When
+      // it is zero it says nothing; when it is not, the "Needs your
+      // attention" section directly below lists the same items with far
+      // more detail — who is waiting and for how long — so the card was
+      // a worse duplicate of something already on screen. The design's
+      // own header carries three cards, not five.
+      //
+      // "Avg. response time" — the design's own third card — IS NOT
+      // shown. Named gap, not a silent cut: grepped for any existing
+      // average-response-time computation anywhere in this codebase
+      // (responseTime/response_time/avgResponse/firstResponse) — zero
+      // matches, confirmed independently by intelligence_endpoint.dart's
+      // own header for the same reason. Computing it is a real
+      // aggregation over Message.createdAt pairs, genuinely separate
+      // work from a presentation-layer pass — printing a number with
+      // nothing behind it is the one thing DESIGN_DELTA.md forbids
+      // outright.
 
       // Products, in BOTH states.
       //
@@ -1136,7 +1306,13 @@ class _OverviewPageState extends State<OverviewPage> {
   // overdue / due-soon split, which was right and would have been the
   // easiest thing to lose in a rewrite.
 
-  /// The single worst thing, as the design's own card.
+  /// The single worst thing, as the design's own card
+  /// (`Kola Dashboard Shell.dc.html` lines 219-233): a 3-dot confidence
+  /// meter + label, a bold title, a "Reason: …" line, then "Not useful"
+  /// (outline) beside the filled action button — in that order, that
+  /// button chrome (8px corners, not this app's usual pill — copied
+  /// faithfully from the export rather than "corrected" to match every
+  /// other button here).
   Component _topRecommendation(WorkspaceFinding f) => div(
         attributes: {
           'style': 'border:1px solid ${KolaVar.border};'
@@ -1150,30 +1326,12 @@ class _OverviewPageState extends State<OverviewPage> {
                   'margin-bottom:8px',
             },
             [
-              _severityDot(f.severity),
+              _confidenceDots(f.confidence),
               span(
                 attributes: {
-                  'style': 'font-size:${KolaType.tiny};font-weight:600;'
-                      'color:${KolaVar.muted}',
+                  'style': 'font-size:${KolaType.tiny};color:${KolaVar.muted}',
                 },
-                [
-                  // The design shows "Medium confidence · 0.62". Every
-                  // finding here is counted rather than judged, so it
-                  // says so plainly instead of dressing certainty up as
-                  // a score.
-                  Component.text(
-                    f.confidence >= 1.0
-                        ? 'Counted, not guessed'
-                        : '${(f.confidence * 100).round()}% confident',
-                  ),
-                ],
-              ),
-              span(
-                attributes: {
-                  'style': 'flex:1;text-align:right;'
-                      'font-size:${KolaType.tiny};color:${KolaVar.muted}',
-                },
-                [Component.text(_age(f))],
+                [Component.text(_confidenceLabel(f.confidence))],
               ),
             ],
           ),
@@ -1190,31 +1348,112 @@ class _OverviewPageState extends State<OverviewPage> {
                 'style': 'font-size:${KolaType.small};color:${KolaVar.muted};'
                     'line-height:1.55;max-width:64ch',
               },
-              [Component.text(f.detail!)],
+              [
+                Component.text('Reason: '),
+                Component.text(f.detail!),
+              ],
             ),
           div(
             attributes: {
               'style': 'display:flex;gap:8px;flex-wrap:wrap;margin-top:14px',
             },
             [
+              _notUsefulButton(f),
               if (_routeFor(f) case final route?)
                 Link(
                   to: route,
                   attributes: {
                     'class': 'kola-pressable',
-                    'style': 'padding:9px 16px;'
-                        'border-radius:${KolaRadius.pill};border:none;'
+                    'style': 'padding:8px 16px;'
+                        'border-radius:${KolaRadius.sm};border:none;'
                         'background:${KolaVar.accentFill};'
                         'color:${KolaVar.accentText};text-decoration:none;'
-                        'font-size:${KolaType.tiny};font-weight:600',
+                        'font-size:${KolaType.small};font-weight:600',
                   },
                   children: [Component.text(_actionLabelFor(f))],
                 ),
-              _dismissButton(f),
             ],
           ),
         ],
       );
+
+  /// 3 dots, matching recommendations_page.dart's identical helper
+  /// (kept as a private copy rather than shared — see that file's own
+  /// comment on why: two private State methods, not worth a components/
+  /// file yet). Colour thresholds are that page's, not
+  /// [KolaConfidenceStyle.fromScore]'s slightly different ones — this
+  /// card and the Recommendations list read the same underlying
+  /// WorkspaceFinding data and must tier it identically, or the same
+  /// 0.62 would render "medium" in one place and "high" in the other.
+  Component _confidenceDots(double confidence) {
+    final List<String> colors;
+    if (confidence >= 0.8) {
+      colors = [KolaVar.success, KolaVar.success, KolaVar.success];
+    } else if (confidence >= 0.5) {
+      colors = [KolaVar.warning, KolaVar.warning, KolaVar.border];
+    } else {
+      colors = [KolaVar.danger, KolaVar.border, KolaVar.border];
+    }
+    return div(
+      attributes: {'style': 'display:flex;gap:3px'},
+      [
+        for (final c in colors)
+          span(
+            attributes: {
+              'style': 'width:6px;height:6px;'
+                  'border-radius:${KolaRadius.circle};background:$c',
+            },
+            [],
+          ),
+      ],
+    );
+  }
+
+  /// The design's own copy shape is "{tier} confidence · {score}" (e.g.
+  /// "Medium confidence · 0.62"). Every finding this codebase detects
+  /// today is counted rather than judged — confidence is always exactly
+  /// 1.0 — and printing a tier name over a manufactured-looking score
+  /// for a deterministic count is the "dressing certainty up" this
+  /// codebase has already decided against elsewhere (see
+  /// recommendations_page.dart's identical reasoning). So 1.0 keeps the
+  /// honest "Counted, not guessed" wording; anything less (a future,
+  /// genuinely probabilistic detector) renders the design's own
+  /// tier-plus-score shape, which is accurate once confidence is real.
+  String _confidenceLabel(double confidence) {
+    if (confidence >= 1.0) return 'Counted, not guessed';
+    final tier = confidence >= 0.8
+        ? 'High'
+        : confidence >= 0.5
+            ? 'Medium'
+            : 'Low';
+    return '$tier confidence · ${confidence.toStringAsFixed(2)}';
+  }
+
+  /// The design's "Not useful" button — same dismiss call
+  /// [_dismissButton] makes for the plain list rows below, under the
+  /// export's own label and chrome (outline, 8px corners) rather than
+  /// this app's usual pill, since this card copies the export's button
+  /// shapes literally — see this method's caller's own comment.
+  Component _notUsefulButton(WorkspaceFinding f) {
+    final busy = f.id != null && _dismissing.contains(f.id);
+    return button(
+      attributes: {
+        'type': 'button',
+        if (busy || f.id == null) 'disabled': '',
+        'style': 'background:transparent;'
+            'border:1px solid ${KolaVar.border};color:${KolaVar.mutedStrong};'
+            'border-radius:${KolaRadius.sm};padding:8px 14px;'
+            'font-size:${KolaType.small};font-family:inherit;'
+            'cursor:${busy ? 'default' : 'pointer'}',
+      },
+      events: {
+        'click': (_) {
+          if (!busy) _dismissFinding(f);
+        },
+      },
+      [Component.text(busy ? 'Hiding…' : 'Not useful')],
+    );
+  }
 
   /// 14b. Renders [builder] against at most [_listCap] of [items] (or all
   /// of them, once [onExpand] has fired), plus a "Show N more" toggle
@@ -1473,39 +1712,54 @@ class _OverviewPageState extends State<OverviewPage> {
         ],
       );
 
-  Component _knowledgeSummary() {
+  /// "What kola learned" — `Kola Dashboard Shell.dc.html`'s own
+  /// `learnedItems` are two specific insight lines ("Customers most
+  /// often ask about delivery time to Ikeja and Lekki.", "Ankara fabric
+  /// restocks sell out within 48 hours on average."). Those are
+  /// TOPIC-EXTRACTION output — what customers ask about most, which
+  /// products restock fastest — and nothing in this codebase computes
+  /// that: grepped kola_server for any topic/most-asked/FAQ-pattern
+  /// aggregation and found none (bot_knowledge_service.dart's "topic"
+  /// hits are about knowledge-base indexing, not conversation-content
+  /// analysis). Copying the export's literal sentences would be exactly
+  /// the fabricated-fact case DESIGN_DELTA.md forbids — they would be
+  /// false, or at best a stale demo generalised to every workspace.
+  ///
+  /// So the SHAPE matches (a card, a short list of plain-text lines, no
+  /// bullets) but the CONTENT is the honest thing this build can say
+  /// about what kolaa has learned: how much it has to cite, and what
+  /// part of that is still processing. Named here rather than silently
+  /// swapped, per this file's own header on "no invented numbers".
+  Component _knowledgeLines() {
     final indexed = _documents.where((d) => d.status == 'indexed').length;
     final pending = _documents.length - indexed;
+
+    final lines = <String>[
+      indexed == 0
+          ? 'kolaa has nothing to cite yet — anything you add becomes '
+              'searchable within a few seconds.'
+          : indexed == 1
+              ? 'kolaa is answering customers from 1 document you taught it.'
+              : 'kolaa is answering customers from $indexed documents you taught it.',
+      if (pending > 0)
+        pending == 1
+            ? '1 document is still being processed — not searchable yet.'
+            : '$pending documents are still being processed — not searchable yet.',
+    ];
 
     return div(
       attributes: {
         'style': 'background:${KolaVar.card};border:1px solid ${KolaVar.border};'
-            'border-radius:${KolaRadius.lg};padding:16px;'
-            'font-size:${KolaType.body};color:${KolaVar.mutedStrong};'
-            'line-height:1.6',
+            'border-radius:${KolaRadius.md};padding:14px 16px;'
+            'display:flex;flex-direction:column;gap:10px',
       },
       [
-        Component.text(
-          indexed == 0
-              ? 'kolaa has nothing to cite yet. Anything you add becomes '
-                  'searchable within a few seconds.'
-              : indexed == 1
-                  ? 'kolaa is answering from 1 document.'
-                  : 'kolaa is answering from $indexed documents.',
-        ),
-        if (pending > 0)
+        for (final l in lines)
           div(
             attributes: {
-              'style': 'margin-top:8px;font-size:${KolaType.tiny};'
-                  'color:${KolaVar.warning}',
+              'style': 'font-size:${KolaType.body};color:${KolaVar.text}',
             },
-            [
-              Component.text(
-                pending == 1
-                    ? '1 document is still being processed.'
-                    : '$pending documents are still being processed.',
-              ),
-            ],
+            [Component.text(l)],
           ),
       ],
     );
