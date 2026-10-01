@@ -5,6 +5,8 @@
 // payment_transaction.spy.yaml's header on why holdStatus is bookkeeping
 // only, not real fund custody.
 
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
 import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/services/dto/payment_transaction_dto.dart';
@@ -239,6 +241,31 @@ class PaymentTransactionRepository {
         .from('payment_transactions')
         .update({
           'customer_id': customerId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', transactionId);
+  }
+
+  /// Task #142 — invoice auto-reconciliation's own idempotency guard.
+  /// Stamps metadataJson with invoiceCreditedAt so a retried webhook
+  /// delivery for the same confirmed payment (both gateways retry
+  /// aggressively on non-2xx — see payment_webhook_handler.dart's
+  /// header) credits Invoice.paidMinor at most once. Deliberately reuses
+  /// metadataJson — already "opaque, Errand-supplied context" per this
+  /// model's own field doc — rather than a new column: this flag has
+  /// exactly one reader (PaymentWebhookHandler, checking before it
+  /// credits again) and no query ever needs to filter or index on it, so
+  /// a migration would buy nothing a JSON field doesn't already give.
+  Future<void> markInvoiceCredited(int transactionId, String existingMetadataJson) async {
+    _log.info('markInvoiceCredited transactionId=$transactionId');
+    final metadata = existingMetadataJson.isEmpty
+        ? <String, dynamic>{}
+        : (jsonDecode(existingMetadataJson) as Map<String, dynamic>);
+    metadata['invoiceCreditedAt'] = DateTime.now().toUtc().toIso8601String();
+    await supabase
+        .from('payment_transactions')
+        .update({
+          'metadata_json': jsonEncode(metadata),
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', transactionId);

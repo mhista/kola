@@ -107,6 +107,16 @@ class PaymentCheckoutService {
     int? conversationId,
     int? channelId,
     Map<String, dynamic>? metadata,
+    /// Task #142 — links this checkout to an Invoice (Documents tab), so
+    /// PaymentWebhookHandler can credit Invoice.paidMinor automatically
+    /// once the gateway confirms the payment, instead of leaving that a
+    /// manual "mark as paid" the owner has to remember to do (see
+    /// invoice.spy.yaml's own paidMinor doc). Folded into [metadata]
+    /// under the 'invoiceId' key rather than given its own DB column —
+    /// nothing needs to query payment_transactions BY invoice in bulk
+    /// today, so metadataJson (already "opaque, Errand-supplied
+    /// context") carries it without a migration.
+    int? invoiceId,
   }) async {
     final workspace = await _workspaces.findById(workspaceId);
     if (workspace == null) {
@@ -203,6 +213,10 @@ class PaymentCheckoutService {
       checkoutUrl = (result['data'] as Map<String, dynamic>?)?['link'] as String?;
     }
 
+    final effectiveMetadata = invoiceId == null
+        ? metadata
+        : {...?metadata, 'invoiceId': invoiceId};
+
     final transaction = await _transactions.create(
       workspaceId: workspaceId,
       gateway: gateway,
@@ -214,7 +228,7 @@ class PaymentCheckoutService {
       conversationId: conversationId,
       channelId: channelId,
       checkoutUrl: checkoutUrl,
-      metadataJson: metadata == null ? null : jsonEncode(metadata),
+      metadataJson: effectiveMetadata == null ? null : jsonEncode(effectiveMetadata),
       holdStatus: holdInEscrow ? 'held' : 'notHeld',
     );
     Log.success('Checkout initialized: workspaceId=$workspaceId reference=$reference');

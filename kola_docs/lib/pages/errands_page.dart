@@ -101,6 +101,30 @@ class ErrandsPage extends StatelessComponent {
             "history/logs aren't deleted on disable.",
       ]),
 
+      docH2('Execution history'),
+      docP(
+        "listExecutions returns one Errand's own run history, newest first — every invocation's "
+        'inputs, result, success/failure, and latency. This is a deliberately small slice: it '
+        "is one Errand's log, not a multi-step chain with approval gates — nothing in kolaa "
+        'models a chain of steps above a single Errand yet, that would be separate, real future '
+        'work.',
+      ),
+      const CodeBlock(
+        title: 'ErrandEndpoint.listExecutions',
+        dart:
+            "final runs = await client.errand.listExecutions(accessToken, workspaceId, errand.id!);\n"
+            "for (final run in runs) {\n"
+            "  print('\${run.executedAt}: \${run.success ? \"ok\" : run.errorMessage} '\n"
+            "      '(\${run.latencyMs}ms)');\n"
+            "}",
+      ),
+      docNote(
+        "inputJson has any key the Errand's own sensitiveInputKeysJson names replaced with the "
+        "literal string \"[redacted]\" before the row is ever written — the redaction happens "
+        'at write time, not read time, so a sensitive value is never actually stored in the '
+        'log at all.',
+      ),
+
       docH2('Plan limits'),
       docP(
         "A workspace on the free-tier cap (past the 48-hour full-access window, or paused) can "

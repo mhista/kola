@@ -50,6 +50,7 @@ import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/platform/api_key_service.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/assistant/workspace_answer_service.dart';
+import 'package:kola_server/src/services/security/security_filter.dart';
 
 final _log = Logger('AiQueryRoute');
 
@@ -84,6 +85,15 @@ class AiQueryRoute extends Route {
             'This API key\'s scope ("${apiKey.scope}") cannot query — use a '
             '"full" or "read_only" scoped key.',
           );
+      }
+
+      // Rate limit — same checkpoint send_message_route.dart uses, keyed
+      // by the API key. Worth it here especially: this route is the
+      // expensive one (a real AI call per request), on a server hard-
+      // capped at 0.2 vCPU.
+      final rate = getIt<SecurityFilter>().checkApiRequest(callerId: apiKey.id.toString());
+      if (!rate.allowed) {
+        return _err(429, rate.warningMessage ?? 'Too many requests — please slow down.');
       }
 
       final workspace = await getIt<WorkspaceRepository>().findById(apiKey.workspaceId);

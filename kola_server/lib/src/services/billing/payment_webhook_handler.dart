@@ -36,6 +36,7 @@ import 'package:kola_server/src/generated/protocol.dart';
 import 'package:kola_server/src/config/dependency_injection.dart';
 import 'package:kola_server/src/services/repository/payment_transaction_repository.dart';
 import 'package:kola_server/src/services/repository/payment_gateway_credential_repository.dart';
+import 'package:kola_server/src/services/repository/invoice_repository.dart';
 import 'package:kola_server/src/services/security/channel_credential_encryption_service.dart';
 import 'package:kola_server/src/services/connectors/contract/event_bus.dart';
 import 'package:kola_server/src/services/connectors/contract/customer_identity_resolver.dart';
@@ -46,6 +47,7 @@ class PaymentWebhookHandler {
   PaymentTransactionRepository get _transactions => getIt<PaymentTransactionRepository>();
   PaymentGatewayCredentialRepository get _credentials =>
       getIt<PaymentGatewayCredentialRepository>();
+  InvoiceRepository get _invoices => getIt<InvoiceRepository>();
   EventBus get _events => getIt<EventBus>();
   CustomerIdentityResolver get _customerIdentity => getIt<CustomerIdentityResolver>();
 
@@ -249,6 +251,20 @@ class PaymentWebhookHandler {
       }
     }
 
+    // Task #142 — auto-reconcile against an Invoice, when this checkout
+    // was initiated for one (PaymentCheckoutService.initializeCheckout's
+    // invoiceId param, folded into metadataJson — see that param's own
+    // doc). Previously InvoiceEndpoint.recordPayment was the ONLY way
+    // Invoice.paidMinor ever moved — a manual "mark as paid" an owner
+    // had to remember to click even after the money had genuinely
+    // already landed. This does not replace that manual path (a bank
+    // transfer paid straight into an owner's account, with no Kola
+    // checkout involved, still has no gateway webhook to react to) — it
+    // only covers payments that came in through a Kola-initiated
+    // checkout, which is the case that has enough information to
+    // reconcile itself safely.
+    await _creditInvoiceIfLinked(txn);
+
     await _events.emit(
       workspaceId: txn.workspaceId,
       eventType: 'payment_confirmed',
@@ -264,6 +280,63 @@ class PaymentWebhookHandler {
       },
       occurredAt: txn.paidAt,
     );
+  }
+
+  /// See [_emitPaymentConfirmed]'s call-site comment for context. Reads
+  /// invoiceId out of txn.metadataJson (never trusts a workspaceId from
+  /// the payload the same way the rest of this file never trusts an
+  /// unverified field — the invoice is looked up scoped to
+  /// txn.workspaceId, so a metadataJson that somehow named another
+  /// workspace's invoice id just fails to find it, not credits it).
+  /// Guarded by invoiceCreditedAt (set by
+  /// PaymentTransactionRepository.markInvoiceCredited) so a retried
+  /// webhook delivery for the same confirmed payment can never credit
+  /// the invoice twice.
+  Future<void> _creditInvoiceIfLinked(PaymentTransaction txn) async {
+    final txnId = txn.id;
+    if (txnId == null) return;
+
+    final metadataJson = txn.metadataJson;
+    if (metadataJson == null || metadataJson.isEmpty) return;
+
+    Map<String, dynamic> metadata;
+    try {
+      metadata = jsonDecode(metadataJson) as Map<String, dynamic>;
+    } catch (e) {
+      Log.warning('payment txn $txnId: metadataJson is not valid JSON — skipping invoice credit: $e');
+      return;
+    }
+
+    if (metadata['invoiceCreditedAt'] != null) {
+      return; // already credited — see this method's own doc
+    }
+
+    final rawInvoiceId = metadata['invoiceId'];
+    final invoiceId = rawInvoiceId is int ? rawInvoiceId : int.tryParse(rawInvoiceId?.toString() ?? '');
+    if (invoiceId == null) return;
+
+    final invoice = await _invoices.findById(txn.workspaceId, invoiceId);
+    if (invoice == null) {
+      Log.warning(
+        'payment txn $txnId: metadataJson names invoice $invoiceId but it was not found '
+        'in workspace ${txn.workspaceId} — skipping auto-credit',
+      );
+      return;
+    }
+
+    try {
+      await _invoices.recordPayment(
+        workspaceId: txn.workspaceId,
+        invoiceId: invoiceId,
+        amountMinor: txn.amountKobo,
+        totalMinor: invoice.totalMinor,
+        currentPaidMinor: invoice.paidMinor,
+      );
+      await _transactions.markInvoiceCredited(txnId, metadataJson);
+      Log.success('Invoice $invoiceId auto-credited ${txn.amountKobo} from payment txn $txnId');
+    } catch (e) {
+      Log.error('payment txn $txnId: failed to auto-credit invoice $invoiceId: $e');
+    }
   }
 
   Map<String, dynamic>? _tryDecode(String rawBody) {

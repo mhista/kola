@@ -1,15 +1,23 @@
 // authentication_page.dart — '/authentication'.
 //
-// HONESTY CHECKPOINT: SRS.md §12 describes the eventual auth model as
-// "workspace-scoped API keys for programmatic access; session auth for
-// the dashboard." Only the second half is real — grepped kola_server's
-// entire lib/ for apiKey/api_key/ApiKey and found nothing but AI
-// provider keys (Groq/Gemini/OpenRouter), which are a different thing
-// entirely (Kola's own server calling AI vendors, not a third party
-// calling Kola). There is no workspace-scoped API key system today.
-// This page says so plainly instead of describing SRS's planned system
-// as if it already shipped — same discipline as every other
-// "don't promise a backend that doesn't exist" call this project makes.
+// TWO REAL AUTH MECHANISMS COEXIST, VERIFIED SEPARATELY AGAINST SOURCE:
+//
+// 1. accessToken (Supabase session token) — what every Serverpod
+//    Endpoint method on this site's other pages takes, built for
+//    kola_dashboard/kola_admin and any other Dart app in this codebase.
+//    requireWorkspaceAccess checks it, as documented below.
+//
+// 2. API key (Bearer sk_live_...) — what the two public REST routes
+//    take, confirmed against api_key_service.dart, send_message_route.
+//    dart, and ai_query_route.dart. Built for a caller outside kolaa
+//    entirely, in any language. Full detail lives on the Public API
+//    page rather than duplicated here.
+//
+// This page previously said no API-key system existed at all — true
+// when it was written, no longer true once Gate 8 (POST /v1/messages)
+// and Gate 12 (POST /v1/ai/query) shipped. Fixed here rather than left
+// stale, per this project's own "don't describe a backend that doesn't
+// match reality" discipline.
 
 import 'package:jaspr/jaspr.dart';
 import '../components/code_block.dart';
@@ -23,18 +31,17 @@ class AuthenticationPage extends StatelessComponent {
     return Component.fragment([
       docH1('Authentication'),
       docLede(
-        "Every Kola endpoint that touches a workspace takes an accessToken as an explicit "
-        "parameter — there's no separate API-key system yet (see the note below). The token is "
-        "a normal Supabase Auth session token, the same one the dashboard itself holds after "
-        'sign-in.',
+        "kolaa has two separate auth mechanisms, for two separate audiences. Every Serverpod "
+        "Endpoint method documented on this site (and everything kola_dashboard/kola_admin "
+        "call) takes an accessToken — a Supabase Auth session token. The two public REST "
+        'routes meant for external, non-Dart callers take an API key instead — see Public API.',
       ),
 
-      docWarning(
-        "Workspace-scoped API keys are planned (see the project's own SRS §12) but not built. "
-        "Today, calling Kola programmatically means using a real user's Supabase session "
-        'token — there is no way to mint a token scoped to just one workspace, and no way to '
-        'revoke a single integration without signing that user out everywhere. Treat this page '
-        "as \"how auth works right now,\" not the long-term shape.",
+      docNote(
+        'Building against kolaa from outside this codebase, in any language? You almost '
+        'certainly want an API key and the Public API page, not the accessToken flow below — '
+        'that flow expects a real Supabase user session, which an external integration should '
+        'not need to hold.',
       ),
 
       docH2('Getting a token'),
@@ -68,10 +75,10 @@ class AuthenticationPage extends StatelessComponent {
       ),
       const CodeBlock(
         dart:
-            "final client = Client('https://api.kola.app');\n"
+            "final client = Client('https://api.kolaa.co');\n"
             "final bots = await client.bot.listBotsForWorkspace(accessToken, workspaceId);",
         curl:
-            "curl -X POST https://api.kola.app/bot \\\n"
+            "curl -X POST https://api.kolaa.co/bot \\\n"
             "  -H 'Content-Type: application/json' \\\n"
             "  -d '{\"method\": \"listBotsForWorkspace\", \"accessToken\": \"<token>\", \"workspaceId\": 42}'",
       ),
@@ -84,6 +91,15 @@ class AuthenticationPage extends StatelessComponent {
         'anything else: it verifies the token is a real, current Supabase session, then '
         "confirms that session's user is a member of workspaceId. Fail either check and the "
         'call throws before touching any data — there is no partial-auth state.',
+      ),
+
+      docH2('API keys are a separate mechanism'),
+      docP(
+        'POST /v1/messages and POST /v1/ai/query take an API key instead of an accessToken — '
+        'Bearer sk_live_... in the Authorization header, not a body parameter. A key is scoped '
+        'to exactly one workspace and one of three permission scopes at creation, so it carries '
+        'its own workspace identity rather than needing one supplied per request. See Public '
+        'API for how to create one, the full request/response shapes, and error codes.',
       ),
 
       docH2('Inbound webhooks are a separate story'),

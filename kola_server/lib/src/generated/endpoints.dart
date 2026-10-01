@@ -4994,6 +4994,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<Map<String, dynamic>?>(),
               nullable: true,
             ),
+            'invoiceId': _i1.ParameterDescription(
+              name: 'invoiceId',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
           },
           call:
               (
@@ -5012,6 +5017,7 @@ class Endpoints extends _i1.EndpointDispatch {
                     conversationId: params['conversationId'],
                     channelId: params['channelId'],
                     metadata: params['metadata'],
+                    invoiceId: params['invoiceId'],
                   ),
         ),
         'getTransaction': _i1.MethodConnector(
@@ -6841,6 +6847,11 @@ class Endpoints extends _i1.EndpointDispatch {
               type: _i1.getType<bool?>(),
               nullable: true,
             ),
+            'taxRateBps': _i1.ParameterDescription(
+              name: 'taxRateBps',
+              type: _i1.getType<int?>(),
+              nullable: true,
+            ),
           },
           call:
               (
@@ -6857,6 +6868,7 @@ class Endpoints extends _i1.EndpointDispatch {
                     sellsCatalogItems: params['sellsCatalogItems'],
                     publicCatalogEnabled: params['publicCatalogEnabled'],
                     customerDisplayEnabled: params['customerDisplayEnabled'],
+                    taxRateBps: params['taxRateBps'],
                   ),
         ),
         'getBillingSummary': _i1.MethodConnector(

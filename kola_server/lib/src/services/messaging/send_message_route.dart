@@ -39,6 +39,7 @@ import 'package:kola_server/src/services/features/feature_flag_service.dart';
 import 'package:kola_server/src/services/platform/api_key_service.dart';
 import 'package:kola_server/src/services/repository/workspace_repository.dart';
 import 'package:kola_server/src/services/messaging/outbound_message_service.dart';
+import 'package:kola_server/src/services/security/security_filter.dart';
 
 final _log = Logger('SendMessageRoute');
 
@@ -64,6 +65,15 @@ class SendMessageRoute extends Route {
       }
       if (apiKey.scope != 'full') {
         return _err(403, 'This API key\'s scope ("${apiKey.scope}") cannot send messages — a "full" scope key is required.');
+      }
+
+      // Rate limit — keyed by the API key itself, checked right after
+      // auth and before any real work. See SecurityFilter.checkApiRequest's
+      // own header for why this is a separate, lighter checkpoint than
+      // the one customer chat messages go through.
+      final rate = getIt<SecurityFilter>().checkApiRequest(callerId: apiKey.id.toString());
+      if (!rate.allowed) {
+        return _err(429, rate.warningMessage ?? 'Too many requests — please slow down.');
       }
 
       final workspace = await getIt<WorkspaceRepository>().findById(apiKey.workspaceId);

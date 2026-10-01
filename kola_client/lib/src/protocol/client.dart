@@ -2990,6 +2990,7 @@ class EndpointPayment extends _i1.EndpointRef {
     int? conversationId,
     int? channelId,
     Map<String, dynamic>? metadata,
+    int? invoiceId,
   }) => caller.callServerEndpoint<_i34.PaymentTransaction>(
     'payment',
     'initializeCheckout',
@@ -3004,6 +3005,7 @@ class EndpointPayment extends _i1.EndpointRef {
       'conversationId': conversationId,
       'channelId': channelId,
       'metadata': metadata,
+      'invoiceId': invoiceId,
     },
   );
 
@@ -4156,6 +4158,7 @@ class EndpointWorkspace extends _i1.EndpointRef {
     bool? sellsCatalogItems,
     bool? publicCatalogEnabled,
     bool? customerDisplayEnabled,
+    int? taxRateBps,
   }) => caller.callServerEndpoint<_i10.Workspace>(
     'workspace',
     'updateWorkspace',
@@ -4168,6 +4171,7 @@ class EndpointWorkspace extends _i1.EndpointRef {
       'sellsCatalogItems': sellsCatalogItems,
       'publicCatalogEnabled': publicCatalogEnabled,
       'customerDisplayEnabled': customerDisplayEnabled,
+      'taxRateBps': taxRateBps,
     },
   );
 

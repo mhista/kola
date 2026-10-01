@@ -12,11 +12,11 @@
 # protects data (see lib/services/waitlist_api_service.dart's header
 # comment for the exact RLS policy this page depends on).
 #
-# LAUNCH_MODE (optional, defaults to "waitlist"): set to "launched" at
-# real launch to flip the whole page over. This is a build-time-only
-# flag — there is no runtime UI control for it (see lib/config/env.dart's
-# header comment). Example:
-#   LAUNCH_MODE=launched SUPABASE_URL=... SUPABASE_ANON_KEY=... ./build.sh
+# LAUNCH_MODE (optional, defaults to "launched" as of 2026-10-01, launch
+# day): set to "waitlist" to go back to the pre-launch page. This is a
+# build-time-only flag — there is no runtime UI control for it (see
+# lib/config/env.dart's header comment). Example:
+#   LAUNCH_MODE=waitlist SUPABASE_URL=... SUPABASE_ANON_KEY=... ./build.sh
 
 set -e
 
@@ -28,7 +28,7 @@ set -e
 # running this script, same as always.
 SUPABASE_URL="${SUPABASE_URL:-https://jwyrmptiehkkizwjbqtg.supabase.co}"
 SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3eXJtcHRpZWhra2l6d2picXRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE0NzEsImV4cCI6MjEwMDIwNzQ3MX0.jqjS8ZDrdSNj1hT01PTMoEFDFQITA9MoQyQJn4EagBY}"
-LAUNCH_MODE="${LAUNCH_MODE:-waitlist}"
+LAUNCH_MODE="${LAUNCH_MODE:-launched}"
 
 echo "📦 Installing dependencies..."
 dart pub get

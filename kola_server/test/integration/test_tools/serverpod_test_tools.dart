@@ -5712,6 +5712,7 @@ class _PaymentEndpoint {
     int? conversationId,
     int? channelId,
     Map<String, dynamic>? metadata,
+    int? invoiceId,
   }) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -5735,6 +5736,7 @@ class _PaymentEndpoint {
             'conversationId': conversationId,
             'channelId': channelId,
             'metadata': metadata,
+            'invoiceId': invoiceId,
           }),
           serializationManager: _serializationManager,
         );
@@ -7647,6 +7649,7 @@ class _WorkspaceEndpoint {
     bool? sellsCatalogItems,
     bool? publicCatalogEnabled,
     bool? customerDisplayEnabled,
+    int? taxRateBps,
   }) async {
     return _i1.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
@@ -7668,6 +7671,7 @@ class _WorkspaceEndpoint {
             'sellsCatalogItems': sellsCatalogItems,
             'publicCatalogEnabled': publicCatalogEnabled,
             'customerDisplayEnabled': customerDisplayEnabled,
+            'taxRateBps': taxRateBps,
           }),
           serializationManager: _serializationManager,
         );

@@ -243,6 +243,18 @@ class WorkspaceEndpoint extends Endpoint {
     // Phase 11 (migration 058). Same "real bool, gated on ON, never on
     // OFF" shape as publicCatalogEnabled just above.
     bool? customerDisplayEnabled,
+    // Pre-launch audit (2026-10-01) — migration 035 added
+    // workspaces.tax_rate_bps so the till and invoices could apply a
+    // real, per-workspace VAT rate instead of hardcoding Nigeria's 7.5%
+    // for everyone (that migration's own header explains why: most
+    // small shops are under the VAT-registration threshold, and
+    // charging it to them by default would misstate real receipts and
+    // the owner's own books). What that migration never got was an
+    // owner-facing way to SET it — the column existed, SaleEndpoint and
+    // InvoiceEndpoint both read it, but nothing ever wrote it except a
+    // migration default or direct DB access. This closes that gap.
+    // Basis points (750 = 7.5%), same unit sales.tax_rate_bps stores.
+    int? taxRateBps,
   }) async {
     await requireWorkspaceAccess(
       accessToken: accessToken,
@@ -292,6 +304,16 @@ class WorkspaceEndpoint extends Endpoint {
         );
       }
       current.customerDisplayEnabled = customerDisplayEnabled;
+    }
+    if (taxRateBps != null) {
+      // Bounded, not just non-negative — a rate above 100% is never a
+      // real tax rate and is almost certainly a misplaced decimal (750
+      // meant as "750%" instead of 7.5%, say). Refused loud rather than
+      // silently overcharging every sale from here on.
+      if (taxRateBps < 0 || taxRateBps > 10000) {
+        throw KolaException(message: 'Tax rate must be between 0% and 100%.');
+      }
+      current.taxRateBps = taxRateBps;
     }
 
     return _workspaces.update(current);

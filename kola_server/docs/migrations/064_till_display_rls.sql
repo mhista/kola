@@ -1,0 +1,26 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Kola — Supabase schema (migration 064 — till_display_state RLS)
+--
+-- Apply AFTER 063.
+--
+-- Pre-launch security audit (2026-09-28) found till_display_state
+-- (migration 058) was the only create table across every prior
+-- migration missing "alter table ... enable row level security" —
+-- every other table in this project has carried deny-all RLS since
+-- migration 001, by convention (kola_server reaches Supabase over the
+-- direct postgres connection as table owner, which RLS does not apply
+-- to; this is belt-and-suspenders against anything ever querying
+-- Supabase directly with the anon/public key). Not a live exploit today
+-- — nothing in kola_dashboard or kola_landing queries Supabase directly
+-- except auth — but the omission breaks the codebase's own invariant
+-- and costs nothing to close. See till_display_endpoint.dart's own
+-- header: getState is deliberately the one PUBLIC (no accessToken)
+-- method on that endpoint, which makes this table's isolation worth
+-- being extra deliberate about, not less.
+--
+-- No policies added, matching every other table: deny-all to
+-- PostgREST/anon, same as api_keys, webhook_endpoints, tasks, and
+-- everything else.
+
+alter table till_display_state enable row level security;
+-- ─────────────────────────────────────────────────────────────────────────────

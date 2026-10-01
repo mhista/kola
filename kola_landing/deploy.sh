@@ -32,9 +32,14 @@
 # on every run after):
 #   ./deploy.sh
 #
-# LAUNCH_MODE (optional, now defaults to "launched" — see ── Config):
-# override with LAUNCH_MODE=waitlist ./deploy.sh to go back to the
-# waitlist page. Build-time-only flag, no runtime UI control.
+# LAUNCH_MODE (optional, defaults to "launched" as of 2026-10-01 — see
+# ── Config below): override with LAUNCH_MODE=waitlist ./deploy.sh to go
+# back to the waitlist page. Build-time-only flag, no runtime UI control.
+# The default changed from "waitlist" to "launched" on launch day —
+# before that date it was the other way around, and this comment block
+# said "launched" while the actual default was still "waitlist" for a
+# while; if you find this comment and the Config line below disagree
+# again, trust the Config line and fix this comment, not the reverse.
 # ============================================================================
 
 set -e
@@ -44,7 +49,7 @@ set -e
 # note. Both safe to hardcode: anon key is public-by-design.
 SUPABASE_URL="${SUPABASE_URL:-https://jwyrmptiehkkizwjbqtg.supabase.co}"
 SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3eXJtcHRpZWhra2l6d2picXRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE0NzEsImV4cCI6MjEwMDIwNzQ3MX0.jqjS8ZDrdSNj1hT01PTMoEFDFQITA9MoQyQJn4EagBY}"
-LAUNCH_MODE="${LAUNCH_MODE:-waitlist}"
+LAUNCH_MODE="${LAUNCH_MODE:-launched}"
 PROJECT_NAME="${PROJECT_NAME:-kola-landing}"
 
 # ── BRANCH: THE REASON A "SUCCESSFUL" DEPLOY CHANGED NOTHING ──────────────────

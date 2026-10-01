@@ -45,7 +45,7 @@ class QuickstartPage extends StatelessComponent {
             ");\n"
             "print(bot.id); // save this — every call below needs it",
         curl:
-            "curl -X POST https://api.kola.app/bot \\\n"
+            "curl -X POST https://api.kolaa.co/bot \\\n"
             "  -H 'Content-Type: application/json' \\\n"
             "  -d '{\n"
             '    "method": "createBot",\n'
@@ -54,6 +54,25 @@ class QuickstartPage extends StatelessComponent {
             '    "name": "Aisha Assistant",\n'
             '    "archetype": "customerCare"\n'
             "  }'",
+      ),
+
+      docNote(
+        'createBot above is the manual path — name and archetype supplied directly. There is '
+        'also createBotFromDescription: describe the bot in plain language and kolaa drafts '
+        'the name, archetype, and an initial knowledge seed for you, using the same creation '
+        'rules and one-bot-per-workspace cap as createBot.',
+      ),
+      const CodeBlock(
+        title: 'BotEndpoint.createBotFromDescription — the alternative to step 1',
+        dart:
+            "final bot = await client.bot.createBotFromDescription(\n"
+            "  accessToken, workspaceId,\n"
+            '  "A customer care assistant for my leather goods shop — answers questions about '
+            'products and prices, escalates complaints to me.",\n'
+            ");\n"
+            "print(bot.name);       // drafted for you\n"
+            "print(bot.archetype);  // drafted for you\n"
+            "print(bot.knowledgeSeed); // drafted for you, if the description gave enough to seed one",
       ),
 
       docH2('2. Connect a channel'),

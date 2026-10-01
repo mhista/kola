@@ -405,6 +405,14 @@ void _register({required Channel channel, required String botToken}) {
   /// Used by health checks / diagnostics — not part of any endpoint yet.
   bool isRunning(int channelId) => _services.containsKey(channelId);
 
+  /// TelegramWebhookRoute's verification lookup — the secret this
+  /// channel's TelegramService registered with Telegram via setWebhook.
+  /// Null for a channel that isn't currently registered (disconnected,
+  /// or never bootstrapped), which the route treats as "reject" rather
+  /// than "skip the check," same as every other unregistered-channel
+  /// path in this registry.
+  String? secretTokenFor(int channelId) => _services[channelId]?.secretToken;
+
   /// Task #82 — the nightly credential health check's Telegram probe.
   /// Reuses this channel's already-decrypted, already-registered
   /// TelegramService (no re-decryption needed) and makes one real getMe()

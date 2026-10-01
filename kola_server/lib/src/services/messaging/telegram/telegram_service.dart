@@ -44,7 +44,9 @@
 //   bot, no ngrok required at all for day-to-day local development.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:logging/logging.dart';
 import 'package:televerse/telegram.dart'
     show
@@ -74,7 +76,8 @@ class TelegramService {
     required String botToken,
     this.webhookUrl,
     this.webhookPort,
-  }) : _bot = Bot(botToken);
+  })  : _bot = Bot(botToken),
+        secretToken = _deriveSecretToken(botToken);
 
   factory TelegramService({
     required String botToken,
@@ -87,7 +90,35 @@ class TelegramService {
       webhookPort: webhookPort,
     );
   }
-  
+
+  /// Deterministic per-bot secret, sent to Telegram via setWebhook's
+  /// secretToken param and checked back against the
+  /// X-Telegram-Bot-Api-Secret-Token header on every inbound webhook
+  /// POST (telegram_webhook_route.dart). Added ahead of launch — this
+  /// route previously had NO verification at all that a POST actually
+  /// came from Telegram, versus anyone who guessed or scraped the
+  /// (predictable, sequential) /webhooks/telegram/<channelId> path.
+  ///
+  /// DELIBERATELY NOT a new global secret: this codebase's env.dart
+  /// draws an explicit line ("NEVER reuse [a secret] for anything
+  /// else... rotating one should never require touching another") that
+  /// rules out reusing Env.adminToken or Env.channelCredentialMasterKey
+  /// here — neither is "the Telegram webhook secret," and overloading
+  /// either would make future rotation of one silently break the other.
+  /// Instead this is derived, per-channel, from the one credential that
+  /// already IS unique per channel and already lives encrypted at rest:
+  /// the bot's own token. sha256(botToken) is 64 lowercase hex chars,
+  /// which satisfies Telegram's secret_token charset (A-Z a-z 0-9 _ -)
+  /// and length (1-256) requirements outright. No new column, no new
+  /// migration, no new env var — the secret rotates automatically
+  /// whenever the owner reconnects with a new bot token, same as every
+  /// other per-channel credential already does.
+  final String secretToken;
+
+  static String _deriveSecretToken(String botToken) {
+    return sha256.convert(utf8.encode('telegram-webhook-secret:$botToken')).toString();
+  }
+
   final Bot _bot;
   final String? webhookUrl;
   final int? webhookPort;
@@ -203,6 +234,10 @@ class TelegramService {
           UpdateType.myChatMember,
           UpdateType.chatMember,
         ],
+        // See this.secretToken's own header — checked back against the
+        // X-Telegram-Bot-Api-Secret-Token header in
+        // telegram_webhook_route.dart on every inbound POST.
+        secretToken: secretToken,
       );
 
       if (success) {

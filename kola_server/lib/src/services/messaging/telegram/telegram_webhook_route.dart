@@ -48,6 +48,24 @@ class TelegramWebhookRoute extends Route {
 
     // ── POST: actual Telegram update delivery ────────────────────────────
     try {
+      // Verify this actually came from Telegram before doing anything
+      // else. Telegram echoes back exactly the secretToken this
+      // channel's TelegramService passed to setWebhook, on every
+      // delivery, via this header — see TelegramService.secretToken's
+      // own header for why it's derived per-channel rather than a new
+      // global secret. A missing/wrong header means either a stale
+      // registration (registry has no service for this channel, or it
+      // was reconnected with a new token since Telegram's last webhook
+      // ACK — safe to just drop) or someone probing the path directly.
+      // Logged and dropped, not rejected with a non-2xx — see this
+      // file's header on why every response here is 200.
+      final presentedSecret = _secretTokenHeader(request);
+      final expectedSecret = TelegramBotRegistry.instance.secretTokenFor(channelId);
+      if (expectedSecret == null || presentedSecret != expectedSecret) {
+        _log.warning('channel $channelId: rejected webhook POST — missing/invalid secret token');
+        return _ok();
+      }
+
       final body = await request.readAsString();
 
       if (body.isEmpty) return _ok();
@@ -76,4 +94,13 @@ class TelegramWebhookRoute extends Route {
   Result _ok() => Response.ok(
         body: Body.fromString(jsonEncode({'ok': true}), mimeType: MimeType.json),
       );
+
+  /// Telegram sends this on every webhook POST when secretToken was
+  /// configured via setWebhook — see send_message_route.dart's
+  /// _bearerToken for the same header-access shape used elsewhere in
+  /// this codebase's custom Routes.
+  String? _secretTokenHeader(Request request) {
+    final values = request.headers['x-telegram-bot-api-secret-token'];
+    return (values != null && values.isNotEmpty) ? values.first : null;
+  }
 }

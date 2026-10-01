@@ -124,6 +124,13 @@ class _SettingsPageState extends State<SettingsPage> {
   late bool _publicCatalogEnabled = component.workspace.publicCatalogEnabled;
   // Phase 11 (migration 058). Same shape as _publicCatalogEnabled above.
   late bool _customerDisplayEnabled = component.workspace.customerDisplayEnabled;
+  // Pre-launch audit (2026-10-01) — migration 035 added this column and
+  // the till/invoices have read it ever since, but until now nothing
+  // let an owner actually set it (see WorkspaceEndpoint.updateWorkspace's
+  // own comment on the same date). Stored here as the human percentage
+  // string the owner types ("7.5"), converted to/from basis points only
+  // at load and save — see _taxRateBps/_saveWorkspace.
+  late String _taxRatePercent = _formatBpsAsPercent(component.workspace.taxRateBps);
   bool _savingWorkspace = false;
   String? _workspaceError;
   String? _workspaceSaved;
@@ -199,6 +206,14 @@ class _SettingsPageState extends State<SettingsPage> {
       _workspaceError = null;
       _workspaceSaved = null;
     });
+    final parsedTaxRateBps = _parsePercentToBps(_taxRatePercent);
+    if (parsedTaxRateBps == null) {
+      setState(() {
+        _savingWorkspace = false;
+        _workspaceError = 'Tax rate must be a number between 0 and 100.';
+      });
+      return;
+    }
     try {
       final updated = await component.client.workspace.updateWorkspace(
         component.accessToken,
@@ -209,6 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
         sellsCatalogItems: _sellsCatalogItems,
         publicCatalogEnabled: _publicCatalogEnabled,
         customerDisplayEnabled: _customerDisplayEnabled,
+        taxRateBps: parsedTaxRateBps,
       );
       if (!mounted) return;
       component.onWorkspaceUpdated(updated);
@@ -432,6 +448,12 @@ class _SettingsPageState extends State<SettingsPage> {
         _field('Your name', _ownerName, (v) => setState(() => _ownerName = v),
             placeholder: 'The name kolaa greets you with'),
         _catalogPicker(),
+        _field(
+          'VAT / tax rate (%)',
+          _taxRatePercent,
+          (v) => setState(() => _taxRatePercent = v),
+          placeholder: '0 — most small shops are not VAT-registered',
+        ),
         _publicCatalogToggle(),
         _customerDisplayToggle(),
         if (_workspaceError != null) _msg(_workspaceError!, KolaVar.danger),
@@ -909,6 +931,30 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       );
+
+  /// Basis points (what the server and migration 035 store) to the plain
+  /// percentage string an owner actually types. 750 -> "7.5", 0 -> "0".
+  static String _formatBpsAsPercent(int bps) {
+    final percent = bps / 100;
+    // Avoid a trailing ".0" for the common whole-number case (0, 5, 10)
+    // without losing a real fraction like 7.5.
+    return percent == percent.roundToDouble()
+        ? percent.toInt().toString()
+        : percent.toString();
+  }
+
+  /// The reverse of [_formatBpsAsPercent], plus the validation
+  /// WorkspaceEndpoint.updateWorkspace itself enforces (0-100%) — checked
+  /// here too so a mistyped rate never leaves the button spinning only to
+  /// come back as a server error. Null means "could not parse" or "out of
+  /// range", either way _saveWorkspace refuses to submit.
+  static int? _parsePercentToBps(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return 0;
+    final percent = double.tryParse(trimmed);
+    if (percent == null || percent < 0 || percent > 100) return null;
+    return (percent * 100).round();
+  }
 
   Component _field(
     String label,

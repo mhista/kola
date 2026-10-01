@@ -92,14 +92,12 @@ class PaymentEndpoint extends Endpoint {
     }
     final trimmedKey = secretKey.trim();
     if (trimmedKey.isEmpty) {
-      throw const InvalidPaymentGatewayCredentialException('Secret key cannot be empty.');
+      throw KolaException(message: 'Secret key cannot be empty.');
     }
 
     final trimmedApiKey = apiKey?.trim();
     if (gateway == 'monnify' && (trimmedApiKey == null || trimmedApiKey.isEmpty)) {
-      throw const InvalidPaymentGatewayCredentialException(
-        'Monnify needs both an API key and a secret key.',
-      );
+      throw KolaException(message: 'Monnify needs both an API key and a secret key.');
     }
 
     // ── Probe against the real gateway before touching the DB ───────────
@@ -138,20 +136,37 @@ class PaymentEndpoint extends Endpoint {
           throw StateError('No probe implemented for gateway "$gateway".');
       }
     } catch (e) {
-      throw InvalidPaymentGatewayCredentialException(
-        'Could not verify this $gateway secret key — double-check it was copied '
-        'exactly from your $gateway dashboard, and that it\'s the SECRET key, '
-        'not the public key. ($e)',
+      throw KolaException(
+        message: 'Could not verify this $gateway secret key — double-check it was copied '
+            'exactly from your $gateway dashboard, and that it\'s the SECRET key, '
+            'not the public key. ($e)',
       );
     }
 
+    // HARD-FAIL, NOT A WARNING (decided pre-launch, 2026-09-28) — this
+    // used to only log a warning and connect anyway. That silently left
+    // the business in a state where the connect flow says "connected"
+    // but no payment will ever confirm automatically: without a webhook
+    // secret hash, PaymentWebhookHandler.processFlutterwave rejects
+    // every inbound webhook outright (see that file — "no webhook secret
+    // hash on file — rejecting"), so every Flutterwave payment silently
+    // sits at 'pending' forever unless someone notices and manually
+    // reconciles it. That is a worse failure mode than refusing the
+    // connect up front and telling the owner exactly what is missing —
+    // same "fail loud on a bad paste" discipline this endpoint already
+    // applies to a wrong secret key (see this method's own header).
+    // Paystack/Stripe/Monnify/Fincra are unaffected: none of their
+    // webhook paths require a caller-supplied secret the way
+    // Flutterwave's verif-hash scheme does.
     final trimmedWebhookSecret = webhookSecret?.trim();
     if (gateway == 'flutterwave' &&
         (trimmedWebhookSecret == null || trimmedWebhookSecret.isEmpty)) {
-      Log.warning(
-        'Flutterwave connected for workspaceId=$workspaceId with no webhook '
-        'secret hash — inbound webhooks for this workspace will fail signature '
-        'verification until one is set (see flutterwave_service.dart\'s header).',
+      throw KolaException(
+        message: 'Flutterwave requires a webhook secret hash to connect — without it, '
+            'kolaa cannot verify that a payment webhook actually came from '
+            'Flutterwave, so payments would never confirm automatically. Find it '
+            'in your Flutterwave dashboard under Settings > Webhooks (the '
+            '"Secret Hash" field), and paste it in alongside your secret key.',
       );
     }
 
@@ -198,6 +213,10 @@ class PaymentEndpoint extends Endpoint {
     int? conversationId,
     int? channelId,
     Map<String, dynamic>? metadata,
+    /// Task #142 — pass the Invoice this checkout is paying, so a
+    /// successful payment credits it automatically. See
+    /// PaymentCheckoutService.initializeCheckout's own doc on [invoiceId].
+    int? invoiceId,
   }) async {
     await requireWorkspaceAccess(accessToken: accessToken, workspaceId: workspaceId);
     return _checkout.initializeCheckout(
@@ -210,6 +229,7 @@ class PaymentEndpoint extends Endpoint {
       conversationId: conversationId,
       channelId: channelId,
       metadata: metadata,
+      invoiceId: invoiceId,
     );
   }
 

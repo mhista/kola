@@ -233,6 +233,28 @@ class SecurityFilter {
     return SecurityCheckResult.ok;
   }
 
+  /// Checkpoint #4 — a request against the public REST API (POST
+  /// /v1/messages, POST /v1/ai/query), keyed by the calling API key
+  /// rather than an end customer's externalUserId. Added ahead of
+  /// launch: both routes previously did auth-only (ApiKeyService.verify)
+  /// with no throttle at all — a real gap, given the server runs on a
+  /// 0.2 vCPU-capped instance (see admin_password_hasher.dart's header
+  /// for the same constraint biting once already) and the AI query route
+  /// in particular is expensive per call.
+  ///
+  /// Deliberately RATE-LIMIT ONLY — does not run checkInboundMessage's
+  /// content-pattern checks. Those patterns (blocking the substrings
+  /// "password", "authorization:", "bearer ", etc.) are tuned for an
+  /// anonymous customer's free-text chat message, not a developer-
+  /// authenticated, structured API payload — a legitimate support answer
+  /// or business question containing one of those words would
+  /// false-positive for no real security benefit here; the auth
+  /// boundary for this checkpoint is the API key itself, already
+  /// verified before this is ever called.
+  SecurityCheckResult checkApiRequest({required String callerId}) {
+    return _checkRateLimit('apikey:$callerId');
+  }
+
   SecurityCheckResult _checkRateLimit(String externalUserId) {
     final now = DateTime.now();
     final history = _requestHistory[externalUserId] ?? [];

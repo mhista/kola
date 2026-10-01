@@ -22,13 +22,13 @@ abstract class Env {
     defaultValue: '',
   );
 
-  /// 'waitlist' (pre-launch, the default) or 'launched'. Deliberately not a
-  /// runtime UI control — anyone viewing the page shouldn't be able to flip
-  /// it. Set at build time instead:
-  ///   dart compile js ... -DLAUNCH_MODE=launched
+  /// 'waitlist' or 'launched' (the default as of 2026-10-01, launch day).
+  /// Deliberately not a runtime UI control — anyone viewing the page
+  /// shouldn't be able to flip it. Set at build time instead:
+  ///   dart compile js ... -DLAUNCH_MODE=waitlist
   /// See build.sh, and lib/app.dart's use of this value.
   static const launchMode = String.fromEnvironment(
     'LAUNCH_MODE',
-    defaultValue: 'waitlist',
+    defaultValue: 'launched',
   );
 }

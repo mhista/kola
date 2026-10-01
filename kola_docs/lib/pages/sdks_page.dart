@@ -30,7 +30,7 @@ class SdksPage extends StatelessComponent {
       const CodeBlock(
         dart:
             "import 'package:kola_client/kola_client.dart';\n\n"
-            "final client = Client('https://api.kola.app');\n"
+            "final client = Client('https://api.kolaa.co');\n"
             "final workspaces = await client.workspace.listMyWorkspaces(accessToken);",
       ),
 

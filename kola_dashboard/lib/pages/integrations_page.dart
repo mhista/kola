@@ -118,6 +118,12 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   String _search = '';
   String _category = 'all';
 
+  /// A second, independent filter axis (status, not category) — "which
+  /// of these have I actually not set up yet." Combines with [_category]
+  /// and [_search] rather than replacing them, so "Sell" + "not
+  /// connected" narrows to exactly the sell tools still worth a look.
+  bool _onlyNotConnected = false;
+
   /// Key of the connector whose modal is open. Null means none.
   String? _openKey;
 
@@ -223,12 +229,20 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     return [
       for (final c in _connectors)
         if (_category == 'all' || c.category == _category)
-          if (q.isEmpty ||
-              c.name.toLowerCase().contains(q) ||
-              c.description.toLowerCase().contains(q))
-            c,
+          if (!_onlyNotConnected || c.status == 'available')
+            if (q.isEmpty ||
+                c.name.toLowerCase().contains(q) ||
+                c.description.toLowerCase().contains(q))
+              c,
     ];
   }
+
+  /// Everything with [_badge]'s "Not connected" state — i.e. available
+  /// to connect but not yet, and not a coming-soon tile (those aren't
+  /// something to "not have gotten to" yet). Counted over every
+  /// connector, same "keep the number stable while search narrows the
+  /// grid" reasoning as [_countFor].
+  int get _notConnectedCount => _connectors.where((c) => c.status == 'available').length;
 
   ConnectorStatus? get _open {
     final key = _openKey;
@@ -271,6 +285,19 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       _pendingBookings = const [];
       _pendingBookingsError = null;
       _loadPendingBookings(c);
+    }
+  }
+
+  /// Lifts `readonly` the instant a field is actually focused — see the
+  /// search box's own comment in [_controls] for why this, and not
+  /// `autocomplete="off"` alone, is what actually stops Chrome's
+  /// address/contact autofill. Shared by every text input on this page
+  /// that carries it (search box, connector [_field]s, the oauth
+  /// target-URL field) rather than three near-identical closures.
+  void _clearReadonly(web.Event e) {
+    final target = e.target;
+    if (target != null) {
+      (target as web.HTMLInputElement).removeAttribute('readonly');
     }
   }
 
@@ -959,26 +986,29 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
               'aria-label': 'Search integrations',
               'placeholder': 'Search integrations',
               'name': 'integrations-filter',
-              // Chrome/Firefox's address/contact autofill will happily
-              // drop the signed-in owner's saved email into any plain
-              // text/search input that doesn't explicitly opt out —
-              // observed here specifically after clicking a card's
-              // Connect button, which blurs/refocuses the DOM and gives
-              // the browser's autofill heuristics a fresh chance to
-              // "helpfully" fill the nearest text input on the page.
-              // 'off' is the correct value per the HTML spec (some
-              // browsers ignore literal 'off' for login-shaped fields,
-              // but this is a plain search box, not a credential field,
-              // so it isn't fighting that heuristic) — same fix already
-              // applied to the oauth target-URL input further down this
-              // file.
+              // 2026-09-21 — 'autocomplete: off' alone (the previous fix
+              // here) turned out not to be enough: this box was still
+              // observed filling with the signed-in owner's saved email,
+              // highlighted in Chrome's own autofill yellow, right after
+              // opening a connector's Connect modal. This is a
+              // well-documented Chrome behaviour — its address/contact
+              // autofill heuristic ignores a literal 'off' on plain
+              // text/search inputs outside a <form>, which is exactly
+              // what every input on this page is. 'readonly' is not
+              // ignorable the same way: Chrome's autofill pass never
+              // writes into a readonly field at all, so nothing can land
+              // here before a real person actually focuses it — see
+              // [_clearReadonly] below, which lifts the attribute the
+              // instant that focus happens, before any typing.
               'autocomplete': 'off',
+              'readonly': 'readonly',
               'style': 'flex:1 1 220px;min-width:180px;padding:9px 12px;'
                   'border-radius:${KolaRadius.md};'
                   'border:1px solid ${KolaVar.border};'
                   'background:${KolaVar.card};color:${KolaVar.text};'
                   'font-family:inherit;font-size:${KolaType.body}',
             },
+            events: {'focus': _clearReadonly},
             value: _search,
             onInput: (v) => setState(() => _search = v),
           ),
@@ -992,8 +1022,43 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
               _chip('operate', 'Operate'),
             ],
           ),
+          _notConnectedToggle(),
         ],
       );
+
+  /// "Which of these have I not set up yet" — a status filter, kept
+  /// visually apart from the category chips above (a divider, not just
+  /// a gap) since it answers a different question than they do and can
+  /// be combined with any of them.
+  Component _notConnectedToggle() {
+    final active = _onlyNotConnected;
+    final count = _notConnectedCount;
+    return div(
+      attributes: {
+        'style': 'display:flex;align-items:center;gap:6px;'
+            'padding-left:10px;margin-left:2px;'
+            'border-left:1px solid ${KolaVar.border}',
+      },
+      [
+        button(
+          attributes: {
+            'type': 'button',
+            'aria-pressed': active ? 'true' : 'false',
+            'style': 'padding:7px 13px;border-radius:${KolaRadius.pill};'
+                'border:1px solid ${active ? KolaVar.accent : KolaVar.border};'
+                'background:${active ? KolaVar.accent : 'transparent'};'
+                'color:${active ? KolaVar.accentText : KolaVar.mutedStrong};'
+                'font-family:inherit;font-size:${KolaType.small};'
+                'font-weight:600;cursor:pointer',
+          },
+          events: {
+            'click': (_) => setState(() => _onlyNotConnected = !_onlyNotConnected),
+          },
+          [Component.text('Not connected ($count)')],
+        ),
+      ],
+    );
+  }
 
   Component _chip(String id, String label) {
     final active = _category == id;
@@ -1341,18 +1406,25 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   /// really OAuth; see connector_catalog.dart's slack entry (now
   /// `ConnectorAuth.manage`, pointing at the Settings page's existing,
   /// already-working Incoming Webhook form instead of a second, BYO
-  /// -webhook Slack App that this codebase never had). The remaining
-  /// four now have real flows below. [_oauthBody] checks this set
+  /// -webhook Slack App that this codebase never had).
+  ///
+  /// dropbox/hubspot/instagram_shop/facebook_catalog went through a
+  /// second pass (2026-09) that gave them real OAuth — credentials
+  /// genuinely connect and store correctly. Pre-launch audit (2026-10-01)
+  /// found the OTHER half missing: no adapter for any of the four exists
+  /// in ConnectorSyncSweepService, so nothing ever actually syncs after
+  /// connecting — a business would see "Connected" and believe data was
+  /// flowing when it never was. Decided (2026-10-01, launch day): ship
+  /// "coming soon" for these four rather than a connect flow with no
+  /// payoff behind it — same call this set's own history already made
+  /// once for the same reason. Move a key back in here the same day its
+  /// real sync adapter ships, not before. [_oauthBody] checks this set
   /// before ever rendering the Connect button — see its own body.
   static const _wiredOAuthProviders = {
     'google_sheets',
     'google_drive',
     'google_calendar',
     'onedrive_excel',
-    'dropbox',
-    'hubspot',
-    'instagram_shop',
-    'facebook_catalog',
   };
 
   static const _oauthTargetConfig = <String, ({
@@ -1393,18 +1465,25 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   List<Component> _oauthBody(ConnectorStatus c) {
     final target = _oauthTargetConfig[c.key];
 
+    // Checked BEFORE the connected/not-connected branch, deliberately —
+    // a connector pulled out of _wiredOAuthProviders (see that set's own
+    // doc comment) should show this honest message even for a workspace
+    // that already connected it back when it was wired. Otherwise a
+    // workspace connected before the 2026-10-01 change would keep seeing
+    // a bare "Connected." that implies syncing while every NEW workspace
+    // sees "coming soon" for the exact same connector — two different
+    // claims about the same unbuilt feature.
+    if (!_wiredOAuthProviders.contains(c.key)) {
+      return [
+        _note(
+          "${c.name}'s connect flow isn't wired up in kolaa yet — this "
+          "tile is here so you know it's coming, not so you can connect "
+          'it today.',
+        ),
+      ];
+    }
+
     if (c.status != 'connected') {
-      if (!_wiredOAuthProviders.contains(c.key)) {
-        // See _wiredOAuthProviders' own doc comment. Honest, not broken:
-        // no button that would just redirect into a server error.
-        return [
-          _note(
-            "${c.name}'s connect flow isn't wired up in kolaa yet — this "
-            "tile is here so you know it's coming, not so you can connect "
-            'it today.',
-          ),
-        ];
-      }
       return [
         if (c.helpText.isNotEmpty) _note(c.helpText),
         if (_submitError != null)
@@ -1484,13 +1563,18 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
               type: InputType.text,
               attributes: {
                 'placeholder': target.placeholder,
+                // Same Chrome-autofill fix as the search box and
+                // _field() above — 'off' alone isn't enough, readonly
+                // -until-focus is what actually stops it.
                 'autocomplete': 'off',
+                'readonly': 'readonly',
                 'style': 'width:100%;box-sizing:border-box;padding:9px 12px;'
                     'border-radius:${KolaRadius.md};'
                     'border:1px solid ${KolaVar.border};'
                     'background:${KolaVar.bg};color:${KolaVar.text};'
                     'font-size:${KolaType.body}',
               },
+              events: {'focus': _clearReadonly},
               value: _sheetUrl,
               onInput: (v) => _sheetUrl = v,
             ),
@@ -1979,7 +2063,21 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
             type: f.secret ? InputType.password : InputType.text,
             attributes: {
               'placeholder': f.placeholder,
-              'autocomplete': 'off',
+              // 'new-password' (not 'off') is the value Chrome's own
+              // password manager actually respects for NOT offering to
+              // fill a saved credential — 'off' is well-documented to be
+              // ignored on password-shaped fields specifically. These
+              // fields hold a business's own API keys/secrets, never a
+              // login password, so there is never a saved value here
+              // that SHOULD be offered.
+              'autocomplete': f.secret ? 'new-password' : 'off',
+              // Same readonly-until-focus fix as the search box above
+              // (see its comment) — belt-and-suspenders for a field that
+              // may hold something genuinely sensitive: Chrome's
+              // address/contact autofill cannot write into a readonly
+              // input, full stop, regardless of what it thinks this
+              // field is for. Lifted the instant it's actually focused.
+              'readonly': 'readonly',
               'style': 'width:100%;box-sizing:border-box;padding:9px 12px;'
                   'border-radius:${KolaRadius.md};'
                   'border:1px solid ${KolaVar.border};'
@@ -1987,6 +2085,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                   'font-family:${f.secret ? KolaFonts.mono : 'inherit'};'
                   'font-size:${KolaType.body}',
             },
+            events: {'focus': _clearReadonly},
             value: _formValues[f.key] ?? '',
             // Deliberately NOT setState: rebuilding on every keystroke
             // would reset the caret in every other field on the form.
@@ -2142,8 +2241,9 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
               'style': 'font-size:${KolaType.small};color:${KolaVar.muted}',
             },
             [
-              Component.text('Try a different word, or clear the category '
-                  'filter.'),
+              Component.text('Try a different word, or clear a filter '
+                  '${_onlyNotConnected ? '("Not connected" included) ' : ''}'
+                  'above.'),
             ],
           ),
         ],
